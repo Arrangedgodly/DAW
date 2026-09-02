@@ -275,6 +275,29 @@ export type LanePatterns = Readonly<Record<LaneId, readonly Pattern[]>>;
 /** Per-lane linear chain of pattern ids (ids may repeat). */
 export type SongChain = Readonly<Record<LaneId, readonly string[]>>;
 
+/**
+ * DES-6 named cue states: per-lane text labels on chain POSITIONS (parallel to
+ * songChain — slot i of the chain may carry a section label like "VERSE"; a
+ * repeat of the same pattern is a distinct slot, so the second A can be the
+ * "DROP"). `null` = no cue anywhere (canonical empty form). Migration-safe:
+ * the field is optional+nullable, so v1 docs written before DES-6 stay valid.
+ */
+export const CUE_MAX_CHARS = 12;
+export type LaneCues = Readonly<Record<LaneId, readonly (string | null)[]>>;
+
+// Empty-after-trim strings pass the SCHEMA and are canonicalized to null by
+// validate.ts (keeps "clear label" writes single-path in the store).
+const CueLabel = v.pipe(v.string(), v.trim(), v.maxLength(CUE_MAX_CHARS));
+
+const ChainCuesSchema = v.nullable(
+  v.strictObject({
+    drums: v.array(v.nullable(CueLabel)),
+    bass: v.array(v.nullable(CueLabel)),
+    chords: v.array(v.nullable(CueLabel)),
+    lead: v.array(v.nullable(CueLabel)),
+  }),
+);
+
 const PatternsSchema = v.strictObject({
   drums: v.array(PatternSchema),
   bass: v.array(PatternSchema),
@@ -304,6 +327,8 @@ export interface ProjectDocument {
   readonly lanes: readonly Lane[];
   readonly patterns: LanePatterns;
   readonly songChain: SongChain;
+  /** Optional per-slot section labels (DES-6); absent/null = no cues. */
+  readonly chainCues?: LaneCues | null;
 }
 
 export const ProjectDocumentSchema = v.pipe(
@@ -323,6 +348,8 @@ export const ProjectDocumentSchema = v.pipe(
     lanes: v.pipe(v.array(LaneSchema), v.length(4)),
     patterns: PatternsSchema,
     songChain: SongChainSchema,
+    // Optional (backward compatible): pre-DES-6 docs omit it entirely.
+    chainCues: v.optional(ChainCuesSchema),
   }),
 );
 

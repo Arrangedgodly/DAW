@@ -38,8 +38,23 @@ const [activePatterns, setActivePatterns] = createSignal<Record<LaneId, string>>
 );
 const [focusedCell, setFocusedCell] = createSignal<FocusedCell | null>(null);
 
+/**
+ * DES-6 view mode — the collapse/expand raise. FOCUS = collapse-to-pattern
+ * (rail slim, grids larger); CHAIN = expand-to-chain (rail prominent).
+ * Toggling NEVER clears selection (the raise's law): activeLane,
+ * activePatterns and focusedCell are independent signals, so the editing
+ * place survives both directions.
+ */
+export type ViewMode = "focus" | "chain";
+const [viewMode, setViewMode] = createSignal<ViewMode>("chain");
+
 /** The lane selection follows the latest grid interaction. */
-export { activeLane, focusedCell, activePatterns };
+export { activeLane, focusedCell, activePatterns, viewMode };
+
+export function toggleViewMode(): ViewMode {
+  setViewMode((m) => (m === "chain" ? "focus" : "chain"));
+  return viewMode();
+}
 
 export function selectLane(lane: LaneId): void {
   setActiveLane(lane);

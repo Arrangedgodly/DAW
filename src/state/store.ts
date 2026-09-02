@@ -450,11 +450,126 @@ export function renamePattern(lane: LaneId, patternId: string, name: string): vo
 
 /**
  * Replace a lane's song chain (ordered pattern ids; ids may repeat). Throws
- * via validation when an id does not exist in the lane.
+ * via validation when an id does not exist in the lane. Cue labels are
+ * positional, so they ride the rewrite index-aligned (slot i keeps its label
+ * when a chain rewrite keeps slot i; new slots start unlabeled).
  */
 export function setLaneChain(lane: LaneId, patternIds: readonly string[]): void {
   const doc = docStore.getState().doc;
-  commit({ ...doc, songChain: { ...doc.songChain, [lane]: [...patternIds] } });
+  commit(
+    withChain(doc, lane, [...patternIds], (old) =>
+      patternIds.map((_, i) => old[i] ?? null),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DES-6: pattern management + chain slot edits + named cue labels
+// ---------------------------------------------------------------------------
+
+/** Rewrite one lane's chain plus its parallel cue array. */
+function withChain(
+  doc: ProjectDocument,
+  lane: LaneId,
+  chain: string[],
+  cues: (old: readonly (string | null)[]) => (string | null)[],
+): ProjectDocument {
+  // Cue arrays are parallel to the chain — pad to chain length first, since
+  // lanes that never carried labels have no array at all.
+  const old = padCues(doc.chainCues?.[lane] ?? [], chain.length);
+  const nextCues = cues(old);
+  // Full four-lane object (schema requires every lane key, parallel lengths).
+  const merged: Record<LaneId, (string | null)[]> = {
+    drums: padCues(doc.chainCues?.drums ?? [], doc.songChain.drums.length),
+    bass: padCues(doc.chainCues?.bass ?? [], doc.songChain.bass.length),
+    chords: padCues(doc.chainCues?.chords ?? [], doc.songChain.chords.length),
+    lead: padCues(doc.chainCues?.lead ?? [], doc.songChain.lead.length),
+  };
+  merged[lane] = nextCues;
+  const anyLabel = (Object.keys(merged) as LaneId[]).some((l) =>
+    merged[l].some((c) => c != null && c.trim() !== ""),
+  );
+  return {
+    ...doc,
+    songChain: { ...doc.songChain, [lane]: chain },
+    // Canonical empty form: null when no lane carries a label anymore.
+    chainCues: anyLabel ? merged : null,
+  };
+}
+
+function padCues(slots: readonly (string | null)[], length: number): (string | null)[] {
+  return Array.from({ length }, (_, i) => slots[i] ?? null);
+}
+
+/**
+ * Remove a pattern from a lane. Refuses (returns false) when it is the lane's
+ * last pattern — a lane always keeps one. All chain occurrences go with it;
+ * surviving slots shift left POSITIONALLY, each keeping its own cue label
+ * (repeats of a surviving pattern keep their per-slot labels). If the chain
+ * emptied, the first remaining pattern takes slot 0.
+ */
+export function removePattern(lane: LaneId, patternId: string): boolean {
+  const doc = docStore.getState().doc;
+  if (doc.patterns[lane].length <= 1) return false;
+  if (!doc.patterns[lane].some((p) => p.id === patternId)) return false;
+  const nextPatterns = doc.patterns[lane].filter((p) => p.id !== patternId);
+  const base = { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } };
+  const cues = doc.chainCues?.[lane] ?? [];
+  const kept = doc.songChain[lane]
+    .map((id, i) => ({ id, cue: cues[i] ?? null }))
+    .filter((slot) => slot.id !== patternId);
+  if (kept.length === 0) {
+    commit(withChain(base, lane, [nextPatterns[0]!.id], () => [null]));
+    return true;
+  }
+  if (kept.length === doc.songChain[lane].length) {
+    commit(base); // pattern existed but was never chained
+    return true;
+  }
+  commit(
+    withChain(base, lane, kept.map((s) => s.id), () => kept.map((s) => s.cue)),
+  );
+  return true;
+}
+
+/** Append one chain slot playing `patternId` (unlabeled). */
+export function appendChainSlot(lane: LaneId, patternId: string): void {
+  const doc = docStore.getState().doc;
+  if (!doc.patterns[lane].some((p) => p.id === patternId)) return;
+  // `old` arrives padded to the NEW chain length — the appended slot is the
+  // trailing null already.
+  commit(withChain(doc, lane, [...doc.songChain[lane], patternId], (old) => [...old]));
+}
+
+/** Remove chain slot `index`; refuses (returns false) on the last slot. */
+export function removeChainSlot(lane: LaneId, index: number): boolean {
+  const doc = docStore.getState().doc;
+  const chain = doc.songChain[lane];
+  if (chain.length <= 1 || index < 0 || index >= chain.length) return false;
+  commit(
+    withChain(doc, lane, chain.filter((_, i) => i !== index), (old) =>
+      old.filter((_, i) => i !== index),
+    ),
+  );
+  return true;
+}
+
+/**
+ * Set/clear one chain slot's named cue label (the DES-6 raise: sections read
+ * as named cue states, text-equivalent). Empty/whitespace clears; longer
+ * input throws through validation (schema CUE_MAX_CHARS) with the store
+ * untouched. Rapid edits coalesce per slot.
+ */
+export function setChainCue(lane: LaneId, index: number, label: string | null): void {
+  const doc = docStore.getState().doc;
+  const trimmed = (label ?? "").trim();
+  const value = trimmed === "" ? null : trimmed;
+  commit(
+    withChain(doc, lane, [...doc.songChain[lane]], (old) =>
+      old.map((l, i) => (i === index ? value : l)),
+    ),
+    `cue:${lane}:${index}`,
+  );
 }
 
 export function undo(): void {

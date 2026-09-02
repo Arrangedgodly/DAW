@@ -5,17 +5,20 @@
  */
 
 import Booth from "./components/Booth";
+import PatternRail from "./components/PatternRail";
 import StageFloor from "./components/StageFloor";
 import "./styles/app.css";
 import "./styles/grid.css";
 import "./styles/lane-header.css";
 import "./styles/fx-strip.css";
+import "./styles/pattern-rail.css";
 
 export default function App() {
   return (
     <div class="app">
       <Booth />
       <main class="stage" aria-label="Stage floor">
+        <PatternRail />
         <StageFloor />
       </main>
     </div>

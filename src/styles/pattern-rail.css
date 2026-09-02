@@ -1,0 +1,235 @@
+/*
+ * Pattern rail (DES-6) — the song arrangement surface under the booth.
+ * Arcade Stage Floor vocabulary: silkscreen labels, lane hue codes state on
+ * border + fill only (ink law: info-critical text stays warm white on the
+ * ground; near-black ink on fills). Pending is coded by fill + border + a
+ * shape mark (diamond flag) + text in the aria-label — never color alone.
+ */
+
+.rail {
+  --lane-hue: var(--color-ink);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.rail-title {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+.rail-view-toggle {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.rail-view-toggle:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.rail-view-toggle:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.rail-row {
+  --lane-hue: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  flex-wrap: wrap;
+}
+
+.rail-row[data-lane="drums"] { --lane-hue: var(--color-lane-drums); }
+.rail-row[data-lane="bass"] { --lane-hue: var(--color-lane-bass); }
+.rail-row[data-lane="chords"] { --lane-hue: var(--color-lane-chords); }
+.rail-row[data-lane="lead"] { --lane-hue: var(--color-lane-lead); }
+
+.rail-lane-name {
+  flex: none;
+  width: 64px;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+.rail-tiles {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.rail-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-width: 64px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
+  cursor: pointer;
+  font: var(--text-value);
+}
+
+.rail-tile:hover {
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.rail-tile:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* Cue label spans the tile's full first row (the named section state). */
+.rail-tile-cue {
+  grid-column: 1 / -1;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.rail-tile-cue.is-empty {
+  color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
+}
+
+.rail-tile-name {
+  color: var(--color-ink);
+}
+
+.rail-tile-bars {
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+}
+
+/* State coding: border + fill carry it; the diamond flag is the shape mark. */
+.rail-tile[data-state="active"] {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 18%, var(--color-ground));
+}
+
+.rail-tile[data-state="selected"] {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 28%, var(--color-ground));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+}
+
+/* PENDING: pattern-bordered with a marching fill — the quantized switch is
+ * queued but has NOT landed yet (Hulk: pending must be visible). */
+.rail-tile[data-state="pending"] {
+  border-color: var(--color-ink);
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lane-hue) 32%, var(--color-ground)) 0 4px,
+    color-mix(in srgb, var(--lane-hue) 12%, var(--color-ground)) 4px 8px
+  );
+}
+
+/* Pending stays STATIC (token law 4: no infinite pulses) — hatch + flag. */
+.rail-tile-flag {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 8px;
+  color: var(--color-ink);
+}
+
+.rail-append {
+  font: var(--text-value);
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
+  border: 1px dashed color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 3px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.rail-append:hover {
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.rail-append:focus-visible,
+.rail-tool:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.rail-struct-flag {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
+  border-radius: 3px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.rail-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.rail-tool {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.rail-tool:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.rail-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rail-edit {
+  font: var(--text-value);
+  color: var(--color-ink);
+  background: var(--color-ground);
+  border: 1px solid var(--lane-hue);
+  border-radius: 3px;
+  padding: var(--space-1) var(--space-2);
+  width: 9ch;
+}
+
+/* ---- FOCUS view: collapse-to-pattern. Rail slims to the active tiles (the
+ * arrangement stays reachable one click away); grids enlarge. Selection is
+ * untouched — expanding returns the exact editing place. ---- */
+
+.rail[data-view="focus"] .rail-tile:not([data-state="active"]):not([data-state="pending"]):not([data-state="selected"]),
+.rail[data-view="focus"] .rail-tools,
+.rail[data-view="focus"] .rail-append {
+  display: none;
+}
+
+.stage-floors[data-view="focus"] .lane-grid {
+  zoom: 1.25;
+}

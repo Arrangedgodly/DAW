@@ -345,6 +345,16 @@ export class Session {
     return () => this.switchListeners.delete(listener);
   }
 
+  /**
+   * DES-6: true when a chain STRUCTURE edit is still deferred to this lane's
+   * next iteration boundary (queued by setLaneSchedule while playing). Lets
+   * the pattern rail show "pending" for arrangement edits too, not just
+   * pattern switches.
+   */
+  hasPendingSchedule(lane: LaneId): boolean {
+    return this.lanePlayback[LANE_IDS.indexOf(lane)]?.pendingSchedule != null;
+  }
+
   private emitSwitch(lane: LaneId): void {
     for (const l of this.switchListeners) l(lane);
   }
@@ -592,6 +602,8 @@ export class Session {
           pb.pendingSchedule = null;
           pb.anchorStep = step;
           local = 0;
+          // DES-6: the rail's structure-pending indicator clears exactly here.
+          this.emitSwitch(LANE_IDS[i]);
         }
         while (local >= pb.schedule.chainSteps) {
           pb.anchorStep += pb.schedule.chainSteps;

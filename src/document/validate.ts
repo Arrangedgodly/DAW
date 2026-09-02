@@ -67,7 +67,7 @@ export function validateProject(input: unknown): ProjectDocument {
   if (issues.length > 0) {
     throw new ProjectValidationError(`Invalid project document (${issues.length} issues)`, issues);
   }
-  return normalizeProject(doc);
+  return canonicalizeCues(normalizeProject(doc));
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +108,14 @@ function semanticIssues(doc: ProjectDocument): string[] {
     doc.songChain[laneId].forEach((id, i) => {
       if (!seen.has(id)) issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
     });
+
+    // DES-6 cue labels are positional: one entry per chain slot (parallel array).
+    const cues = doc.chainCues?.[laneId];
+    if (cues && cues.length !== doc.songChain[laneId].length) {
+      issues.push(
+        `chainCues.${laneId}: expected ${doc.songChain[laneId].length} cue slots (one per chain position), got ${cues.length}`,
+      );
+    }
   }
 
   return issues;
@@ -171,4 +179,31 @@ export function normalizeProject(doc: ProjectDocument): ProjectDocument {
     if (patterns[laneId] !== source) changed = true;
   }
   return changed ? { ...doc, patterns } : doc;
+}
+
+/**
+ * Canonicalize cue labels (DES-6): trim, drop empties to null, and collapse
+ * the whole `chainCues` field to null when no lane carries a label (the
+ * canonical empty form — keeps default documents byte-stable for the golden
+ * codec test). Identity-preserving when nothing changes.
+ */
+export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
+  if (!doc.chainCues) return doc;
+  let anyLabel = false;
+  let changed = false;
+  const next = {} as Record<LaneId, (string | null)[]>;
+  for (const lane of LANE_IDS) {
+    const slots = doc.chainCues[lane] ?? [];
+    next[lane] = slots.map((label) => {
+      const trimmed = (label ?? "").trim();
+      if (!trimmed) {
+        if (label != null) changed = true;
+        return null;
+      }
+      anyLabel = true;
+      return trimmed === label ? label : (changed = true, trimmed);
+    });
+  }
+  if (!anyLabel) return changed || doc.chainCues !== null ? { ...doc, chainCues: null } : doc;
+  return changed ? { ...doc, chainCues: next } : doc;
 }
