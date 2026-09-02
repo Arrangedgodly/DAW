@@ -19,6 +19,10 @@
         "sampleRate": 44100,
         "loopSamples": 88200
       }
+    },
+    "wav/encoder-stereo-2frame-v1": {
+      "sha256": "cfdbfd64a0dd69733cdc496fcbf7a56fd8603d9d525a9726d4e5000f45dd0af7",
+      "byteLength": 52
     }
   }
 }

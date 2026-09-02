@@ -1,8 +1,8 @@
 /**
  * Projects (HU-3, absorbing MF-3's FileIO): one booth-corner "PROJECTS" button
  * opening a popover with every saved project (name + relative time, from
- * listProjects metadata) plus NEW / SAVE FILE / OPEN FILE — the three former
- * booth buttons relocated here so the booth stays uncluttered (TE-style).
+ * listProjects metadata) plus NEW / EXPORT WAV / SAVE FILE / OPEN FILE — the
+ * former booth buttons relocated here so the booth stays uncluttered (TE-style).
  *
  * Opening a project follows the ONE ordering law shared with import and NEW:
  * `switchToProject` (flush + stop the old autosave controller, start the new
@@ -22,6 +22,7 @@
 import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import { docStore, loadDocument } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
+import { exportWav } from "../audio/exportWav";
 import {
   getActiveProjectId,
   getBootDb,
@@ -144,6 +145,27 @@ export default function Projects(): JSX.Element {
     exportProjectFile(docStore.getState().doc);
   };
 
+  /**
+   * WAV export (MF-4): offline render (own OfflineAudioContext — playback is
+   * untouched even while playing) → loop-tight stereo file download. Typed
+   * result → success or error toast; busy flag keeps the action one-shot.
+   */
+  const handleExportWav = async () => {
+    if (busy()) return;
+    setBusy(true);
+    showInfo("RENDERING WAV…");
+    try {
+      const result = await exportWav(docStore.getState().doc);
+      if (result.ok) {
+        showSuccess(`WAV EXPORTED · ${result.bars} BAR${result.bars === 1 ? "" : "S"}`);
+      } else {
+        showError(result.message, { suggestion: result.suggestion });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleFile = async (file: File) => {
     const db = getBootDb();
     if (!db) return;
@@ -223,6 +245,14 @@ export default function Projects(): JSX.Element {
               onClick={() => void handleNew()}
             >
               NEW
+            </button>
+            <button
+              type="button"
+              class="booth-btn projects-action"
+              disabled={busy()}
+              onClick={() => void handleExportWav()}
+            >
+              EXPORT WAV
             </button>
             <button
               type="button"
