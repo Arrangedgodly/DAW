@@ -572,6 +572,16 @@ export function setChainCue(lane: LaneId, index: number, label: string | null): 
   );
 }
 
+/**
+ * Replace the whole document (MF-2 boot restore). Decoded projects arrive
+ * pre-normalized from validateProject, but `commit` re-validates anyway —
+ * the boot path is untrusted-by-policy (IndexedDB row → codec → store).
+ * Clears coalescing so the restore is not glued to any prior gesture.
+ */
+export function loadDocument(doc: ProjectDocument): void {
+  commit(doc);
+}
+
 export function undo(): void {
   lastCoalesceKey = null; // a history jump ends any coalescing gesture
   docStore.temporal.getState().undo();

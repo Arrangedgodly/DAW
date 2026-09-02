@@ -32,6 +32,7 @@ import {
   projectScaleChipLabel,
 } from "../state/scaleChip";
 import ScalePopover from "./ScalePopover";
+import SaveIndicator from "./SaveIndicator";
 
 const session = getSession();
 
@@ -345,6 +346,7 @@ export default function Booth() {
           class="booth-sr"
           aria-live="polite"
         />
+        <SaveIndicator />
       </div>
     </header>
   );

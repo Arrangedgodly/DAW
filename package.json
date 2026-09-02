@@ -16,6 +16,7 @@
     "test:all": "vitest run"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "solid-js": "^1.9.15",
     "valibot": "^1.4.2",
     "zundo": "^2.3.0",
