@@ -36,6 +36,7 @@ import {
   FxChainHost,
   type RampGainLike,
   createRealFxDeviceFactory,
+  createSoftClipNode,
 } from "../audio/fx";
 import {
   DRUM_PIECES,
@@ -50,13 +51,15 @@ interface AudioNodeContext extends AudioContextLike {
   readonly destination: AudioNode;
   createOscillator(): OscillatorNode;
   createGain(): GainNode;
+  createWaveShaper(): WaveShaperNode;
 }
 
 function hasAudioNodes(ctx: AudioContextLike): ctx is AudioNodeContext {
   return (
     "destination" in ctx &&
     typeof (ctx as AudioNodeContext).createOscillator === "function" &&
-    typeof (ctx as AudioNodeContext).createGain === "function"
+    typeof (ctx as AudioNodeContext).createGain === "function" &&
+    typeof (ctx as AudioNodeContext).createWaveShaper === "function"
   );
 }
 
@@ -857,13 +860,19 @@ export class Session {
     return this.voiceEnginePromise;
   }
 
-  /** Lazily builds the master gain wired to the destination. */
+  /**
+   * Lazily builds the master gain wired to the destination through the
+   * committed soft-clip stage (D2-D4; landed with PX-1) - the same node the
+   * offline render master uses (parity law).
+   */
   private ensureMaster(): GainNode | null {    if (this.master) return this.master;
     const ctx = this.engine.getContext();
     if (!hasAudioNodes(ctx)) return null;
     const gain = ctx.createGain();
     gain.gain.value = this._volume;
-    gain.connect(ctx.destination);
+    const clip = createSoftClipNode(ctx);
+    gain.connect(clip);
+    clip.connect(ctx.destination);
     this.master = gain;
     return gain;
   }

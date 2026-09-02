@@ -31,6 +31,7 @@ import {
   announceScale,
   projectScaleChipLabel,
 } from "../state/scaleChip";
+import { dismissFirstRunNudge, firstRunNudge } from "../state/firstRun";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
@@ -128,7 +129,10 @@ export default function Booth() {
     }
   });
 
-  const handleTogglePlay = () => void session.togglePlay();
+  const handleTogglePlay = () => {
+    if (firstRunNudge()) dismissFirstRunNudge(); // first PLAY consumes the nudge (PX-1)
+    void session.togglePlay();
+  };
   const handleToggleLoop = () => session.setLoop(!loopOn());
   const handleToggleMetro = () => {
     const next = !metroOn();
@@ -158,7 +162,8 @@ export default function Booth() {
         <button
           type="button"
           class="booth-btn booth-btn-play"
-          classList={{ "is-on": playing() }}
+          classList={{ "is-on": playing(), "booth-nudge": firstRunNudge() && !playing() }}
+          data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
           aria-pressed={playing()}
           onClick={handleTogglePlay}
         >

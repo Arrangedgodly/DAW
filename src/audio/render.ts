@@ -40,7 +40,7 @@
 
 import { compileLaneSchedule, resolveChainPatterns } from "./song";
 import { type GrooveOptions, timeAtStep, secondsPerStep } from "./time";
-import { computeTailSamples, type FxDevice, type FxTiming, FxChainHost, type RampGainLike, createRealFxDeviceFactory } from "./fx";
+import { computeTailSamples, type FxDevice, type FxTiming, FxChainHost, type RampGainLike, createRealFxDeviceFactory, createSoftClipNode, softClip } from "./fx";
 import {
   createVoiceEngine,
   createBitcrusherNode,
@@ -247,7 +247,11 @@ export async function renderProjectToBuffer(
   });
   const master = ctx.createGain();
   master.gain.value = 0.9;
-  master.connect(ctx.destination);
+  // Committed master soft-clip (D2–D4; landed with PX-1) — the same node the
+  // live session master uses (parity law: identical graph both paths).
+  const clip = createSoftClipNode(ctx);
+  master.connect(clip);
+  clip.connect(ctx.destination);
   const chains: FxChainHost[] = [];
   const laneDevices: (readonly FxDevice[] | null)[] = [];
   LANE_IDS.forEach((lane, i) => {
@@ -304,8 +308,16 @@ export async function renderProjectToBuffer(
   const raw = [buffer.getChannelData(0), buffer.getChannelData(1)].map((c) =>
     Float32Array.from(c),
   );
+  // The tail fold SUMS loop + wrapped tail AFTER the master soft-clip node,
+  // so the folded result can exceed the node's ceiling at the seam. The
+  // export is the folded loop — apply the same committed soft-clip law
+  // (pure fn, identical curve) to the final samples so the exported loop is
+  // bounded exactly like the live path.
+  const folded = foldTail(raw, loopSamples).map((ch) =>
+    Float32Array.from(ch, (x) => softClip(x)),
+  );
   return {
-    channels: foldTail(raw, loopSamples),
+    channels: folded,
     ...(opts.includeRaw ? { raw } : {}),
     loopSamples,
     tailSamples,

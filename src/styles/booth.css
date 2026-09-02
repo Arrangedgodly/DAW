@@ -238,3 +238,35 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
+
+/*
+ * First-run PLAY nudge (PX-1): a subtle in-world pulse on PLAY, first run
+ * only, until the first play. A nudge, not a modal — no focus steal, purely
+ * additive styling. Glow is decoration-only over the always-present border +
+ * fill coding (DES-1); under prefers-reduced-motion the pulse becomes a
+ * static lit border (the cue survives, the motion does not).
+ */
+.booth-btn-play.booth-nudge {
+  border-color: var(--color-lane-lead);
+  animation: booth-nudge-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes booth-nudge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 var(--glow-blur)
+      color-mix(in srgb, var(--color-lane-lead) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 var(--glow-blur)
+      color-mix(in srgb, var(--color-lane-lead) 70%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booth-btn-play.booth-nudge {
+    animation: none;
+    box-shadow: 0 0 var(--glow-blur)
+      color-mix(in srgb, var(--color-lane-lead) 55%, transparent);
+  }
+}

@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { encode } from "../../src/document/codec";
 import { createDefaultProject } from "../../src/document/schema";
+import { createDemoProject } from "../../src/document/demoSong";
 import { encodeWav16 } from "../../src/audio/wav";
 import { encodeMidi } from "../../src/audio/exportMidi";
 import { referenceMidiProject } from "../midiReference";
@@ -42,6 +43,8 @@ function realBytesFor(name: string): Uint8Array {
   switch (name) {
     case "codec/default-project-canonical-v1":
       return new TextEncoder().encode(encode(createDefaultProject()));
+    case "codec/demo-project-canonical-v1":
+      return new TextEncoder().encode(encode(createDemoProject()));
     case "wav/encoder-stereo-2frame-v1":
       return encodeWav16(
         [new Float32Array([0, 0.5]), new Float32Array([-1, 1])],

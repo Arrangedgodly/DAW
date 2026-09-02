@@ -33,6 +33,7 @@ import {
   type RenderedLoop,
 } from "../../src/audio/render";
 import { compileLaneSchedule, resolveChainPatterns } from "../../src/audio/song";
+import { softClip } from "../../src/audio/fx";
 import { timeAtStep } from "../../src/audio/time";
 import { effectiveScale } from "../../src/document/scales";
 import { getPreset } from "../../src/audio/presets";
@@ -182,13 +183,15 @@ describe("IM-5 offline render — tail correctness + loop-tightness (c)", () => 
     const early = rms(m, L, L + Math.floor(T / 4));
     const late = rms(m, L + Math.floor((2 * T) / 3), L + T);
     expect(late).toBeLessThan(early / 4);
-    // Fold semantics: out[i] = raw[i] + raw[L+i] for i < T (float32 exact).
+    // Fold semantics (PX-1 soft-clip law): out[i] = softClip(raw[i] + raw[L+i])
+    // for i < T, softClip(raw[i]) beyond (float32 exact; the post-fold clip
+    // keeps the folded export bounded like the live master).
     for (let c = 0; c < 2; c++) {
       for (let i = 0; i < T; i++) {
-        expect(result.channels[c][i]).toBeCloseTo(raw[c][i] + raw[c][L + i], 6);
+        expect(result.channels[c][i]).toBeCloseTo(softClip(raw[c][i] + raw[c][L + i]), 6);
       }
       for (let i = T; i < L; i += 97) {
-        expect(result.channels[c][i]).toBe(raw[c][i]);
+        expect(result.channels[c][i]).toBeCloseTo(softClip(raw[c][i]), 6);
       }
     }
   });

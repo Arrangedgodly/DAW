@@ -42,6 +42,8 @@ function duckableSession() {
       throw new Error("not needed");
     },
     createGain: () => master as unknown as GainNode,
+    createWaveShaper: () =>
+      ({ connect: () => undefined, curve: null, oversample: "none" }) as unknown as WaveShaperNode,
   };
   const session = new Session({
     engine: new AudioEngineContext(() => ctx),

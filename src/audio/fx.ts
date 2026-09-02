@@ -191,6 +191,63 @@ export function quantizeBits(x: number, bits: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Master soft-clip (D2–D4 committed design; landed with PX-1 because the
+// demo is the first genuinely dense 4-lane mix — per-lane voices sum well
+// past ±1 with no cross-lane headroom management, so the master needs the
+// limiter the plan always promised). Shared by the live session master and
+// the offline render master — IDENTICAL node + curve in both (parity law).
+// ---------------------------------------------------------------------------
+
+/** Output ceiling: the curve's asymptote (|y| ≤ CEILING for every x). */
+export const SOFT_CLIP_CEILING = 0.9;
+/** Below this level the curve is EXACTLY the identity (transparent knee). */
+export const SOFT_CLIP_THRESHOLD = 0.7;
+
+/**
+ * Threshold soft-knee limiter: identity below THRESHOLD, then a tanh shoulder
+ * that asymptotes at CEILING.
+ * - Bit-transparent for conversational levels (everything ≤ 0.7 untouched);
+ * - odd/monotonic (no flat zones, transients keep their order);
+ * - |y| ≤ 0.9 for EVERY input, so a hot mix can never hard-clip the export.
+ */
+export function softClip(x: number): number {
+  const t = SOFT_CLIP_THRESHOLD;
+  const c = SOFT_CLIP_CEILING;
+  const ax = Math.abs(x);
+  if (ax <= t) return x;
+  return Math.sign(x) * (t + (c - t) * Math.tanh((ax - t) / (c - t)));
+}
+
+const SOFT_CLIP_CURVE_LENGTH = 1024;
+let softClipCurveCache: Float32Array<ArrayBuffer> | null = null;
+
+/** Cached WaveShaper curve for the master soft-clip (deterministic). */
+export function softClipCurve(): Float32Array<ArrayBuffer> {
+  if (!softClipCurveCache) {
+    softClipCurveCache = new Float32Array(SOFT_CLIP_CURVE_LENGTH);
+    for (let i = 0; i < SOFT_CLIP_CURVE_LENGTH; i++) {
+      softClipCurveCache[i] = softClip((i / (SOFT_CLIP_CURVE_LENGTH - 1)) * 2 - 1);
+    }
+  }
+  return softClipCurveCache;
+}
+
+/**
+ * The master soft-clip node: master gain → THIS → destination, on both the
+ * live session path (engine/session.ts ensureMaster) and the offline render
+ * path (audio/render.ts). oversample "none" DELIBERATELY: with 2x the
+ * output downsampling filter rings above the curve's endpoints (measured
+ * ~18% overshoot), which would defeat the ceiling; the 1024-point curve is
+ * linearly interpolated by the platform, so "none" stays exactly bounded.
+ */
+export function createSoftClipNode(ctx: { createWaveShaper(): WaveShaperNode }): WaveShaperNode {
+  const node = ctx.createWaveShaper();
+  node.oversample = "none";
+  node.curve = softClipCurve();
+  return node;
+}
+
+// ---------------------------------------------------------------------------
 // Pure: export tail budget (consumed by IM-5)
 // ---------------------------------------------------------------------------
 

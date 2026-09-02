@@ -118,8 +118,10 @@ describe("project file import (real codec + IndexedDB + component)", () => {
 
   it("shows a dismissible role=alert toast for a corrupt file", async () => {
     const db = await freshDb("bitbounce-test-fileio-corrupt");
-    const before = docStore.getState().doc;
     await initPersistence({ db });
+    // PX-1: first boot loads the WELCOME SONG demo — capture the store state
+    // AFTER boot (the corrupt import must not touch whatever is loaded).
+    const before = docStore.getState().doc;
 
     const bad = { ...createDefaultProject(), transport: { ...createDefaultProject().transport, bpm: 9999 } };
     const file = new File([JSON.stringify(bad)], "bad.bitbounce.json", { type: "application/json" });

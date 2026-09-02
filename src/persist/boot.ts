@@ -9,7 +9,9 @@
 
 import { createSignal } from "solid-js";
 import { decode } from "../document/codec";
+import { createDemoProject } from "../document/demoSong";
 import { docStore, loadDocument } from "../state/store";
+import { armFirstRunNudge } from "../state/firstRun";
 import { showInfo, showError } from "../state/toasts";
 import { relativeTime } from "../lib/reltime";
 import { startAutosave, type AutosaveController, type AutosaveStatus } from "./autosave";
@@ -164,11 +166,16 @@ export async function initPersistence(
       );
     }
   } else {
-    // First boot: persist the default document so the row exists and the
-    // saved indicator starts from a truthful "saved".
+    // First boot (PX-1): the WELCOME SONG demo — a real, fully editable
+    // project (autosaves, exports) that teaches by example. NEW still creates
+    // the empty default (newProject.ts). Persist immediately so the row
+    // exists and the saved indicator starts from a truthful "saved".
+    const demo = createDemoProject();
+    loadDocument(demo);
     const now = opts.now?.() ?? Date.now();
-    await saveProject(db, projectId, docStore.getState().doc, { now });
+    await saveProject(db, projectId, demo, { now });
     setLastSavedAt(now);
+    armFirstRunNudge();
   }
   startController(projectId);
   // Narrow for the result type (startController always assigns synchronously).
