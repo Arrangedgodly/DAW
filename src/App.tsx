@@ -9,6 +9,7 @@ import PatternRail from "./components/PatternRail";
 import StageFloor from "./components/StageFloor";
 import Toasts from "./components/Toasts";
 import AudioStatus from "./components/AudioStatus";
+import SupportBanners from "./components/Banner";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
 import "./styles/grid.css";
@@ -16,6 +17,7 @@ import "./styles/lane-header.css";
 import "./styles/fx-strip.css";
 import "./styles/pattern-rail.css";
 import "./styles/toasts.css";
+import "./styles/banner.css";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -29,6 +31,7 @@ void initPersistence().catch((error) => {
 export default function App() {
   return (
     <div class="app">
+      <SupportBanners />
       <Booth />
       <main class="stage" aria-label="Stage floor">
         <PatternRail />
