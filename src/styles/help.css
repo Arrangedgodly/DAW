@@ -1,0 +1,99 @@
+/* HelpOverlay (DA-1) — Arcade Stage Floor: dark chassis panel, silkscreen
+   labels, warm-white info-critical text (D9 ink law). Focus-visible in the
+   lane-hue accent, never glow-only. */
+
+.help-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+}
+
+.help-panel {
+  background: var(--ground, #141417);
+  border: 2px solid var(--ink, #e8e2d4);
+  color: var(--ink, #e8e2d4);
+  padding: 20px 24px;
+  max-width: 640px;
+  width: min(92vw, 640px);
+  max-height: 84vh;
+  overflow: auto;
+  box-shadow: 0 0 0 2px rgba(232, 226, 212, 0.15);
+}
+
+.help-panel:focus-visible {
+  outline: 2px solid var(--accent, #e8e2d4);
+  outline-offset: 2px;
+}
+
+.help-title {
+  font-family: var(--font-label, monospace);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px;
+}
+
+.help-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.help-section-title {
+  font-family: var(--font-label, monospace);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  margin: 0 0 8px;
+  opacity: 0.8;
+}
+
+.help-list {
+  margin: 0;
+}
+
+.help-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.help-row dt {
+  flex: 0 0 auto;
+}
+
+.help-row kbd {
+  font-family: var(--font-value, monospace);
+  font-size: 11px;
+  background: rgba(232, 226, 212, 0.08);
+  border: 1px solid rgba(232, 226, 212, 0.3);
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+.help-row dd {
+  margin: 0;
+  font-family: var(--font-value, monospace);
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.help-close {
+  margin-top: 16px;
+  font-family: var(--font-label, monospace);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  background: transparent;
+  color: var(--ink, #e8e2d4);
+  border: 2px solid currentColor;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.help-close:focus-visible {
+  outline: 2px solid var(--ink, #e8e2d4);
+  outline-offset: 2px;
+}

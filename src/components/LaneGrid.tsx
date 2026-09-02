@@ -12,7 +12,7 @@
  * outside, so collapse/expand and pattern switches never lose your place.
  */
 
-import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { render } from "solid-js/web";
 import {
   DRUM_PIECES,
@@ -28,7 +28,8 @@ import {
   type PlayheadFrame,
 } from "../grid/renderer";
 import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
-import { activePatterns, currentPatternFor } from "../state/selection";
+import { activePatterns, currentPatternFor, selectLane } from "../state/selection";
+import { focusRequest, requestLaneFocus } from "../state/gridFocus";
 import LaneHeader from "./LaneHeader";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
@@ -133,6 +134,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           }
         : {}),
       onToggle: (row, step) => {
+        selectLane(lane); // the lane selection follows the latest grid interaction
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
           const res = toggleDrumStep(piece, step);
@@ -148,10 +150,29 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           if (res.turnedOn) void session.audition(lane, degree);
         }
       },
+      // DA-1 lane moves: this grid asks the coordinator; the target lane's
+      // surface consumes the request below.
+      onLaneMove: (dir, from) => requestLaneFocus(lane, dir, from.row, from.step),
+      // DA-1 audition key: Shift+Enter sounds the focused cell, no toggle.
+      onAudition: (row) => {
+        if (lane === "drums") {
+          void session.audition(lane, DRUM_PIECES[row] as DrumPiece);
+        } else if (degrees[row] !== undefined) {
+          void session.audition(lane, degrees[row]);
+        }
+      },
     });
 
     rendererRef = renderer;
     renderer.sync(pattern);
+
+    // DA-1 cross-lane focus: consume requests addressed to THIS lane and
+    // move DOM focus + roving tabindex to the carried cell (clamped by the
+    // renderer to this grid's rows/steps).
+    createEffect(() => {
+      const req = focusRequest();
+      if (req && req.lane === lane) rendererRef?.focusCell(req.row, req.step);
+    });
 
     const unsubscribe = docStore.subscribe((state, prev) => {
       if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;

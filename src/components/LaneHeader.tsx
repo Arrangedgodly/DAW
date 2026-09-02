@@ -17,6 +17,7 @@
 import { createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { type LaneId } from "../document/schema";
 import { getSession } from "../engine/session";
+import { rovingGroup } from "../lib/rovingGroup";
 import {
   docStore,
   setLaneGate,
@@ -71,6 +72,15 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [announce, setAnnounce] = createSignal("");
 
   let chipBtn: HTMLButtonElement | undefined;
+  let stripEl: HTMLDivElement | undefined;
+
+  onMount(() => {
+    // DA-1: the header strip is ONE tab stop (roving group); arrows move
+    // between its controls, Home/End to the ends. Native arrow targets
+    // (none here today, future inputs) keep their semantics.
+    const roving = stripEl ? rovingGroup(stripEl) : null;
+    onCleanup(() => roving?.dispose());
+  });
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -127,7 +137,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     <div class="lane-head lane-head-strip">
       <span class="lane-name">{LANE_NAMES[props.lane]}</span>
 
-      <div class="lane-head-controls">
+      <div class="lane-head-controls" ref={(el) => { stripEl = el; }}>
         <div class="head-ctl" role="group" aria-label={`${LANE_NAMES[props.lane]} sound`}>
           <span class="head-ctl-label" aria-hidden="true">
             {props.lane === "drums" ? "KIT" : "PRESET"}

@@ -22,6 +22,12 @@ import {
   quantizedStep,
   stepsCrossed,
 } from "./math";
+import {
+  type CellPos,
+  gridMoveForKey,
+  isLaneMoveKey,
+  nextCell,
+} from "./keynav";
 
 /** Step column width budget: cell + gap (px). Keep cells ≥20px for editing. */
 export const GRID_CELL_PX = 24;
@@ -55,6 +61,19 @@ export interface DomGridRendererOptions {
   /** Cell activated (click / Enter / Space) — owner writes the document. */
   readonly onToggle: (row: number, step: number) => void;
   /**
+   * DA-1: lane move requested from inside the grid (PageUp/PageDown,
+   * Ctrl+↑/↓, [ ]) — the owner coordinates cross-lane focus because
+   * renderers are per-lane and DOM-sibling agnostic.
+   */
+  readonly onLaneMove?: (dir: -1 | 1, from: CellPos) => void;
+  /** DA-1: audition the focused cell WITHOUT toggling (Shift+Enter). */
+  readonly onAudition?: (row: number, step: number) => void;
+  /**
+   * DA-1: Escape pops focus to the region head (the lane header's first
+   * control). Default implementation walks up to the owning lane floor.
+   */
+  readonly onEscape?: () => void;
+  /**
    * PX-3 (drums only): mount a per-row fill control into the row's dedicated
    * rail slot. Called once per row during build; the owner renders its own
    * framework UI into `el` and owns that subtree's lifecycle.
@@ -65,6 +84,8 @@ export interface DomGridRendererOptions {
 export interface GridRenderer {
   /** Request a cell activation (visual state arrives via sync()). */
   toggle(row: number, step: number): void;
+  /** DA-1: move DOM focus + the roving tabindex to a cell (clamped). */
+  focusCell(row: number, step: number): void;
   /** Position the playhead light bar (px) or park it (null). */
   setPlayhead(x: number | null): void;
   /** One-shot trigger glow on the sounding cells of a column. */
@@ -209,6 +230,10 @@ export class DomGridRenderer implements GridRenderer {
     this.opts.onToggle(row, step);
   }
 
+  focusCell(row: number, step: number): void {
+    this.moveFocus(row, step);
+  }
+
   setPlayhead(x: number | null): void {
     if (!this.playheadEl) return;
     if (x === null) {
@@ -313,24 +338,48 @@ export class DomGridRenderer implements GridRenderer {
   private onKeyDown = (e: KeyboardEvent): void => {
     const target = e.target as HTMLElement;
     if (!target.classList.contains("cell")) return;
+    const pos: CellPos = {
+      row: Number(target.dataset.row),
+      step: Number(target.dataset.step),
+    };
+
+    // Enter / Space toggle (APG grid); Shift+Enter auditions without
+    // toggling (DA-1 audition key).
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      this.activate(target);
+      if (e.shiftKey && e.key === "Enter") {
+        this.opts.onAudition?.(pos.row, pos.step);
+      } else {
+        this.activate(target);
+      }
       return;
     }
-    // Structural roving minimum (DA-1 completes the full spec later).
-    const dir = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
-    if (dir !== undefined) {
+
+    if (e.key === "Escape") {
+      // Pop to the region head: the lane header's first control.
       e.preventDefault();
-      this.moveFocus(Number(target.dataset.row), Number(target.dataset.step) + dir);
-      return;
-    }
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      e.preventDefault();
-      this.moveFocus(
-        Number(target.dataset.row) + (e.key === "ArrowDown" ? 1 : -1),
-        Number(target.dataset.step),
+      const head = this.opts.container.closest(".lane-floor")?.querySelector<HTMLElement>(
+        ".lane-head button, .lane-head input, .lane-head [href]",
       );
+      if (head) head.focus();
+      else this.opts.onEscape?.();
+      return;
+    }
+
+    // Lane moves (PageUp/PageDown, Ctrl+↑/↓, [ ]) — host coordinates.
+    const laneDir = isLaneMoveKey(e.key, e.ctrlKey || e.metaKey);
+    if (laneDir !== null) {
+      e.preventDefault();
+      this.opts.onLaneMove?.(laneDir, pos);
+      return;
+    }
+
+    // Within-grid moves: pure math from keynav (clamped, never wraps).
+    const move = gridMoveForKey(e.key, e.ctrlKey || e.metaKey);
+    if (move !== null) {
+      e.preventDefault();
+      const next = nextCell(pos, { rows: this.cells.length, steps: this.cells[0]?.length ?? 0 }, move);
+      this.moveFocus(next.row, next.step);
     }
   };
 

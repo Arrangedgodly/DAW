@@ -5,6 +5,7 @@
  */
 
 import Booth from "./components/Booth";
+import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
 import StageFloor from "./components/StageFloor";
 import Toasts from "./components/Toasts";
@@ -18,6 +19,7 @@ import "./styles/fx-strip.css";
 import "./styles/pattern-rail.css";
 import "./styles/toasts.css";
 import "./styles/banner.css";
+import "./styles/help.css";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -39,6 +41,7 @@ export default function App() {
       </main>
       <AudioStatus />
       <Toasts />
+      <KeyboardShortcuts />
     </div>
   );
 }

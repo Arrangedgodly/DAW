@@ -32,6 +32,7 @@ import {
   projectScaleChipLabel,
 } from "../state/scaleChip";
 import { dismissFirstRunNudge, firstRunNudge } from "../state/firstRun";
+import { openHelp } from "../state/helpOverlay";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
@@ -186,6 +187,14 @@ export default function Booth() {
           onClick={handleToggleMetro}
         >
           METRONOME
+        </button>
+        <button
+          type="button"
+          class="booth-btn booth-btn-help"
+          aria-haspopup="dialog"
+          onClick={(e) => openHelp(e.currentTarget)}
+        >
+          KEYS ?
         </button>
       </div>
 
