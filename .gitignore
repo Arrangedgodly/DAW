@@ -1,1 +1,6 @@
 docs/ultron/
+node_modules/
+dist/
+coverage/
+.impeccable/payload-*
+.impeccable/*body*
