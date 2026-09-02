@@ -382,6 +382,55 @@ VoiceEngineProcessor.prototype.process = function (_inputs, outputs) {
   return true;
 };
 
+// --- Bitcrusher processor (IM-4, RES-4) -------------------------------------
+//
+// Same module as the voice engine (one addModule per context, D2–D4). True
+// decimation needs one sample of state, so WaveShaper cannot do it. Params
+// arrive as port messages (no automation needed for a character effect).
+
+class BitcrusherProcessor extends __ProcessorBase {
+  constructor() {
+    super();
+    this.bits = 8;
+    this.downsample = 1;
+    this.countdown = 0;
+    this.heldL = 0;
+    this.heldR = 0;
+    this.port.onmessage = (ev) => {
+      const msg = ev.data;
+      if (!msg || typeof msg !== "object" || msg.type !== "params") return;
+      if (Number.isFinite(msg.bits)) this.bits = Math.min(16, Math.max(1, msg.bits));
+      if (Number.isFinite(msg.downsample)) {
+        this.downsample = Math.min(64, Math.max(1, Math.round(msg.downsample)));
+      }
+    };
+  }
+}
+
+BitcrusherProcessor.prototype.process = function (inputs, outputs) {
+  var out = outputs[0];
+  var inChL = inputs[0] && inputs[0][0] ? inputs[0][0] : null;
+  var inChR = inputs[0] && inputs[0][1] ? inputs[0][1] : inChL;
+  var blockLength = out[0].length;
+  var levels = Math.pow(2, this.bits) - 1;
+  for (var s = 0; s < blockLength; s++) {
+    if (this.countdown <= 0) {
+      // hold-and-decimate: quantize the held input sample (twin of
+      // quantizeBits in src/audio/fx.ts — change both or neither)
+      var xl = inChL ? inChL[s] : 0;
+      var xr = inChR ? inChR[s] : 0;
+      this.heldL = Math.round(((xl + 1) / 2) * levels) / levels * 2 - 1;
+      this.heldR = Math.round(((xr + 1) / 2) * levels) / levels * 2 - 1;
+      this.countdown = this.downsample;
+    }
+    this.countdown -= 1;
+    for (var c = 0; c < out.length; c++) {
+      out[c][s] = c === 0 ? this.heldL : this.heldR;
+    }
+  }
+  return true;
+};
+
 // --- Registration + test seam ----------------------------------------------
 
 if (
@@ -389,6 +438,7 @@ if (
   typeof registerProcessor === "function"
 ) {
   registerProcessor("voice-engine", VoiceEngineProcessor);
+  registerProcessor("bitcrusher", BitcrusherProcessor);
 }
 
 /**

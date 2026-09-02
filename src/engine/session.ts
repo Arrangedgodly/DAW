@@ -24,9 +24,18 @@ import {
 import {
   type VoiceEngineHost,
   createVoiceEngine,
+  createBitcrusherNode,
   isWorkletCapable,
   workletContextFor,
 } from "../audio/voiceEngine";
+import {
+  type FxConn,
+  type FxDevice,
+  type FxTiming,
+  FxChainHost,
+  type RampGainLike,
+  createRealFxDeviceFactory,
+} from "../audio/fx";
 import {
   DRUM_PIECES,
   LANE_IDS,
@@ -147,6 +156,8 @@ export class Session {
   /** Clamps and forwards to the transport (single clamping authority). */
   setBpm(bpm: number): void {
     this.transport.setBpm(bpm);
+    // Tempo-synced devices (delay) glide to the new musical time (τ=15 ms).
+    for (const chain of this.chainHosts) chain?.syncBpm(false);
   }
 
   setSwingAmount(amount: number): void {
@@ -340,6 +351,81 @@ export class Session {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // FX chain graph (IM-4): voice-engine → [devices…] → lane gain → master
+  // -------------------------------------------------------------------------
+
+  /** Desired chain per lane (document fxChain via the engineBridge). */
+  private laneChains: (readonly FxDevice[] | null)[] = [];
+  private readonly chainHosts: (FxChainHost | null)[] = [];
+
+  /**
+   * Push a lane's FX chain (document order). Topology edits rebuild the lane
+   * subgraph glitch-free (3 ms fade-out / 8 ms fade-in on the chain head —
+   * documented in src/audio/fx.ts); param edits ride AudioParam ramps.
+   */
+  setLaneChain(laneId: LaneId, devices: readonly FxDevice[]): void {
+    const index = LANE_IDS.indexOf(laneId);
+    this.laneChains[index] = devices;
+    this.chainHosts[index]?.setChain(devices);
+  }
+
+  /**
+   * Chain-head de-click gain: the 1→0→1 fade pair means the ramp always
+   * starts from the opposite endpoint of the requested value.
+   */
+  private static makeRampGain(gain: GainNode): RampGainLike {
+    return {
+      input: gain,
+      output: gain,
+      rampTo(value, when, seconds) {
+        const param = gain.gain;
+        param.cancelScheduledValues(when);
+        param.setValueAtTime(1 - value, when);
+        param.linearRampToValueAtTime(value, when + seconds);
+      },
+    };
+  }
+
+  /** Build one lane's chain subgraph (idempotent; called once per lane). */
+  private buildLaneChain(
+    host: VoiceEngineHost,
+    laneIndex: number,
+    master: GainNode,
+  ): void {
+    if (this.chainHosts[laneIndex]) return;
+    const ctx = this.engine.getContext();
+    if (!isWorkletCapable(ctx)) return;
+    const laneGain = ctx.createGain();
+    laneGain.gain.value = 1;
+    laneGain.connect(master);
+    const rampGain = Session.makeRampGain(ctx.createGain());
+    const laneSeed = (0x5eed ^ ((laneIndex + 1) * 0x85ebca6b)) >>> 0;
+    const timing = (): FxTiming => ({
+      bpm: this.transport.snapshot.bpm,
+      when: ctx.currentTime,
+    });
+    const chain = new FxChainHost({
+      // Adapter: the voice-engine host owns the per-lane worklet node.
+      source: {
+        connect: (destination: FxConn) => host.connect(laneIndex, destination as AudioNode),
+        disconnect: () => undefined,
+      },
+      sink: laneGain,
+      ramp: rampGain,
+      createDevice: createRealFxDeviceFactory(ctx, {
+        laneSeed,
+        // The voice-engine module (which also registers 'bitcrusher') is
+        // loaded by createVoiceEngine before any chain exists.
+        createBitcrusher: (c) => createBitcrusherNode(c),
+      }),
+      timing,
+    });
+    this.chainHosts[laneIndex] = chain;
+    const devices = this.laneChains[laneIndex];
+    if (devices && devices.length > 0) chain.setChain(devices);
+  }
+
   private defaultCreateVoiceEngine: NonNullable<
     SessionOptions["createVoiceEngineHost"]
   > = async (ctx) => {
@@ -354,7 +440,14 @@ export class Session {
       if (!host) return null;
       const master = this.ensureMaster();
       if (master) {
-        for (let i = 0; i < LANE_IDS.length; i++) host.connect(i, master);
+        for (let i = 0; i < LANE_IDS.length; i++) {
+          // IM-4: voice engine → FX chain (chain head = ramp gain) → lane
+          // gain → master. The chain host owns everything between the
+          // worklet node and the lane gain.
+          this.buildLaneChain(host, i, master);
+          // No worklet-graph context (exotic fallback): straight to master.
+          if (!this.chainHosts[i]) host.connect(i, master);
+        }
       }
       return host;
     });

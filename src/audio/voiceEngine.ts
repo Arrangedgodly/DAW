@@ -177,6 +177,7 @@ export async function createVoiceEngine(
 ): Promise<VoiceEngineHost> {
   const moduleUrl = opts.moduleUrl ?? defaultVoiceEngineModuleUrl();
   await ctx.audioWorklet.addModule(moduleUrl);
+  markWorkletModuleLoaded(ctx.audioWorklet);
 
   const nodes: WorkletNodeLike[] = [];
   const outbox = new EventOutbox(laneCount);
@@ -224,6 +225,47 @@ export async function createVoiceEngine(
 /** Wrap a real BaseAudioContext for createVoiceEngine. */
 export function workletContextFor(ctx: BaseAudioContext): AudioWorkletContextLike {
   return new RealWorkletContext(ctx);
+}
+
+// ---------------------------------------------------------------------------
+// Worklet-module loading seam (IM-4): one addModule per context, shared by
+// the voice engine AND the bitcrusher processor (same module, D2–D4).
+// ---------------------------------------------------------------------------
+
+const modulesLoaded = new WeakSet<object>();
+
+/** Record an already-loaded module (called by createVoiceEngine). */
+export function markWorkletModuleLoaded(audioWorklet: object): void {
+  modulesLoaded.add(audioWorklet);
+}
+
+/**
+ * Ensure the worklet module is loaded on this context exactly once
+ * (re-registering a processor name throws). Works identically for real and
+ * offline contexts — addModule is per-context.
+ */
+export async function ensureWorkletModule(
+  ctx: BaseAudioContext,
+  moduleUrl: string = defaultVoiceEngineModuleUrl(),
+): Promise<void> {
+  if (modulesLoaded.has(ctx.audioWorklet)) return;
+  await ctx.audioWorklet.addModule(moduleUrl);
+  modulesLoaded.add(ctx.audioWorklet);
+}
+
+/**
+ * Create a 'bitcrusher' worklet node (processor registered in the
+ * voice-engine module). Caller must ensureWorkletModule(ctx) first.
+ */
+export function createBitcrusherNode(
+  ctx: BaseAudioContext,
+): import("./fx").BitcrusherNodeLike {
+  const node = new AudioWorkletNode(ctx, "bitcrusher", {
+    numberOfInputs: 1,
+    numberOfOutputs: 1,
+    outputChannelCount: [2],
+  });
+  return node as unknown as import("./fx").BitcrusherNodeLike;
 }
 
 // ---------------------------------------------------------------------------

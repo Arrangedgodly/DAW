@@ -94,7 +94,11 @@ export type FxDevice =
   | {
       readonly type: "filter";
       readonly bypassed: boolean;
-      readonly params: { readonly cutoffHz: number; readonly q: number };
+      readonly params: {
+        readonly kind?: "lowpass" | "highpass" | "bandpass";
+        readonly cutoffHz: number;
+        readonly q: number;
+      };
     }
   | {
       readonly type: "drive";
@@ -126,6 +130,9 @@ export const FxDeviceSchema = v.variant("type", [
     type: v.literal("filter"),
     bypassed: v.boolean(),
     params: v.strictObject({
+      // IM-4: response kind; omitted = lowpass (v1 documents written before
+      // the field existed stay valid — MF-1 schema stays backward compatible).
+      kind: v.optional(v.picklist(["lowpass", "highpass", "bandpass"])),
       cutoffHz: v.pipe(v.number(), v.minValue(20), v.maxValue(20000)),
       q: v.pipe(v.number(), v.minValue(0.1), v.maxValue(18)),
     }),

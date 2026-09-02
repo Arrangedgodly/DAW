@@ -33,6 +33,7 @@ interface FakeSession {
   compiles: LaneId[];
   setLaneEvents(lane: LaneId, events: readonly VoiceNoteOnEvent[], steps: number): void;
   setLaneSound(lane: LaneId, id: string): void;
+  setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(lane: string, scale: EffectiveScale | null): void;
   setBpm(bpm: number): void;
   setSwingAmount(a: number): void;
@@ -56,6 +57,9 @@ function fakeSession(): FakeSession {
     },
     setLaneSound(lane, id) {
       s.sounds[lane] = id;
+    },
+    setLaneChain() {
+      // IM-4 chain pushes are covered by the fx suites.
     },
     setLaneScale(lane, scale) {
       if (scale === null) delete s.scales[lane];

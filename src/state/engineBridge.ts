@@ -72,13 +72,16 @@ export function compileLaneForSession(
   session.setLaneEvents(lane, events, pattern.bars * 16);
 }
 
-/** Push the document's effective scales + lane sound ids into the session. */
+/** Push the document's effective scales + lane sound ids + FX chains. */
 function syncLaneConfig(doc: ProjectDocument, session: Session): void {
   for (const laneConf of doc.lanes) {
     session.setLaneSound(
       laneConf.id,
       laneConf.id === "drums" ? laneConf.kitId : laneConf.presetId,
     );
+    // IM-4: the lane's fxChain rides the same lane-object identity, so any
+    // chain edit (params, bypass, reorder, add/remove) lands here.
+    session.setLaneChain(laneConf.id, laneConf.fxChain);
   }
   for (const lane of PITCHED_LANES) {
     session.setLaneScale(lane, effectiveScale(doc, lane));
