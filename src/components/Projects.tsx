@@ -23,6 +23,7 @@ import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import { docStore, loadDocument } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
 import { exportWav } from "../audio/exportWav";
+import { exportMidi } from "../audio/exportMidi";
 import {
   getActiveProjectId,
   getBootDb,
@@ -166,6 +167,27 @@ export default function Projects(): JSX.Element {
     }
   };
 
+  /**
+   * MIDI export (MF-5): pure synchronous encode → typed result → download.
+   * Same one-shot busy flag as WAV so the two exports can't interleave.
+   */
+  const handleExportMidi = (): void => {
+    if (busy()) return;
+    setBusy(true);
+    try {
+      const result = exportMidi(docStore.getState().doc);
+      if (result.ok) {
+        showSuccess(
+          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES`,
+        );
+      } else {
+        showError(result.message, { suggestion: result.suggestion });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleFile = async (file: File) => {
     const db = getBootDb();
     if (!db) return;
@@ -253,6 +275,14 @@ export default function Projects(): JSX.Element {
               onClick={() => void handleExportWav()}
             >
               EXPORT WAV
+            </button>
+            <button
+              type="button"
+              class="booth-btn projects-action"
+              disabled={busy()}
+              onClick={handleExportMidi}
+            >
+              EXPORT MIDI
             </button>
             <button
               type="button"

@@ -23,6 +23,10 @@
     "wav/encoder-stereo-2frame-v1": {
       "sha256": "cfdbfd64a0dd69733cdc496fcbf7a56fd8603d9d525a9726d4e5000f45dd0af7",
       "byteLength": 52
+    },
+    "midi/reference-project-v1": {
+      "sha256": "130684574a974cfde80b878f6497270a9893ae0197b70b29c0f4f27d6f4e8d75",
+      "byteLength": 322
     }
   }
 }
