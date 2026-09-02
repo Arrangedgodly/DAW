@@ -50,11 +50,51 @@ function valibotIssues(error: unknown): string[] {
   return [String(error)];
 }
 
+// ---------------------------------------------------------------------------
+// Dangerous-key rejection (CA-2 fuzz finding)
+// ---------------------------------------------------------------------------
+
+/**
+ * valibot's strictObject flags unknown keys via `key in schemaEntries`, which
+ * is TRUE for every key inherited from Object.prototype — so own keys named
+ * `__proto__`, `constructor`, `toString`, … bypass the strict check (verified
+ * empirically; the fuzzer's proto-keys mutation reaches validateProject with
+ * them). Reject them explicitly, at every level, before schema parsing:
+ * a validated document must never carry a prototype-chain-shaped own key.
+ */
+const DANGEROUS_OWN_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
+function dangerousKeyIssues(input: unknown, path: string, issues: string[], depth: number): void {
+  if (depth > 64) {
+    issues.push(`${path}: nesting deeper than 64 levels before validation`);
+    return;
+  }
+  if (Array.isArray(input)) {
+    input.forEach((el, i) => dangerousKeyIssues(el, `${path}.${i}`, issues, depth + 1));
+    return;
+  }
+  if (input === null || typeof input !== "object") return;
+  for (const key of Object.keys(input)) {
+    if (DANGEROUS_OWN_KEYS.has(key)) {
+      issues.push(`${path}.${key}: forbidden own key '${key}' (prototype-pollution vector)`);
+    }
+    dangerousKeyIssues((input as Record<string, unknown>)[key], `${path}.${key}`, issues, depth + 1);
+  }
+}
+
 /**
  * Strict parse: unknown → ProjectDocument, or throws ProjectValidationError
  * listing every issue found.
  */
 export function validateProject(input: unknown): ProjectDocument {
+  const dangerous: string[] = [];
+  dangerousKeyIssues(input, "(root)", dangerous, 0);
+  if (dangerous.length > 0) {
+    throw new ProjectValidationError(
+      `Invalid project document (${dangerous.length} issues)`,
+      dangerous,
+    );
+  }
   const result = v.safeParse(ProjectDocumentSchema, input);
   if (!result.success) {
     throw new ProjectValidationError(

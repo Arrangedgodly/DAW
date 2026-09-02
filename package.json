@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test:browser": "vitest run --project browser",
-    "test:all": "vitest run"
+    "test:all": "vitest run",
+    "fuzz": "node scripts/fuzz.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",
