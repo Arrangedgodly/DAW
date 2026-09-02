@@ -59,8 +59,10 @@ export interface GrooveOptions {
 export function timeAtStep(step: number, opts: GrooveOptions): number {
   const spb = secondsPerStep(opts.bpm);
   const swing = clampSwing(opts.swing ?? 0);
-  const base = step * spb;
-  return step % 2 === 1 ? base + swing * spb : base;
+  // Single multiplication (not step*spb + swing*spb): at swing = 1 the last
+  // odd step must land EXACTLY on the loop boundary steps*spb, and the
+  // two-term sum differs by 1 ulp at several BPMs (found by the HW-1 sweep).
+  return (step + (step % 2 === 1 ? swing : 0)) * spb;
 }
 
 export interface Position {
@@ -97,7 +99,10 @@ export interface StepAtTimeOptions extends GrooveOptions {
 export function stepIndexAtTime(t: number, opts: StepAtTimeOptions): number {
   const steps = totalSteps(opts.bars);
   const loopLen = steps * secondsPerStep(opts.bpm);
-  const local = ((t % loopLen) + loopLen) % loopLen;
+  // Single-modulo fast path for t >= 0: the ((t % L) + L) % L idiom rounds the
+  // result by 1 ulp for positive t (found by the HW-1 timing sweep), which
+  // broke exact-onset inverse lookups at e.g. 200 bpm / swing 0.5.
+  const local = t >= 0 ? t % loopLen : ((t % loopLen) + loopLen) % loopLen;
   for (let i = 0; i < steps - 1; i++) {
     if (local >= timeAtStep(i, opts) && local < timeAtStep(i + 1, opts)) {
       return i;

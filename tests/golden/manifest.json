@@ -1,0 +1,13 @@
+{
+  "manifestVersion": 1,
+  "env": {
+    "node": "v24.8.0",
+    "regeneratedVia": "npm run goldens:update (UPDATE_GOLDENS=1 vitest run tests/golden)"
+  },
+  "goldens": {
+    "codec/default-project-canonical-v1": {
+      "sha256": "4e6c3f98ae0283532c33e39a2492493f05905251f10cf06cdf5d0b12e84c9c34",
+      "byteLength": 2694
+    }
+  }
+}
