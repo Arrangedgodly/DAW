@@ -287,6 +287,17 @@ export async function renderProjectToBuffer(
 
   // 5. Render, fold, return.
   const buffer = await ctx.startRendering();
+  // HW-2 cross-config guard: the export contract is 44100 Hz exactly (D2
+  // "explicit 44100 Hz"). A misbehaving injected factory that built its
+  // context at another rate would silently rescale every loop length —
+  // refuse instead of returning a wrong-rate buffer.
+  if (buffer.sampleRate !== EXPORT_SAMPLE_RATE) {
+    throw new Error(
+      `renderProjectToBuffer: rendered buffer sample rate ${buffer.sampleRate} ` +
+        `≠ export rate ${EXPORT_SAMPLE_RATE} — the context factory must build ` +
+        `contexts at the requested rate`,
+    );
+  }
   chains.forEach((c) => c.dispose());
   host.dispose();
 

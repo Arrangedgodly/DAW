@@ -2,12 +2,23 @@
   "manifestVersion": 1,
   "env": {
     "node": "v24.8.0",
-    "regeneratedVia": "npm run goldens:update (UPDATE_GOLDENS=1 vitest run tests/golden)"
+    "regeneratedVia": "npm run goldens:update (UPDATE_GOLDENS=1 vitest run tests/golden && UPDATE_GOLDENS=1 vitest run --project browser tests/browser/render-fingerprint.test.ts)"
   },
   "goldens": {
     "codec/default-project-canonical-v1": {
       "sha256": "c560f43a13b5dc8aef8d0e76088632f510f128d96539292abcc0debcbd45abba",
       "byteLength": 2694
+    },
+    "render/reference-loop-fp-v1": {
+      "sha256": "ef7b78d39ab9cbeb31099eb0bb5bb42277f5476eaf7ed4ef15a6e563821a6f20",
+      "byteLength": 705600,
+      "kind": "render",
+      "renderEnv": {
+        "playwright": "playwright 1.62.1",
+        "chromium": "chromium (MacOS/Google Chrome for Testing)",
+        "sampleRate": 44100,
+        "loopSamples": 88200
+      }
     }
   }
 }

@@ -29,7 +29,7 @@ import type {
   LaneGate,
   PitchedPattern,
 } from "../../src/document/schema";
-import { SAMPLE_RATE, detectOnsets, renderOffline } from "./helpers";
+import { SAMPLE_RATE, detectOnsets, renderOffline, assertCleanAudio } from "./helpers";
 
 const GROOVE: GrooveOptions = { bpm: 120, swing: 0.15 };
 const BARS = 2;
@@ -172,18 +172,73 @@ describe("scheduler onset budget (offline, real worklet)", () => {
       duration: START_TIME + LOOP_SECONDS + 0.5,
       lanes: lanes.map((l) => l.events),
     });
-    let peak = 0;
-    let nonFinite = 0;
-    for (let i = 0; i < mono.length; i++) {
-      if (!Number.isFinite(mono[i])) nonFinite++;
-      const a = Math.abs(mono[i]);
-      if (a > peak) peak = a;
-    }
-    expect(nonFinite).toBe(0);
+    const peak = assertCleanAudio(mono, "combined 4-lane mix");
     expect(peak).toBeGreaterThan(0.1);
     // No soft-clip stage exists in this raw-graph helper yet (session master
     // gain + soft-clip is the D2 chain); the bound is "sane sum of ≤16
     // voices", i.e. no runaway feedback/NaN spiral.
     expect(peak).toBeLessThanOrEqual(8.0);
   });
+});
+
+describe("scheduler onset budget — swing sweep (HW-2, D8 layer-2 completeness)", () => {
+  // The fixed-groove tests above pin swing 0.15. This sweep proves the
+  // one-render-quantum budget holds across the swing axis (extremes
+  // included), with DOTTED positions (odd 16ths — the steps swing actually
+  // moves) explicitly exercised: drums hit every 16th, the lead line ONLY
+  // odd steps, so every detected onset in the lead render is a swung
+  // dotted position. Lanes render separately (inter-onset silence is
+  // required by the amplitude-region detector).
+  const scale = toEffectiveScale({ root: 0, mode: "minor" });
+  const SWINGS = [0, 0.25, 0.5] as const;
+
+  it.each([...SWINGS])(
+    "onsets within one render quantum at swing %s (dotted positions on)",
+    { timeout: 90000 },
+    async (swing) => {
+      const groove: GrooveOptions = { bpm: 120, swing };
+      const drumEvents = compileLaneEvents({
+        pattern: drumPattern(),
+        preset: getDrumKit("kit-default")!,
+        gate: SHORT_GATE,
+        groove,
+      });
+      // Odd steps only = pure dotted-position line under swing.
+      const dottedLead = compileLaneEvents({
+        pattern: pitchedPattern("perf-lead-dotted", 7, (s) => s % 2 === 1),
+        preset: getPreset("preset-lead-1")!,
+        gate: SHORT_GATE,
+        groove,
+        scale,
+      });
+
+      for (const [name, events] of [
+        ["drums (every 16th)", drumEvents],
+        ["lead (dotted 16ths only)", dottedLead],
+      ] as const) {
+        const { mono } = await renderOffline({
+          startTime: START_TIME,
+          duration: START_TIME + LOOP_SECONDS + 0.5,
+          lanes: [events],
+        });
+        assertCleanAudio(mono, `swing ${swing} ${name}`);
+
+        const onsets = detectOnsets(mono);
+        const expectedSamples = [...new Set(
+          events.map((e) => Math.round((e.time + START_TIME) * SAMPLE_RATE)),
+        )].sort((a, b) => a - b);
+
+        expect(onsets.length, `swing ${swing} ${name}: onset count`).toBe(
+          expectedSamples.length,
+        );
+        for (let i = 0; i < expectedSamples.length; i++) {
+          const delta = onsets[i] - expectedSamples[i];
+          expect(
+            Math.abs(delta),
+            `swing ${swing} ${name} onset ${i}: detected ${onsets[i]} vs expected ${expectedSamples[i]} (Δ${delta} samples)`,
+          ).toBeLessThanOrEqual(QUANTUM_SAMPLES);
+        }
+      }
+    },
+  );
 });

@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run --project unit",
-    "goldens:update": "UPDATE_GOLDENS=1 vitest run tests/golden",
+    "goldens:update": "UPDATE_GOLDENS=1 vitest run tests/golden && UPDATE_GOLDENS=1 vitest run --project browser tests/browser/render-fingerprint.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",

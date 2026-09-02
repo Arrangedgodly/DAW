@@ -24,6 +24,20 @@ const MANIFEST_PATH = join(GOLDEN_DIR, "manifest.json");
 export interface GoldenEntry {
   sha256: string;
   byteLength: number;
+  /**
+   * HW-2 render fingerprint entry (kind: "render"): the hash is
+   * ENVIRONMENT-PINNED (Chromium build via the recorded playwright version —
+   * RES-7: cross-platform render hashes are NOT stable). Mismatch is a soft
+   * drift warning in the canary test, never a hard failure; regenerate
+   * deliberately via `npm run goldens:update`.
+   */
+  kind?: "bytes" | "render";
+  renderEnv?: {
+    playwright: string;
+    chromium: string;
+    sampleRate: number;
+    loopSamples: number;
+  };
 }
 
 export interface GoldenManifest {

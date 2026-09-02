@@ -150,3 +150,59 @@ export function findNonFinite(mono: Float32Array): number {
   }
   return count;
 }
+
+/**
+ * Shared NaN/Inf + peak sanity check (HW-2): every channel of a render (or a
+ * single mono buffer) must be entirely finite and have a non-silent, non-
+ * runaway peak. Returns the peak amplitude. Reused across render suites.
+ */
+export function assertCleanAudio(
+  channels: readonly Float32Array[] | Float32Array,
+  label = "audio",
+  opts: { minPeak?: number; maxPeak?: number } = {},
+): number {
+  const chans = channels instanceof Float32Array ? [channels] : channels;
+  let peak = 0;
+  for (let c = 0; c < chans.length; c++) {
+    for (let i = 0; i < chans[c].length; i++) {
+      const v = chans[c][i];
+      if (!Number.isFinite(v)) {
+        throw new Error(`${label}: channel ${c} sample ${i} is ${v}`);
+      }
+      const a = Math.abs(v);
+      if (a > peak) peak = a;
+    }
+  }
+  if (peak < (opts.minPeak ?? 1e-4)) {
+    throw new Error(`${label}: silent render (peak ${peak})`);
+  }
+  if (peak > (opts.maxPeak ?? 16)) {
+    throw new Error(`${label}: runaway peak ${peak}`);
+  }
+  return peak;
+}
+
+/**
+ * SHA-256 over the raw Float32 bytes of all channels, concatenated (HW-2
+ * render fingerprint). ENV-PINNED by construction (RES-7: cross-platform
+ * render hashes are not stable — SIMD/libm differ); only meaningful as a
+ * canary against unintended drift under the same pinned Chromium, never as a
+ * cross-engine golden.
+ */
+export async function hashChannelsHex(
+  channels: readonly Float32Array[],
+): Promise<string> {
+  const total = channels.reduce((n, ch) => n + ch.length, 0);
+  const merged = new Float32Array(total);
+  let at = 0;
+  for (const ch of channels) {
+    merged.set(ch, at);
+    at += ch.length;
+  }
+  const bytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+

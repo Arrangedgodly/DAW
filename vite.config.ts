@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import { playwright } from "@vitest/browser-playwright";
+import { onRenderFingerprintConsoleLog } from "./tests/golden/render-fp-recorder.ts";
 
 export default defineConfig({
   plugins: [solid()],
@@ -16,6 +17,11 @@ export default defineConfig({
     ],
   },
   test: {
+    // HW-2: browser tests can't write files; the render-fingerprint golden
+    // test emits a machine-readable console line that this node-side hook
+    // writes into tests/golden/manifest.json — only under UPDATE_GOLDENS=1
+    // (npm run goldens:update). Non-prefixed lines pass through untouched.
+    onConsoleLog: (log) => onRenderFingerprintConsoleLog(String(log)),
     projects: [
       {
         test: {
