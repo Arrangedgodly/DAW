@@ -173,8 +173,10 @@
   cursor: pointer;
 }
 
+/* DA-2: 0.4 opacity measured 3.51:1 — 0.55 = 5.70:1; native disabled still
+ * reads inert (no hover fill, default cursor). */
 .row-fill-apply:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
   cursor: default;
 }
 
@@ -252,6 +254,12 @@
 @media (prefers-reduced-motion: reduce) {
   .grid-playhead {
     display: none;
+  }
+
+  /* DA-2 motion sweep: the fill-rail hover reveal is the only transition
+   * left in the grid — state changes become instantaneous. */
+  .row-fill {
+    transition: none;
   }
 
   .cell.is-triggering {

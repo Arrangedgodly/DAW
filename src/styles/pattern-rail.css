@@ -110,8 +110,10 @@
   white-space: nowrap;
 }
 
+/* Empty-cue dash = placeholder text; DA-2 raised from 30% (2.46:1) to 55%
+ * ink (5.70:1) — placeholders must meet AA here, they're the only cue hint. */
 .rail-tile-cue.is-empty {
-  color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
 }
 
 .rail-tile-name {
@@ -205,8 +207,10 @@
   background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
+/* DA-2: 0.4 opacity measured 3.51:1 — 0.55 = 5.70:1; native disabled still
+ * reads inert (no hover fill, not-allowed cursor). */
 .rail-tool:disabled {
-  opacity: 0.4;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 

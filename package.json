@@ -30,6 +30,7 @@
     "@tonejs/midi": "^2.0.28",
     "@vitest/browser": "^4.1.11",
     "@vitest/browser-playwright": "^4.1.11",
+    "axe-core": "^4.13.0",
     "eslint": "^10.9.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",

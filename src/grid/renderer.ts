@@ -187,10 +187,13 @@ export class DomGridRenderer implements GridRenderer {
 
       // PX-3 fill rail (drums only): a stable-width slot between the label
       // and the cells so the control can appear on hover/focus without ever
-      // shifting the grid columns.
+      // shifting the grid columns. DA-2: the slot is a gridcell so the row's
+      // required-children contract holds (the fill control is a labeled
+      // interactive group — legal inside a gridcell, not a bare row).
       if (this.opts.mountFillControl) {
         const fill = document.createElement("div");
         fill.className = "row-fill";
+        fill.setAttribute("role", "gridcell");
         fill.dataset.row = String(row);
         rowEl.append(fill); // label → fill rail → cells (appended next)
         this.opts.mountFillControl(row, fill);

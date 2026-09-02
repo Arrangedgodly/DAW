@@ -241,18 +241,8 @@
   opacity: 0.55;
 }
 
-/* ---- FX placeholder (DES-5 builds the strip) ---- */
-
-.head-fx {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 45%, var(--color-ground));
-  background: transparent;
-  border: 1px dashed color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
-  border-radius: 3px;
-  padding: 4px 10px;
-  cursor: not-allowed;
-}
+/* (The old FX-entry placeholder style lived here; DES-5 replaced it in
+ * fx-strip.css — .head-fx there is the live one and now full-contrast.) */
 
 /* Screen-reader-only live region (booth pattern). */
 .head-sr {

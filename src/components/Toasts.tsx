@@ -53,7 +53,10 @@ export default function Toasts() {
   const errors = () => toastStack().filter((t) => t.kind === "error");
   const polite = () => toastStack().filter((t) => t.kind !== "error");
   return (
-    <div class="toasts" aria-label="Notifications">
+    // DA-2: no aria-label here — a generic div may not carry one
+    // (axe aria-prohibited-attr); the two live regions below carry the
+    // semantics and the messages announce through them.
+    <div class="toasts">
       <div class="toasts-polite" role="status" aria-live="polite">
         <For each={polite()}>{(t) => <ToastCard toast={t} />}</For>
       </div>

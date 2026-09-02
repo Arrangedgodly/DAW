@@ -37,6 +37,7 @@ export default function SaveIndicator() {
     <div
       class="save-indicator"
       data-status={autosaveStatus()}
+      role="status"
       tabindex="0"
       aria-label={aria()}
       title={getLastSavedAt() === null ? label() : fullTimestamp(getLastSavedAt()!)}

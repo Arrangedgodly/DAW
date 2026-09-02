@@ -148,15 +148,17 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
         <span class="scale-pop-heading" aria-hidden="true">
           MODE
         </span>
-        <div class="scale-pop-modes" role="listbox" aria-label="Mode">
+        {/* DA-2: modes are toggle buttons, not a listbox — role=option on a
+            <button> is contradictory semantics (axe: nested-interactive risk)
+            and there is no listbox arrow-key machinery to back it. The
+            aria-pressed toggle pair (root/mode) is the honest contract. */}
+        <div class="scale-pop-modes">
           <For each={MODE_LIST}>
             {(mode) => (
               <button
                 type="button"
                 class="scale-pop-mode"
-                role="option"
                 data-mode={mode}
-                aria-selected={mode === props.initialMode ? "true" : "false"}
                 aria-pressed={mode === props.initialMode ? "true" : "false"}
                 onClick={() => pickMode(mode)}
               >

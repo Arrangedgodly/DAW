@@ -39,7 +39,8 @@
   font-family: var(--font-label);
   font-size: 14px;
   letter-spacing: 0.2em;
-  color: rgba(245, 242, 233, 0.45);
+  /* DA-2: the hint is info-critical — 62% ink (7.00:1), not 45% (4.15:1). */
+  color: rgba(245, 242, 233, 0.62);
   text-align: center;
   z-index: 1;
 }
