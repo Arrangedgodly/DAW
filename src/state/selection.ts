@@ -15,7 +15,7 @@
  */
 
 import { createSignal } from "solid-js";
-import type { DrumPiece, LaneId } from "../document/schema";
+import type { DrumPiece, LaneId, Pattern } from "../document/schema";
 import { docStore } from "./store";
 
 /** A focused grid cell: lane + row identity + step column. */
@@ -66,6 +66,22 @@ export function selectPattern(lane: LaneId, patternId: string): void {
 
 export function getActivePattern(lane: LaneId): string {
   return activePatterns()[lane];
+}
+
+/**
+ * The pattern a lane's grid is editing (IM-6/DES-6, PX-3 reuse): the
+ * ephemeral selection if it still exists, else the chain's first slot, else
+ * the lane's first pattern. Pure read over the current store snapshot.
+ */
+export function currentPatternFor(lane: LaneId): Pattern | undefined {
+  const doc = docStore.getState().doc;
+  const selected = activePatterns()[lane];
+  if (selected) {
+    const byId = doc.patterns[lane].find((p) => p.id === selected);
+    if (byId) return byId;
+  }
+  const id = doc.songChain[lane][0];
+  return doc.patterns[lane].find((p) => p.id === id) ?? doc.patterns[lane][0];
 }
 
 /** Focus a cell (keyboard navigation / pointer hover per DES-5). */

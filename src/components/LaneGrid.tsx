@@ -13,6 +13,7 @@
  */
 
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { render } from "solid-js/web";
 import {
   DRUM_PIECES,
   type DrumPiece,
@@ -27,21 +28,16 @@ import {
   type PlayheadFrame,
 } from "../grid/renderer";
 import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
-import { activePatterns } from "../state/selection";
+import { activePatterns, currentPatternFor } from "../state/selection";
 import LaneHeader from "./LaneHeader";
+import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
 
 const session = getSession();
 
 function currentPattern(lane: LaneId): Pattern | undefined {
-  const doc = docStore.getState().doc;
-  const selected = activePatterns()[lane];
-  if (selected) {
-    const byId = doc.patterns[lane].find((p) => p.id === selected);
-    if (byId) return byId;
-  }
-  const id = doc.songChain[lane][0];
-  return doc.patterns[lane].find((p) => p.id === id) ?? doc.patterns[lane][0];
+  void activePatterns();
+  return currentPatternFor(lane);
 }
 
 function drumLabels(): string[] {
@@ -98,6 +94,9 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       };
     };
 
+    let rendererRef: DomGridRenderer | null = null;
+    const fillDisposers: Array<() => void> = [];
+
     const renderer = new DomGridRenderer({
       container,
       laneId: lane,
@@ -112,6 +111,27 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ===
             true,
       },
+      // PX-3: drums rows only — pitched lanes are out of scope.
+      ...(lane === "drums"
+        ? {
+            mountFillControl: (row: number, el: HTMLElement) => {
+              const piece = DRUM_PIECES[row] as DrumPiece;
+              fillDisposers.push(
+                render(
+                  () => (
+                    <EuclidFill
+                      piece={piece}
+                      steps={steps}
+                      label={rowLabels[row] ?? piece}
+                      onPreview={(values) => rendererRef?.previewRow(row, values)}
+                    />
+                  ),
+                  el,
+                ),
+              );
+            },
+          }
+        : {}),
       onToggle: (row, step) => {
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
@@ -130,6 +150,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       },
     });
 
+    rendererRef = renderer;
     renderer.sync(pattern);
 
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -140,6 +161,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
 
     onCleanup(() => {
       unsubscribe();
+      for (const dispose of fillDisposers) dispose();
       renderer.dispose();
     });
   });

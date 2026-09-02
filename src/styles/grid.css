@@ -117,6 +117,89 @@
   border-color: color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
 }
 
+/* ---- PX-3: Euclidean fill rail (drums rows only) ---- */
+
+/*
+ * A stable-width rail between the row label and the cells so the fill
+ * control can appear on row hover / keyboard focus without ever shifting
+ * grid columns. Opacity-gated (NOT visibility/display): the stepper buttons
+ * stay in the tab order, so the control is keyboard reachable — focusing it
+ * reveals it via :focus-within.
+ */
+.row-fill {
+  flex: none;
+  width: 152px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-right: var(--space-3);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.grid-row:hover .row-fill,
+.row-fill:focus-within {
+  opacity: 1;
+}
+
+.row-fill-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row-fill-tag {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+}
+
+.row-fill-value {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 3ch;
+  text-align: center;
+}
+
+.row-fill-apply {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+  border-radius: 3px;
+  height: 20px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+}
+
+.row-fill-apply:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.row-fill-apply:not(:disabled):hover,
+.row-fill-apply.is-armed {
+  background: color-mix(in srgb, var(--lane-hue) 18%, var(--color-ground));
+}
+
+.row-fill-apply:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* Euclidean PREVIEW overlay: dashed lane-hue outline, never the on-state —
+ * the committed cells (data-on) remain exactly what the document says. */
+.cell[data-preview="true"] {
+  outline: 2px dashed var(--lane-hue);
+  outline-offset: -2px;
+}
+
+/* The rail widens the label gutter; the playhead follows it. */
+.lane-grid.has-fill-rail .grid-playhead {
+  left: calc(72px + 152px);
+}
+
 /* Gate-length raise: the note bar's literal width over the uniform grid. */
 .note-runs {
   position: absolute;

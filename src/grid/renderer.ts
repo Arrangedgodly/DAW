@@ -54,6 +54,12 @@ export interface DomGridRendererOptions {
   readonly host: GridRendererHost;
   /** Cell activated (click / Enter / Space) — owner writes the document. */
   readonly onToggle: (row: number, step: number) => void;
+  /**
+   * PX-3 (drums only): mount a per-row fill control into the row's dedicated
+   * rail slot. Called once per row during build; the owner renders its own
+   * framework UI into `el` and owns that subtree's lifecycle.
+   */
+  readonly mountFillControl?: (row: number, el: HTMLElement) => void;
 }
 
 export interface GridRenderer {
@@ -67,6 +73,11 @@ export interface GridRenderer {
   layout(): void;
   /** Push document pattern state (class toggles only). */
   sync(pattern: DrumPattern | PitchedPattern): void;
+  /**
+   * PX-3: paint a Euclidean PREVIEW overlay onto one row (dashed lane-hue
+   * outline; never touches the committed on-state). Null clears the preview.
+   */
+  previewRow(row: number, on: readonly boolean[] | null): void;
   dispose(): void;
 }
 
@@ -99,7 +110,9 @@ export class DomGridRenderer implements GridRenderer {
     const { container, rowLabels, steps } = this.opts;
     container.replaceChildren();
     const grid = document.createElement("div");
-    grid.className = "lane-grid";
+    grid.className = this.opts.mountFillControl
+      ? "lane-grid has-fill-rail"
+      : "lane-grid";
     grid.setAttribute("role", "grid");
     grid.setAttribute("aria-label", `${this.opts.laneLabel} grid`);
 
@@ -150,6 +163,17 @@ export class DomGridRenderer implements GridRenderer {
         cellsEl.append(runLayer);
       }
       this.runLayers.push(runLayer);
+
+      // PX-3 fill rail (drums only): a stable-width slot between the label
+      // and the cells so the control can appear on hover/focus without ever
+      // shifting the grid columns.
+      if (this.opts.mountFillControl) {
+        const fill = document.createElement("div");
+        fill.className = "row-fill";
+        fill.dataset.row = String(row);
+        rowEl.append(fill); // label → fill rail → cells (appended next)
+        this.opts.mountFillControl(row, fill);
+      }
 
       rowEl.append(cellsEl);
       body.append(rowEl);
@@ -235,6 +259,16 @@ export class DomGridRenderer implements GridRenderer {
         rowCells[step].dataset.sustain = cell === 2 ? "true" : "false";
       }
       this.syncRuns(row, patternRow?.steps ?? []);
+    }
+  }
+
+  previewRow(row: number, on: readonly boolean[] | null): void {
+    const rowCells = this.cells[row];
+    if (!rowCells) return;
+    for (let step = 0; step < rowCells.length; step++) {
+      const cell = rowCells[step];
+      if (on?.[step]) cell.dataset.preview = "true";
+      else delete cell.dataset.preview;
     }
   }
 

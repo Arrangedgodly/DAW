@@ -39,6 +39,7 @@ import {
   createDefaultProject,
 } from "../document/schema";
 import { validateProject } from "../document/validate";
+import { euclid } from "../audio/euclid";
 import { type ModeName, modeSize } from "../document/scales";
 import { type FxDeviceType, defaultFxDevice, reorderChain } from "./fxStrip";
 
@@ -240,6 +241,32 @@ export function togglePitchedCell(
   const next: PitchedCell = current === 0 ? 1 : 0;
   commit(withPitchedCell(docStore.getState().doc, lane, degree, step, next), "toggle");
   return { turnedOn: next === 1 };
+}
+
+/**
+ * PX-3 Euclidean fill: paint E(pulses, ·) rotated by `rotation` into one
+ * drum piece's row — the one-shot grid-paint commit behind the per-row fill
+ * control (preview happens in the UI; only this writes). Like the toggles,
+ * it rewrites the piece's row in EVERY drums pattern, each at its own step
+ * count, so multi-bar patterns get the pattern over their full length. After
+ * the commit the cells are ordinary data — hand editing works immediately.
+ * Rapid re-fills of the same piece coalesce into one undo step.
+ */
+export function applyEuclidFill(
+  piece: DrumPiece,
+  pulses: number,
+  rotation: number,
+): void {
+  const doc = docStore.getState().doc;
+  const patterns = doc.patterns.drums.map((p) => {
+    if (p.kind !== "drums") return p;
+    const filled = euclid(pulses, p.steps[piece].length, rotation);
+    return { ...p, steps: { ...p.steps, [piece]: filled } };
+  });
+  commit(
+    { ...doc, patterns: { ...doc.patterns, drums: patterns } },
+    `fill:${piece}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
