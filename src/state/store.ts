@@ -25,8 +25,10 @@ import { temporal } from "zundo";
 import {
   DRUM_PIECES,
   type DrumPiece,
+  type FxDevice,
   type LaneGate,
   type LaneId,
+  MAX_FX_PER_LANE,
   type Pattern,
   type PatternBars,
   type PitchedCell,
@@ -38,6 +40,7 @@ import {
 } from "../document/schema";
 import { validateProject } from "../document/validate";
 import { type ModeName, modeSize } from "../document/scales";
+import { type FxDeviceType, defaultFxDevice, reorderChain } from "./fxStrip";
 
 const UNDO_LIMIT = 50;
 const COALESCE_WINDOW_MS = 350;
@@ -254,6 +257,92 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
     withLane(docStore.getState().doc, lane, (l) =>
       l.id === "drums" ? { ...l, kitId: presetOrKitId } : { ...l, presetId: presetOrKitId },
     ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FX chains (DES-5): add/remove/move/bypass/param — every edit rides the lane
+// object identity, so engineBridge's syncLaneConfig pushes it to the session
+// live (param tweaks ramp on AudioParams, topology edits rebuild glitch-free).
+// ---------------------------------------------------------------------------
+
+/** Append a default device; no-op (returns false) at MAX_FX_PER_LANE. */
+export function addFxDevice(lane: LaneId, type: FxDeviceType): boolean {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  if (conf.fxChain.length >= MAX_FX_PER_LANE) return false;
+  commit(
+    withLane(doc, lane, (l) => ({
+      ...l,
+      fxChain: [...l.fxChain, defaultFxDevice(type)],
+    })),
+  );
+  return true;
+}
+
+/** Remove the device at `index` (no-op when out of range). */
+export function removeFxDevice(lane: LaneId, index: number): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  if (index < 0 || index >= conf.fxChain.length) return;
+  commit(
+    withLane(doc, lane, (l) => ({
+      ...l,
+      fxChain: l.fxChain.filter((_, i) => i !== index),
+    })),
+  );
+}
+
+/**
+ * Move a device (drag drop or keyboard move buttons). Target is clamped;
+ * a no-op move keeps the lane identity (nothing re-syncs).
+ */
+export function moveFxDevice(lane: LaneId, from: number, to: number): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  const next = reorderChain(conf.fxChain, from, to);
+  if (next === conf.fxChain) return;
+  commit(withLane(doc, lane, (l) => ({ ...l, fxChain: next })));
+}
+
+/** Set one device's bypass state (lit/dimmed on the module). */
+export function setFxBypassed(lane: LaneId, index: number, bypassed: boolean): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  if (index < 0 || index >= conf.fxChain.length) return;
+  commit(
+    withLane(doc, lane, (l) => ({
+      ...l,
+      fxChain: l.fxChain.map((d, i) => (i === index ? { ...d, bypassed } : d)),
+    })),
+  );
+}
+
+/**
+ * Set one param on one device (numeric sliders and choice selects). Throws
+ * through validation on out-of-range values (store untouched). Rapid slider
+ * drags coalesce into one undo step per param (`fxparam:<lane>:<i>:<key>`).
+ */
+export function setFxParam(
+  lane: LaneId,
+  index: number,
+  key: string,
+  value: number | string,
+): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  const device = conf.fxChain[index];
+  if (!device) throw new Error(`setFxParam: no device ${index} in lane '${lane}'`);
+  commit(
+    withLane(doc, lane, (l) => ({
+      ...l,
+      fxChain: l.fxChain.map((d, i) =>
+        i === index
+          ? ({ ...d, params: { ...d.params, [key]: value } } as FxDevice)
+          : d,
+      ),
+    })),
+    `fxparam:${lane}:${index}:${key}`,
   );
 }
 

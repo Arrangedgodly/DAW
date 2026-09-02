@@ -25,8 +25,10 @@ import {
   setProjectScale,
 } from "../state/store";
 import { laneScaleChipLabel, announceScale } from "../state/scaleChip";
+import { laneFxChain } from "../state/fxStrip";
 import { LANE_NAMES, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
+import FxStrip from "./FxStrip";
 
 const session = getSession();
 
@@ -64,6 +66,8 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [gate, setGate] = createSignal(initial.gate);
   const [chip, setChip] = createSignal(initial.chip);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
+  const [fxOpen, setFxOpen] = createSignal(false);
+  const [fxCount, setFxCount] = createSignal(laneFxChain(docStore.getState().doc, props.lane).length);
   const [announce, setAnnounce] = createSignal("");
 
   let chipBtn: HTMLButtonElement | undefined;
@@ -76,6 +80,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       setSoundId(next.soundId);
       setGate(next.gate);
       setChip(next.chip);
+      setFxCount(laneFxChain(state.doc, props.lane).length);
     });
     onCleanup(unsubscribe);
   });
@@ -212,13 +217,24 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="head-fx"
-          aria-disabled="true"
-          title="FX strip — arrives with DES-5"
-          tabIndex={-1}
+          classList={{ "is-open": fxOpen() }}
+          aria-expanded={fxOpen()}
+          aria-controls={`fx-strip-${props.lane}`}
+          aria-label={`FX chain for ${LANE_NAMES[props.lane]}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}
+          onClick={() => setFxOpen(!fxOpen())}
         >
           FX
+          <Show when={fxCount() > 0}>
+            <span class="head-fx-count" aria-hidden="true"> · {fxCount()}</span>
+          </Show>
         </button>
       </div>
+
+      <Show when={fxOpen()}>
+        <div id={`fx-strip-${props.lane}`} class="lane-fx-wrap">
+          <FxStrip lane={props.lane} />
+        </div>
+      </Show>
 
       <span class="head-sr" role="status" aria-live="polite">
         {announce()}

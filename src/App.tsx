@@ -9,6 +9,7 @@ import StageFloor from "./components/StageFloor";
 import "./styles/app.css";
 import "./styles/grid.css";
 import "./styles/lane-header.css";
+import "./styles/fx-strip.css";
 
 export default function App() {
   return (

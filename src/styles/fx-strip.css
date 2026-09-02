@@ -1,0 +1,360 @@
+/*
+ * FX console strips (DES-5). Lit console modules beside/below each lane —
+ * lane-hue border + fill tint when active, dimmed chassis when bypassed,
+ * silkscreen labels, --font-value live numeric readouts.
+ *
+ * Ink law (D9): info-critical text = warm white on the ground; the lane hue
+ * lives on borders/fills/states only. Glow law: one ≤3px layer,
+ * decoration-only over the border/fill coding; the add-flash is a ≤180 ms
+ * one-shot and goes static under prefers-reduced-motion.
+ */
+
+.lane-fx-wrap {
+  flex-basis: 100%;
+}
+
+.fx-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 22%, var(--color-ground));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-ink) 3%, var(--color-ground));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.fx-strip-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fx-strip-empty {
+  margin: 0;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  padding: var(--space-4) 0;
+}
+
+/* ---- One lit module ---- */
+
+.fx-mod {
+  flex: 0 1 236px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
+  /* Active = lit: lane-hue border + fill tint carry the state (never glow). */
+  border: 2px solid color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+}
+
+.fx-mod.is-drop {
+  border-color: var(--lane-hue);
+}
+
+/* Bypassed = dimmed chassis: hue drains from border + fill, readouts dim
+ * (still ≥4.5:1 — the 45% mix of ink on ground stays legible silkscreen). */
+.fx-mod.is-bypassed {
+  border-color: color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 2%, var(--color-ground));
+}
+
+.fx-mod.is-bypassed .fx-mod-name {
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--color-ground));
+}
+
+.fx-mod-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fx-mod-name {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+.fx-mod-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.fx-mod-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.fx-mod-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.fx-mod-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.fx-mod-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* Bypass toggle: lit = lane-hue fill + near-black ink; dimmed = chassis. */
+.fx-bypass-btn[aria-pressed="false"] {
+  background: color-mix(in srgb, var(--lane-hue) 70%, var(--color-ground));
+  border-color: var(--lane-hue);
+  color: var(--color-ink-on-fill);
+}
+
+.fx-remove-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-lane-drums) 55%, var(--color-ground));
+}
+
+/* ---- Params ---- */
+
+.fx-mod-params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fx-param {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fx-param-label {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+}
+
+.fx-mod.is-bypassed .fx-param-label {
+  color: color-mix(in srgb, var(--color-ink) 40%, var(--color-ground));
+}
+
+/* Range inputs styled in-world: chassis track, warm-white square thumb with a
+ * lane-hue edge. Native keyboard + a11y for free (arrow keys, home/end). */
+.fx-param-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fx-param-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.fx-param-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.fx-param-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.fx-param-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.fx-param-slider:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.fx-mod.is-bypassed .fx-param-slider::-webkit-slider-thumb {
+  border-color: color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
+}
+
+.fx-mod.is-bypassed .fx-param-slider::-moz-range-thumb {
+  border-color: color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
+}
+
+.fx-param-select {
+  font: var(--text-value);
+  color: var(--color-ink);
+  background: var(--color-ground);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+.fx-param-select:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* Live numeric readout — the variable-font-specimen raise. */
+.fx-param-readout {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 7ch;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fx-mod.is-bypassed .fx-param-readout {
+  color: color-mix(in srgb, var(--color-ink) 50%, var(--color-ground));
+}
+
+/* ---- Add menu / footer ---- */
+
+.fx-strip-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.fx-add-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px dashed color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.fx-add-btn:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.fx-add-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.fx-strip-cap {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+}
+
+.fx-add-menu {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 40;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-ground);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 4px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.fx-add-item {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.fx-add-item:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.fx-add-item:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* ---- Header FX entry (activated from placeholder) ---- */
+
+.head-fx {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.head-fx:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.head-fx:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.head-fx.is-open {
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+  border-color: var(--lane-hue);
+}
+
+/* ---- One-shot add flash (D9: ≤180 ms, one ≤3px lane-hue layer,
+ * decoration-only over the border/fill coding above) ---- */
+
+@keyframes fx-mod-flash {
+  from {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.45),
+      0 0 3px color-mix(in srgb, var(--lane-hue) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.fx-mod.is-flash {
+  animation: fx-mod-flash 180ms ease-out 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-mod.is-flash {
+    animation: none; /* static on-state: the lit border already codes active */
+  }
+}
