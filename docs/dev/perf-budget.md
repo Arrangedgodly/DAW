@@ -74,6 +74,39 @@ Layer 2 also discharges the IM-3 caveat: it verifies the REAL
 - Must render without error, with zero NaN/Infinity samples and a sane
   peak (no runaway). Enforced in `tests/browser/voice-load.test.ts`.
 
+## 6. Background tab (TH-3 behavior contract)
+
+What **continues** when the tab is hidden:
+
+- Audio playback, in full. The scheduler's refill timer is throttled by the
+  browser to ≥ 1 Hz in hidden tabs, but all timing derives from
+  `ctx.currentTime` (the hardware sample clock, unaffected by throttling),
+  and the **1.5 s event horizon** keeps the worklet queue fed at even a
+  1 Hz refill cadence. Proven in `tests/background-tab.test.ts`: a full
+  virtual minute at a simulated 1 Hz clamp schedules every 16th-note tick
+  exactly once, zero misses.
+- The event queue refill itself, idempotently. Waking from throttle can
+  coalesce/delay timer callbacks; the scheduler's `generatedUntil` cursor
+  makes refill a pure forward latch — a burst of refills at an unchanged
+  audio clock never double-schedules events already in the worklet queue.
+
+What **pauses**: every `requestAnimationFrame` loop (the browser suspends
+rAF in hidden tabs). That is the Booth playhead readout and the grid
+renderer's sweep/glow loop — presentation only, never scheduling.
+
+What the **user sees on refocus**: the playhead unparks and resyncs in one
+frame. Position reads (`Transport.getLoopTime` / `getPosition`) are pure
+functions of `ctx.currentTime` — no rAF timestamp is ever accumulated — so
+the first visible frame recomputes from the live audio clock: no time jump,
+no drift, no replayed animation. Unit-proven in `tests/background-tab.test.ts`
+(resync-from-clock); the real-context contract (audio clock continuity
+across a synthetic `visibilitychange` window, exact tick times, refocus
+resync) is asserted in `tests/browser/background-tab.test.ts`.
+
+Honest CI limitation: headless Chromium does not actually clamp timers or
+suspend rAF on a synthetic visibility change, so real park/throttle behavior
+is verified by the human session protocol (R12), not in CI.
+
 ## Harness notes (D8/RES-7)
 
 - Browser project: Vitest browser mode, playwright provider, Chromium pinned
