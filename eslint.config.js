@@ -8,6 +8,16 @@ export default tseslint.config(
   {
     files: ["**/*.{ts,tsx}"],
   },
+  // Node-side tooling (TH-2 check-bundle gate): plain ESM with node globals.
+  {
+    files: ["scripts/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
   // AudioWorklet globals: the worklet file is plain JS evaluated inside the
   // AudioWorkletGlobalScope (registerProcessor, sampleRate, currentTime, ...).
   {

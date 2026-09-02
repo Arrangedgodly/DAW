@@ -40,8 +40,26 @@ Layer 2 also discharges the IM-3 caveat: it verifies the REAL
 
 ## 3. Bundle size — ≤ 300 KB gz initial
 
-- Enforced from TH-2 onward as a CI gate on the build artifact.
-- Current: 18.79 KB JS + 9.25 KB CSS gz (TH-1 build evidence).
+- Enforced from TH-2 onward as a CI gate on the build artifact:
+  `npm run check:bundle` (scripts/check-bundle.mjs) runs after `npm run
+  build` in CI, measures initial-load JS (entry chunk + every chunk it
+  EAGERLY statically imports, gz -9) plus all woff2 bytes, prints a
+  per-category breakdown (js / fonts / worklet), and exits non-zero over
+  either budget (JS ≤ 300 KB gz, fonts ≤ 50 KB).
+- TH-2 code-splitting: the export pipelines load ON DEMAND via dynamic
+  import from the Projects popover — the initial bundle never pays for the
+  MIDI encoder (midi-file) or the offline render/WAV encoder. The worklet
+  asset stays eagerly referenced by URL in the main chunk (audio needs it
+  at first play, not lazily); it is fetched on play, never module-imported.
+- Current (TH-2 build evidence, gz -9): initial JS **41.90 KB** (single
+  entry chunk, was 48.91 KB vite-gzip pre-split); lazy: exportMidi 4.56 KB,
+  exportWav 2.23 KB, worklet 4.63 KB (fetched at first play); CSS 11.91 KB
+  gz; fonts 37.02 KB raw woff2 on disk (Silkscreen 400/700 are inlined into
+  the CSS as data URLs under Vite's 4 KB limit).
+- res-9 preload discipline: index.html preloads ONLY the critical
+  font-display:swap faces that ship as separate files (Departure Mono,
+  IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start
+  2P) and Plex 500 are never preloaded; the stage does not depend on them.
 
 ## 4. Fonts — ≤ 50 KB total
 

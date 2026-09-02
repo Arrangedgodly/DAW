@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bitbounce</title>
+    <!-- res-9 critical-path preload set ONLY: the font-display:swap value/ui
+         faces that ship as separate files (Departure Mono ≈ 5.9 KB, IBM Plex
+         Mono 400 ≈ 10.1 KB). Silkscreen 400/700 sit under Vite's 4 KB inline
+         limit and are data-URL-inlined into the CSS — zero extra request,
+         already on the critical path, so preloading them again would only
+         duplicate bytes. The font-display:optional faces (VT323, Press Start
+         2P) and the numeric-field weight (Plex 500) are deliberately NOT
+         preloaded — the stage never depends on them. -->
+    <link rel="preload" href="/src/assets/fonts/departure-mono-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/src/assets/fonts/ibm-plex-mono-400.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <!--

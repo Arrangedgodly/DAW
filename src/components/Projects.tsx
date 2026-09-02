@@ -22,8 +22,11 @@
 import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import { docStore, loadDocument } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
-import { exportWav } from "../audio/exportWav";
-import { exportMidi } from "../audio/exportMidi";
+// TH-2 code-splitting: the export pipelines (offline render + WAV encoder,
+// MIDI encoder + midi-file framing) are loaded ON DEMAND via dynamic import
+// — the initial bundle never pays for them (CI gate: check:bundle). Both
+// modules are pure/typed-result, so a load failure surfaces as the same
+// error toast shape as any export failure.
 import {
   getActiveProjectId,
   getBootDb,
@@ -156,6 +159,7 @@ export default function Projects(): JSX.Element {
     setBusy(true);
     showInfo("RENDERING WAV…");
     try {
+      const { exportWav } = await import("../audio/exportWav");
       const result = await exportWav(docStore.getState().doc);
       if (result.ok) {
         showSuccess(`WAV EXPORTED · ${result.bars} BAR${result.bars === 1 ? "" : "S"}`);
@@ -171,10 +175,11 @@ export default function Projects(): JSX.Element {
    * MIDI export (MF-5): pure synchronous encode → typed result → download.
    * Same one-shot busy flag as WAV so the two exports can't interleave.
    */
-  const handleExportMidi = (): void => {
+  const handleExportMidi = async (): Promise<void> => {
     if (busy()) return;
     setBusy(true);
     try {
+      const { exportMidi } = await import("../audio/exportMidi");
       const result = exportMidi(docStore.getState().doc);
       if (result.ok) {
         showSuccess(
@@ -280,7 +285,7 @@ export default function Projects(): JSX.Element {
               type="button"
               class="booth-btn projects-action"
               disabled={busy()}
-              onClick={handleExportMidi}
+              onClick={() => void handleExportMidi()}
             >
               EXPORT MIDI
             </button>

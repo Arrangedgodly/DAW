@@ -18,6 +18,12 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # TH-2: bundle budget gate — measures the build above (SKIP_BUILD=1),
+      # asserts initial-load JS ≤ 300 KB gz + fonts ≤ 50 KB, prints the
+      # js/fonts/worklet breakdown. Fails non-zero over budget.
+      - run: npm run check:bundle
+        env:
+          SKIP_BUILD: "1"
 
   # TH-1 / D8 / RES-7: browser-mode audio determinism + frame-budget suite.
   # Pinned Chromium comes from the playwright version in package-lock.json;
