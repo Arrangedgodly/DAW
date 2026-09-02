@@ -4,3 +4,4 @@ dist/
 coverage/
 .impeccable/payload-*
 .impeccable/*body*
+.impeccable/questions/
