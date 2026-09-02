@@ -1,0 +1,70 @@
+/*
+ * Bitbounce — self-hosted pixel faces (res-9 typography stack).
+ *
+ * All files are latin subsets, woff2, committed under src/assets/fonts/
+ * (see LICENSES.md there). Total budget ≤ 50 KB (currently ~44.6 KB).
+ *
+ * font-display policy (res-9 §4):
+ *   swap     — preloaded label/value/ui faces (px-sized containers prevent
+ *              reflow during swap).
+ *   optional — display/LED faces; the stage never depends on them.
+ */
+
+/* --font-label — lane labels / silkscreen prints (10px = 700 only; 11–12px 400/700) */
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/silkscreen-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Silkscreen";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/silkscreen-700.woff2") format("woff2");
+}
+
+/* --font-value — BPM / param readouts at 11px (native grid); off-grid fields route to Plex Mono */
+@font-face {
+  font-family: "Departure Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/departure-mono-400.woff2") format("woff2");
+}
+
+/* --font-ui — body/help text, numeric fallback; 13–14px, always warm white */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/ibm-plex-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../assets/fonts/ibm-plex-mono-500.woff2") format("woff2");
+}
+
+/* --font-led — big LED readouts, 20–24px only */
+@font-face {
+  font-family: "VT323";
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url("../assets/fonts/vt323-400.woff2") format("woff2");
+}
+
+/* --font-display — 16/24px+ only (multiples of 8); never 10–14px */
+@font-face {
+  font-family: "Press Start 2P";
+  font-style: normal;
+  font-weight: 400;
+  font-display: optional;
+  src: url("../assets/fonts/press-start-2p-400.woff2") format("woff2");
+}

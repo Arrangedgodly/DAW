@@ -1,0 +1,24 @@
+/*
+ * Bitbounce global base — stage floor only. No component design here (DES-2+).
+ */
+@import "./fonts.css";
+@import "./tokens.css";
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font: var(--text-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-lane-chords);
+  color: var(--color-ink-on-fill);
+}

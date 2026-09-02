@@ -1,0 +1,67 @@
+/*
+ * Bitbounce design tokens — Arcade Stage Floor (res-9 law, DES-1).
+ * Consumed by every component from DES-2 on. Do not hardcode these values.
+ */
+
+:root {
+  /* ---- Palette (contrast-verified against ground; res-9 table) ---- */
+  --color-ground: #0d0b10; /* near-black stage floor */
+  --color-ink: #f5f2e9; /* warm white — default info-critical text, 17.49:1 */
+  --color-ink-on-fill: #0d0b10; /* near-black ink on ALL lane fills, 5.17–10.91:1 */
+
+  --color-lane-drums: #f23d4c; /* red — text on ground 5.17:1, ≤10px Silkscreen 700 only */
+  --color-lane-bass: #ffb300; /* amber — any size, 10.91:1 */
+  --color-lane-chords: #35d07f; /* green — any size, 9.77:1 */
+  --color-lane-lead: #4da6ff; /* blue — any size, 7.66:1 */
+
+  /* ---- Ink rules (law; enforce in review, not just style) ----
+   * 1. Filled cells set glyphs in --color-ink-on-fill (never warm white on
+   *    lane fills; red fill + white ink fails AA at normal sizes).
+   * 2. Info-critical text is warm white on ground — never lane-hued, never dimmed.
+   * 3. No lane-hue text on lane fills.
+   * 4. Red text ≤ 10px and only Silkscreen 700.
+   */
+
+  /* ---- Typography (faces loaded in fonts.css) ---- */
+  --font-label: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
+  --font-value: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-led: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Press Start 2P", "IBM Plex Mono", ui-monospace, monospace;
+  --font-ui: "IBM Plex Mono", ui-monospace, monospace;
+
+  --text-label-sm: 700 10px/1 var(--font-label); /* +0.05em uppercase tracking */
+  --text-value: 400 11px/1 var(--font-value); /* monospaced = tabular */
+  --text-ui: 400 13px/1.5 var(--font-ui);
+  --text-numeric-field: 500 13px/1.2 var(--font-ui); /* + tabular-nums */
+
+  /* ---- Spacing scale (2px base: pad-grid rhythm) ---- */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+
+  /* ---- Glow (decoration-only law) ----
+   * 1. Glow never counts toward contrast and never substitutes for it
+   *    (halo = background per WCAG 1.4.3).
+   * 2. Glow is never the only state signal: trigger = fill change +
+   *    2px lane-hue border + shape mark (corner notch active, diagonal
+   *    hatch muted); glow layers on top.
+   * 3. Exactly ONE glow layer, ≤3px blur, lane hue at 45–60% alpha;
+   *    no glow on text < 18px.
+   * 4. One-shot trigger glow decays ≤180 ms; no infinite pulses (SC 2.3.1/2.2.2).
+   */
+  --glow-blur: 3px; /* max */
+  --glow-alpha-min: 45%;
+  --glow-alpha-max: 60%;
+  --glow-trigger-decay: 180ms; /* max */
+
+  /* ---- Reduced motion (law) ----
+   * prefers-reduced-motion: playhead sweep → quantized column highlight +
+   * textual "BAR n · BEAT n" readout; trigger glow → static on-state.
+   * Gate in BOTH CSS media query and the render loop via matchMedia.
+   */
+}
