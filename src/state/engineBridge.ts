@@ -1,28 +1,23 @@
 /**
- * Engine bridge (DES-4 → IM-6): the one-way store→engine pipe. Subscribes to
- * the document store, recompiles changed lanes with compileLaneEvents (the only
- * scheduling authority, D2–D4) and pushes the grouped events into the
- * session's pattern-playback seam.
+ * Engine bridge (DES-4 → IM-6 → IM-7): the one-way store→engine pipe. Subscribes to
+ * the document store, compiles each lane's full CHAIN with compileLaneSchedule
+ * (the only scheduling authority, D2–D4) and pushes the schedule into the
+ * session's chain-playback seam.
  *
- * IM-6 additions: the document is now the source of truth for transport
- * parameters (bpm/swing/loopBars/metronome) and per-lane effective scales —
- * this bridge syncs them into the session and recompiles lanes whenever any
- * input to compilation changes (patterns, lane config, scale/overrides, song
- * chain, groove). Scale changes recompile all pitched lanes, so turning the
- * project scale mid-play takes effect at the next unscheduled step.
- *
- * Timing (documented decision): the session delivers events per scheduled
- * step, so an edit becomes audible at the next step the lookahead scheduler
- * has not yet emitted (~1.5 s horizon) — effectively immediately, with no
- * in-flight audio re-queueing.
+ * IM-7: the document's songChain is the arrangement; the session derives the
+ * playback cursor from it. Structure changes (chain edits) are deferred by the
+ * session to the lane's next chain-iteration boundary; pattern-content edits
+ * (same segment sequence) swap the event map at the next un-emitted step
+ * (DES-4 rule). Live pattern switching is engine state fed from the ephemeral
+ * UI selection (selection.ts) via requestPatternSwitch below — the CHAIN is
+ * document, the ACTIVE pattern for playback is engine state (documented D1
+ * two-tier split).
  */
 
-import { compileLaneEvents } from "../audio/compile";
-import type { VoiceNoteOnEvent } from "../audio/presets";
+import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
 import { getDrumKit, getPreset } from "../audio/presets";
 import {
   type LaneId,
-  type Pattern,
   type ProjectDocument,
 } from "../document/schema";
 import { effectiveScale } from "../document/scales";
@@ -31,10 +26,31 @@ import { docStore } from "./store";
 
 const PITCHED_LANES = ["bass", "chords", "lead"] as const;
 
-function firstPattern(doc: ProjectDocument, lane: LaneId): Pattern | undefined {
-  // Single-pattern chains in v0 grids; IM-7 brings chain-aware selection.
-  const id = doc.songChain[lane][0];
-  return doc.patterns[lane].find((p) => p.id === id) ?? doc.patterns[lane][0];
+function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
+  const chain = resolveChainPatterns(doc, lane);
+  if (chain.length === 0) return null;
+  const laneConf = doc.lanes.find((l) => l.id === lane)!;
+  const groove = {
+    bpm: session.transport.snapshot.bpm,
+    swing: session.transport.snapshot.swing,
+  };
+  return compileLaneSchedule({
+    chain,
+    preset:
+      lane === "drums"
+        ? getDrumKit((laneConf as { kitId: string }).kitId) ??
+          getDrumKit("kit-default")!
+        : getPreset((laneConf as { presetId: string }).presetId) ??
+          getPreset("preset-lead-1")!,
+    gate: laneConf.gate,
+    groove,
+    ...(lane === "drums"
+      ? {}
+      : {
+          scale: effectiveScale(doc, lane),
+          stackChord: lane === "chords",
+        }),
+  });
 }
 
 export function compileLaneForSession(
@@ -42,34 +58,30 @@ export function compileLaneForSession(
   lane: LaneId,
   session: Session,
 ): void {
-  const pattern = firstPattern(doc, lane);
-  if (!pattern) {
-    return;
-  }
-  const laneConf = doc.lanes.find((l) => l.id === lane)!;
-  const groove = {
-    bpm: session.transport.snapshot.bpm,
-    swing: session.transport.snapshot.swing,
-  };
-  const events: VoiceNoteOnEvent[] =
-    lane === "drums"
-      ? compileLaneEvents({
-          pattern,
-          preset: getDrumKit((laneConf as { kitId: string }).kitId) ?? getDrumKit("kit-default")!,
-          gate: laneConf.gate,
-          groove,
-        })
-      : compileLaneEvents({
-          pattern,
-          preset:
-            getPreset((laneConf as { presetId: string }).presetId) ??
-            getPreset("preset-lead-1")!,
-          gate: laneConf.gate,
-          groove,
-          scale: effectiveScale(doc, lane),
-          stackChord: lane === "chords",
-        });
-  session.setLaneEvents(lane, events, pattern.bars * 16);
+  const schedule = laneScheduleFor(doc, lane, session);
+  if (schedule) session.setLaneSchedule(lane, schedule);
+}
+
+/**
+ * QUANTIZED LIVE SWITCH (IM-7): compile `patternId` standalone and hand it to
+ * the session, which lands it on the lane's next pattern boundary (exact step
+ * observable via session.getPendingSwitch). Fed from the ephemeral pattern
+ * selection (selection.ts selectPattern) — never mutates the document.
+ */
+export function requestPatternSwitch(
+  lane: LaneId,
+  patternId: string,
+  session: Session = getSession(),
+): void {
+  const doc = docStore.getState().doc;
+  const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  if (!pattern) return;
+  const schedule = laneScheduleFor(
+    { ...doc, songChain: { ...doc.songChain, [lane]: [patternId] } },
+    lane,
+    session,
+  );
+  if (schedule) session.setActivePattern(lane, patternId, schedule);
 }
 
 /** Push the document's effective scales + lane sound ids + FX chains. */

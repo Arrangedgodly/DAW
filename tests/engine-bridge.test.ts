@@ -18,12 +18,12 @@ import {
 } from "../src/state/store";
 import { connectStoreToEngine } from "../src/state/engineBridge";
 import type { Session } from "../src/engine/session";
-import type { VoiceNoteOnEvent } from "../src/audio/presets";
+import type { LaneSchedule } from "../src/audio/song";
 import type { EffectiveScale } from "../src/document/scales";
 import type { LaneId } from "../src/document/schema";
 
 interface FakeSession {
-  events: Map<LaneId, VoiceNoteOnEvent[]>;
+  schedules: Map<LaneId, LaneSchedule>;
   sounds: Record<string, string>;
   scales: Record<string, EffectiveScale>;
   bpm: number;
@@ -31,7 +31,7 @@ interface FakeSession {
   metronome: boolean;
   loopBars: number;
   compiles: LaneId[];
-  setLaneEvents(lane: LaneId, events: readonly VoiceNoteOnEvent[], steps: number): void;
+  setLaneSchedule(lane: LaneId, schedule: LaneSchedule): void;
   setLaneSound(lane: LaneId, id: string): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(lane: string, scale: EffectiveScale | null): void;
@@ -43,7 +43,7 @@ interface FakeSession {
 
 function fakeSession(): FakeSession {
   const s: FakeSession = {
-    events: new Map(),
+    schedules: new Map(),
     sounds: {},
     scales: {},
     bpm: -1,
@@ -51,8 +51,8 @@ function fakeSession(): FakeSession {
     metronome: false,
     loopBars: -1,
     compiles: [],
-    setLaneEvents(lane, events) {
-      s.events.set(lane, [...events]);
+    setLaneSchedule(lane, schedule) {
+      s.schedules.set(lane, schedule);
       s.compiles.push(lane);
     },
     setLaneSound(lane, id) {
@@ -118,7 +118,8 @@ describe("connectStoreToEngine", () => {
     expect(s.scales["bass"]).toMatchObject({ root: 4, mode: "major" });
     // The bass event's frequency followed the new scale (E major degree 0 = E,
     // bass preset octaveBase 2 → E2).
-    const bassEvent = s.events.get("bass")![0];
+    const bassEvents = [...s.schedules.get("bass")!.byStep.values()].flat();
+    const bassEvent = bassEvents[0];
     expect(bassEvent.freq).toBeCloseTo(82.41, 1);
 
     disconnect();

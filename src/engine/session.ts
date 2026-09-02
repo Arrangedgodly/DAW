@@ -12,6 +12,7 @@
 import { AudioEngineContext, type AudioContextLike } from "../audio/context";
 import { Transport } from "../audio/transport";
 import { STEPS_PER_BEAT, STEPS_PER_BAR, clampSwing, stepIndexAtTime } from "../audio/time";
+import { type LaneSchedule, type LaneSegment } from "../audio/song";
 import { clamp } from "../lib/clamp";
 import {
   type DrumKit,
@@ -60,6 +61,82 @@ function hasAudioNodes(ctx: AudioContextLike): ctx is AudioNodeContext {
 }
 
 export type TickSoundPlayer = (when: number, downbeat: boolean) => void;
+
+// --- IM-7 helpers: chain-schedule surgery (pure, module-private) ------------
+
+/** Engine-side pending quantized switch (mutable state lives per lane). */
+interface PendingSwitch {
+  readonly laneId: LaneId;
+  readonly toPatternId: string;
+  /** Standalone-compiled schedule of the target pattern (one segment). */
+  readonly schedule: LaneSchedule;
+  /** Exact global step where the switch lands (null = once playing). */
+  readonly appliesAtStep: number | null;
+  readonly segmentIndex: number;
+  /** "boundary" = in-place slot swap; "iteration" = rebuild at chain wrap. */
+  readonly mode: "boundary" | "iteration";
+}
+
+export interface PendingSwitchSnapshot {
+  readonly lane: LaneId;
+  readonly fromPatternId: string;
+  readonly toPatternId: string;
+  readonly appliesAtStep: number | null;
+  readonly mode: "boundary" | "iteration";
+}
+
+function snapshotSwitch(
+  lane: LaneId,
+  pending: PendingSwitch,
+  fromPatternId: string,
+): PendingSwitchSnapshot {
+  return {
+    lane,
+    fromPatternId,
+    toPatternId: pending.toPatternId,
+    appliesAtStep: pending.appliesAtStep,
+    mode: pending.mode,
+  };
+}
+
+/** Same segment id/steps sequence → structure unchanged (content edit). */
+function sameStructure(a: LaneSchedule, b: LaneSchedule): boolean {
+  if (a.segments.length !== b.segments.length) return false;
+  return a.segments.every(
+    (s, i) =>
+      s.patternId === b.segments[i].patternId && s.steps === b.segments[i].steps,
+  );
+}
+
+/**
+ * Rewrite `byStep` so `slot` plays `pattern`'s events at the slot's position
+ * (in-place slot substitution — same step count by construction).
+ */
+function substituteInPlace(
+  byStep: Map<number, readonly VoiceNoteOnEvent[]>,
+  slot: LaneSegment,
+  pattern: LaneSchedule,
+): void {
+  for (let s = slot.startStep; s < slot.startStep + slot.steps; s++) byStep.delete(s);
+  for (const [step, events] of pattern.byStep) {
+    byStep.set(step + slot.startStep, [...events]);
+  }
+}
+
+/** Copy steps [from, from+count) of `source` into `target` at `to`. */
+function mergeShifted(
+  target: Map<number, readonly VoiceNoteOnEvent[]>,
+  source: ReadonlyMap<number, readonly VoiceNoteOnEvent[]>,
+  to: number,
+  from: number,
+  count = Number.POSITIVE_INFINITY,
+): void {
+  for (const [step, events] of source) {
+    if (step >= from && step < from + count) {
+      target.set(step - from + to, [...events]);
+    }
+  }
+}
 
 export interface SessionOptions {
   /** Injected for tests; defaults to the one legal real-AudioContext factory. */
@@ -144,7 +221,7 @@ export class Session {
     } else {
       // Warm the voice engines during the pre-roll so the first pattern step
       // is never dropped waiting on the worklet module load.
-      if (this.lanePatterns.length > 0) void this.ensureVoiceEngine();
+      if (this.lanePlayback.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
   }
@@ -203,27 +280,265 @@ export class Session {
   }
 
   // -------------------------------------------------------------------------
-  // Pattern playback seam (DES-4)
+  // Pattern playback seam (DES-4 → IM-7: per-lane chains + quantized switching)
   // -------------------------------------------------------------------------
 
   /**
-   * Compiled lane events grouped by pattern step (loop-relative; event times
-   * are exactly timeAtStep(step) from compileLaneEvents, so grouping by
-   * stepIndexAtTime is lossless). Delivered on the transport's scheduled tick
-   * for that step, at the tick's swung absolute time.
+   * Per-lane chain playback state (IM-7). The document's song chain compiles
+   * (pure, src/audio/song.ts) into a LaneSchedule; the session owns the
+   * PLAYBACK cursor and every live mutation of it:
+   *
+   * - `anchorStep` — global step of chain-local step 0 for the iteration the
+   *   cursor is in. Chain-local step = step − anchor (advanced per delivered
+   *   step; each lane wraps independently — poly-loop).
+   * - PENDING SWITCH — `setActivePattern` records {requested, appliesAtStep}
+   *   where appliesAtStep is the FIRST segment boundary of that lane strictly
+   *   after the last step already handed to the voice engine (exact step,
+   *   observable). When delivery reaches it, the target slot's pattern is
+   *   substituted for this and every future iteration (engine state, NOT a
+   *   document edit). Same bar count → exact boundary substitution; different
+   *   bar count → the whole schedule is rebuilt at the next chain-iteration
+   *   boundary (segment lengths change; no mid-iteration chaos).
+   * - PENDING SCHEDULE — chain edits pushed while playing (structure change:
+   *   different segment sequence) are deferred to the lane's next iteration
+   *   boundary. Same-sequence pushes (pattern content/gate/preset edits) swap
+   *   the event map immediately (DES-4 rule: next un-emitted step) and
+   *   re-apply stored same-shape substitutions. A structure change supersedes
+   *   a pending switch and drops substitutions (the chain IS the arrangement).
+   * - While stopped, a switch request is stored pending and applies at the
+   *   first boundary once playing (slot 0 at play start).
    */
-  private lanePatterns: {
-    readonly steps: number;
-    readonly byStep: ReadonlyMap<number, readonly VoiceNoteOnEvent[]>;
+  private lanePlayback: {
+    schedule: LaneSchedule;
+    /** Global step where the current iteration started (chain-local 0). */
+    anchorStep: number;
+    /** Live slot substitutions: segment index → pattern schedule. */
+    substitutions: Map<number, { patternId: string; schedule: LaneSchedule }>;
+    pendingSwitch: PendingSwitch | null;
+    pendingSchedule: LaneSchedule | null;
+    /** Pattern id a pending switch/last switch targeted (UI state source). */
+    activePatternId: string;
   }[] = [];
 
+  /** Engine-side pending switch (observable for the DES-6 pending indicator). */
+  private switchListeners = new Set<(lane: LaneId) => void>();
+  /** Highest global step already handed to the voice engines. */
+  private lastDeliveredStep = -1;
+
+  getPendingSwitch(lane: LaneId): PendingSwitchSnapshot | null {
+    const pb = this.lanePlayback[LANE_IDS.indexOf(lane)];
+    if (!pb?.pendingSwitch) return null;
+    const from =
+      pb.schedule.segments[pb.pendingSwitch.segmentIndex]?.patternId ??
+      pb.activePatternId;
+    return snapshotSwitch(lane, pb.pendingSwitch, from);
+  }
+
+  /** Pattern id the lane's active slot plays (post-switch state). */
+  getActivePattern(lane: LaneId): string | null {
+    return this.lanePlayback[LANE_IDS.indexOf(lane)]?.activePatternId ?? null;
+  }
+
+  /** Observe pending-switch changes (request/apply/cancel); unsubscribing. */
+  subscribeSwitches(listener: (lane: LaneId) => void): () => void {
+    this.switchListeners.add(listener);
+    return () => this.switchListeners.delete(listener);
+  }
+
+  private emitSwitch(lane: LaneId): void {
+    for (const l of this.switchListeners) l(lane);
+  }
+
   /**
-   * Push freshly compiled lane events (from the document store bridge).
-   * Timing contract (documented DES-4 decision): edits apply to every step
-   * the scheduler has not yet emitted — the lookahead horizon (~1.5 s) — so a
-   * live edit lands at the next unscheduled step, effectively immediately;
-   * steps already handed to the voice engine this pass still sound. This is
-   * the simplest correct behavior (no re-queueing of in-flight audio).
+   * Push a compiled chain schedule (engineBridge). Structure changes (the
+   * segment id/steps sequence differs) are deferred to the lane's next
+   * iteration boundary while playing; same-structure pushes replace the
+   * event map immediately (next un-emitted step, DES-4) and replay same-shape
+   * substitutions.
+   */
+  setLaneSchedule(laneId: LaneId, schedule: LaneSchedule): void {
+    const index = LANE_IDS.indexOf(laneId);
+    const current = this.lanePlayback[index];
+    if (!current || !this.transport.snapshot.playing) {
+      this.lanePlayback[index] = {
+        schedule,
+        anchorStep: 0,
+        substitutions: new Map(),
+        pendingSwitch: null,
+        pendingSchedule: null,
+        activePatternId: schedule.segments[0]?.patternId ?? "",
+      };
+      this.emitSwitch(laneId);
+      return;
+    }
+    if (sameStructure(current.schedule, schedule)) {
+      // Content edit: swap events, keep cursor, replay surviving substitutions.
+      const next = new Map(schedule.byStep);
+      for (const [segIndex, sub] of current.substitutions) {
+        const seg = schedule.segments[segIndex];
+        if (seg && seg.steps === sub.schedule.chainSteps) {
+          substituteInPlace(next, seg, sub.schedule);
+        }
+      }
+      current.schedule = { ...schedule, byStep: next };
+      return;
+    }
+    // Structure edit: quantized to the next iteration boundary.
+    current.pendingSchedule = schedule;
+    current.pendingSwitch = null; // chain edit supersedes a pending switch
+    current.substitutions.clear();
+    this.emitSwitch(laneId);
+  }
+
+  /**
+   * QUANTIZED LIVE SWITCH (IM-7): request that this lane's active chain slot
+   * becomes `patternId` at the lane's next pattern boundary. `patternSchedule`
+   * is the target pattern compiled standalone (one segment). Takes effect at
+   * exactly `appliesAtStep` (observable via getPendingSwitch/subscribeSwitches)
+   * — never mid-pattern, never touching other lanes.
+   */
+  setActivePattern(
+    laneId: LaneId,
+    patternId: string,
+    patternSchedule: LaneSchedule,
+  ): void {
+    const index = LANE_IDS.indexOf(laneId);
+    const pb = this.lanePlayback[index];
+    if (!pb) return;
+    // Boundary selection (documented): the FIRST upcoming boundary of this
+    // lane strictly after the last emitted step. If the requested pattern has
+    // the same bar count as that boundary's slot, the switch lands exactly
+    // there ("boundary" mode). Otherwise it is deferred to the next chain-
+    // ITERATION boundary ("iteration" mode — segment lengths change, so the
+    // schedule is rebuilt there, never mid-iteration).
+    const boundary = this.transport.snapshot.playing
+      ? this.nextBoundaryAfter(index, this.lastDeliveredStep, patternSchedule.chainSteps)
+      : null;
+    if (boundary && boundary.mode === "boundary" &&
+        pb.schedule.segments[boundary.segment].patternId === patternId) {
+      // Switching to what the slot already plays = cancel any pending switch.
+      pb.pendingSwitch = null;
+      pb.substitutions.delete(boundary.segment);
+      this.emitSwitch(laneId);
+      return;
+    }
+    pb.pendingSwitch = {
+      laneId,
+      toPatternId: patternId,
+      schedule: patternSchedule,
+      appliesAtStep: boundary ? boundary.step : null,
+      segmentIndex: boundary ? boundary.segment : 0,
+      mode: boundary ? boundary.mode : "iteration",
+    };
+    this.emitSwitch(laneId);
+  }
+
+  /**
+   * First boundary of lane `index` strictly after `fromStep`. A pattern of
+   * `candidateSteps` steps fits at the first upcoming slot only when the bar
+   * count matches; otherwise the boundary is the next iteration wrap.
+   */
+  private nextBoundaryAfter(
+    index: number,
+    fromStep: number,
+    candidateSteps: number,
+  ): { step: number; segment: number; mode: "boundary" | "iteration" } | null {
+    const pb = this.lanePlayback[index];
+    if (!pb || pb.schedule.segments.length === 0) return null;
+    const { chainSteps, segments } = pb.schedule;
+    let local: number;
+    let iterationStart: number;
+    if (fromStep < 0) {
+      local = -1; // before anything: the first boundary is iteration step 0
+      iterationStart = 0;
+    } else {
+      local = ((fromStep - pb.anchorStep) % chainSteps + chainSteps) % chainSteps;
+      iterationStart = fromStep - local;
+    }
+    for (let i = 0; i < segments.length; i++) {
+      if (segments[i].startStep > local) {
+        return segments[i].steps === candidateSteps
+          ? { step: iterationStart + segments[i].startStep, segment: i, mode: "boundary" }
+          : { step: iterationStart + chainSteps, segment: 0, mode: "iteration" };
+      }
+    }
+    // Past the last segment: the next iteration's slot 0.
+    return segments[0].steps === candidateSteps
+      ? { step: iterationStart + chainSteps, segment: 0, mode: "boundary" }
+      : { step: iterationStart + chainSteps, segment: 0, mode: "iteration" };
+  }
+
+  private applyDueSwitch(pb: (typeof this.lanePlayback)[number], step: number): void {
+    const pending = pb.pendingSwitch;
+    if (!pending) return;
+    // Must land exactly ON a segment boundary of the current schedule.
+    const { chainSteps, segments } = pb.schedule;
+    const local = ((step - pb.anchorStep) % chainSteps + chainSteps) % chainSteps;
+    const segIndex = segments.findIndex((s) => s.startStep === local);
+    const atBoundary = segIndex >= 0;
+    const due =
+      pending.appliesAtStep !== null
+        ? step >= pending.appliesAtStep && atBoundary
+        : atBoundary; // requested while stopped: first boundary once playing
+    if (!due) return;
+    if (pending.mode === "boundary") {
+      const seg = segments[segIndex];
+      if (!seg || seg.steps !== pending.schedule.chainSteps) {
+        // Shape drifted (structure edit raced us) — drop rather than corrupt.
+        pb.pendingSwitch = null;
+        this.emitSwitch(pending.laneId);
+        return;
+      }
+      const byStep = new Map(pb.schedule.byStep);
+      substituteInPlace(byStep, seg, pending.schedule);
+      pb.schedule = {
+        chainSteps,
+        segments: segments.map((s, i) =>
+          i === segIndex ? { ...s, patternId: pending.toPatternId } : s,
+        ),
+        byStep,
+      };
+      pb.substitutions.set(segIndex, {
+        patternId: pending.toPatternId,
+        schedule: pending.schedule,
+      });
+    } else {
+      // Different bar count: rebuild at this iteration boundary so every
+      // following segment shifts by the length delta, exactly.
+      const target = segments[segIndex] ?? segments[0];
+      const i = segments.indexOf(target);
+      const newSegments: LaneSegment[] = [];
+      const byStep = new Map<number, VoiceNoteOnEvent[]>();
+      let cursor = 0;
+      segments.forEach((seg, j) => {
+        if (j === i) {
+          newSegments.push({
+            patternId: pending.toPatternId,
+            startStep: cursor,
+            steps: pending.schedule.chainSteps,
+          });
+          mergeShifted(byStep, pending.schedule.byStep, cursor, 0);
+          cursor += pending.schedule.chainSteps;
+        } else {
+          newSegments.push({ ...seg, startStep: cursor });
+          mergeShifted(byStep, pb.schedule.byStep, cursor, seg.startStep, seg.steps);
+          cursor += seg.steps;
+        }
+      });
+      pb.schedule = { chainSteps: cursor, segments: newSegments, byStep };
+      pb.substitutions.set(i, {
+        patternId: pending.toPatternId,
+        schedule: pending.schedule,
+      });
+      pb.anchorStep = step; // this boundary starts the rebuilt iteration
+    }
+    pb.activePatternId = pending.toPatternId;
+    pb.pendingSwitch = null;
+    this.emitSwitch(pending.laneId);
+  }
+
+  /**
+   * Legacy single-pattern seam (DES-4 tests): builds a one-segment schedule.
    */
   setLaneEvents(
     laneId: LaneId,
@@ -231,32 +546,63 @@ export class Session {
     patternSteps: number,
   ): void {
     const byStep = new Map<number, VoiceNoteOnEvent[]>();
+    const groove = {
+      bpm: this.transport.snapshot.bpm,
+      swing: this.transport.snapshot.swing,
+    };
     for (const event of events) {
       const step = stepIndexAtTime(event.time, {
         bars: 4,
-        bpm: this.transport.snapshot.bpm,
-        swing: this.transport.snapshot.swing,
+        bpm: groove.bpm,
+        swing: groove.swing,
       });
       const bucket = byStep.get(step);
       if (bucket) bucket.push(event);
       else byStep.set(step, [event]);
     }
-    this.lanePatterns[LANE_IDS.indexOf(laneId)] = { steps: patternSteps, byStep };
+    this.setLaneSchedule(laneId, {
+      chainSteps: patternSteps,
+      segments: [
+        { patternId: this.getActivePattern(laneId) ?? "pattern", startStep: 0, steps: patternSteps },
+      ],
+      byStep,
+    });
   }
 
   /** Step-local delivery on the transport tick: the audio path for patterns. */
   private deliverLaneEvents(step: number, when: number): void {
-    if (this.lanePatterns.length === 0) return;
+    if (this.lanePlayback.length === 0) return;
+    this.lastDeliveredStep = Math.max(this.lastDeliveredStep, step);
     void this.ensureVoiceEngine().then((host) => {
       if (!host) return;
       const laneCount = LANE_IDS.length;
       for (let i = 0; i < laneCount; i++) {
-        const pattern = this.lanePatterns[i];
-        if (!pattern) continue;
-        const local = ((step % pattern.steps) + pattern.steps) % pattern.steps;
-        const events = pattern.byStep.get(local);
-        if (!events) continue;
-        host.sendEvents(i, events.map((e) => ({ ...e, time: when })));
+        const pb = this.lanePlayback[i];
+        if (!pb) continue;
+        let local = step - pb.anchorStep;
+        // A deferred structure swap lands exactly on an iteration boundary.
+        if (
+          pb.pendingSchedule &&
+          ((local % pb.schedule.chainSteps) + pb.schedule.chainSteps) %
+            pb.schedule.chainSteps ===
+            0 &&
+          local >= 0
+        ) {
+          pb.schedule = pb.pendingSchedule;
+          pb.pendingSchedule = null;
+          pb.anchorStep = step;
+          local = 0;
+        }
+        while (local >= pb.schedule.chainSteps) {
+          pb.anchorStep += pb.schedule.chainSteps;
+          local -= pb.schedule.chainSteps;
+        }
+        this.applyDueSwitch(pb, step);
+        // Recompute local: a rebuild switch may have re-anchored.
+        local = ((step - pb.anchorStep) % pb.schedule.chainSteps + pb.schedule.chainSteps) %
+          pb.schedule.chainSteps;
+        const events = pb.schedule.byStep.get(local);
+        if (events) host.sendEvents(i, events.map((e) => ({ ...e, time: when })));
       }
     });
   }

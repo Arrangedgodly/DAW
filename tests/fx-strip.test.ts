@@ -250,6 +250,7 @@ describe("store FX actions", () => {
 interface FakeSession {
   chains: Map<LaneId, readonly unknown[]>;
   setLaneEvents(): void;
+  setLaneSchedule(): void;
   setLaneSound(): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(): void;
@@ -263,6 +264,7 @@ function fakeSession(): FakeSession {
   const s: FakeSession = {
     chains: new Map(),
     setLaneEvents() {},
+    setLaneSchedule() {},
     setLaneSound() {},
     setLaneChain(lane, devices) {
       s.chains.set(lane, devices);

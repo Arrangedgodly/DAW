@@ -1,9 +1,14 @@
 /**
- * Selection/focus state (IM-6, D1 two-tier law): ephemeral UI state lives in
+ * Selection/focus state (IM-6/IM-7, D1 two-tier law): ephemeral UI state lives in
  * Solid signals and NEVER in the document store or undo history. Active lane,
  * the active pattern per lane, and the focused grid cell are pure view state —
  * they change at interaction speed, are not persisted, and are not part of the
  * project document (two users could focus different cells in the same doc).
+ *
+ * IM-7 model (documented): the CHAIN is document state (songChain); the ACTIVE
+ * pattern for playback is ENGINE state (Session), fed from this selection via
+ * engineBridge.requestPatternSwitch — which quantizes the switch to the lane's
+ * next pattern boundary and exposes the pending state for the DES-6 rail.
  *
  * Signal accessors are named getSomething/setSomething (plus the bare signals
  * for JSX use) so call sites read clearly outside JSX.

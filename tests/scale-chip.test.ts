@@ -137,6 +137,9 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
       setLaneEvents: (lane: LaneId) => {
         s.compiles.push(lane);
       },
+      setLaneSchedule: (lane: LaneId) => {
+        s.compiles.push(lane);
+      },
       setLaneScale: (lane: string, scale: unknown) => {
         s.scales[lane] = scale;
       },
