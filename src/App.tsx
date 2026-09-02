@@ -8,6 +8,7 @@ import Booth from "./components/Booth";
 import StageFloor from "./components/StageFloor";
 import "./styles/app.css";
 import "./styles/grid.css";
+import "./styles/lane-header.css";
 
 export default function App() {
   return (

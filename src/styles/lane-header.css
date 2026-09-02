@@ -1,0 +1,268 @@
+/*
+ * Lane header strips (DES-3) + the shared scale chip/popover.
+ * Ink law (D9): info-critical text = warm white on the ground; the lane hue
+ * appears only on borders, fills of state chips, and focus — never as body
+ * text (red lane text is restricted to ≤10px Silkscreen 700 anyway).
+ * Glow law: one ≤3px layer, decoration-only, never the sole state signal.
+ */
+
+.lane-head-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+.lane-head-strip .lane-name {
+  margin-right: auto;
+}
+
+.lane-head-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+.head-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.head-ctl-label {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+}
+
+.head-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.head-step-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  /* Lane-hue border accent (never lane-hue text). */
+  border-color: color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+}
+
+.head-step-btn:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.head-step-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.head-ctl-value {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 8ch;
+  text-align: center;
+}
+
+.head-ctl-unit {
+  margin-left: 2px;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+}
+
+/* ---- Effective-scale chip (the R6 affordance) ---- */
+
+.head-scale-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.scale-chip {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scale-chip:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.scale-chip:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* Override state: lane-hue border + fill tint carry it (never glow alone,
+ * never hue text). */
+.scale-chip.is-lane {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+  box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 45%, transparent);
+}
+
+/* Booth variant: no lane hue in scope — neutral chassis chip. */
+.scale-chip-booth {
+  min-width: 9ch;
+  text-align: center;
+}
+
+/* ---- Scale popover ---- */
+
+.scale-pop {
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  left: 0;
+  z-index: 40;
+  width: 264px;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-ground);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 6px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.scale-pop-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scale-pop-heading {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+}
+
+.scale-pop-roots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-1);
+}
+
+.scale-pop-root {
+  font: var(--text-value);
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.scale-pop-root[aria-pressed="true"] {
+  background: var(--color-ink);
+  color: var(--color-ink-on-fill);
+  border-color: var(--color-ink);
+}
+
+.scale-pop-modes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 168px;
+  overflow-y: auto;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground)) transparent;
+}
+
+.scale-pop-mode {
+  font: var(--text-ui);
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.scale-pop-mode[aria-pressed="true"] {
+  background: var(--color-ink);
+  color: var(--color-ink-on-fill);
+  border-color: var(--color-ink);
+}
+
+.scale-pop-root:focus-visible,
+.scale-pop-mode:focus-visible,
+.scale-pop-commit:focus-visible,
+.scale-pop-detach:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.scale-pop-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scale-pop-commit {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink-on-fill);
+  background: var(--color-ink);
+  border: 1px solid var(--color-ink);
+  border-radius: 3px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.scale-pop-detach {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.scale-pop-detach.is-dim {
+  opacity: 0.55;
+}
+
+/* ---- FX placeholder (DES-5 builds the strip) ---- */
+
+.head-fx {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--color-ground));
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: not-allowed;
+}
+
+/* Screen-reader-only live region (booth pattern). */
+.head-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

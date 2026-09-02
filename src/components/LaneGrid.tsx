@@ -20,15 +20,10 @@ import {
   type PlayheadFrame,
 } from "../grid/renderer";
 import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
+import LaneHeader from "./LaneHeader";
+import { LANE_NAMES } from "./laneMeta";
 
 const session = getSession();
-
-const LANE_NAMES: Record<LaneId, string> = {
-  drums: "DRUMS",
-  bass: "BASS",
-  chords: "CHORDS",
-  lead: "LEAD",
-};
 
 function currentPattern(lane: LaneId) {
   const doc = docStore.getState().doc;
@@ -137,12 +132,7 @@ export default function LaneGrid(props: { lane: LaneId }) {
 
   return (
     <section class="lane-floor" data-lane={props.lane} aria-label={LANE_NAMES[props.lane]}>
-      <div class="lane-head">
-        <span class="lane-name">{LANE_NAMES[props.lane]}</span>
-        <span class="lane-count" aria-hidden="true">
-          {currentPattern(props.lane)?.bars ?? 1} BAR
-        </span>
-      </div>
+      <LaneHeader lane={props.lane} />
       <div
         class="lane-grid-scroll"
         ref={(el) => {

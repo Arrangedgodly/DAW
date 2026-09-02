@@ -21,13 +21,37 @@ import {
   volumePercentToGain,
 } from "../engine/mappings";
 import "../styles/booth.css";
-import { setTransport } from "../state/store";
+import {
+  docStore,
+  setLaneScaleOverride,
+  setProjectScale,
+  setTransport,
+} from "../state/store";
+import {
+  announceScale,
+  projectScaleChipLabel,
+} from "../state/scaleChip";
+import ScalePopover from "./ScalePopover";
 
 const session = getSession();
 
 const BEAT_LED_COUNT = 4;
 
 export default function Booth() {
+  // Project-scale chip (DES-3): mirrors the document scale into signals via
+  // one subscription; the popover commits through the store seam.
+  const [scaleChip, setScaleChip] = createSignal(projectScaleChipLabel(docStore.getState().doc));
+  const [scalePopOpen, setScalePopOpen] = createSignal(false);
+  const [scaleAnnounce, setScaleAnnounce] = createSignal("");
+  let scaleChipBtn: HTMLButtonElement | undefined;
+  onMount(() => {
+    const unsubscribeDoc = docStore.subscribe((state, prev) => {
+      if (state.doc.scale === prev.doc.scale) return;
+      setScaleChip(projectScaleChipLabel(state.doc));
+    });
+    onCleanup(unsubscribeDoc);
+  });
+
   const [playing, setPlaying] = createSignal(false);
   const [loopOn, setLoopOn] = createSignal(session.transport.snapshot.loop);
   const [metroOn, setMetroOn] = createSignal(false);
@@ -194,6 +218,48 @@ export default function Booth() {
             +
           </button>
         </div>
+      </div>
+
+      <div class="booth-group" role="group" aria-label="Project scale">
+        <span class="booth-label" aria-hidden="true">
+          SCALE
+        </span>
+        <span class="head-scale-wrap">
+          <button
+            type="button"
+            ref={(el) => {
+              scaleChipBtn = el;
+            }}
+            class="scale-chip scale-chip-booth"
+            aria-haspopup="dialog"
+            aria-expanded={scalePopOpen()}
+            aria-label={`Project scale: ${scaleChip().text}. Open scale selector.`}
+            onClick={() => setScalePopOpen(!scalePopOpen())}
+          >
+            {scaleChip().text}
+          </button>
+          {scalePopOpen() && (
+            <ScalePopover
+              variant="project"
+              initialRoot={scaleChip().root}
+              initialMode={scaleChip().mode}
+              overridden={false}
+              store={{ setProjectScale, setLaneScaleOverride }}
+              onApplied={() =>
+                setScaleAnnounce(
+                  announceScale(projectScaleChipLabel(docStore.getState().doc), "Project"),
+                )
+              }
+              onClose={() => {
+                setScalePopOpen(false);
+                scaleChipBtn?.focus();
+              }}
+            />
+          )}
+        </span>
+        <span class="booth-sr" role="status" aria-live="polite">
+          {scaleAnnounce()}
+        </span>
       </div>
 
       <div
