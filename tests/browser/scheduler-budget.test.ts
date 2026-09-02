@@ -117,7 +117,9 @@ describe("scheduler onset budget (offline, real worklet)", () => {
       name: "chords (note on every 8th)",
       events: compileLaneEvents({
         pattern: pitchedPattern("perf-chords", 3, (s) => s % 2 === 0),
-        preset: getPreset("preset-chords-1")!,
+        // Percussive chord voice: onset detection needs discrete notes
+        // (pad-style presets like preset-chords-1 blur across gaps by design).
+        preset: getPreset("preset-chords-4")!,
         gate: SHORT_GATE,
         groove: GROOVE,
         scale,

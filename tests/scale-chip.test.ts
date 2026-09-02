@@ -192,18 +192,34 @@ describe("sound options", () => {
     expect(soundOptionsFor("drums").map((o) => o.id)).toEqual([
       "kit-default",
       "kit-grit",
+      "kit-metal",
+      "kit-soft",
+      "kit-dust",
+      "kit-lab",
     ]);
     expect(soundOptionsFor("bass").map((o) => o.id)).toEqual([
       "preset-bass-1",
       "preset-bass-2",
+      "preset-bass-3",
+      "preset-bass-4",
+      "preset-bass-5",
+      "preset-bass-6",
     ]);
     expect(soundOptionsFor("chords").map((o) => o.id)).toEqual([
       "preset-chords-1",
       "preset-chords-2",
+      "preset-chords-3",
+      "preset-chords-4",
+      "preset-chords-5",
+      "preset-chords-6",
     ]);
     expect(soundOptionsFor("lead").map((o) => o.id)).toEqual([
       "preset-lead-1",
       "preset-lead-2",
+      "preset-lead-3",
+      "preset-lead-4",
+      "preset-lead-5",
+      "preset-lead-6",
     ]);
   });
 });

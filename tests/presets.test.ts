@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
+import * as v from "valibot";
 import {
   DRUM_KITS,
   PRESET_LIBRARY,
+  VoicePresetSchema,
   WAVE_CODE,
   getDrumKit,
   getPreset,
   noteParamsFor,
   type VoicePreset,
 } from "../src/audio/presets";
-import { DRUM_PIECES } from "../src/document/schema";
+import { DRUM_PIECES, createDefaultProject } from "../src/document/schema";
 
 function validatePreset(p: VoicePreset): void {
   expect(typeof p.id).toBe("string");
@@ -29,11 +31,49 @@ function validatePreset(p: VoicePreset): void {
 }
 
 describe("preset library", () => {
-  it("has at least 2 presets per pitched lane type (bass/chords/lead)", () => {
+  it("has at least 6 presets per pitched lane type (bass/chords/lead)", () => {
     for (const lane of ["bass", "chords", "lead"] as const) {
       const ids = Object.keys(PRESET_LIBRARY).filter((id) => id.includes(lane));
-      expect(ids.length).toBeGreaterThanOrEqual(2);
+      expect(ids.length).toBeGreaterThanOrEqual(6);
       for (const id of ids) validatePreset(getPreset(id)!);
+    }
+  });
+
+  it("every preset record is VoicePresetSchema-valid (PX-2 data validity)", () => {
+    for (const p of Object.values(PRESET_LIBRARY)) {
+      expect(() => v.parse(VoicePresetSchema, p), p.id).not.toThrow();
+    }
+    for (const kit of Object.values(DRUM_KITS)) {
+      for (const piece of DRUM_PIECES) {
+        expect(() => v.parse(VoicePresetSchema, kit.pieces[piece]), `${kit.id}.${piece}`).not.toThrow();
+      }
+    }
+  });
+
+  it("ids are unique and library keys match record ids", () => {
+    const seen = new Set<string>();
+    for (const [key, p] of Object.entries(PRESET_LIBRARY)) {
+      expect(seen.has(p.id), p.id).toBe(false);
+      seen.add(p.id);
+      expect(key).toBe(p.id);
+    }
+    for (const kit of Object.values(DRUM_KITS)) {
+      for (const piece of DRUM_PIECES) {
+        const p = kit.pieces[piece];
+        expect(seen.has(p.id), p.id).toBe(false);
+        seen.add(p.id);
+        expect(p.id.startsWith(`${kit.id}-`)).toBe(true);
+      }
+    }
+  });
+
+  it("all ids referenced by the default project exist in the libraries", () => {
+    for (const lane of createDefaultProject().lanes) {
+      if (lane.id === "drums") {
+        expect(getDrumKit(lane.kitId), lane.kitId).toBeDefined();
+      } else {
+        expect(getPreset(lane.presetId), lane.presetId).toBeDefined();
+      }
     }
   });
 
@@ -45,9 +85,10 @@ describe("preset library", () => {
     }
   });
 
-  it("has 2 drum kits, each mapping every drum piece to a preset", () => {
+  it("has 4-6 drum kits, each mapping every drum piece to a preset", () => {
     const kits = Object.values(DRUM_KITS);
-    expect(kits.length).toBeGreaterThanOrEqual(2);
+    expect(kits.length).toBeGreaterThanOrEqual(4);
+    expect(kits.length).toBeLessThanOrEqual(6);
     for (const kit of kits) {
       for (const piece of DRUM_PIECES) {
         const p = kit.pieces[piece];
@@ -55,6 +96,16 @@ describe("preset library", () => {
         validatePreset(p);
       }
     }
+  });
+
+  it("kits vary the committed character axes (kick sweep, snare mix, hat decay)", () => {
+    const kits = Object.values(DRUM_KITS);
+    const kickRatios = new Set(kits.map((k) => k.pieces.kick.pitchSweep!.endRatio));
+    const snareMixes = new Set(kits.map((k) => k.pieces.snare.noiseMix));
+    const hatDecays = new Set(kits.map((k) => k.pieces.hat.envelope.decay));
+    expect(kickRatios.size).toBeGreaterThanOrEqual(4);
+    expect(snareMixes.size).toBeGreaterThanOrEqual(4);
+    expect(hatDecays.size).toBeGreaterThanOrEqual(4);
   });
 
   it("drum kit characters follow the D2/D3 recipes", () => {
