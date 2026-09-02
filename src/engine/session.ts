@@ -33,7 +33,7 @@ import {
   type DrumPiece,
   type LaneId,
 } from "../document/schema";
-import { degreeToMidi, toEffectiveScale } from "../document/scales";
+import { type EffectiveScale, degreeToMidi, toEffectiveScale } from "../document/scales";
 
 /** Audio-node surface the default metronome/master wiring needs. */
 interface AudioNodeContext extends AudioContextLike {
@@ -97,6 +97,12 @@ export class Session {
     chords: "preset-chords-1",
     lead: "preset-lead-1",
   };
+  /**
+   * Effective scale per pitched lane (IM-6): the engineBridge pushes
+   * effectiveScale(project, lane) here so audition matches what compilation
+   * plays. Falls back to the document default (C minor) until connected.
+   */
+  private laneScales: Partial<Record<Exclude<LaneId, "drums">, EffectiveScale>> = {};
 
   constructor(opts: SessionOptions = {}) {
     this.engine = opts.engine ?? new AudioEngineContext();
@@ -253,19 +259,27 @@ export class Session {
     this.laneSounds[laneId] = presetOrKitId;
   }
 
+  /** Set the effective scale a pitched lane auditions in (engineBridge). */
+  setLaneScale(laneId: Exclude<LaneId, "drums">, scale: EffectiveScale | null): void {
+    if (scale === null) delete this.laneScales[laneId];
+    else this.laneScales[laneId] = scale;
+  }
+
   /**
    * AUDITION: trigger one voice of a lane immediately (grid placement,
    * browser). `degreeOrDrum` is a scale degree for pitched lanes or a drum
-   * piece for the drums lane.
+   * piece for the drums lane. Pitched lanes resolve the degree against the
+   * lane's effective scale (chord lanes trigger the diatonic triad, matching
+   * compileLaneEvents' stackChord semantics).
    */
   async audition(laneId: LaneId, degreeOrDrum: number | DrumPiece): Promise<void> {
     await this.engine.unlock();
     const host = await this.ensureVoiceEngine();
     if (!host) return;
     const when = this.engine.getContext().currentTime + 0.03;
-    const event = this.buildAuditionEvent(laneId, degreeOrDrum, when);
-    if (!event) return;
-    host.sendEvents(LANE_IDS.indexOf(laneId), [event]);
+    const events = this.buildAuditionEvents(laneId, degreeOrDrum, when);
+    if (events.length === 0) return;
+    host.sendEvents(LANE_IDS.indexOf(laneId), events);
   }
 
   /** Stop everything the voice engines are sounding (transport stop). */
@@ -273,7 +287,7 @@ export class Session {
     void this.ensureVoiceEngine().then((host) => host?.allOff());
   }
 
-  private buildAuditionEvent(
+  private buildAuditionEvents(
     laneId: LaneId,
     degreeOrDrum: number | DrumPiece,
     when: number,
@@ -285,22 +299,30 @@ export class Session {
           ? (degreeOrDrum as DrumPiece)
           : "kick";
       const piece = kit.pieces[pieceName];
-      return noteParamsFor(piece, {
-        time: when,
-        holdSeconds: Math.max(piece.envelope.attack + piece.envelope.decay, 0.05),
-        seedSalt: DRUM_PIECES.indexOf(pieceName),
-      });
+      return [
+        noteParamsFor(piece, {
+          time: when,
+          holdSeconds: Math.max(piece.envelope.attack + piece.envelope.decay, 0.05),
+          seedSalt: DRUM_PIECES.indexOf(pieceName),
+        }),
+      ];
     }
     const preset = this.resolvePitchedPreset(laneId);
     const degree = typeof degreeOrDrum === "number" ? degreeOrDrum : 0;
-    const scale = toEffectiveScale({ root: 0, mode: "minor" });
-    const midi = degreeToMidi(scale, degree, preset.pitchRange?.octaveBase ?? 4);
-    return noteParamsFor(preset, {
-      time: when,
-      midi,
-      holdSeconds: 0.25,
-      seedSalt: degree,
-    });
+    // Lane's effective scale when connected; the project default (C minor)
+    // before the engineBridge pushes the document's scale.
+    const scale = this.laneScales[laneId] ?? toEffectiveScale({ root: 0, mode: "minor" });
+    const octaveBase = preset.pitchRange?.octaveBase ?? 4;
+    // Chord lanes audition the diatonic triad, one voice per chord tone.
+    const offsets = laneId === "chords" ? [0, 2, 4] : [0];
+    return offsets.map((offset) =>
+      noteParamsFor(preset, {
+        time: when,
+        midi: degreeToMidi(scale, degree + offset, octaveBase),
+        holdSeconds: 0.25,
+        seedSalt: degree + offset,
+      }),
+    );
   }
 
   private resolveDrumKit(): DrumKit {

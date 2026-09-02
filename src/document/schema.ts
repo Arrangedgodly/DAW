@@ -344,7 +344,10 @@ export function createDefaultProject(): ProjectDocument {
   return {
     name: "Untitled",
     version: SCHEMA_VERSION,
-    transport: { bpm: 120, swing: 0, loopBars: 2, metronome: false },
+    // loopBars 1 matches the default single-bar patterns (IM-6: the persisted
+    // loopBars is now authoritative in the engine bridge, so it must agree
+    // with the shipped grid extent).
+    transport: { bpm: 120, swing: 0, loopBars: 1, metronome: false },
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,
     lanes: [

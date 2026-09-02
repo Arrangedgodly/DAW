@@ -6,7 +6,7 @@
   },
   "goldens": {
     "codec/default-project-canonical-v1": {
-      "sha256": "4e6c3f98ae0283532c33e39a2492493f05905251f10cf06cdf5d0b12e84c9c34",
+      "sha256": "c560f43a13b5dc8aef8d0e76088632f510f128d96539292abcc0debcbd45abba",
       "byteLength": 2694
     }
   }

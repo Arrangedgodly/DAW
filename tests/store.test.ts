@@ -1,10 +1,10 @@
 /**
- * DES-4 store tests: document toggle actions + zundo undo/redo (limit 50).
+ * DES-4/IM-6 store tests: document toggle actions + zundo undo/redo (limit 50)
+ * with rapid-edit coalescing (same family within 350 ms → one undo step).
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  canRedo,
   canUndo,
   docStore,
   redo,
@@ -19,8 +19,14 @@ function doc() {
 
 beforeEach(() => {
   // Rewind history to the initial state before each test.
+  // Rewind to the initial document, then drop all history (redo would
+  // otherwise re-apply the previous test's edits and refill `past`).
   while (canUndo()) undo();
-  while (canRedo()) redo();
+  docStore.temporal.getState().clear();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("doc store toggles", () => {
@@ -83,9 +89,12 @@ describe("doc store toggles", () => {
 });
 
 describe("undo/redo", () => {
-  it("undoes and redoes toggle edits", () => {
+  it("undoes and redoes toggle edits (spaced gestures)", () => {
+    vi.useFakeTimers({ toFake: ["performance"] });
     toggleDrumStep("kick", 0);
+    vi.advanceTimersByTime(400); // outside the coalescing window
     toggleDrumStep("kick", 0); // net-zero edit pair
+    vi.advanceTimersByTime(400);
     toggleDrumStep("snare", 4);
     expect(doc().patterns.drums[0].steps.snare[4]).toBe(true);
 
@@ -100,8 +109,29 @@ describe("undo/redo", () => {
     expect(doc().patterns.drums[0].steps.kick[0]).toBe(true);
   });
 
+  it("rapid toggles coalesce into one undo step", () => {
+    toggleDrumStep("kick", 0);
+    toggleDrumStep("hat", 3); // same family, within 350 ms
+    togglePitchedCell("bass", 2, 1);
+    expect(doc().patterns.drums[0].steps.kick[0]).toBe(true);
+    expect(doc().patterns.drums[0].steps.hat[3]).toBe(true);
+
+    undo(); // one step reverts the whole gesture
+    expect(doc().patterns.drums[0].steps.kick[0]).toBe(false);
+    expect(doc().patterns.drums[0].steps.hat[3]).toBe(false);
+    const bass = doc().patterns.bass[0];
+    if (bass.kind === "pitched") {
+      expect(bass.rows.find((r) => r.degree === 2)?.steps[1]).toBe(0);
+    }
+    expect(canUndo()).toBe(false);
+  });
+
   it("history depth is limited to 50 snapshots", () => {
-    for (let i = 0; i < 60; i++) toggleDrumStep("hat", i % 16);
+    vi.useFakeTimers({ toFake: ["performance"] });
+    for (let i = 0; i < 60; i++) {
+      toggleDrumStep("hat", i % 16);
+      vi.advanceTimersByTime(400); // every toggle is its own gesture
+    }
     let depth = 0;
     while (canUndo()) {
       undo();

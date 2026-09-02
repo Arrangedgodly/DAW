@@ -125,21 +125,30 @@ function fitSteps<T>(steps: readonly T[], bars: number, fill: T): T[] {
 }
 
 function normalizeDrumPattern(p: DrumPattern): DrumPattern {
+  let changed = false;
   const steps = {} as Record<(typeof DRUM_PIECES)[number], boolean[]>;
   for (const piece of DRUM_PIECES) {
-    steps[piece] = fitSteps(p.steps[piece] ?? [], p.bars, false);
+    const src = p.steps[piece];
+    if (src && src.length === p.bars * STEPS_PER_BAR) {
+      steps[piece] = src as boolean[];
+    } else {
+      changed = true;
+      steps[piece] = fitSteps(src ?? [], p.bars, false);
+    }
   }
-  return { ...p, steps };
+  // Identity-preserving when nothing needed repair: the store bridge and grid
+  // sync diff by object identity (IM-6), so valid docs must not churn.
+  return changed ? { ...p, steps } : p;
 }
 
 function normalizePitchedPattern(p: PitchedPattern): PitchedPattern {
-  return {
-    ...p,
-    rows: p.rows.map((row) => ({
-      ...row,
-      steps: fitSteps(row.steps, p.bars, 0 satisfies PitchedCell),
-    })),
-  };
+  let changed = false;
+  const rows = p.rows.map((row) => {
+    if (row.steps.length === p.bars * STEPS_PER_BAR) return row;
+    changed = true;
+    return { ...row, steps: fitSteps(row.steps, p.bars, 0 satisfies PitchedCell) };
+  });
+  return changed ? { ...p, rows } : p;
 }
 
 function normalizePattern(p: Pattern): Pattern {
@@ -153,8 +162,13 @@ function normalizePattern(p: Pattern): Pattern {
  */
 export function normalizeProject(doc: ProjectDocument): ProjectDocument {
   const patterns = {} as Record<LaneId, Pattern[]>;
+  let changed = false;
   for (const laneId of LANE_IDS) {
-    patterns[laneId] = doc.patterns[laneId].map(normalizePattern);
+    const source = doc.patterns[laneId];
+    const normalized = source.map(normalizePattern);
+    // Keep array identity per lane when every pattern survived unchanged.
+    patterns[laneId] = normalized.some((p, i) => p !== source[i]) ? normalized : (source as Pattern[]);
+    if (patterns[laneId] !== source) changed = true;
   }
-  return { ...doc, patterns };
+  return changed ? { ...doc, patterns } : doc;
 }

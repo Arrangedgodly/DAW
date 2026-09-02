@@ -86,4 +86,39 @@ describe("Session.audition", () => {
     });
     await expect(session.audition("bass", 0)).resolves.toBeUndefined();
   });
+
+  it("setLaneScale retunes audition to the lane's effective scale (IM-6)", async () => {
+    const { session, sent } = auditionSession();
+    // Before any scale is pushed, the fallback is the project default (C minor):
+    // degree 0 → C.
+    await session.audition("bass", 0);
+    const fallbackMidi = midiOfFreq(sent[0][0].freq);
+
+    // D major (root 2): degree 0 is two semitones above C.
+    session.setLaneScale("bass", { root: 2, mode: "major", intervals: [0, 2, 4, 5, 7, 9, 11] });
+    sent.length = 0;
+    await session.audition("bass", 0);
+    expect(midiOfFreq(sent[0][0].freq)).toBe(fallbackMidi + 2);
+
+    // Clearing the override falls back to the project default again.
+    session.setLaneScale("bass", null);
+    sent.length = 0;
+    await session.audition("bass", 0);
+    expect(midiOfFreq(sent[0][0].freq)).toBe(fallbackMidi);
+  });
+
+  it("chords lane auditions the diatonic triad (three voices)", async () => {
+    const { session, sent } = auditionSession();
+    await session.audition("chords", 0);
+    expect(sent[0]).toHaveLength(3);
+    const midis = sent[0].map((e) => midiOfFreq(e.freq)).sort((a, b) => a - b);
+    // C minor default: triad on degree 0 = C, Eb, G.
+    expect(midis[1] - midis[0]).toBe(3);
+    expect(midis[2] - midis[1]).toBe(4);
+  });
 });
+
+const A4_MIDI = 69;
+function midiOfFreq(freq: number): number {
+  return Math.round(12 * Math.log2(freq / 440) + A4_MIDI);
+}

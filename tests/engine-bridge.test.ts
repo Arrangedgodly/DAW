@@ -1,0 +1,159 @@
+/**
+ * IM-6 engine-bridge tests: scale wiring and recompilation triggers, via a
+ * fake session seam (no audio, no browser).
+ */
+
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  canUndo,
+  docStore,
+  setLaneChain,
+  setLaneGate,
+  setLaneScaleOverride,
+  setProjectScale,
+  setTransport,
+  togglePitchedCell,
+  undo,
+  addPattern,
+} from "../src/state/store";
+import { connectStoreToEngine } from "../src/state/engineBridge";
+import type { Session } from "../src/engine/session";
+import type { VoiceNoteOnEvent } from "../src/audio/presets";
+import type { EffectiveScale } from "../src/document/scales";
+import type { LaneId } from "../src/document/schema";
+
+interface FakeSession {
+  events: Map<LaneId, VoiceNoteOnEvent[]>;
+  sounds: Record<string, string>;
+  scales: Record<string, EffectiveScale>;
+  bpm: number;
+  swing: number;
+  metronome: boolean;
+  loopBars: number;
+  compiles: LaneId[];
+  setLaneEvents(lane: LaneId, events: readonly VoiceNoteOnEvent[], steps: number): void;
+  setLaneSound(lane: LaneId, id: string): void;
+  setLaneScale(lane: string, scale: EffectiveScale | null): void;
+  setBpm(bpm: number): void;
+  setSwingAmount(a: number): void;
+  setMetronome(on: boolean): void;
+  transport: { setLoopBars(bars: number): void; snapshot: { bpm: number; swing: number } };
+}
+
+function fakeSession(): FakeSession {
+  const s: FakeSession = {
+    events: new Map(),
+    sounds: {},
+    scales: {},
+    bpm: -1,
+    swing: -1,
+    metronome: false,
+    loopBars: -1,
+    compiles: [],
+    setLaneEvents(lane, events) {
+      s.events.set(lane, [...events]);
+      s.compiles.push(lane);
+    },
+    setLaneSound(lane, id) {
+      s.sounds[lane] = id;
+    },
+    setLaneScale(lane, scale) {
+      if (scale === null) delete s.scales[lane];
+      else s.scales[lane] = scale;
+    },
+    setBpm(bpm) {
+      s.bpm = bpm;
+    },
+    setSwingAmount(a) {
+      s.swing = a;
+    },
+    setMetronome(on) {
+      s.metronome = on;
+    },
+    transport: {
+      setLoopBars(bars) {
+        s.loopBars = bars;
+      },
+      snapshot: { bpm: 120, swing: 0 },
+    },
+  };
+  return s;
+}
+
+beforeEach(() => {
+  // Rewind to the initial document, then drop all history (redo would
+  // otherwise re-apply the previous test's edits and refill `past`).
+  while (canUndo()) undo();
+  docStore.temporal.getState().clear();
+});
+
+describe("connectStoreToEngine", () => {
+  it("initial push syncs transport, lane sounds/scales, and compiles all lanes", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    disconnect();
+
+    expect(s.bpm).toBe(120);
+    expect(s.loopBars).toBe(1); // persisted loopBars is authoritative
+    expect(s.sounds["drums"]).toBe("kit-default");
+    expect(s.sounds["lead"]).toBe("preset-lead-1");
+    // Pitched lanes got their effective scale (project default C minor).
+    expect(s.scales["bass"]).toMatchObject({ root: 0, mode: "minor" });
+    expect(new Set(s.compiles)).toEqual(new Set(["drums", "bass", "chords", "lead"]));
+  });
+
+  it("scale change recompiles pitched lanes with the new scale, not drums", () => {
+    const s = fakeSession();
+    togglePitchedCell("bass", 0, 0); // one event so recompilation is observable
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    s.compiles.length = 0;
+
+    setProjectScale({ root: 4, mode: "major" });
+    expect(new Set(s.compiles)).toEqual(new Set(["bass", "chords", "lead"]));
+    expect(s.compiles).not.toContain("drums");
+    expect(s.scales["bass"]).toMatchObject({ root: 4, mode: "major" });
+    // The bass event's frequency followed the new scale (E major degree 0 = E,
+    // bass preset octaveBase 2 → E2).
+    const bassEvent = s.events.get("bass")![0];
+    expect(bassEvent.freq).toBeCloseTo(82.41, 1);
+
+    disconnect();
+  });
+
+  it("per-lane override changes recompile only affected pitched lane's scale", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    setLaneScaleOverride("chords", { root: 7, mode: "dorian" });
+    expect(s.scales["chords"]).toMatchObject({ root: 7, mode: "dorian" });
+    expect(s.scales["bass"]).toMatchObject({ root: 0, mode: "minor" });
+
+    setLaneScaleOverride("chords", null);
+    expect(s.scales["chords"]).toMatchObject({ root: 0, mode: "minor" });
+    disconnect();
+  });
+
+  it("gate change recompiles that lane; chain change recompiles via first-pattern selection", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    s.compiles.length = 0;
+    setLaneGate("drums", { unit: "steps", value: 2 });
+    expect(s.compiles).toEqual(["drums"]);
+
+    s.compiles.length = 0;
+    const b = addPattern("drums", 1, "B");
+    setLaneChain("drums", [b]);
+    expect(s.compiles).toContain("drums");
+    disconnect();
+  });
+
+  it("transport change syncs session transport and recompiles (groove input)", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    s.compiles.length = 0;
+    setTransport({ bpm: 150, loopBars: 2 });
+    expect(s.bpm).toBe(150);
+    expect(s.loopBars).toBe(2);
+    expect(new Set(s.compiles)).toEqual(new Set(["drums", "bass", "chords", "lead"]));
+    disconnect();
+  });
+});

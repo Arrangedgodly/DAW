@@ -21,6 +21,7 @@ import {
   volumePercentToGain,
 } from "../engine/mappings";
 import "../styles/booth.css";
+import { setTransport } from "../state/store";
 
 const session = getSession();
 
@@ -106,17 +107,19 @@ export default function Booth() {
   const handleToggleMetro = () => {
     const next = !metroOn();
     setMetroOn(next);
-    session.setMetronome(next);
+    // Persisted to the document (IM-6); the engine bridge syncs the session.
+    setTransport({ metronome: next });
   };
   const handleBpmInput = (raw: string) => {
     const parsed = Number.parseFloat(raw);
     if (!Number.isFinite(parsed)) return;
-    session.setBpm(parsed); // transport clamps; subscribe echoes back
+    setTransport({ bpm: Math.round(clampBpmUi(parsed)) }); // session echoes back
   };
-  const stepBpm = (delta: number) => session.setBpm(clampBpmUi(bpm() + delta));
+  const stepBpm = (delta: number) =>
+    setTransport({ bpm: Math.round(clampBpmUi(bpm() + delta)) });
   const handleSwing = (value: number) => {
     setSwingPct(value);
-    session.setSwingAmount(swingPercentToAmount(value));
+    setTransport({ swing: swingPercentToAmount(value) });
   };
   const handleVolume = (value: number) => {
     setVolPct(value);
