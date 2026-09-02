@@ -18,3 +18,22 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # TH-1 / D8 / RES-7: browser-mode audio determinism + frame-budget suite.
+  # Pinned Chromium comes from the playwright version in package-lock.json;
+  # CI=true makes the playwright provider run headless. workers: 1 is set in
+  # the vite.config.ts browser project. The globalSetup builds the bundle the
+  # frame-budget test measures, so no separate build step is needed.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:browser
+        env:
+          CI: true

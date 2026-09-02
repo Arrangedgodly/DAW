@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --project unit",
     "goldens:update": "UPDATE_GOLDENS=1 vitest run tests/golden",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:browser": "vitest run --project browser",
+    "test:all": "vitest run"
   },
   "dependencies": {
     "solid-js": "^1.9.15",
@@ -21,7 +23,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
     "eslint": "^10.9.1",
+    "playwright": "^1.62.1",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.69.0",

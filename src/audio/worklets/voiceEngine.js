@@ -222,27 +222,38 @@ function voiceSample(v, invSampleRate) {
 
 var VOICE_COUNT = 8;
 
-function VoiceEngineProcessor() {
-  // events arrive sorted from the host; merged here (message thread —
-  // allocation allowed), consumed by pointer, never shifted per-sample.
-  this.pending = [];
-  this.pendingIndex = 0;
-  this.consumedUntil = -1;
-  this.voices = [];
-  for (var i = 0; i < VOICE_COUNT; i++) this.voices.push(new Voice());
-  this.nextParams = null; // scratch only during message handling
-  this.port.onmessage = (ev) => {
-    const msg = ev.data;
-    if (!msg || typeof msg !== "object") return;
-    if (msg.type === "events" && Array.isArray(msg.events)) {
-      for (var i = 0; i < msg.events.length; i++) {
-        this.pending.push(msg.events[i]);
+// MUST be a class extending AudioWorkletProcessor: a plain-function
+// constructor registers without error but Chromium never runs it (no
+// process(), no port messages — total silence). Found by the TH-1 browser
+// suite; the node tests passed fakes, so the shape was never exercised.
+// (The node parity import has no AudioWorkletProcessor global, hence the
+// guarded base class.)
+var __ProcessorBase =
+  typeof AudioWorkletProcessor === "function" ? AudioWorkletProcessor : class {};
+class VoiceEngineProcessor extends __ProcessorBase {
+  constructor() {
+    super();
+    // events arrive sorted from the host; merged here (message thread —
+    // allocation allowed), consumed by pointer, never shifted per-sample.
+    this.pending = [];
+    this.pendingIndex = 0;
+    this.consumedUntil = -1;
+    this.voices = [];
+    for (var i = 0; i < VOICE_COUNT; i++) this.voices.push(new Voice());
+    this.nextParams = null; // scratch only during message handling
+    this.port.onmessage = (ev) => {
+      const msg = ev.data;
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === "events" && Array.isArray(msg.events)) {
+        for (var i = 0; i < msg.events.length; i++) {
+          this.pending.push(msg.events[i]);
+        }
+        this.pending.sort(byTime);
+      } else if (msg.type === "all-off") {
+        this.allOff();
       }
-      this.pending.sort(byTime);
-    } else if (msg.type === "all-off") {
-      this.allOff();
-    }
-  };
+    };
+  }
 }
 
 function byTime(a, b) {

@@ -53,14 +53,11 @@ class RealWorkletContext implements AudioWorkletContextLike {
     return this.ctx.audioWorklet;
   }
   createVoiceEngineNode(): WorkletNodeLike {
-    // createAudioWorkletNode lives on BaseAudioContext at runtime; the TS DOM
-    // lib of this toolchain only types it on AudioContext, hence the cast.
-    const node = (this.ctx as BaseAudioContext & {
-      createAudioWorkletNode(
-        name: string,
-        options?: AudioWorkletNodeOptions,
-      ): AudioWorkletNode;
-    }).createAudioWorkletNode(VOICE_ENGINE_PROCESSOR_NAME, {
+    // AudioWorkletNode is a constructor taking any BaseAudioContext (real or
+    // offline). (A phantom ctx.createAudioWorkletNode call lived here until
+    // the TH-1 browser suite first exercised the real path — the node tests
+    // only ever passed fakes.)
+    const node = new AudioWorkletNode(this.ctx, VOICE_ENGINE_PROCESSOR_NAME, {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [2],
@@ -88,8 +85,7 @@ export function isWorkletCapable(ctx: unknown): ctx is BaseAudioContext & {
     typeof ctx === "object" &&
     ctx !== null &&
     "audioWorklet" in ctx &&
-    typeof (ctx as BaseAudioContext & { createAudioWorkletNode?: unknown })
-      .createAudioWorkletNode === "function"
+    typeof (ctx as BaseAudioContext).audioWorklet.addModule === "function"
   );
 }
 
