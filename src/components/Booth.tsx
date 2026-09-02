@@ -33,6 +33,7 @@ import {
 } from "../state/scaleChip";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
+import FileIO from "./FileIO";
 
 const session = getSession();
 
@@ -347,6 +348,7 @@ export default function Booth() {
           aria-live="polite"
         />
         <SaveIndicator />
+        <FileIO />
       </div>
     </header>
   );

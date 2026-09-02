@@ -34,7 +34,15 @@ export default defineConfig({
         },
       },
       {
+        // MF-3: browser tests import .tsx components (FileIO). Project servers
+        // don't reliably apply the root solid() plugin's JSX transform, so
+        // register it at project level for the served page.
+        plugins: [solid()],
         test: {
+          // vite-plugin-solid's config hook defaults mode==='test' projects to
+          // a jsdom environment when none is set; pin node (browser mode
+          // ignores it) so no jsdom install is ever attempted.
+          environment: "node",
           // D8 / RES-7 / TH-1: browser-mode audio determinism + frame-budget
           // project. Real Chromium (pinned by the playwright version in
           // package.json → exact browser build) via the playwright provider;
@@ -45,7 +53,7 @@ export default defineConfig({
           // Projects do NOT inherit root config (plugins/resolve) unless they
           // extend it — the zustand vanilla alias comes from the root config.
           extends: true,
-          include: ["tests/browser/**/*.test.ts"],
+          include: ["tests/browser/**/*.test.{ts,tsx}"],
           globalSetup: ["tests/browser/globalSetup.ts"],
           alias: [
             { find: /^zustand$/, replacement: "zustand/vanilla" },

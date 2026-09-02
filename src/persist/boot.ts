@@ -15,8 +15,9 @@ import { mostRecentProject, saveProject } from "./projectStore";
 
 const [status, setStatus] = createSignal<AutosaveStatus>("idle");
 let controller: AutosaveController | null = null;
+let activeDb: ProjectDb | null = null;
 
-/** Autosave status for the saved indicator; "idle" until boot finishes. */
+/** Autosave status for the saved indicator; "idle" until boot completes. */
 export function autosaveStatus(): AutosaveStatus {
   return status();
 }
@@ -24,6 +25,28 @@ export function autosaveStatus(): AutosaveStatus {
 /** The running controller (diagnostics/tests); null before boot completes. */
 export function getAutosaveController(): AutosaveController | null {
   return controller;
+}
+
+/** The DB handle boot opened (MF-3 import consumers); null before boot. */
+export function getBootDb(): ProjectDb | null {
+  return activeDb;
+}
+
+/**
+ * Point autosave at a different project row (MF-3 import flow): flush + stop
+ * the old controller, then start a fresh one for the imported project so it
+ * starts autosaving immediately. The document itself is loaded by the caller.
+ */
+export async function switchToProject(projectId: string): Promise<void> {
+  if (!activeDb) throw new Error("switchToProject: persistence not booted");
+  await controller?.stop();
+  controller = startAutosave({
+    db: activeDb,
+    projectId,
+    store: docStore,
+    windowImpl: typeof window !== "undefined" ? window : undefined,
+    onStatus: setStatus,
+  });
 }
 
 export interface BootResult {
@@ -38,6 +61,7 @@ export async function initPersistence(
   opts: { db?: ProjectDb } = {},
 ): Promise<BootResult> {
   const db = opts.db ?? (await openProjectDb());
+  activeDb = db;
   const recent = await mostRecentProject(db);
   let projectId = BOOT_PROJECT_ID;
   let restored = false;

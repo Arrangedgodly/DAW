@@ -1,0 +1,84 @@
+/* FileIO (MF-3) — booth-corner project file buttons + error toast seed.
+   Arcade Stage Floor vocabulary: chassis-dark buttons, warm-white critical
+   text, lane-drums red as the danger border; glow decoration only
+   (shape+border carry state). */
+
+.file-io {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  position: relative;
+}
+
+.file-io-btn {
+  /* Inherits .booth-btn chassis; slightly quieter than transport. */
+  opacity: 0.9;
+}
+
+.file-io-input {
+  /* Visually hidden but programmatic: the visible OPEN FILE button forwards. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.file-io-toast {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 260px;
+  max-width: 340px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-ground);
+  border: 1px solid var(--color-lane-drums);
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgb(242 61 76 / 0.25); /* decoration only */
+}
+
+.file-io-toast-message {
+  margin: 0;
+  color: var(--color-ink);
+  font: var(--text-value);
+}
+
+.file-io-toast-issues {
+  margin: var(--space-2) 0 0;
+  padding-left: 14px;
+  color: var(--color-ink);
+  opacity: 0.7;
+  font: 400 10px/1.5 var(--font-value);
+}
+
+.file-io-toast-suggestion {
+  margin: var(--space-3) 0 0;
+  color: var(--color-ink);
+  opacity: 0.7;
+  font: 700 10px/1.4 var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.file-io-dismiss {
+  flex: none;
+  background: none;
+  border: 1px solid var(--color-ink);
+  border-radius: 3px;
+  color: var(--color-ink);
+  font: 700 10px/1 var(--font-label);
+  padding: var(--space-3) var(--space-3);
+  cursor: pointer;
+}
+
+.file-io-dismiss:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
