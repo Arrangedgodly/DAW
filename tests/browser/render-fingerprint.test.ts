@@ -31,8 +31,14 @@ import {
   renderProjectToBuffer,
   EXPORT_SAMPLE_RATE,
 } from "../../src/audio/render";
-import { assertCleanAudio, hashChannelsHex } from "./helpers";
-import { RENDER_FP_PREFIX, RENDER_FP_GOLDEN_NAME } from "../golden/render-fp-protocol";
+import { assertCleanAudio, hashChannelsHex, hashBytesHex } from "./helpers";
+import {
+  RENDER_FP_PREFIX,
+  RENDER_FP_GOLDEN_NAME,
+  WAV_EXPORT_FP_GOLDEN_NAME,
+} from "../golden/render-fp-protocol";
+import { exportWav } from "../../src/audio/exportWav";
+import type { DownloadSeam } from "../../src/persist/fileIO";
 
 const GOLDEN_NAME = RENDER_FP_GOLDEN_NAME;
 
@@ -61,11 +67,13 @@ interface GoldenEntryLike {
   renderEnv?: { playwright?: string; chromium?: string };
 }
 
-async function loadManifestEntry(): Promise<GoldenEntryLike | undefined> {
+async function loadManifestEntry(
+  name: string = GOLDEN_NAME,
+): Promise<GoldenEntryLike | undefined> {
   const manifest = (await import("../golden/manifest.json")).default as {
     goldens?: Record<string, GoldenEntryLike>;
   };
-  return manifest.goldens?.[GOLDEN_NAME];
+  return manifest.goldens?.[name];
 }
 
 describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
@@ -122,6 +130,64 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
        
       console.log(
         `[render-fingerprint] '${GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+      );
+    }
+    expect(true).toBe(true); // canary never blocks
+  });
+
+  // HW-3: byte-golden of the exported WAV FILE for the reference project.
+  // Same environment pinning as the render fingerprint (the encoder is pure
+  // TS, but the rendered samples feeding it come from Chromium); same soft
+  // canary semantics — drift warns, never fails. Deep structural/decode
+  // assertions (headers exact, sample count, seam continuity) live in
+  // MF-4's tests/browser/exportWav.test.ts; this pins the exact BYTES.
+  it("exported reference WAV byte fingerprint; drift only warns", { timeout: 120000 }, async () => {
+    let captured: Blob | undefined;
+    const seam: DownloadSeam = {
+      createObjectURL: (blob) => {
+        captured = blob;
+        return "blob:captured";
+      },
+      revokeObjectURL: () => undefined,
+      createElement: () => ({ click: () => undefined, href: "", download: "" }),
+    };
+    const result = await exportWav(referenceProject(), { seam });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const bytes = new Uint8Array(await captured!.arrayBuffer());
+    expect(captured!.type).toBe("audio/wav");
+    // Hard structural floor (full header/length/seam suite is MF-4's).
+    expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+    expect(result.loopSamples).toBe(88200);
+
+    // --- Soft canary (same protocol + recorder as the render fp) ---
+    const hash = await hashBytesHex(bytes);
+    const entry = await loadManifestEntry(WAV_EXPORT_FP_GOLDEN_NAME);
+    console.log(
+      RENDER_FP_PREFIX +
+        JSON.stringify({
+          name: WAV_EXPORT_FP_GOLDEN_NAME,
+          sha256: hash,
+          byteLength: bytes.byteLength,
+          sampleRate: result.sampleRate,
+          loopSamples: result.loopSamples,
+        }),
+    );
+    if (!entry?.sha256) {
+      console.warn(
+        `[wav-export-fingerprint] no manifest entry for '${WAV_EXPORT_FP_GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+      );
+    } else if (entry.sha256 !== hash) {
+      console.warn(
+        `[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on '${WAV_EXPORT_FP_GOLDEN_NAME}': ` +
+          `manifest ${entry.sha256} (env: ${entry.renderEnv?.playwright ?? "?"}) vs current ${hash}. ` +
+          `NOT a failure — environment-pinned like the render fp. ` +
+          `If deliberate, regenerate: npm run goldens:update`,
+      );
+    } else {
+      console.log(
+        `[wav-export-fingerprint] '${WAV_EXPORT_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
       );
     }
     expect(true).toBe(true); // canary never blocks

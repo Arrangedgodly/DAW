@@ -5,3 +5,5 @@ coverage/
 .impeccable/payload-*
 .impeccable/*body*
 .impeccable/questions/
+tests/browser/__screenshots__/
+.vitest-attachments/

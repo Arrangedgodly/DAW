@@ -206,3 +206,11 @@ export async function hashChannelsHex(
     .join("");
 }
 
+/** SHA-256 over arbitrary bytes (HW-3 exported-file fingerprints). */
+export async function hashBytesHex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+

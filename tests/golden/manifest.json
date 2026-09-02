@@ -7,9 +7,11 @@
   "goldens": {
     "codec/default-project-canonical-v1": {
       "sha256": "c560f43a13b5dc8aef8d0e76088632f510f128d96539292abcc0debcbd45abba",
-      "byteLength": 2694
+      "byteLength": 2694,
+      "note": "Canonical JSON codec bytes of createDefaultProject() (HW-1). Pins the .bitbounce save format: field order, key naming, no-whitespace canonicalization. Pure TS, byte-stable everywhere; mismatch = hard failure."
     },
     "render/reference-loop-fp-v1": {
+      "note": "SHA-256 of the raw Float32 channel bytes of the full-FX reference project offline render (HW-2 canary). ENVIRONMENT-PINNED (Chromium SIMD/libm): mismatch is a console DRIFT warning, never a CI failure. Guards unintended engine/DSP/dependency drift under the same pinned browser.",
       "sha256": "ef7b78d39ab9cbeb31099eb0bb5bb42277f5476eaf7ed4ef15a6e563821a6f20",
       "byteLength": 705600,
       "kind": "render",
@@ -22,11 +24,25 @@
     },
     "wav/encoder-stereo-2frame-v1": {
       "sha256": "cfdbfd64a0dd69733cdc496fcbf7a56fd8603d9d525a9726d4e5000f45dd0af7",
-      "byteLength": 52
+      "byteLength": 52,
+      "note": "Byte-exact WAV of a synthetic 2-frame stereo buffer through encodeWav16 (MF-4). Pins the hand-rolled 44-byte RIFF header + int16 quantization law (clamp, x32767, round toward +inf); a sibling test also asserts the bytes equal the hand-computed 1991-spec values. Pure TS, hard failure on mismatch."
     },
     "midi/reference-project-v1": {
       "sha256": "130684574a974cfde80b878f6497270a9893ae0197b70b29c0f4f27d6f4e8d75",
-      "byteLength": 322
+      "byteLength": 322,
+      "note": "Byte-exact Type-1 MIDI of the MF-5 reference project (every lane, triad chord, sustain marker, tempo map, ch10 drums, cue markers). Pins the export note-model + midi-file serialization; structure is separately asserted in golden test and parsed back by @tonejs/midi in the browser suite. Pure TS, hard failure on mismatch."
+    },
+    "wav/reference-export-fp-v1": {
+      "sha256": "784f108e754c10b18206cff1b2cc6fb913a65d743d259899f38b87f39646ba39",
+      "byteLength": 352844,
+      "kind": "render",
+      "renderEnv": {
+        "playwright": "playwright 1.62.1",
+        "chromium": "chromium (MacOS/Google Chrome for Testing)",
+        "sampleRate": 44100,
+        "loopSamples": 88200
+      },
+      "note": "SHA-256 of the exported .wav FILE bytes (44-byte header + 88200 stereo int16 frames = 352844 bytes) for the full-FX reference project (HW-3). Complements MF-4's decode-and-assert suite by pinning the exact file bytes. Environment-pinned like the render fp (samples come from Chromium): mismatch is a console DRIFT warning, never a CI failure."
     }
   }
 }

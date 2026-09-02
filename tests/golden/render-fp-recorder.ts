@@ -65,7 +65,11 @@ export function onRenderFingerprintConsoleLog(log: string): boolean {
             goldens: Record<string, unknown>;
           })
         : { manifestVersion: 1, env: {}, goldens: {} };
+      const previous = (manifest.goldens[payload.name] ?? {}) as {
+        note?: string;
+      };
       manifest.goldens[payload.name] = {
+        ...(previous.note ? { note: previous.note } : {}), // HW-3: editorial notes survive regen
         sha256: payload.sha256,
         byteLength: payload.byteLength,
         kind: "render",

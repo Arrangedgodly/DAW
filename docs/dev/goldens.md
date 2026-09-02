@@ -1,0 +1,79 @@
+# Golden files runbook (HW-3)
+
+`tests/golden/manifest.json` is the SHA-256 manifest for every golden the
+export/render contract pins. Golden tests never embed expected bytes inline
+(except the hand-computed spec-bytes self-check); they compare against this
+manifest.
+
+## What each entry pins
+
+| Entry | Kind | Test | On mismatch |
+|---|---|---|---|
+| `codec/default-project-canonical-v1` | bytes (pure TS, stable everywhere) | `tests/golden/codec-default-project.golden.test.ts` | **hard fail** |
+| `wav/encoder-stereo-2frame-v1` | bytes (pure TS; hand-computed spec bytes double-checked in-test) | `tests/golden/wav-encoder.golden.test.ts` | **hard fail** |
+| `midi/reference-project-v1` | bytes (pure TS; structure check in-test, third-party parse-back in `tests/browser/exportMidi.test.ts` via `@tonejs/midi`) | `tests/golden/midi-export.golden.test.ts` | **hard fail** |
+| `render/reference-loop-fp-v1` | render fingerprint (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts` | soft: console `RENDER FINGERPRINT DRIFT` warning |
+| `wav/reference-export-fp-v1` | render fingerprint of the exported .wav file bytes (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts` | soft: console `EXPORT FINGERPRINT DRIFT` warning |
+
+Decode-and-assert coverage (structure, not just hashes): the reference-project
+exported WAV's headers/sample-count/seam-continuity live in
+`tests/browser/exportWav.test.ts` (MF-4); MIDI structure + third-party parse
+evidence in `tests/golden/midi-export.golden.test.ts` +
+`tests/browser/exportMidi.test.ts` (MF-5). Tripwires + manifest hygiene:
+`tests/golden/golden-manifest.golden.test.ts` (flipping any hard entry's hash
+is proven there to fail its check; render entries are proven warn-only).
+
+## When to regenerate — LEGITIMATELY
+
+Only for **deliberate** changes to pinned output:
+
+- a DSP change that intentionally alters rendered audio (new oscillator law,
+  revised FX math, tail-fold change);
+- a format change (WAV header fields, MIDI layout, codec canonicalization,
+  new default-project content);
+- a dependency bump that legitimately changes serialization (e.g.
+  `midi-file`);
+- rebaselining render fingerprints after a deliberate Chromium/playwright
+  pin change.
+
+NOT legitimate: making a red test green after an accidental change. A
+surprising diff is the system working — investigate first.
+
+## How
+
+```bash
+npm run goldens:update
+```
+
+which runs, with `UPDATE_GOLDENS=1`:
+
+1. `vitest run tests/golden` — node-side byte goldens re-record hashes;
+2. `vitest run --project browser tests/browser/render-fingerprint.test.ts` —
+   the browser test emits machine-readable `RENDER_FINGERPRINT_RECORD` console
+   lines; the node-side hook in `tests/golden/render-fp-recorder.ts` (wired in
+   `vite.config.ts`) writes them into the manifest, including `renderEnv`
+   (playwright version + Chromium build).
+
+CI never regenerates (the env var is never set there). Human `note` fields
+and `kind` survive regeneration — only `sha256`/`byteLength`/`renderEnv`
+refresh. If you add a NEW golden, add its note in the same commit.
+
+## Review discipline
+
+A PR that changes `tests/golden/manifest.json` MUST explain every changed
+`sha256` in the commit message/PR description: which entry, why the pinned
+bytes legitimately changed (link the DSP/format commit), and why the change
+is not a regression (e.g. "render fp rebaselined after commit X changed the
+PolyBLEP law; decode-and-assert suite still green"). Reviewers treat an
+unexplained hash diff as a block.
+
+## CI behavior (verified)
+
+- Unit job (`npm test`) runs `tests/golden/**` — hard byte goldens FAIL the
+  job on mismatch, including the tripwire/hygiene tests.
+- Browser job (`npm run test:browser`) runs the fingerprint canaries. The
+  render/export hashes are **environment-pinned** (RES-7: Chromium SIMD/libm
+  differ cross-platform), so a mismatch on a different browser build or OS is
+  a console DRIFT **warning, never a failure** — verified by tampering both
+  render entries and observing green tests + warnings (see production-log.md
+  "HW-3 verification").

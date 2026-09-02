@@ -32,6 +32,12 @@ export interface GoldenEntry {
    * deliberately via `npm run goldens:update`.
    */
   kind?: "bytes" | "render";
+  /**
+   * HW-3 manifest hygiene: a human note saying WHAT this entry pins and why
+   * it exists. Preserved across regenerations (regen only refreshes
+   * sha256/byteLength); the hygiene test fails if an entry is missing it.
+   */
+  note?: string;
   renderEnv?: {
     playwright: string;
     chromium: string;
@@ -54,12 +60,26 @@ export function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+/** HW-3 tripwire tests redirect the manifest to a tampered temp copy. */
+let manifestPathOverride: string | null = null;
+
+/** Test-only: point expectGolden at a (tampered) copy of the manifest. */
+export function __forTests_setManifestPath(path: string | null): void {
+  manifestPathOverride = path;
+}
+
 function readManifest(): GoldenManifest {
-  return JSON.parse(readFileSync(MANIFEST_PATH, "utf8")) as GoldenManifest;
+  return JSON.parse(
+    readFileSync(manifestPathOverride ?? MANIFEST_PATH, "utf8"),
+  ) as GoldenManifest;
 }
 
 function writeManifest(manifest: GoldenManifest): void {
-  writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  writeFileSync(
+    manifestPathOverride ?? MANIFEST_PATH,
+    JSON.stringify(manifest, null, 2) + "\n",
+    "utf8",
+  );
 }
 
 const regenerating = process.env.UPDATE_GOLDENS === "1";
@@ -73,7 +93,14 @@ export function expectGolden(name: string, bytes: Uint8Array): void {
   if (regenerating) {
     const manifest = readManifest();
     manifest.env.node = process.version;
-    manifest.goldens[name] = { sha256: digest, byteLength: bytes.byteLength };
+    const previous = manifest.goldens[name];
+    manifest.goldens[name] = {
+      // HW-3: notes/kind are editorial (what the entry pins) — preserve them;
+      // regeneration only refreshes the pinned bytes.
+      ...(previous ? { note: previous.note, kind: previous.kind } : {}),
+      sha256: digest,
+      byteLength: bytes.byteLength,
+    };
     writeManifest(manifest);
     return;
   }
