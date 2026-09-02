@@ -35,7 +35,10 @@ export interface SchedulerOptions {
   /** Event horizon in seconds; 1-2 s covers 1 Hz timer throttling. */
   readonly horizonSeconds?: number;
   /** Injectable timers for tests. */
-  readonly setIntervalFn?: (fn: () => void, ms: number) => ReturnType<typeof setInterval>;
+  readonly setIntervalFn?: (
+    fn: () => void,
+    ms: number,
+  ) => ReturnType<typeof setInterval>;
   readonly clearIntervalFn?: (id: ReturnType<typeof setInterval>) => void;
 }
 
@@ -45,8 +48,12 @@ export class LookaheadScheduler {
   private readonly provideEvents: ProvideEventsFn;
   private readonly intervalMs: number;
   private readonly horizonSeconds: number;
-  private readonly setIntervalFn: NonNullable<SchedulerOptions["setIntervalFn"]>;
-  private readonly clearIntervalFn: NonNullable<SchedulerOptions["clearIntervalFn"]>;
+  private readonly setIntervalFn: NonNullable<
+    SchedulerOptions["setIntervalFn"]
+  >;
+  private readonly clearIntervalFn: NonNullable<
+    SchedulerOptions["clearIntervalFn"]
+  >;
 
   private queue: EngineEvent[] = [];
   private generatedUntil = 0;
@@ -58,7 +65,8 @@ export class LookaheadScheduler {
     this.provideEvents = opts.provideEvents;
     this.intervalMs = opts.intervalMs ?? 200;
     this.horizonSeconds = opts.horizonSeconds ?? 1.5;
-    this.setIntervalFn = opts.setIntervalFn ?? ((fn, ms) => setInterval(fn, ms));
+    this.setIntervalFn =
+      opts.setIntervalFn ?? ((fn, ms) => setInterval(fn, ms));
     this.clearIntervalFn = opts.clearIntervalFn ?? ((id) => clearInterval(id));
   }
 

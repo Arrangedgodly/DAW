@@ -1,0 +1,282 @@
+/**
+ * Booth — the transport control strip at the top of the stage.
+ * Arcade Stage Floor vocabulary: dark chassis, silkscreened labels
+ * (--font-label), values (--font-value), LED readouts (--font-led).
+ *
+ * Performance contract (D1): the BAR.BEAT.STEP readout and beat LEDs are
+ * written from rAF via direct DOM mutation — never reactive state. Coarse
+ * state (playing, loop, bpm…) rides Solid signals fed by transport.subscribe.
+ */
+
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import type { Position } from "../audio/time";
+import { getSession } from "../engine/session";
+import {
+  clampBpmUi,
+  formatBeatAnnouncement,
+  formatPosition,
+  gainToVolumePercent,
+  swingAmountToPercent,
+  swingPercentToAmount,
+  volumePercentToGain,
+} from "../engine/mappings";
+import "../styles/booth.css";
+
+const session = getSession();
+
+const BEAT_LED_COUNT = 4;
+
+export default function Booth() {
+  const [playing, setPlaying] = createSignal(false);
+  const [loopOn, setLoopOn] = createSignal(session.transport.snapshot.loop);
+  const [metroOn, setMetroOn] = createSignal(false);
+  const [bpm, setBpm] = createSignal(session.transport.snapshot.bpm);
+  const [swingPct, setSwingPct] = createSignal(
+    swingAmountToPercent(session.transport.snapshot.swing),
+  );
+  const [volPct, setVolPct] = createSignal(
+    gainToVolumePercent(session.masterVolume),
+  );
+
+  // Direct-DOM refs for the 60 Hz readouts (never signals).
+  let positionEl: HTMLSpanElement | undefined;
+  let announceEl: HTMLDivElement | undefined;
+  const beatEls: HTMLElement[] = [];
+
+  onMount(() => {
+    const unsubscribe = session.subscribe((snap) => {
+      setPlaying(snap.playing);
+      setLoopOn(snap.loop);
+      setBpm(snap.bpm);
+      setSwingPct(swingAmountToPercent(snap.swing));
+    });
+    onCleanup(unsubscribe);
+  });
+
+  // rAF loop runs only while playing; coarse `playing` signal gates it.
+  createEffect(() => {
+    let lastText = "";
+    let lastBeat = -1;
+
+    function writePosition(pos: Position) {
+      const text = formatPosition(pos);
+      if (text !== lastText) {
+        lastText = text;
+        if (positionEl) positionEl.textContent = text;
+      }
+      if (pos.beat !== lastBeat) {
+        lastBeat = pos.beat;
+        for (let i = 0; i < beatEls.length; i++) {
+          beatEls[i].dataset.active = String(i === pos.beat);
+        }
+        if (announceEl) {
+          announceEl.textContent = formatBeatAnnouncement(pos);
+        }
+      }
+    }
+
+    function writeStoppedPosition() {
+      lastText = "";
+      lastBeat = -1;
+      if (positionEl) {
+        positionEl.textContent = formatPosition(
+          session.transport.getPosition(),
+        );
+      }
+      for (const el of beatEls) el.dataset.active = "false";
+      if (announceEl) announceEl.textContent = "";
+    }
+
+    if (!playing()) {
+      writeStoppedPosition();
+      return;
+    }
+    let raf = requestAnimationFrame(loop);
+    onCleanup(() => cancelAnimationFrame(raf));
+
+    function loop() {
+      const pos = session.transport.getPosition();
+      writePosition(pos);
+      raf = requestAnimationFrame(loop);
+    }
+  });
+
+  const handleTogglePlay = () => void session.togglePlay();
+  const handleToggleLoop = () => session.setLoop(!loopOn());
+  const handleToggleMetro = () => {
+    const next = !metroOn();
+    setMetroOn(next);
+    session.setMetronome(next);
+  };
+  const handleBpmInput = (raw: string) => {
+    const parsed = Number.parseFloat(raw);
+    if (!Number.isFinite(parsed)) return;
+    session.setBpm(parsed); // transport clamps; subscribe echoes back
+  };
+  const stepBpm = (delta: number) => session.setBpm(clampBpmUi(bpm() + delta));
+  const handleSwing = (value: number) => {
+    setSwingPct(value);
+    session.setSwingAmount(swingPercentToAmount(value));
+  };
+  const handleVolume = (value: number) => {
+    setVolPct(value);
+    session.setMasterVolume(volumePercentToGain(value));
+  };
+
+  return (
+    <header class="booth" aria-label="Transport booth">
+      <div class="booth-group" role="group" aria-label="Playback">
+        <button
+          type="button"
+          class="booth-btn booth-btn-play"
+          classList={{ "is-on": playing() }}
+          aria-pressed={playing()}
+          onClick={handleTogglePlay}
+        >
+          {playing() ? "STOP" : "PLAY"}
+        </button>
+        <button
+          type="button"
+          class="booth-btn booth-btn-loop"
+          classList={{ "is-on": loopOn() }}
+          aria-pressed={loopOn()}
+          onClick={handleToggleLoop}
+        >
+          LOOP
+        </button>
+        <button
+          type="button"
+          class="booth-btn booth-btn-metro"
+          classList={{ "is-on": metroOn() }}
+          aria-pressed={metroOn()}
+          onClick={handleToggleMetro}
+        >
+          METRONOME
+        </button>
+      </div>
+
+      <div class="booth-group" role="group" aria-label="Tempo">
+        <span class="booth-label" aria-hidden="true">
+          TEMPO
+        </span>
+        <div class="booth-stepper">
+          <button
+            type="button"
+            class="booth-step-btn"
+            aria-label="Decrease tempo one BPM"
+            onClick={() => stepBpm(-1)}
+          >
+            –
+          </button>
+          <input
+            class="booth-led-input"
+            type="number"
+            inputmode="numeric"
+            min="60"
+            max="200"
+            step="1"
+            value={bpm()}
+            aria-label="Tempo in beats per minute"
+            onInput={(e) => handleBpmInput(e.currentTarget.value)}
+            onBlur={(e) => {
+              e.currentTarget.value = String(bpm());
+            }}
+          />
+          <button
+            type="button"
+            class="booth-step-btn"
+            aria-label="Increase tempo one BPM"
+            onClick={() => stepBpm(1)}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="booth-group booth-group-slider"
+        role="group"
+        aria-label="Swing"
+      >
+        <span class="booth-label" aria-hidden="true">
+          SWING
+        </span>
+        <input
+          class="booth-range"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={swingPct()}
+          aria-label="Swing amount"
+          aria-valuetext={`${swingPct()} percent`}
+          onInput={(e) => handleSwing(Number(e.currentTarget.value))}
+        />
+        <span class="booth-value" aria-hidden="true">
+          {swingPct()}%
+        </span>
+      </div>
+
+      <div
+        class="booth-group booth-group-slider"
+        role="group"
+        aria-label="Master volume"
+      >
+        <span class="booth-label" aria-hidden="true">
+          MASTER
+        </span>
+        <input
+          class="booth-range"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={volPct()}
+          aria-label="Master volume"
+          aria-valuetext={`${volPct()} percent`}
+          onInput={(e) => handleVolume(Number(e.currentTarget.value))}
+        />
+        <span class="booth-value" aria-hidden="true">
+          {volPct()}%
+        </span>
+      </div>
+
+      <div
+        class="booth-group booth-group-position"
+        role="group"
+        aria-label="Position"
+      >
+        <span class="booth-label" aria-hidden="true">
+          BAR.BEAT.STEP
+        </span>
+        <span
+          ref={(el) => {
+            positionEl = el;
+          }}
+          class="booth-led"
+          aria-hidden="true"
+        >
+          1.1.1
+        </span>
+        <div class="booth-beats" aria-hidden="true">
+          {Array.from({ length: BEAT_LED_COUNT }, (_, i) => (
+            <span
+              ref={(el) => {
+                if (el) beatEls[i] = el;
+              }}
+              class="booth-beat-led"
+              data-active="false"
+            />
+          ))}
+        </div>
+        <div
+          ref={(el) => {
+            announceEl = el;
+          }}
+          class="booth-sr"
+          aria-live="polite"
+        />
+      </div>
+    </header>
+  );
+}

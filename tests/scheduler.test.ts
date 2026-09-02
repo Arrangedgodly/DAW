@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  type EngineEvent,
-  LookaheadScheduler,
-} from "../src/audio/scheduler";
+import { type EngineEvent, LookaheadScheduler } from "../src/audio/scheduler";
 import { AudioEngineContext } from "../src/audio/context";
 
 /** Minimal fake audio context: currentTime is advanced by hand. */

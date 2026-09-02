@@ -1,0 +1,24 @@
+/*
+ * App shell (DES-2): booth fixed top, stage floor below. No component
+ * design here beyond the shell — lanes own the stage from DES-3/4 on.
+ */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  background: var(--color-ground);
+}
+
+.stage-note {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  margin: 0;
+}

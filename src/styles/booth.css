@@ -1,0 +1,190 @@
+/*
+ * Booth — transport chassis (DES-2). Tokens only (see tokens.css law):
+ * silkscreen labels, LED readouts, lane-hue fills with near-black ink,
+ * one glow layer ≤3px as decoration over fill+border state coding.
+ */
+
+.booth {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-5) var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  background: color-mix(in srgb, var(--color-ink) 4%, var(--color-ground));
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 25%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 60%);
+}
+
+.booth-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.booth-group-slider {
+  gap: var(--space-3);
+}
+
+.booth-group-position {
+  margin-left: auto;
+}
+
+/* Silkscreened chassis labels */
+.booth-label {
+  font: var(--text-label-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 60%, var(--color-ground));
+}
+
+/* Values ( Departure Mono @11px — monospaced = tabular ) */
+.booth-value {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 4ch;
+  text-align: right;
+}
+
+/* Buttons: real <button>s; inactive = outline chassis control,
+ * active = lane-hue fill + near-black ink + 2px hue border + one glow. */
+.booth-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  border-radius: 4px;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+
+.booth-btn.is-on {
+  color: var(--color-ink-on-fill);
+  border: 2px solid transparent;
+}
+
+.booth-btn-play.is-on {
+  background: var(--color-lane-chords);
+  border-color: var(--color-lane-chords);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-chords) 50%, transparent);
+}
+
+.booth-btn-loop.is-on {
+  background: var(--color-lane-lead);
+  border-color: var(--color-lane-lead);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-lead) 50%, transparent);
+}
+
+.booth-btn-metro.is-on {
+  background: var(--color-lane-bass);
+  border-color: var(--color-lane-bass);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
+}
+
+/* Keyboard focus: always visible, never glow-dependent. */
+.booth :focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* TEMPO stepper */
+.booth-stepper {
+  display: flex;
+  align-items: stretch;
+}
+
+.booth-step-btn {
+  font: var(--text-label-sm);
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  border-radius: 4px;
+  width: var(--space-6);
+  cursor: pointer;
+}
+
+.booth-led-input {
+  font: 400 22px/1 var(--font-led);
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  border-radius: 4px;
+  width: 5ch;
+  text-align: center;
+  padding: 2px 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.booth-led-input::-webkit-outer-spin-button,
+.booth-led-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Position LED readout (VT323 20–24px; glow allowed ≥18px, decorative only) */
+.booth-led {
+  font: 400 22px/1 var(--font-led);
+  color: var(--color-ink);
+  min-width: 6ch;
+  text-align: right;
+}
+
+/* Beat LEDs: static on/off state (no pulse, ever); amber fill coding. */
+.booth-beats {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.booth-beat-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  background: transparent;
+}
+
+.booth-beat-led[data-active="true"] {
+  background: var(--color-lane-bass);
+  border-color: var(--color-lane-bass);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
+}
+
+/* Range sliders: chassis squares, warm-white thumb, amber-accented track. */
+.booth-range {
+  width: 96px;
+  accent-color: var(--color-lane-bass);
+}
+
+/* Reduced motion: booth is already static (no pulses by design);
+ * drop glow transitions so state changes are instantaneous. */
+@media (prefers-reduced-motion: reduce) {
+  .booth *,
+  .booth {
+    transition: none;
+  }
+}
+
+/* Screen-reader-only beat announcements (coarse, on beat change only). */
+.booth-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
