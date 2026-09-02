@@ -190,9 +190,11 @@
 }
 
 /*
- * SaveIndicator (MF-2): booth-corner saved dot. Fill+shape carry state
- * (filled = saved, hollow = pending, dimmed hollow = error); the glow is
- * decoration-only per the DES-1 contract.
+ * SaveIndicator (HU-3): booth-corner autosave state. Fill+shape carry state
+ * (filled = saved, hollow = unsaved, dashed = saving, dimmed hollow = error);
+ * the glow is decoration-only per the DES-1 contract. The relative-time label
+ * ticks as TEXT ONLY — no animation anywhere, so prefers-reduced-motion is
+ * honored by construction.
  */
 
 .save-indicator {
@@ -204,16 +206,27 @@
   color: var(--color-ink);
 }
 
+.save-indicator:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
 .save-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   border: 1px solid currentColor;
   background: transparent;
+  flex-shrink: 0;
 }
 
-.save-indicator[data-status="saved"] .save-dot {
+.save-indicator[data-status="saved"] .save-dot,
+.save-indicator[data-status="idle"] .save-dot {
   background: currentColor;
+}
+
+.save-indicator[data-status="saving"] .save-dot {
+  border-style: dashed;
 }
 
 .save-indicator[data-status="error"] {
@@ -223,13 +236,5 @@
 .save-label {
   font-size: 10px;
   letter-spacing: 0.05em;
-}
-
-.save-indicator .visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
   white-space: nowrap;
 }

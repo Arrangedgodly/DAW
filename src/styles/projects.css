@@ -1,0 +1,109 @@
+/* Projects (HU-3, absorbing MF-3's FileIO) — booth-corner PROJECTS button +
+   popover: saved project list (name + relative time) and NEW / SAVE FILE /
+   OPEN FILE. Errors render through the shared toast bus (toasts.css). */
+
+.projects {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.projects-btn {
+  /* Inherits .booth-btn chassis; slightly quieter than transport. */
+  opacity: 0.9;
+}
+
+.projects-pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 40;
+  min-width: 232px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-ground);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 6px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.projects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+    transparent;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.projects-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 4px 8px;
+  text-align: left;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border-radius: 3px;
+  font: var(--text-ui);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.projects-item:hover,
+.projects-item:focus-visible {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  outline: none;
+}
+
+.projects-item.is-current {
+  border-color: var(--color-ink);
+}
+
+.projects-name {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects-when {
+  font-family: var(--font-label);
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  flex-shrink: 0;
+}
+
+.projects-actions {
+  display: flex;
+  gap: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  padding-top: var(--space-2);
+}
+
+.projects-action {
+  flex: 1;
+}
+
+.projects-input {
+  /* Visually hidden but programmatic: the visible OPEN FILE button forwards. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}

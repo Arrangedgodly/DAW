@@ -12,7 +12,7 @@ import { render } from "solid-js/web";
 import { encode } from "../../src/document/codec";
 import { createDefaultProject } from "../../src/document/schema";
 import { docStore } from "../../src/state/store";
-import FileIO from "../../src/components/FileIO";
+import FileIO from "../../src/components/Projects";
 import Toasts from "../../src/components/Toasts";
 import { clearToasts } from "../../src/state/toasts";
 import { getAutosaveController, initPersistence } from "../../src/persist/boot";

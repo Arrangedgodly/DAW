@@ -24,18 +24,26 @@ async function freshDb(name: string) {
 }
 
 /**
- * Pump the REAL event loop a few macrotask turns so pending IndexedDB
- * requests settle while fake timers own setTimeout (fake clocks freeze
- * timer-based settling, but IDB success events still need turns).
+ * Pump the REAL event loop so pending IndexedDB requests settle while fake
+ * timers own setTimeout (fake clocks freeze timer-based settling, but IDB
+ * success events still need turns). HU-3 deflake: this used to be a FIXED
+ * turn count (12 macrotasks), which intermittently under-settled on loaded
+ * CI — the dirty-mark's get+put chain needs a variable number of turns.
+ * Polling until the assertion holds (generous cap) removes the race.
  */
-async function settleIdb(turns = 12): Promise<void> {
-  for (let i = 0; i < turns; i++) {
+async function waitForIdb(
+  predicate: () => boolean | Promise<boolean>,
+  maxTurns = 250,
+): Promise<void> {
+  for (let i = 0; i < maxTurns; i++) {
+    if (await predicate()) return;
     await new Promise<void>((resolve) => {
       const channel = new MessageChannel();
       channel.port1.onmessage = () => resolve();
       channel.port2.postMessage(0);
     });
   }
+  throw new Error("IndexedDB state never settled within macrotask budget");
 }
 
 describe("IndexedDB persistence (real browser database)", () => {
@@ -83,17 +91,15 @@ describe("IndexedDB persistence (real browser database)", () => {
 
       // Simulate a document commit (the autosave subscription observes it).
       docStore.setState({ doc: { ...before, name: "crash-draft" } });
-      await settleIdb(); // dirty-mark write settles on real IDB
+      await waitForIdb(async () => (await getProjectRecord(db, "draft"))?.dirty === true);
 
-      const marked = await getProjectRecord(db, "draft");
-      expect(marked?.dirty).toBe(true);
       expect(ctl.isPending()).toBe(true);
 
       await vi.advanceTimersByTimeAsync(800); // debounce flush
-      await settleIdb();
-      const flushed = await getProjectRecord(db, "draft");
-      expect(flushed?.dirty).toBe(false);
-      expect(decode(flushed!.json).name).toBe("crash-draft");
+      await waitForIdb(async () => {
+        const row = await getProjectRecord(db, "draft");
+        return row !== undefined && row.dirty === false && decode(row.json).name === "crash-draft";
+      });
       expect(ctl.getStatus()).toBe("saved");
 
       // Restore the store doc so later suites see the pre-test document.
