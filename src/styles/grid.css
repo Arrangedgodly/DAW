@@ -1,0 +1,182 @@
+/*
+ * Lane pad grids (DES-4) — the sounding grid, the product's focal moment.
+ * All values from tokens.css; lane hue arrives via the data-lane attribute.
+ * Ink law (D9): filled cells set glyphs in near-black on the lane fill; glow
+ * is one ≤3px layer at 45–60% alpha, decoration-only; one-shot decay ≤180 ms.
+ */
+
+.lane-floor {
+  --lane-hue: var(--color-ink);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.lane-floor[data-lane="drums"] { --lane-hue: var(--color-lane-drums); }
+.lane-floor[data-lane="bass"] { --lane-hue: var(--color-lane-bass); }
+.lane-floor[data-lane="chords"] { --lane-hue: var(--color-lane-chords); }
+.lane-floor[data-lane="lead"] { --lane-hue: var(--color-lane-lead); }
+
+.lane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.lane-name {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+/* Red lane-hue text is law-restricted; the count rides warm white instead. */
+.lane-count {
+  font: var(--text-value);
+  color: color-mix(in srgb, var(--color-ink) 60%, var(--color-ground));
+}
+
+/* Long patterns scroll inside the lane; rows never reflow on toggling. */
+.lane-grid-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--space-2);
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground)) transparent;
+}
+
+.lane-grid {
+  position: relative;
+  width: max-content;
+}
+
+.grid-body {
+  position: relative;
+}
+
+.grid-row {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: var(--space-2);
+}
+
+.row-label {
+  flex: none;
+  width: 72px;
+  display: flex;
+  align-items: center;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  /* Labels are info-critical → warm white on ground (ink rule 2). */
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-ground));
+  padding-right: var(--space-3);
+}
+
+.row-cells {
+  position: relative;
+  display: grid;
+  grid-auto-rows: 24px;
+  gap: 2px;
+}
+
+/* Beat shading: 4/4 grouping — beats 2/4 read slightly raised. */
+.cell {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  cursor: pointer;
+}
+
+.cell[data-beat="1"] {
+  background: color-mix(in srgb, var(--color-ink) 11%, var(--color-ground));
+  border-color: color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* On state: fill + border coding carry the state (glow never does). */
+.cell[data-on="true"] {
+  background: var(--lane-hue);
+  border-color: color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+  /* Corner notch = shape mark for the active state (res-9 rule 2). */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+/* Sustain marker cell: hatched (muted continuation of a held note). */
+.cell[data-sustain="true"] {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground)) 0 2px,
+    color-mix(in srgb, var(--lane-hue) 20%, var(--color-ground)) 2px 4px
+  );
+  border-color: color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
+}
+
+/* Gate-length raise: the note bar's literal width over the uniform grid. */
+.note-runs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.note-run {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 3px;
+  background: var(--lane-hue);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent);
+}
+
+/* Playhead light bar — compositor-only movement (transform). */
+.grid-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 72px; /* row-label gutter */
+  width: 2px;
+  margin-left: -1px;
+  background: var(--color-ink);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--color-ink) 50%, transparent);
+  opacity: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* One-shot trigger glow: ≤180 ms, single ≤3px lane-hue layer. */
+.cell.is-triggering {
+  animation: grid-trigger-glow 180ms ease-out 1;
+}
+
+@keyframes grid-trigger-glow {
+  from {
+    box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 60%, transparent);
+    filter: brightness(1.35);
+  }
+  to {
+    box-shadow: 0 0 0 0 transparent;
+    filter: none;
+  }
+}
+
+/* Reduced motion (D9): no sweep, no glow animation — quantized column
+ * highlight + static on-state. Gated in CSS AND in the render loop. */
+@media (prefers-reduced-motion: reduce) {
+  .grid-playhead {
+    display: none;
+  }
+
+  .cell.is-triggering {
+    animation: none;
+  }
+
+  .cell.is-col-active {
+    border-color: var(--lane-hue);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lane-hue) 45%, transparent);
+  }
+}

@@ -11,14 +11,15 @@
 
 .stage {
   flex: 1;
-  display: grid;
-  place-items: center;
   background: var(--color-ground);
 }
 
-.stage-note {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
-  margin: 0;
+.stage-floors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0 var(--space-7);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
 }

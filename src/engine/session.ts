@@ -11,10 +11,11 @@
 
 import { AudioEngineContext, type AudioContextLike } from "../audio/context";
 import { Transport } from "../audio/transport";
-import { STEPS_PER_BEAT, STEPS_PER_BAR, clampSwing } from "../audio/time";
+import { STEPS_PER_BEAT, STEPS_PER_BAR, clampSwing, stepIndexAtTime } from "../audio/time";
 import { clamp } from "../lib/clamp";
 import {
   type DrumKit,
+  type VoiceNoteOnEvent,
   type VoicePreset,
   getDrumKit,
   getPreset,
@@ -126,6 +127,9 @@ export class Session {
       this.transport.stop();
       this.stopAllVoices();
     } else {
+      // Warm the voice engines during the pre-roll so the first pattern step
+      // is never dropped waiting on the worklet module load.
+      if (this.lanePatterns.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
   }
@@ -175,9 +179,69 @@ export class Session {
 
   /** Only quarter-note steps click; bar starts get the downbeat pitch. */
   private onScheduledTick(step: number, when: number): void {
+    this.deliverLaneEvents(step, when);
     if (!this._metronome) return;
     if (step % STEPS_PER_BEAT !== 0) return;
     this.playTickSound(when, step % STEPS_PER_BAR === 0);
+  }
+
+  // -------------------------------------------------------------------------
+  // Pattern playback seam (DES-4)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Compiled lane events grouped by pattern step (loop-relative; event times
+   * are exactly timeAtStep(step) from compileLaneEvents, so grouping by
+   * stepIndexAtTime is lossless). Delivered on the transport's scheduled tick
+   * for that step, at the tick's swung absolute time.
+   */
+  private lanePatterns: {
+    readonly steps: number;
+    readonly byStep: ReadonlyMap<number, readonly VoiceNoteOnEvent[]>;
+  }[] = [];
+
+  /**
+   * Push freshly compiled lane events (from the document store bridge).
+   * Timing contract (documented DES-4 decision): edits apply to every step
+   * the scheduler has not yet emitted — the lookahead horizon (~1.5 s) — so a
+   * live edit lands at the next unscheduled step, effectively immediately;
+   * steps already handed to the voice engine this pass still sound. This is
+   * the simplest correct behavior (no re-queueing of in-flight audio).
+   */
+  setLaneEvents(
+    laneId: LaneId,
+    events: readonly VoiceNoteOnEvent[],
+    patternSteps: number,
+  ): void {
+    const byStep = new Map<number, VoiceNoteOnEvent[]>();
+    for (const event of events) {
+      const step = stepIndexAtTime(event.time, {
+        bars: 4,
+        bpm: this.transport.snapshot.bpm,
+        swing: this.transport.snapshot.swing,
+      });
+      const bucket = byStep.get(step);
+      if (bucket) bucket.push(event);
+      else byStep.set(step, [event]);
+    }
+    this.lanePatterns[LANE_IDS.indexOf(laneId)] = { steps: patternSteps, byStep };
+  }
+
+  /** Step-local delivery on the transport tick: the audio path for patterns. */
+  private deliverLaneEvents(step: number, when: number): void {
+    if (this.lanePatterns.length === 0) return;
+    void this.ensureVoiceEngine().then((host) => {
+      if (!host) return;
+      const laneCount = LANE_IDS.length;
+      for (let i = 0; i < laneCount; i++) {
+        const pattern = this.lanePatterns[i];
+        if (!pattern) continue;
+        const local = ((step % pattern.steps) + pattern.steps) % pattern.steps;
+        const events = pattern.byStep.get(local);
+        if (!events) continue;
+        host.sendEvents(i, events.map((e) => ({ ...e, time: when })));
+      }
+    });
   }
 
   // -------------------------------------------------------------------------

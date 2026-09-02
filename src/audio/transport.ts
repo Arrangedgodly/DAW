@@ -171,6 +171,22 @@ export class Transport {
    * Before the timeline starts it reports the (pre-roll) start position.
    * With looping off and the pattern finished, reports the final step.
    */
+  /**
+   * Loop-relative seconds for the current audio-clock position (DES-4
+   * playhead source). Same derivation as getPosition(): pre-roll reports the
+   * start step's time; stopped reports the parked position; with looping off
+   * and the pattern finished, the loop end.
+   */
+  getLoopTime(): number {
+    const groove = { bpm: this._bpm, swing: this._swing };
+    if (!this._playing) return timeAtStep(this.startStep, groove);
+    const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
+    const elapsed = this.getContext().currentTime - this.timelineStart;
+    if (elapsed < 0) return timeAtStep(this.startStep, groove);
+    if (!this._loop && elapsed >= loopLen) return loopLen;
+    return ((elapsed % loopLen) + loopLen) % loopLen;
+  }
+
   getPosition(): Position {
     if (!this._playing) return barBeatStep(this.startStep);
     const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
