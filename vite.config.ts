@@ -2,9 +2,33 @@ import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import { playwright } from "@vitest/browser-playwright";
 import { onRenderFingerprintConsoleLog } from "./tests/golden/render-fp-recorder.ts";
+import type { Plugin } from "vite";
+
+/**
+ * CA-1: the strict zero-network CSP meta in index.html (connect-src 'none' …)
+ * is the production privacy guarantee, but `vite dev` cannot live under it —
+ * HMR injects inline <style> tags (style-src 'unsafe-inline') and opens a
+ * ws:// websocket (connect-src ws:). Serve-only transform: strip the meta
+ * from the dev page so DX keeps working. Builds are untouched — the served
+ * artifact always carries the full policy, and the browser pipeline test
+ * (tests/browser/zero-network.test.ts) re-applies the exact built policy to
+ * a real journey to prove the app runs clean under it.
+ */
+function cspDevStrip(): Plugin {
+  return {
+    name: "csp-dev-strip",
+    apply: "serve",
+    transformIndexHtml(html) {
+      return html.replace(/\s*<!--\s*\n?\s*CA-1 zero-network[\s\S]*?-->\n?/, "").replace(
+        /\s*<meta\s+http-equiv="Content-Security-Policy"[^>]*\/>\n?/,
+        "\n",
+      );
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [solid(), cspDevStrip()],
   resolve: {
     alias: [
       {
@@ -44,6 +68,14 @@ export default defineConfig({
         // don't reliably apply the root solid() plugin's JSX transform, so
         // register it at project level for the served page.
         plugins: [solid()],
+        // CA-1: serve the BUILT app (dist/, produced by globalSetup before
+        // these tests run) as the publicDir so its absolute /assets/... URLs —
+        // hashed bundle, CSS, fonts, worklet module, and the on-demand
+        // exportWav/exportMidi dynamic-import chunks — all resolve same-origin
+        // exactly as they do in deployment. The zero-network test loads the
+        // built bundle in an iframe under the full production CSP this way.
+        // Serve-only: `vite build` keeps the (empty) default publicDir.
+        publicDir: "dist",
         test: {
           // vite-plugin-solid's config hook defaults mode==='test' projects to
           // a jsdom environment when none is set; pin node (browser mode

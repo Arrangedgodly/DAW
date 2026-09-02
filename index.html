@@ -3,6 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      CA-1 zero-network guarantee (town-hall AC 9): Bitbounce is local-first
+      forever — no telemetry, no CDN, no data leaving the device except
+      explicit file exports (programmatic blob-anchor downloads, not network
+      writes). This is the strongest policy a page can carry: connect-src
+      'none' means NO fetch, XHR, WebSocket, EventSource, or sendBeacon
+      target is ever loadable — same-origin included; every other directive
+      is pinned to 'self' (the audio worklet module is a plain same-origin
+      /assets/... URL in the built app, so worker-src needs no blob:). The
+      meta is stripped ONLY for `vite dev`, where HMR needs inline styles +
+      a ws: connection (cspDevStrip plugin in vite.config.ts); the built
+      artifact users receive always carries the full policy. Guarded by
+      tests/browser/zero-network.test.ts; see docs/dev/privacy.md.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'" />
     <title>Bitbounce</title>
     <!-- res-9 critical-path preload set ONLY: the font-display:swap value/ui
          faces that ship as separate files (Departure Mono ≈ 5.9 KB, IBM Plex
