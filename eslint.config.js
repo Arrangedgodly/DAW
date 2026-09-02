@@ -8,4 +8,17 @@ export default tseslint.config(
   {
     files: ["**/*.{ts,tsx}"],
   },
+  // AudioWorklet globals: the worklet file is plain JS evaluated inside the
+  // AudioWorkletGlobalScope (registerProcessor, sampleRate, currentTime, ...).
+  {
+    files: ["src/audio/worklets/*.js"],
+    languageOptions: {
+      globals: {
+        AudioWorkletProcessor: "readonly",
+        registerProcessor: "readonly",
+        sampleRate: "readonly",
+        currentTime: "readonly",
+      },
+    },
+  },
 );

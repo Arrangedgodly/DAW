@@ -13,6 +13,26 @@ import { AudioEngineContext, type AudioContextLike } from "../audio/context";
 import { Transport } from "../audio/transport";
 import { STEPS_PER_BEAT, STEPS_PER_BAR, clampSwing } from "../audio/time";
 import { clamp } from "../lib/clamp";
+import {
+  type DrumKit,
+  type VoicePreset,
+  getDrumKit,
+  getPreset,
+  noteParamsFor,
+} from "../audio/presets";
+import {
+  type VoiceEngineHost,
+  createVoiceEngine,
+  isWorkletCapable,
+  workletContextFor,
+} from "../audio/voiceEngine";
+import {
+  DRUM_PIECES,
+  LANE_IDS,
+  type DrumPiece,
+  type LaneId,
+} from "../document/schema";
+import { degreeToMidi, toEffectiveScale } from "../document/scales";
 
 /** Audio-node surface the default metronome/master wiring needs. */
 interface AudioNodeContext extends AudioContextLike {
@@ -47,6 +67,13 @@ export interface SessionOptions {
   readonly playTickSound?: TickSoundPlayer;
   /** Override click cancellation on transport stop (tests). */
   readonly cancelTickSounds?: () => void;
+  /**
+   * Injectable voice-engine host factory (tests). Receives the raw context;
+   * returns null when the context cannot host worklets (node fakes).
+   */
+  readonly createVoiceEngineHost?: (
+    ctx: AudioContextLike,
+  ) => Promise<VoiceEngineHost | null>;
 }
 
 export class Session {
@@ -58,12 +85,25 @@ export class Session {
   private master: GainNode | null = null;
   private readonly playTickSound: TickSoundPlayer;
   private readonly cancelTickSounds: () => void;
+  private readonly createVoiceEngineHost: NonNullable<
+    SessionOptions["createVoiceEngineHost"]
+  >;
+  private voiceEnginePromise: Promise<VoiceEngineHost | null> | null = null;
+  /** Current sound id per lane (presetId for pitched, kitId for drums). */
+  private laneSounds: Record<LaneId, string> = {
+    drums: "kit-default",
+    bass: "preset-bass-1",
+    chords: "preset-chords-1",
+    lead: "preset-lead-1",
+  };
 
   constructor(opts: SessionOptions = {}) {
     this.engine = opts.engine ?? new AudioEngineContext();
     this.playTickSound = opts.playTickSound ?? this.defaultPlayTick.bind(this);
     this.cancelTickSounds =
       opts.cancelTickSounds ?? this.defaultCancelTicks.bind(this);
+    this.createVoiceEngineHost =
+      opts.createVoiceEngineHost ?? this.defaultCreateVoiceEngine.bind(this);
     this.transport = new Transport({
       getContext: () => this.engine.getContext(),
       scheduleEvent: (event, when) => this.onScheduledTick(event.step, when),
@@ -84,6 +124,7 @@ export class Session {
     await this.engine.unlock();
     if (this.transport.snapshot.playing) {
       this.transport.stop();
+      this.stopAllVoices();
     } else {
       this.transport.play();
     }
@@ -139,9 +180,103 @@ export class Session {
     this.playTickSound(when, step % STEPS_PER_BAR === 0);
   }
 
+  // -------------------------------------------------------------------------
+  // Voice engine + audition (IM-3)
+  // -------------------------------------------------------------------------
+
+  /** Choose the sound a lane auditions with (presetId or kitId). */
+  setLaneSound(laneId: LaneId, presetOrKitId: string): void {
+    this.laneSounds[laneId] = presetOrKitId;
+  }
+
+  /**
+   * AUDITION: trigger one voice of a lane immediately (grid placement,
+   * browser). `degreeOrDrum` is a scale degree for pitched lanes or a drum
+   * piece for the drums lane.
+   */
+  async audition(laneId: LaneId, degreeOrDrum: number | DrumPiece): Promise<void> {
+    await this.engine.unlock();
+    const host = await this.ensureVoiceEngine();
+    if (!host) return;
+    const when = this.engine.getContext().currentTime + 0.03;
+    const event = this.buildAuditionEvent(laneId, degreeOrDrum, when);
+    if (!event) return;
+    host.sendEvents(LANE_IDS.indexOf(laneId), [event]);
+  }
+
+  /** Stop everything the voice engines are sounding (transport stop). */
+  stopAllVoices(): void {
+    void this.ensureVoiceEngine().then((host) => host?.allOff());
+  }
+
+  private buildAuditionEvent(
+    laneId: LaneId,
+    degreeOrDrum: number | DrumPiece,
+    when: number,
+  ) {
+    if (laneId === "drums") {
+      const kit = this.resolveDrumKit();
+      const pieceName =
+        typeof degreeOrDrum === "string" && (DRUM_PIECES as readonly string[]).includes(degreeOrDrum)
+          ? (degreeOrDrum as DrumPiece)
+          : "kick";
+      const piece = kit.pieces[pieceName];
+      return noteParamsFor(piece, {
+        time: when,
+        holdSeconds: Math.max(piece.envelope.attack + piece.envelope.decay, 0.05),
+        seedSalt: DRUM_PIECES.indexOf(pieceName),
+      });
+    }
+    const preset = this.resolvePitchedPreset(laneId);
+    const degree = typeof degreeOrDrum === "number" ? degreeOrDrum : 0;
+    const scale = toEffectiveScale({ root: 0, mode: "minor" });
+    const midi = degreeToMidi(scale, degree, preset.pitchRange?.octaveBase ?? 4);
+    return noteParamsFor(preset, {
+      time: when,
+      midi,
+      holdSeconds: 0.25,
+      seedSalt: degree,
+    });
+  }
+
+  private resolveDrumKit(): DrumKit {
+    return getDrumKit(this.laneSounds.drums) ?? getDrumKit("kit-default")!;
+  }
+
+  private resolvePitchedPreset(laneId: Exclude<LaneId, "drums">): VoicePreset {
+    const fallback: Record<Exclude<LaneId, "drums">, string> = {
+      bass: "preset-bass-1",
+      chords: "preset-chords-1",
+      lead: "preset-lead-1",
+    };
+    return (
+      getPreset(this.laneSounds[laneId]) ?? getPreset(fallback[laneId])!
+    );
+  }
+
+  private defaultCreateVoiceEngine: NonNullable<
+    SessionOptions["createVoiceEngineHost"]
+  > = async (ctx) => {
+    if (!isWorkletCapable(ctx)) return null;
+    return createVoiceEngine(workletContextFor(ctx), LANE_IDS.length);
+  };
+
+  private ensureVoiceEngine(): Promise<VoiceEngineHost | null> {
+    this.voiceEnginePromise ??= this.createVoiceEngineHost(
+      this.engine.getContext(),
+    ).then((host) => {
+      if (!host) return null;
+      const master = this.ensureMaster();
+      if (master) {
+        for (let i = 0; i < LANE_IDS.length; i++) host.connect(i, master);
+      }
+      return host;
+    });
+    return this.voiceEnginePromise;
+  }
+
   /** Lazily builds the master gain wired to the destination. */
-  private ensureMaster(): GainNode | null {
-    if (this.master) return this.master;
+  private ensureMaster(): GainNode | null {    if (this.master) return this.master;
     const ctx = this.engine.getContext();
     if (!hasAudioNodes(ctx)) return null;
     const gain = ctx.createGain();
