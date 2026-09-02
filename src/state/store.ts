@@ -101,6 +101,15 @@ function initialDoc(): ProjectDocument {
   return validateProject(expandDefaultGrids(createDefaultProject()));
 }
 
+/**
+ * A fresh default document for a NEW project (HU-2 empty-project flow):
+ * exactly what the store boots with — empty 1-bar patterns, expanded editing
+ * grids, "Untitled". `loadDocument` accepts the result directly.
+ */
+export function createFreshProjectDocument(): ProjectDocument {
+  return initialDoc();
+}
+
 export const docStore = createStore<DocState>()(
   temporal(
     () => ({

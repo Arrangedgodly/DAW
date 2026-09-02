@@ -89,15 +89,16 @@ export function safeFileStem(name: string): string {
 }
 
 /**
- * Download the canonical codec bytes as `<name>.bitbounce.json`
- * (content-type application/json). Returns the filename used.
+ * Download an arbitrary text payload as a file (shared by project export and
+ * HU-2's quarantine RECOVER action, which downloads the ORIGINAL raw bytes —
+ * never re-encoded — so the user can inspect what the app could not read).
  */
-export function exportProjectFile(
-  doc: ProjectDocument,
+export function downloadTextFile(
+  filename: string,
+  text: string,
   seam: DownloadSeam = defaultDownloadSeam,
 ): string {
-  const filename = `${safeFileStem(doc.name)}${FILE_EXTENSION}`;
-  const blob = new Blob([encode(doc)], { type: "application/json" });
+  const blob = new Blob([text], { type: "application/json" });
   const url = seam.createObjectURL(blob);
   try {
     const anchor = seam.createElement("a");
@@ -108,6 +109,17 @@ export function exportProjectFile(
     seam.revokeObjectURL(url);
   }
   return filename;
+}
+
+/**
+ * Download the canonical codec bytes as `<name>.bitbounce.json`
+ * (content-type application/json). Returns the filename used.
+ */
+export function exportProjectFile(
+  doc: ProjectDocument,
+  seam: DownloadSeam = defaultDownloadSeam,
+): string {
+  return downloadTextFile(`${safeFileStem(doc.name)}${FILE_EXTENSION}`, encode(doc), seam);
 }
 
 // ---------------------------------------------------------------------------

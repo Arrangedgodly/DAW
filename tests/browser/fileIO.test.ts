@@ -13,6 +13,8 @@ import { encode } from "../../src/document/codec";
 import { createDefaultProject } from "../../src/document/schema";
 import { docStore } from "../../src/state/store";
 import FileIO from "../../src/components/FileIO";
+import Toasts from "../../src/components/Toasts";
+import { clearToasts } from "../../src/state/toasts";
 import { getAutosaveController, initPersistence } from "../../src/persist/boot";
 import { openRawProjectDb } from "../../src/persist/db";
 
@@ -26,14 +28,17 @@ async function freshDb(name: string) {
   return openRawProjectDb(name);
 }
 
-/** Render FileIO standalone (no audio/engine deps) and get its DOM. */
+/** Render FileIO + the shared Toasts (HU-2 bus) standalone and get their DOM. */
 function mountFileIO(): { root: HTMLElement; input: HTMLInputElement; cleanup: () => void } {
   const host = document.createElement("div");
   document.body.append(host);
+  const toastHost = document.createElement("div");
+  document.body.append(toastHost);
   // No JSX in the test file (the browser-mode test transform has no JSX
   // step): the component function itself is the render fn, evaluated inside
   // render's reactive root so its signals work.
   const dispose = render(FileIO, host);
+  const disposeToasts = render(Toasts, toastHost);
   const root = host;
   const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
   return {
@@ -41,7 +46,10 @@ function mountFileIO(): { root: HTMLElement; input: HTMLInputElement; cleanup: (
     input,
     cleanup: () => {
       dispose();
+      disposeToasts();
+      clearToasts();
       host.remove();
+      toastHost.remove();
     },
   };
 }
@@ -79,7 +87,7 @@ describe("project file import (real codec + IndexedDB + component)", () => {
       expect(docStore.getState().doc).toEqual({ ...exported, name: "friend song (imported)" });
 
       // No error toast on success.
-      expect(ui.root.querySelector('[role="alert"]')).toBeNull();
+      expect(document.body.querySelector('[role="alert"] .toast')).toBeNull();
 
       // New row persisted under a fresh id; the boot row untouched.
       const rows = await db.allRecords();
@@ -99,6 +107,7 @@ describe("project file import (real codec + IndexedDB + component)", () => {
       expect(row!.dirty).toBe(false);
     } finally {
       ui.cleanup();
+      clearToasts();
       // Stop whatever controller the boot module CURRENTLY holds — a
       // successful import replaced it via switchToProject, and a leaked
       // subscription would pollute later suites' autosave observations.
@@ -121,7 +130,7 @@ describe("project file import (real codec + IndexedDB + component)", () => {
 
       const toast = await (async () => {
         for (let i = 0; i < 40; i++) {
-          const el = ui.root.querySelector<HTMLElement>('[role="alert"]');
+          const el = document.body.querySelector<HTMLElement>('[role="alert"] .toast');
           if (el) return el;
           await new Promise((r) => setTimeout(r, 10));
         }
@@ -138,10 +147,11 @@ describe("project file import (real codec + IndexedDB + component)", () => {
       const dismiss = toast.querySelector<HTMLButtonElement>("button");
       expect(dismiss).not.toBeNull();
       dismiss!.click();
-      await waitFor(() => ui.root.querySelector('[role="alert"]') === null);
-      expect(ui.root.querySelector('[role="alert"]')).toBeNull();
+      await waitFor(() => document.body.querySelector('[role="alert"] .toast') === null);
+      expect(document.body.querySelector('[role="alert"] .toast')).toBeNull();
     } finally {
       ui.cleanup();
+      clearToasts();
       await getAutosaveController()?.stop();
       docStore.setState({ doc: before });
     }

@@ -7,17 +7,21 @@
 import Booth from "./components/Booth";
 import PatternRail from "./components/PatternRail";
 import StageFloor from "./components/StageFloor";
+import Toasts from "./components/Toasts";
+import AudioStatus from "./components/AudioStatus";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
 import "./styles/grid.css";
 import "./styles/lane-header.css";
 import "./styles/fx-strip.css";
 import "./styles/pattern-rail.css";
+import "./styles/toasts.css";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
-// project (if any) swaps in as soon as IndexedDB answers. A decode failure
-// keeps the default and logs (full failure UX is HU-2).
+// project (if any) swaps in as soon as IndexedDB answers. A corrupt row is
+// quarantined inside initPersistence (HU-2) with a RECOVER toast; only an
+// outright boot failure (e.g. no storage at all) lands here.
 void initPersistence().catch((error) => {
   console.warn("[persist] boot restore failed; starting from default project", error);
 });
@@ -30,6 +34,8 @@ export default function App() {
         <PatternRail />
         <StageFloor />
       </main>
+      <AudioStatus />
+      <Toasts />
     </div>
   );
 }

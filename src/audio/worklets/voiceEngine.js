@@ -321,6 +321,8 @@ VoiceEngineProcessor.prototype.process = function (_inputs, outputs) {
       voice.nextEvent = null;
     } else {
       // busy voice: fade the old note out first (de-click), then trigger
+      // HU-2 dev stat: report the steal (main thread counts; no user UI).
+      this.port.postMessage({ type: "stolen" });
       voice.nextEvent = e;
       voice.killRemaining = Math.max(
         1,

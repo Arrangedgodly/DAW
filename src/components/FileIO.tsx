@@ -1,34 +1,52 @@
 /**
- * FileIO — booth-corner project file buttons (MF-3): SAVE FILE exports the
+ * FileIO (MF-3 + HU-2) — booth-corner project buttons: SAVE FILE exports the
  * current document's canonical bytes; OPEN FILE imports a .bitbounce.json
- * through the codec into a NEW project (never clobbers the working one).
+ * through the codec into a NEW project (never clobbers the working one);
+ * NEW starts a fresh default project (HU-2 empty-project flow) via the same
+ * no-clobber + autosave-retarget ordering as import.
  *
- * Failure UX seed (HU-2 will generalize): a dismissible role=alert toast with
- * the typed message + recovery suggestion. Keyboard operable end to end —
- * OPEN FILE is a real <button> that forwards to a visually-hidden file input,
- * and the toast's dismiss is a focused real button.
+ * Failures now push onto the shared toast bus (src/state/toasts.ts) rendered
+ * by the App shell's <Toasts/>: sticky role=alert errors with the typed
+ * message + recovery suggestion + first issues, keyboard dismissible.
  */
 
 import { createSignal } from "solid-js";
 import { docStore, loadDocument } from "../state/store";
-import { exportProjectFile, importProjectFile, type ImportFailure } from "../persist/fileIO";
+import { exportProjectFile, importProjectFile } from "../persist/fileIO";
 import { getBootDb, switchToProject } from "../persist/boot";
+import { createNewProject } from "../persist/newProject";
+import { showInfo, showError, showSuccess } from "../state/toasts";
 import "../styles/file-io.css";
 
-interface ToastState {
-  readonly message: string;
-  readonly suggestion: string;
-  readonly issues?: readonly string[];
-}
-
 export default function FileIO() {
-  const [toast, setToast] = createSignal<ToastState | null>(null);
   const [busy, setBusy] = createSignal(false);
   let fileInput: HTMLInputElement | undefined;
 
   const handleSave = () => {
     // Never throws: export is a pure encode + programmatic download.
     exportProjectFile(docStore.getState().doc);
+  };
+
+  const handleNew = async () => {
+    const db = getBootDb();
+    if (!db) return; // persistence not booted — nothing to switch
+    setBusy(true);
+    try {
+      const { record, doc } = await createNewProject(db);
+      // Same ordering law as import: retarget autosave BEFORE the new
+      // document lands, so the old row can never receive the new bytes.
+      await switchToProject(record.id);
+      loadDocument(doc);
+      showSuccess("NEW PROJECT READY", {
+        suggestion: "Pick a preset, paint the grid.",
+      });
+    } catch {
+      showError("Could not start a new project.", {
+        suggestion: "Your current project is untouched — try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleFile = async (file: File) => {
@@ -38,14 +56,17 @@ export default function FileIO() {
     try {
       const result = await importProjectFile(file, db);
       if (result.ok) {
-        setToast(null);
         // Order matters: retarget autosave BEFORE the new document lands in
         // the store, so the old controller's final flush cannot write the
         // imported doc into the old project's row.
         await switchToProject(result.record.id);
         loadDocument(result.doc);
+        showInfo(`OPENED "${result.doc.name}"`);
       } else {
-        setToast(toastState(result));
+        showError(result.message, {
+          suggestion: result.suggestion,
+          details: result.issues,
+        });
       }
     } finally {
       setBusy(false);
@@ -70,6 +91,14 @@ export default function FileIO() {
       >
         OPEN FILE
       </button>
+      <button
+        type="button"
+        class="booth-btn file-io-btn"
+        disabled={busy()}
+        onClick={() => void handleNew()}
+      >
+        NEW
+      </button>
       <input
         ref={(el) => {
           fileInput = el;
@@ -85,33 +114,6 @@ export default function FileIO() {
           if (file) void handleFile(file);
         }}
       />
-      {toast() && (
-        <div class="file-io-toast" role="alert" aria-label="Project file error">
-          <div class="file-io-toast-body">
-            <p class="file-io-toast-message">{toast()!.message}</p>
-            {toast()!.issues && toast()!.issues!.length > 0 && (
-              <ul class="file-io-toast-issues">
-                {toast()!.issues!.slice(0, 3).map((issue) => (
-                  <li>{issue}</li>
-                ))}
-              </ul>
-            )}
-            <p class="file-io-toast-suggestion">{toast()!.suggestion}</p>
-          </div>
-          <button
-            type="button"
-            class="file-io-dismiss"
-            aria-label="Dismiss error"
-            onClick={() => setToast(null)}
-          >
-            ✕
-          </button>
-        </div>
-      )}
     </div>
   );
-}
-
-function toastState(failure: ImportFailure): ToastState {
-  return { message: failure.message, suggestion: failure.suggestion, issues: failure.issues };
 }

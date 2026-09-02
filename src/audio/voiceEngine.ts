@@ -161,6 +161,8 @@ export interface VoiceEngineHost {
   connect(laneIndex: number, destination: AudioNode): void;
   /** Fast-release every voice on every lane (transport stop). */
   allOff(): void;
+  /** HU-2 dev stat: steals this lane's worklet has performed (optional). */
+  stolenCount?(laneIndex: number): number;
   readonly outbox: EventOutbox;
   dispose(): void;
 }
@@ -168,6 +170,8 @@ export interface VoiceEngineHost {
 export interface CreateVoiceEngineOptions {
   /** Override the worklet module URL (tests). */
   readonly moduleUrl?: string;
+  /** HU-2 dev stat: fired each time a lane's worklet steals a voice. */
+  readonly onStolen?: (laneIndex: number) => void;
 }
 
 export async function createVoiceEngine(
@@ -181,12 +185,18 @@ export async function createVoiceEngine(
 
   const nodes: WorkletNodeLike[] = [];
   const outbox = new EventOutbox(laneCount);
+  const stolen = new Array<number>(laneCount).fill(0);
   for (let i = 0; i < laneCount; i++) {
     const node = ctx.createVoiceEngineNode();
+    const laneIndex = i;
     node.port.onmessage = (event) => {
       const data = event.data as { type?: string; untilTime?: number };
-      if (data && data.type === "consumed" && typeof data.untilTime === "number") {
-        outbox.handleWatermark(i, data.untilTime);
+      if (!data || typeof data.type !== "string") return;
+      if (data.type === "consumed" && typeof data.untilTime === "number") {
+        outbox.handleWatermark(laneIndex, data.untilTime);
+      } else if (data.type === "stolen") {
+        stolen[laneIndex] += 1;
+        opts.onStolen?.(laneIndex);
       }
     };
     nodes.push(node);
@@ -212,6 +222,9 @@ export async function createVoiceEngine(
     },
     allOff() {
       for (const node of nodes) node.port.postMessage({ type: "all-off" });
+    },
+    stolenCount(laneIndex) {
+      return stolen[laneIndex] ?? 0;
     },
     dispose() {
       for (const node of nodes) {

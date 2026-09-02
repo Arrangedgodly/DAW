@@ -221,6 +221,7 @@ export class Session {
     } else {
       // Warm the voice engines during the pre-roll so the first pattern step
       // is never dropped waiting on the worklet module load.
+      this.resetVoiceStealCount(); // steal stats are per-play (HU-2)
       if (this.lanePlayback.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
@@ -262,6 +263,48 @@ export class Session {
         this.engine.getContext().currentTime,
       );
     }
+  }
+
+  /**
+   * HU-2 device-change pop guard: a ~30 ms fade to silence and back (130 ms)
+   * around an audio device transition. No-op until the master gain exists
+   * (nothing is sounding). The context is NEVER recreated — voices would die.
+   */
+  duckMaster(): void {
+    if (!this.master) return;
+    const t = this.engine.getContext().currentTime;
+    const g = this.master.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0, t + 0.03);
+    g.linearRampToValueAtTime(this._volume, t + 0.13);
+  }
+
+  // -------------------------------------------------------------------------
+  // Voice-steal stats (HU-2) — DEV/e2e-inspectable only, by design.
+  //
+  // Rationale (recorded per the town-hall "no dropouts surprise" claim):
+  // stealing IS the policy working — free→oldest-release→oldest with a 4 ms
+  // de-click fade guarantees a voice for every event within the 8/lane pool.
+  // Surfacing it as user UI would advertise correct behavior as a failure.
+  // The counter is exposed for console/e2e assertions only, reset per play.
+  // -------------------------------------------------------------------------
+
+  private stolenVoices = 0;
+
+  /** Voices stolen this play (console/e2e diagnostics; not user UI). */
+  get voiceStealCount(): number {
+    return this.stolenVoices;
+  }
+
+  /** Reset per play (togglePlay's start branch). */
+  resetVoiceStealCount(): void {
+    this.stolenVoices = 0;
+  }
+
+  /** VoiceEngineHost onStolen callback (real worklet path only). */
+  private noteVoiceStolen(): void {
+    this.stolenVoices += 1;
   }
 
   /** Transport observer passthrough (coarse state only, never 60 Hz data). */
@@ -788,7 +831,9 @@ export class Session {
     SessionOptions["createVoiceEngineHost"]
   > = async (ctx) => {
     if (!isWorkletCapable(ctx)) return null;
-    return createVoiceEngine(workletContextFor(ctx), LANE_IDS.length);
+    return createVoiceEngine(workletContextFor(ctx), LANE_IDS.length, {
+      onStolen: () => this.noteVoiceStolen(),
+    });
   };
 
   private ensureVoiceEngine(): Promise<VoiceEngineHost | null> {
