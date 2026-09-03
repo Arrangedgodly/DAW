@@ -337,8 +337,14 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
         "resource",
       ) as PerformanceResourceTiming[];
       expect(entries.length).toBeGreaterThan(3); // the app really loaded things
+      // `data:` URLs (the two smallest woff2 faces Vite inlines into the CSS,
+      // per CA-1) are NOT network loads — nothing leaves the device — but
+      // Chromium only sometimes surfaces them in resource timing, which made
+      // this filter flake (HW-4 deflake). Only genuine remote URLs fail.
       const crossOrigin = entries.filter(
-        (e) => !e.name.startsWith(win.location.origin),
+        (e) =>
+          !e.name.startsWith("data:") &&
+          !e.name.startsWith(win.location.origin),
       );
       expect(
         crossOrigin.map((e) => e.name),
