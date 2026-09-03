@@ -81,9 +81,40 @@ function adsrLevel(t, attack, decay, sustain, release, hold) {
   return 0;
 }
 
+// Karplus–Strong plucked string (twin of dsp.ts; PS-1). Caller owns the
+// delay line + position; these are pure per-step helpers.
+
+function karplusDamp(loopLen, sampleRate, decaySeconds) {
+  if (decaySeconds <= 0) return 0;
+  return Math.exp(-loopLen / (sampleRate * decaySeconds));
+}
+
+function karplusFill(line, len, seed) {
+  var reg = seed >= 1 && seed <= 32767 ? seed : 1;
+  for (var i = 0; i < len; i++) {
+    line[i] = lfsrOutput(reg);
+    reg = lfsrNext(reg, false);
+  }
+}
+
+function karplusStep(line, pos, len, damp) {
+  var next = pos + 1 === len ? 0 : pos + 1;
+  var out = line[pos];
+  line[pos] = damp * 0.5 * (out + line[next]);
+  return out;
+}
+
 // --- Voice ------------------------------------------------------------------
 
 var WAVE_TRIANGLE = 1;
+var WAVE_PLUCK = 3;
+
+/**
+ * Karplus–Strong delay-line budget (PS-1): covers pitches down to
+ * ~10.8 Hz at 44100 Hz (the lowest reachable lane note is ~16 Hz at
+ * octaveBase 1), preallocated once per voice — never in process().
+ */
+var PLUCK_LINE_MAX = 4096;
 
 /** One preallocated voice. All numeric fields; one shape, ever. */
 function Voice() {
@@ -101,6 +132,11 @@ function Voice() {
   this.sweepRemaining = 0; // seconds of sweep left
   this.sweepPerSample = 0; // Hz per sample
   this.duty = 0.5;
+  // karplus–strong string (wave 3): line preallocated, len/pos/damp per note
+  this.pluckLine = new Float32Array(PLUCK_LINE_MAX);
+  this.pluckLen = 2;
+  this.pluckPos = 0;
+  this.pluckDamp = 0.99;
   // noise
   this.noiseMix = 0;
   this.noiseShort = false;
@@ -146,6 +182,21 @@ function triggerVoice(v, e, whenTime) {
   v.noiseRate = e.noiseRate > 0 ? e.noiseRate : 4;
   v.noiseCountdown = v.noiseRate;
   v.lfsr = e.seed >= 1 && e.seed <= 32767 ? e.seed : 1;
+  // Karplus–Strong string: seed-fill the loop at the trigger pitch. The
+  // loop length is fixed for the note's life (a retune would need a
+  // fractional delay; pluck presets ship without pitchSweep — presets.ts
+  // documents the pairing).
+  if (e.wave === WAVE_PLUCK) {
+    v.pluckLen = Math.round(sampleRate / v.freq);
+    if (v.pluckLen < 2) v.pluckLen = 2;
+    if (v.pluckLen > v.pluckLine.length) v.pluckLen = v.pluckLine.length;
+    karplusFill(v.pluckLine, v.pluckLen, v.lfsr);
+    v.pluckPos = 0;
+    // duty carries the string decay for pluck voices: duty × 4 seconds
+    // (duty is otherwise meaningful only to pulses — triangle/noise ignore
+    // it too; the wire format stays frozen).
+    v.pluckDamp = karplusDamp(v.pluckLen, sampleRate, e.duty * 4);
+  }
   v.attack = e.attack;
   v.decay = e.decay;
   v.sustain = e.sustain;
@@ -180,7 +231,11 @@ function voiceSample(v, invSampleRate) {
   // oscillator + noise
   var osc = 0;
   if (v.noiseMix < 1) {
-    if (v.wave === WAVE_TRIANGLE) {
+    if (v.wave === WAVE_PLUCK) {
+      osc = karplusStep(v.pluckLine, v.pluckPos, v.pluckLen, v.pluckDamp);
+      v.pluckPos += 1;
+      if (v.pluckPos >= v.pluckLen) v.pluckPos = 0;
+    } else if (v.wave === WAVE_TRIANGLE) {
       osc = triangleValue(v.phase);
       v.phase += v.freq * invSampleRate;
       if (v.phase >= 1) v.phase -= Math.floor(v.phase);
@@ -460,5 +515,8 @@ if (typeof globalThis.__bbRegisterVoiceEngineDsp === "function") {
     lfsrNext: lfsrNext,
     lfsrOutput: lfsrOutput,
     adsrLevel: adsrLevel,
+    karplusDamp: karplusDamp,
+    karplusFill: karplusFill,
+    karplusStep: karplusStep,
   });
 }

@@ -26,6 +26,7 @@ import {
 } from "../src/state/scaleChip";
 import { connectStoreToEngine } from "../src/state/engineBridge";
 import { soundOptionsFor } from "../src/components/laneMeta";
+import { DRUM_KITS, PRESET_LIBRARY } from "../src/audio/presets";
 import type { Session } from "../src/engine/session";
 import type { LaneId } from "../src/document/schema";
 
@@ -194,37 +195,22 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
 
 describe("sound options", () => {
   it("drums cycle kits; pitched lanes cycle their own presets only", () => {
-    expect(soundOptionsFor("drums").map((o) => o.id)).toEqual([
-      "kit-default",
-      "kit-grit",
-      "kit-metal",
-      "kit-soft",
-      "kit-dust",
-      "kit-lab",
-    ]);
-    expect(soundOptionsFor("bass").map((o) => o.id)).toEqual([
-      "preset-bass-1",
-      "preset-bass-2",
-      "preset-bass-3",
-      "preset-bass-4",
-      "preset-bass-5",
-      "preset-bass-6",
-    ]);
-    expect(soundOptionsFor("chords").map((o) => o.id)).toEqual([
-      "preset-chords-1",
-      "preset-chords-2",
-      "preset-chords-3",
-      "preset-chords-4",
-      "preset-chords-5",
-      "preset-chords-6",
-    ]);
-    expect(soundOptionsFor("lead").map((o) => o.id)).toEqual([
-      "preset-lead-1",
-      "preset-lead-2",
-      "preset-lead-3",
-      "preset-lead-4",
-      "preset-lead-5",
-      "preset-lead-6",
-    ]);
+    // PS-1: the libraries now carry 10 kits / 12 presets per lane — assert
+    // against the libraries themselves (stepper order = insertion order)
+    // plus the lane-scoping law, instead of pinning every id by hand.
+    const kitIds = Object.keys(DRUM_KITS);
+    expect(kitIds.length).toBeGreaterThanOrEqual(10);
+    expect(soundOptionsFor("drums").map((o) => o.id)).toEqual(kitIds);
+    for (const lane of ["bass", "chords", "lead"] as const) {
+      const expected = Object.keys(PRESET_LIBRARY).filter((id) =>
+        id.startsWith(`preset-${lane}-`),
+      );
+      expect(expected.length).toBeGreaterThanOrEqual(12);
+      expect(soundOptionsFor(lane).map((o) => o.id)).toEqual(expected);
+      // every lane option is that lane's (no cross-lane leakage, no kits).
+      expect(
+        soundOptionsFor(lane).every((o) => o.id.startsWith(`preset-${lane}-`)),
+      ).toBe(true);
+    }
   });
 });

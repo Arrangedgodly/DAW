@@ -25,6 +25,14 @@ let workletDsp: {
     r: number,
     hold: number,
   ) => number;
+  karplusDamp: (len: number, sampleRate: number, decaySeconds: number) => number;
+  karplusFill: (line: Float32Array, len: number, seed: number) => void;
+  karplusStep: (
+    line: Float32Array,
+    pos: number,
+    len: number,
+    damp: number,
+  ) => number;
 };
 
 beforeAll(async () => {
@@ -119,6 +127,62 @@ describe("worklet DSP parity with dsp.ts", () => {
           workletDsp.adsrLevel(t, a, d, s, r, hold),
           dsp.adsrLevel(t, a, d, s, r, hold),
         );
+      }
+    }
+  });
+
+  it("karplusDamp matches across loop lengths and decay times", () => {
+    for (const len of [2, 3, 10, 100, 200, 1348, 2697, 4096]) {
+      for (const T of [0.25, 0.5, 1.2, 2.5, 4]) {
+        expectClose(
+          workletDsp.karplusDamp(len, 44100, T),
+          dsp.karplusDamp(len, 44100, T),
+        );
+      }
+    }
+    // Degenerate decay clamps identically (instant kill).
+    expect(workletDsp.karplusDamp(100, 44100, 0)).toBe(
+      dsp.karplusDamp(100, 44100, 0),
+    );
+  });
+
+  it("karplusFill seeds identical bursts for several seeds/lengths", () => {
+    for (const seed of [1, 7, 1013, 32767]) {
+      for (const len of [2, 5, 97, 500, 1024]) {
+        const a = new Float32Array(1024);
+        const b = new Float32Array(1024);
+        dsp.karplusFill(a, len, seed);
+        workletDsp.karplusFill(b, len, seed);
+        for (let i = 0; i < len; i++) {
+          if (a[i] !== b[i]) throw new Error(`fill divergence seed/len ${seed}/${len} at ${i}`);
+        }
+      }
+    }
+  });
+
+  it("karplusStep runs bit-identical trajectories (state included)", () => {
+    for (const [len, damp] of [
+      [3, 0.9],
+      [100, 0.9954],
+      [441, 0.9989],
+      [2697, 0.9997],
+    ] as const) {
+      const a = new Float32Array(len);
+      const b = new Float32Array(len);
+      dsp.karplusFill(a, len, 2027);
+      workletDsp.karplusFill(b, len, 2027);
+      let pa = 0;
+      let pb = 0;
+      // Long enough to circulate the loop many times (full decay path).
+      for (let i = 0; i < len * 12; i++) {
+        const oa = dsp.karplusStep(a, pa, len, damp);
+        const ob = workletDsp.karplusStep(b, pb, len, damp);
+        if (oa !== ob) throw new Error(`step divergence len ${len} at ${i}`);
+        pa = pa + 1 === len ? 0 : pa + 1;
+        pb = pb + 1 === len ? 0 : pb + 1;
+      }
+      for (let i = 0; i < len; i++) {
+        if (a[i] !== b[i]) throw new Error(`line divergence len ${len} at ${i}`);
       }
     }
   });

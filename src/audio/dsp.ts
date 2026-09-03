@@ -115,6 +115,64 @@ export function adsrLevel(
   return 0;
 }
 
+// --- Karplus–Strong plucked string (PS-1, RES-10 synthesis half) ------------
+//
+// Public-domain algorithm (Karplus & Strong, 1983): a delay line seeded with
+// a noise burst, refilled each pass with a damped two-point average of
+// itself — the loop rings at sampleRate/len Hz and darkens as it decays,
+// which is the plucked-string sound. State lives in the CALLER (the worklet
+// voice owns a preallocated Float32Array; allocation happens at init, never
+// in process() — the PS-1 plan law).
+
+/**
+ * Damping factor for a target decay time. With this damp, the loop's
+ * amplitude decays ≈ exp(-t / decaySeconds), independent of loop length
+ * (each slot is rewritten once per period, so per-period gain ≈ damp).
+ */
+export function karplusDamp(
+  loopLen: number,
+  sampleRate: number,
+  decaySeconds: number,
+): number {
+  if (decaySeconds <= 0) return 0;
+  return Math.exp(-loopLen / (sampleRate * decaySeconds));
+}
+
+/**
+ * Seed-fill `line[0..len)` with a deterministic LFSR noise burst (the pluck
+ * excitation). `seed` is the note's LFSR seed (1..32767); the voice's own
+ * LFSR register is untouched (local copy).
+ */
+export function karplusFill(
+  line: Float32Array,
+  len: number,
+  seed: number,
+): void {
+  let reg = seed >= 1 && seed <= 32767 ? seed : 1;
+  for (let i = 0; i < len; i++) {
+    line[i] = lfsrOutput(reg);
+    reg = lfsrNext(reg, false);
+  }
+}
+
+/**
+ * One Karplus–Strong sample: output the slot at `pos`, refill it with the
+ * damped average of it and its neighbor. The caller advances `pos` by one
+ * (wrapping at `len`) per sample. Mutates `line` in place (the delay line
+ * IS the state).
+ */
+export function karplusStep(
+  line: Float32Array,
+  pos: number,
+  len: number,
+  damp: number,
+): number {
+  const next = pos + 1 === len ? 0 : pos + 1;
+  const out = line[pos];
+  line[pos] = damp * 0.5 * (out + line[next]);
+  return out;
+}
+
 /**
  * Deterministic per-note LFSR seed (1..32767) derived from the preset's base
  * seed plus note coordinates. Same note in same pass → same noise, always.

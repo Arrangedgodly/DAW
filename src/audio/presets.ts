@@ -17,7 +17,7 @@ import type { DrumPiece } from "../document/schema";
 // Types
 // ---------------------------------------------------------------------------
 
-export type WaveKind = "pulse" | "triangle" | "noise";
+export type WaveKind = "pulse" | "triangle" | "noise" | "pluck";
 export type NoiseMode = "long" | "short";
 
 export interface Envelope {
@@ -41,7 +41,11 @@ export interface VoicePreset {
   readonly id: string;
   readonly name: string;
   readonly wave: WaveKind;
-  /** Pulse duty cycle 0..1 (chiptune staples: 0.125, 0.25, 0.5). */
+  /**
+   * Pulse duty cycle 0..1 (chiptune staples: 0.125, 0.25, 0.5). For
+   * wave "pluck" it carries the Karplus–Strong string decay instead:
+   * duty × 4 seconds to −8.7 dB (triangle and noise ignore duty, as ever).
+   */
   readonly duty: number;
   readonly envelope: Envelope;
   /**
@@ -76,7 +80,7 @@ export interface DrumKit {
 // ---------------------------------------------------------------------------
 
 /** Wave discriminator as a small int (keeps the worklet monomorphic). */
-export const WAVE_CODE = { pulse: 0, triangle: 1, noise: 2 } as const;
+export const WAVE_CODE = { pulse: 0, triangle: 1, noise: 2, pluck: 3 } as const;
 
 export interface VoiceNoteOnEvent {
   readonly type: "note-on";
@@ -148,17 +152,26 @@ export function noteParamsFor(
 }
 
 // ---------------------------------------------------------------------------
-// Library (PX-2) — chiptune-leaning sound-design content, pure data.
+// Library (PX-2; expanded PS-1 to 12 presets per pitched lane + 10 kits) —
+// chiptune-leaning sound-design content, pure data.
 //
-// Character commitments (PRODUCT.md, binding): pulse-family with varied duties
-// (12.5/25/50%), NES 32-step triangles, LFSR noise textures. Bass = deep +
-// gluey (50% duty fast decay, one sub-triangle); chords = warm long-release
-// pads + one arp-ready pluck; lead = cutting pulses + one "vibrato" voice.
+// v0 character commitments (PRODUCT.md, binding) stay: pulse-family duties
+// (12.5/25/50%), NES 32-step triangles, LFSR noise textures. PS-1 expands
+// the palette while keeping the world coherent: Karplus–Strong plucked
+// strings (RES-10's committed synthesis half — public-domain algorithm,
+// seeded noise fill, worklet delay line), pitch sweeps as bass drops/rises
+// and lead falls, breath textures, and slow-attack swells. Every preset is
+// an audible archetype (pluck / pad / stab / sub / slide / drone), never a
+// parameter nudge of its neighbor — the identity suite pins this with a
+// per-preset distinctness signature.
 //
 // NOTE (vibrato): the engine wire format has no periodic pitch modulation;
 // the closest existing param is a one-shot linear `pitchSweep`, which
 // preset-lead-3 ("VIBRA TRI") uses as a subtle per-note pitch drift. Real
 // vibrato needs an engine feature (rejected here per PX-2 scope rule).
+// NOTE (pluck pairing): pluck presets ship WITHOUT pitchSweep — the KS loop
+// length is fixed at trigger pitch (a retune needs a fractional delay);
+// worklet triggerVoice documents the same law.
 // ---------------------------------------------------------------------------
 
 import * as v from "valibot";
@@ -176,7 +189,7 @@ export const EnvelopeSchema = v.strictObject({
 export const VoicePresetSchema = v.strictObject({
   id: v.pipe(v.string(), v.minLength(1)),
   name: v.pipe(v.string(), v.minLength(1), v.maxLength(14)),
-  wave: v.picklist(["pulse", "triangle", "noise"]),
+  wave: v.picklist(["pulse", "triangle", "noise", "pluck"]),
   duty: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
   envelope: EnvelopeSchema,
   noiseMix: UnitInterval,
@@ -282,6 +295,93 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     pitchRange: { octaveBase: 3 },
     seed: 1057,
   }),
+  // --- PS-1 bass additions: picked strings, slides, breath, drones ----------
+  "preset-bass-7": preset({
+    id: "preset-bass-7",
+    name: "PLUCK LOW",
+    // Karplus–Strong picked-string bass; duty 0.25 = 1.0 s string decay.
+    wave: "pluck",
+    duty: 0.25,
+    envelope: { attack: 0.001, decay: 0.3, sustain: 0.85, release: 0.1 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.72,
+    pitchRange: { octaveBase: 2 },
+    seed: 1061,
+  }),
+  "preset-bass-8": preset({
+    id: "preset-bass-8",
+    name: "DARK PLUCK",
+    // Long-decay low string (2 s) — the sustained picked bass for slow grooves.
+    wave: "pluck",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.2, sustain: 0.8, release: 0.15 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.78,
+    pitchRange: { octaveBase: 1 },
+    seed: 1063,
+  }),
+  "preset-bass-9": preset({
+    id: "preset-bass-9",
+    name: "TAPE DROP",
+    // Note dives an octave in 90 ms — the pitch-drop accent bass.
+    wave: "pulse",
+    duty: 0.5,
+    pitchSweep: { endRatio: 0.5, seconds: 0.09 },
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0.6, release: 0.05 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.8,
+    pitchRange: { octaveBase: 2 },
+    seed: 1069,
+  }),
+  "preset-bass-10": preset({
+    id: "preset-bass-10",
+    name: "RISE P25",
+    // Swells up a fifth over 180 ms — fill energy into the next downbeat.
+    wave: "pulse",
+    duty: 0.25,
+    pitchSweep: { endRatio: 1.5, seconds: 0.18 },
+    envelope: { attack: 0.001, decay: 0.08, sustain: 0.7, release: 0.06 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.75,
+    pitchRange: { octaveBase: 2 },
+    seed: 1087,
+  }),
+  "preset-bass-11": preset({
+    id: "preset-bass-11",
+    name: "BREATH SUB",
+    // Sub triangle with airy noise on top — texture bass for ambient half-time.
+    wave: "triangle",
+    duty: 0.5,
+    envelope: { attack: 0.012, decay: 0.2, sustain: 0.7, release: 0.12 },
+    noiseMix: 0.22,
+    noiseMode: "short",
+    noiseRate: 3,
+    level: 0.7,
+    pitchRange: { octaveBase: 1 },
+    seed: 1091,
+  }),
+  "preset-bass-12": preset({
+    id: "preset-bass-12",
+    name: "HELD TRI",
+    // Near-flat envelope, long release — organ-pedal drones under a section.
+    wave: "triangle",
+    duty: 0.5,
+    envelope: { attack: 0.02, decay: 0.6, sustain: 0.8, release: 0.3 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.72,
+    pitchRange: { octaveBase: 2 },
+    seed: 1093,
+  }),
 
   // --- CHORDS: warm long-release pads + one arp-ready pluck -----------------
   "preset-chords-1": preset({
@@ -361,6 +461,91 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     level: 0.38,
     pitchRange: { octaveBase: 4 },
     seed: 2083,
+  }),
+  // --- PS-1 chord additions: guitar stabs, koto beds, brass/choir/spark ------
+  "preset-chords-7": preset({
+    id: "preset-chords-7",
+    name: "NYLON STAB",
+    // Short Karplus–Strong string (0.5 s) — guitar-chord stabs on the offbeat.
+    wave: "pluck",
+    duty: 0.125,
+    envelope: { attack: 0.001, decay: 0.12, sustain: 0.6, release: 0.1 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.55,
+    pitchRange: { octaveBase: 3 },
+    seed: 2087,
+  }),
+  "preset-chords-8": preset({
+    id: "preset-chords-8",
+    name: "KOTO PAD",
+    // Long resonant string bed (2.5 s) — koto/sitar-colored harmony.
+    wave: "pluck",
+    duty: 0.625,
+    envelope: { attack: 0.004, decay: 0.4, sustain: 0.8, release: 0.5 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.5,
+    pitchRange: { octaveBase: 3 },
+    seed: 2089,
+  }),
+  "preset-chords-9": preset({
+    id: "preset-chords-9",
+    name: "BRASS STAB",
+    // Fast bite, short release — horn-section stabs.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.008, decay: 0.18, sustain: 0.55, release: 0.12 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.42,
+    pitchRange: { octaveBase: 3 },
+    seed: 2099,
+  }),
+  "preset-chords-10": preset({
+    id: "preset-chords-10",
+    name: "CHOIR TRI",
+    // Very slow attack, longest release — wordless choir pad.
+    wave: "triangle",
+    duty: 0.5,
+    envelope: { attack: 0.12, decay: 0.5, sustain: 0.6, release: 0.7 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.4,
+    pitchRange: { octaveBase: 4 },
+    seed: 2111,
+  }),
+  "preset-chords-11": preset({
+    id: "preset-chords-11",
+    name: "SPARK 12.5",
+    // High thin pulse with a dusting of noise — crystalline arps above ARP PLUCK.
+    wave: "pulse",
+    duty: 0.125,
+    envelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.08 },
+    noiseMix: 0.06,
+    noiseMode: "short",
+    noiseRate: 6,
+    level: 0.48,
+    pitchRange: { octaveBase: 4 },
+    seed: 2113,
+  }),
+  "preset-chords-12": preset({
+    id: "preset-chords-12",
+    name: "SWELL PAD",
+    // 300 ms attack — chords that bloom in behind a drop.
+    wave: "pulse",
+    duty: 0.25,
+    envelope: { attack: 0.3, decay: 0.8, sustain: 0.7, release: 0.6 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.3,
+    pitchRange: { octaveBase: 3 },
+    seed: 2129,
   }),
 
   // --- LEAD: cutting pulses + one pitch-drift ("vibrato") voice -------------
@@ -445,6 +630,92 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     pitchRange: { octaveBase: 4 },
     seed: 3061,
   }),
+  // --- PS-1 lead additions: strings, harp, falls, breath, horn, flute --------
+  "preset-lead-7": preset({
+    id: "preset-lead-7",
+    name: "KOTO LEAD",
+    // Medium Karplus–Strong string (1.2 s) — koto-flavored melody lines.
+    wave: "pluck",
+    duty: 0.3,
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0.7, release: 0.1 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.55,
+    pitchRange: { octaveBase: 4 },
+    seed: 3067,
+  }),
+  "preset-lead-8": preset({
+    id: "preset-lead-8",
+    name: "HARP HIGH",
+    // Short bright string (0.6 s) up an octave — harp sparkle for intros/breaks.
+    wave: "pluck",
+    duty: 0.15,
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0.5, release: 0.12 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.5,
+    pitchRange: { octaveBase: 5 },
+    seed: 3079,
+  }),
+  "preset-lead-9": preset({
+    id: "preset-lead-9",
+    name: "FALL P50",
+    // Every note dives an octave over 350 ms — transition/fill lead effect.
+    wave: "pulse",
+    duty: 0.5,
+    pitchSweep: { endRatio: 0.5, seconds: 0.35 },
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0.6, release: 0.08 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.58,
+    pitchRange: { octaveBase: 4 },
+    seed: 3083,
+  }),
+  "preset-lead-10": preset({
+    id: "preset-lead-10",
+    name: "AIR LEAD",
+    // Breath-heavy pulse — airy flute-adjacent melody for quiet sections.
+    wave: "pulse",
+    duty: 0.25,
+    envelope: { attack: 0.006, decay: 0.12, sustain: 0.7, release: 0.1 },
+    noiseMix: 0.16,
+    noiseMode: "short",
+    noiseRate: 3,
+    level: 0.5,
+    pitchRange: { octaveBase: 4 },
+    seed: 3089,
+  }),
+  "preset-lead-11": preset({
+    id: "preset-lead-11",
+    name: "SOFT HORN",
+    // Rounded attack pulse — horn-line melody that sits behind a bright lead.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.02, decay: 0.12, sustain: 0.78, release: 0.1 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.6,
+    pitchRange: { octaveBase: 4 },
+    seed: 3109,
+  }),
+  "preset-lead-12": preset({
+    id: "preset-lead-12",
+    name: "FLUTE TRI",
+    // High triangle with a breath edge — flute countermelody.
+    wave: "triangle",
+    duty: 0.5,
+    envelope: { attack: 0.012, decay: 0.15, sustain: 0.65, release: 0.12 },
+    noiseMix: 0.05,
+    noiseMode: "short",
+    noiseRate: 5,
+    level: 0.62,
+    pitchRange: { octaveBase: 5 },
+    seed: 3119,
+  }),
 };
 
 function piece(
@@ -471,8 +742,11 @@ function piece(
 }
 
 /**
- * Kit recipe (PX-2): every knob the character brief asks to vary — kick pitch
- * sweep + decay, snare tone/noise mix + rate, hat decay/rate. Pure data.
+ * Kit recipe (PX-2; PS-1 grew the set to 10): every knob the character brief
+ * asks to vary — kick pitch sweep + decay, snare tone/noise mix + rate, hat
+ * decay/rate. Pure data. Each kit answers "what groove is this for?" (the
+ * Professor X lens): room, punk, metal, soft, dust, lab (v0) + techno,
+ * lofi, pop, trap (PS-1).
  */
 interface KitSpec {
   readonly kick: {
@@ -702,6 +976,91 @@ export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
     openhat: { rate: 4, decay: 0.18, sustain: 0.12, level: 0.32 },
     clap: { rate: 8, decay: 0.12, level: 0.58 },
     tom: { freq: 300, endRatio: 0.62, decay: 0.12, level: 0.68 },
+  }),
+  // --- PS-1 kit additions: four groove archetypes on the same recipe axes ----
+  "kit-technoir": kit("kit-technoir", "TECH NOIR", 6500, {
+    // Tight, clicky, metronomic — four-on-the-floor techno.
+    kick: {
+      start: 200,
+      endRatio: 0.32,
+      seconds: 0.035,
+      decay: 0.11,
+      level: 0.85,
+    },
+    snare: {
+      freq: 220,
+      noiseMix: 0.72,
+      noiseRate: 34,
+      decay: 0.08,
+      level: 0.72,
+    },
+    hat: { rate: 2, decay: 0.018, level: 0.4 },
+    openhat: { rate: 2, decay: 0.12, sustain: 0.08, level: 0.3 },
+    clap: { rate: 14, decay: 0.08, level: 0.55 },
+    tom: { freq: 320, endRatio: 0.7, decay: 0.1, level: 0.62 },
+  }),
+  "kit-lofi": kit("kit-lofi", "LOFI CAVE", 6600, {
+    // Boomy soft kick, dark muffled snare, dull hats — boom-bap at 80 BPM.
+    kick: {
+      start: 100,
+      endRatio: 0.45,
+      seconds: 0.11,
+      decay: 0.3,
+      level: 0.82,
+    },
+    snare: {
+      freq: 150,
+      noiseMix: 0.66,
+      noiseRate: 13,
+      decay: 0.2,
+      level: 0.62,
+    },
+    hat: { rate: 12, decay: 0.07, level: 0.26 },
+    openhat: { rate: 11, decay: 0.4, sustain: 0.22, level: 0.22 },
+    clap: { rate: 26, decay: 0.22, level: 0.46 },
+    tom: { freq: 165, endRatio: 0.55, decay: 0.26, level: 0.58 },
+  }),
+  "kit-pop": kit("kit-pop", "ARCADE POP", 6700, {
+    // Bouncy mid kick, bright snare, crisp hats — upbeat pop verses.
+    kick: {
+      start: 145,
+      endRatio: 0.33,
+      seconds: 0.07,
+      decay: 0.2,
+      level: 0.88,
+    },
+    snare: {
+      freq: 205,
+      noiseMix: 0.68,
+      noiseRate: 44,
+      decay: 0.13,
+      level: 0.75,
+    },
+    hat: { rate: 6, decay: 0.035, level: 0.42 },
+    openhat: { rate: 5, decay: 0.26, sustain: 0.16, level: 0.36 },
+    clap: { rate: 9, decay: 0.14, level: 0.66 },
+    tom: { freq: 240, endRatio: 0.5, decay: 0.16, level: 0.7 },
+  }),
+  "kit-trap": kit("kit-trap", "TRAP CHIP", 6800, {
+    // Long booming kick, tight bright snare, needle hats — sparse trap.
+    kick: {
+      start: 130,
+      endRatio: 0.16,
+      seconds: 0.09,
+      decay: 0.34,
+      level: 0.92,
+    },
+    snare: {
+      freq: 230,
+      noiseMix: 0.8,
+      noiseRate: 24,
+      decay: 0.11,
+      level: 0.7,
+    },
+    hat: { rate: 2, decay: 0.012, level: 0.45 },
+    openhat: { rate: 3, decay: 0.2, sustain: 0.12, level: 0.38 },
+    clap: { rate: 20, decay: 0.16, level: 0.6 },
+    tom: { freq: 190, endRatio: 0.35, decay: 0.3, level: 0.68 },
   }),
 };
 

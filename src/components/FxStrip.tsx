@@ -81,7 +81,7 @@ registerHelp([
         : type === "drive"
           ? "DRIVE — saturation: more AMOUNT means a denser, louder, rougher tone. At the top it starts to squash."
           : type === "bitcrusher"
-            ? "CRUSH — lo-fi grit, old-console style. Fewer BITS or a heavier DOWNSAMPLE throws detail away on purpose."
+            ? "CRUSH — lo-fi grit, old-console style. Fewer BITS or a heavier DECIMATE throws detail away on purpose."
             : type === "delay"
               ? "DELAY — an echo locked to the tempo. SYNC picks the echo's note length (1/8 to 1/2), FEEDBACK how long the repeats ring on, MIX how loud they sit."
               : "REVERB — a sense of room. SIZE is the room (the readout shows seconds of tail); MIX blends it under the dry sound.",

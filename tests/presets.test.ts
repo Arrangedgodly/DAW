@@ -15,7 +15,10 @@ import { DRUM_PIECES, createDefaultProject } from "../src/document/schema";
 function validatePreset(p: VoicePreset): void {
   expect(typeof p.id).toBe("string");
   expect(
-    p.wave === "pulse" || p.wave === "triangle" || p.wave === "noise",
+    p.wave === "pulse" ||
+      p.wave === "triangle" ||
+      p.wave === "noise" ||
+      p.wave === "pluck",
   ).toBe(true);
   expect(p.duty).toBeGreaterThan(0);
   expect(p.duty).toBeLessThanOrEqual(1);
@@ -33,12 +36,91 @@ function validatePreset(p: VoicePreset): void {
   expect(sustain).toBeLessThanOrEqual(1);
 }
 
+/**
+ * PS-1 distinctness law (Professor X lens): within a lane, no two presets
+ * may share the same audible archetype. The signature spans every axis an
+ * owner can hear — wave family (pulse duty kept, since 12.5/25/50 duty ARE
+ * different instruments), octave placement, pitch-sweep direction, audible
+ * noise texture, envelope attack class, and release class. Two presets with
+ * one signature would be "parameter nudges of one voice", which the plan
+ * forbids; this makes the rule executable.
+ */
+function presetSignature(p: VoicePreset): string {
+  const attackClass =
+    p.envelope.attack <= 0.002
+      ? "perc"
+      : p.envelope.attack < 0.02
+        ? "mid"
+        : p.envelope.attack < 0.1
+          ? "slow"
+          : "swell";
+  const releaseClass = p.envelope.release <= 0.1 ? "rel-short" : "rel-long";
+  const sweep = p.pitchSweep
+    ? p.pitchSweep.endRatio < 1
+      ? "down"
+      : "up"
+    : "flat";
+  const noise = p.noiseMix > 0.05 ? "airy" : "clean";
+  const dutyAxis = p.wave === "pulse" || p.wave === "pluck" ? p.duty : "";
+  return [
+    p.wave,
+    dutyAxis,
+    p.pitchRange?.octaveBase ?? "-",
+    sweep,
+    noise,
+    attackClass,
+    releaseClass,
+  ].join("|");
+}
+
 describe("preset library", () => {
-  it("has at least 6 presets per pitched lane type (bass/chords/lead)", () => {
+  it("has at least 12 presets per pitched lane type (bass/chords/lead) — PS-1 target", () => {
     for (const lane of ["bass", "chords", "lead"] as const) {
       const ids = Object.keys(PRESET_LIBRARY).filter((id) => id.includes(lane));
-      expect(ids.length).toBeGreaterThanOrEqual(6);
+      expect(ids.length).toBeGreaterThanOrEqual(12);
       for (const id of ids) validatePreset(getPreset(id)!);
+    }
+  });
+
+  it("presets within a lane are musically distinct (unique audible signatures)", () => {
+    for (const lane of ["bass", "chords", "lead"] as const) {
+      const presets = Object.values(PRESET_LIBRARY).filter((p) =>
+        p.id.includes(lane),
+      );
+      const seen = new Map<string, string>();
+      for (const p of presets) {
+        const sig = presetSignature(p);
+        expect(
+          seen.has(sig),
+          `${p.id} sounds like ${seen.get(sig)} (signature ${sig}) — parameter nudge, not a new voice`,
+        ).toBe(false);
+        seen.set(sig, p.id);
+      }
+      // Palette breadth: every lane spans ≥3 wave families (pulse/triangle +
+      // at least one of noise-texture or Karplus–Strong pluck).
+      const waves = new Set(presets.map((p) => p.wave));
+      expect(waves.size, `${lane} palette too narrow`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("names are unique and ≤14 chars within a lane (stepper reads one clear label)", () => {
+    for (const lane of ["bass", "chords", "lead"] as const) {
+      const names = new Set<string>();
+      for (const p of Object.values(PRESET_LIBRARY)) {
+        if (!p.id.includes(lane)) continue;
+        expect(p.name.length).toBeLessThanOrEqual(14);
+        expect(names.has(p.name), `${lane} duplicate name ${p.name}`).toBe(
+          false,
+        );
+        names.add(p.name);
+      }
+    }
+    const kitNames = new Set<string>();
+    for (const kit of Object.values(DRUM_KITS)) {
+      expect(kitNames.has(kit.name), `duplicate kit name ${kit.name}`).toBe(
+        false,
+      );
+      kitNames.add(kit.name);
     }
   });
 
@@ -91,10 +173,9 @@ describe("preset library", () => {
     }
   });
 
-  it("has 4-6 drum kits, each mapping every drum piece to a preset", () => {
+  it("has ≥10 drum kits (PS-1 target), each mapping every drum piece to a preset", () => {
     const kits = Object.values(DRUM_KITS);
-    expect(kits.length).toBeGreaterThanOrEqual(4);
-    expect(kits.length).toBeLessThanOrEqual(6);
+    expect(kits.length).toBeGreaterThanOrEqual(10);
     for (const kit of kits) {
       for (const piece of DRUM_PIECES) {
         const p = kit.pieces[piece];
@@ -111,9 +192,15 @@ describe("preset library", () => {
     );
     const snareMixes = new Set(kits.map((k) => k.pieces.snare.noiseMix));
     const hatDecays = new Set(kits.map((k) => k.pieces.hat.envelope.decay));
-    expect(kickRatios.size).toBeGreaterThanOrEqual(4);
-    expect(snareMixes.size).toBeGreaterThanOrEqual(4);
-    expect(hatDecays.size).toBeGreaterThanOrEqual(4);
+    const kickDecays = new Set(
+      kits.map((k) => k.pieces.kick.envelope.decay),
+    );
+    // 10 kits, each claiming a distinct groove — the axes must actually
+    // separate them (≥8 distinct values per axis leaves honest headroom).
+    expect(kickRatios.size).toBeGreaterThanOrEqual(8);
+    expect(snareMixes.size).toBeGreaterThanOrEqual(8);
+    expect(hatDecays.size).toBeGreaterThanOrEqual(8);
+    expect(kickDecays.size).toBeGreaterThanOrEqual(8);
   });
 
   it("drum kit characters follow the D2/D3 recipes", () => {
@@ -179,8 +266,32 @@ describe("noteParamsFor", () => {
     expect(WAVE_CODE.pulse).toBe(0);
     expect(WAVE_CODE.triangle).toBe(1);
     expect(WAVE_CODE.noise).toBe(2);
+    expect(WAVE_CODE.pluck).toBe(3);
     expect(
       noteParamsFor(preset, { time: 0, midi: 60, holdSeconds: 0.1 }).wave,
     ).toBe(0);
+  });
+
+  it("pluck presets ride the wire unchanged: wave 3, duty = string decay", () => {
+    const pluck = getPreset("preset-bass-7")!;
+    const ev = noteParamsFor(pluck, { time: 0.5, midi: 40, holdSeconds: 0.3 });
+    expect(ev.wave).toBe(WAVE_CODE.pluck);
+    // duty passes through untouched — the worklet derives the KS damping
+    // from it (duty × 4 s); no wire-format field was added for pluck.
+    expect(ev.duty).toBe(pluck.duty);
+    expect(ev.noiseMix).toBe(0); // pure string: excitation is the seeded fill
+    expect(ev.freq).toBeCloseTo(440 * Math.pow(2, (40 - 69) / 12), 9);
+  });
+
+  it("pluck presets ship without pitchSweep (KS loop length is fixed at trigger)", () => {
+    const plucks = Object.values(PRESET_LIBRARY).filter(
+      (p) => p.wave === "pluck",
+    );
+    expect(plucks.length).toBeGreaterThanOrEqual(5); // 2 bass + 2 chords + 2 lead lanes use it
+    for (const p of plucks) {
+      expect(p.pitchSweep, `${p.id} must not pair pluck with pitchSweep`).toBe(
+        undefined,
+      );
+    }
   });
 });

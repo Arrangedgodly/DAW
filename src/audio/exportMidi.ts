@@ -124,29 +124,49 @@ export const LANE_OCTAVE_FALLBACK: Readonly<
  * nearest GM family so a stock soundfont lands in the right ballpark.
  */
 export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
-  // GM 0-based: 38 = Synth Bass 1, 39 = Synth Bass 2
+  // GM 0-based: 16 Drawbar Organ, 34 Electric Bass (pick), 35 Fretless,
+  // 38 Synth Bass 1, 39 Synth Bass 2
   "preset-bass-1": 38, // THICK PULSE → Synth Bass 1
   "preset-bass-2": 39, // SUB TRI → Synth Bass 2
   "preset-bass-3": 38, // GLUE P25 → Synth Bass 1
   "preset-bass-4": 38, // DIRTY 12.5 → Synth Bass 1
   "preset-bass-5": 39, // ROUND TRI → Synth Bass 2
   "preset-bass-6": 38, // BITE P50 → Synth Bass 1
-  // GM 0-based: 88 Pad 1 (new age), 89 Pad 2 (warm), 90 Pad 3 (polysynth),
-  // 91 Pad 4 (choir), 98 FX 3 (crystal)
+  "preset-bass-7": 34, // PLUCK LOW → Electric Bass (pick) — Karplus–Strong IS a picked string
+  "preset-bass-8": 35, // DARK PLUCK → Fretless bass
+  "preset-bass-9": 38, // TAPE DROP → Synth Bass 1
+  "preset-bass-10": 39, // RISE P25 → Synth Bass 2
+  "preset-bass-11": 39, // BREATH SUB → Synth Bass 2
+  "preset-bass-12": 16, // HELD TRI → Drawbar Organ
+  // GM 0-based: 24 Nylon Guitar, 52 Choir Aahs, 61 Brass Section, 88 Pad 1
+  // (new age), 89 Pad 2 (warm), 90 Pad 3 (polysynth), 91 Pad 4 (choir),
+  // 92 Pad 5 (bowed), 98 FX 3 (crystal), 106 Koto
   "preset-chords-1": 89, // WARM PAD → Pad 2 (warm)
   "preset-chords-2": 88, // GLASS TRI → Pad 1 (new age)
   "preset-chords-3": 90, // SOFT P25 → Pad 3 (polysynth)
   "preset-chords-4": 98, // ARP PLUCK → FX 3 (crystal)
   "preset-chords-5": 89, // DUST PAD → Pad 2 (warm)
   "preset-chords-6": 91, // HOLLOW P25 → Pad 4 (choir)
-  // GM 0-based: 80 Lead 1 (square), 81 Lead 2 (sawtooth), 82 Lead 3
-  // (calliope), 85 Lead 6 (voice)
+  "preset-chords-7": 24, // NYLON STAB → Nylon Guitar
+  "preset-chords-8": 106, // KOTO PAD → Koto
+  "preset-chords-9": 61, // BRASS STAB → Brass Section
+  "preset-chords-10": 52, // CHOIR TRI → Choir Aahs
+  "preset-chords-11": 98, // SPARK 12.5 → FX 3 (crystal)
+  "preset-chords-12": 92, // SWELL PAD → Pad 5 (bowed)
+  // GM 0-based: 46 Orchestral Harp, 56 Trumpet, 73 Flute, 80 Lead 1 (square),
+  // 81 Lead 2 (sawtooth), 82 Lead 3 (calliope), 85 Lead 6 (voice), 106 Koto
   "preset-lead-1": 80, // CUT P50 → Lead 1 (square)
   "preset-lead-2": 82, // BRIGHT TRI → Lead 3 (calliope)
   "preset-lead-3": 85, // VIBRA TRI → Lead 6 (voice)
   "preset-lead-4": 81, // NEEDLE 12.5 → Lead 2 (sawtooth)
   "preset-lead-5": 80, // SQUARE SOLO → Lead 1 (square)
   "preset-lead-6": 81, // GRIT LEAD → Lead 2 (sawtooth)
+  "preset-lead-7": 106, // KOTO LEAD → Koto
+  "preset-lead-8": 46, // HARP HIGH → Orchestral Harp
+  "preset-lead-9": 81, // FALL P50 → Lead 2 (sawtooth)
+  "preset-lead-10": 73, // AIR LEAD → Flute
+  "preset-lead-11": 56, // SOFT HORN → Trumpet
+  "preset-lead-12": 73, // FLUTE TRI → Flute
 } as const;
 
 /** Track names exported for importer UIs (schema lane order). */
