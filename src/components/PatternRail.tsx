@@ -271,6 +271,11 @@ const onRailPointerCancel = (e: PointerEvent): void => {
   setCueSweep(null); // cancel cleanly: no commits, no announcements (IN-4 law)
 };
 
+/** IN-4: an active sweep owns the pointer — no context menu mid-gesture. */
+const onRailContextMenu = (e: MouseEvent): void => {
+  if (cueSweep()) e.preventDefault();
+};
+
 /** Focus left the tiles → collapse the keyboard range (stale ranges surprise). */
 const onRailFocusOut = (e: FocusEvent): void => {
   const next = e.relatedTarget as Element | null;
@@ -297,6 +302,16 @@ function InlineEdit(props: {
       ref={(el) => {
         el.focus();
         el.select();
+        // IN-4 (verifier finding): a dblclick-opened editor loses the focus
+        // race — the second press's default focus finalization lands on the
+        // TILE after this ref already focused the input, so the first typed
+        // character went to the tile. Re-assert past the finalization.
+        window.setTimeout(() => {
+          if (el.isConnected) {
+            el.focus();
+            el.select();
+          }
+        }, 0);
       }}
       onInput={(e) => setValue(e.currentTarget.value)}
       onBlur={() => props.onCommit(clampCue(value(), props.maxChars))}
@@ -732,6 +747,7 @@ export default function PatternRail(): JSX.Element {
       onPointerMove={onRailPointerMove}
       onPointerUp={onRailPointerUp}
       onPointerCancel={onRailPointerCancel}
+      onContextMenu={onRailContextMenu}
       onFocusOut={onRailFocusOut}
     >
       <div class="rail-head">

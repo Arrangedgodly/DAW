@@ -191,6 +191,64 @@ describe("Transport state machine", () => {
     h.transport.stop();
   });
 
+  // IN-4 (verifier finding: LOOP off mid-play stalled the transport — playing
+  // stayed true, the button read STOP, position froze at the window edge).
+  it("loop off mid-play AUTO-STOPS at the one-shot end (playing flips off, position parks, nothing more schedules)", () => {
+    const h = makeTransport();
+    h.transport.play(); // loop ON: passes wrap normally
+    h.ctx.currentTime = 1;
+    vi.advanceTimersByTime(200);
+    expect(h.transport.snapshot.playing).toBe(true);
+
+    // Mid-pass loop-off: the current pass completes, then the song ends. The
+    // first refill compiles the final pass to its horizon and marks the
+    // one-shot exhausted; the first refill PAST the final sounding step
+    // (pass end 4.1 s) performs the auto-stop.
+    h.transport.setLoop(false);
+    h.ctx.currentTime = 5;
+    vi.advanceTimersByTime(200);
+    expect(h.transport.snapshot.playing).toBe(true); // final pass still sounding
+    h.ctx.currentTime = 6; // audio clock advanced → next refill polls again
+    vi.advanceTimersByTime(200);
+    expect(h.transport.snapshot.playing).toBe(false);
+    // The final transition EMITTED (the UI button flips STOP → PLAY by itself).
+    expect(h.states.at(-1)?.playing).toBe(false);
+    // Position + playhead park at the final step / loop end (v0 display law).
+    expect(h.transport.getPosition()).toEqual({ bar: 0, beat: 3, step: 3 });
+    expect(h.transport.getLoopTime()).toBe(2); // loopLengthSeconds(1, 120)
+    // No further scheduling after the auto-stop.
+    const count = h.scheduled.length;
+    h.ctx.currentTime = 10;
+    vi.advanceTimersByTime(1000);
+    expect(h.scheduled.length).toBe(count);
+    // Manual stop stays idempotent afterwards.
+    h.transport.stop();
+    expect(h.transport.snapshot.playing).toBe(false);
+
+    // PLAY restarts clean from the top (parked flag cleared, no wrap ghost).
+    const before = h.scheduled.length;
+    h.ctx.currentTime = 10;
+    h.transport.play();
+    expect(h.transport.snapshot.playing).toBe(true);
+    expect(h.scheduled.length).toBe(before + 12); // fresh pass from step 0
+    expect(h.scheduled[before]!.event.step).toBe(0);
+    expect(h.transport.getPosition()).toEqual({ bar: 0, beat: 0, step: 0 });
+    h.transport.stop();
+  });
+
+  it("loop re-enabled BEFORE the one-shot end keeps looping (no premature auto-stop)", () => {
+    const h = makeTransport();
+    h.transport.setLoop(false);
+    h.transport.play();
+    h.transport.setLoop(true); // same task, before any pass wraps
+    h.ctx.currentTime = 5;
+    vi.advanceTimersByTime(200);
+    vi.advanceTimersByTime(200);
+    expect(h.transport.snapshot.playing).toBe(true); // still looping
+    expect(h.scheduled.length).toBeGreaterThan(16); // second pass compiled
+    h.transport.stop();
+  });
+
   it("setters clamp, dedupe, and emit snapshot changes", () => {
     const h = makeTransport();
     h.transport.setBpm(500);

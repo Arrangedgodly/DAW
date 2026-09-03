@@ -79,7 +79,12 @@ export const GRID_GAP_PX = 2;
 export const GRID_LABEL_PX = 72;
 /** PX-3 fill-rail slot width (drums rows only). */
 export const GRID_FILL_RAIL_PX = 152;
-/** IN-2: right-edge resize hit-zone width (px, each side of the edge). */
+/**
+ * IN-2/IN-4: right-edge resize hit-zone width (px, inward from the note's
+ * right edge — the IN-4 honest-geometry law: the zone never overhangs the
+ * bar's right edge into the NEXT cell, and stays ≤ this width inside the bar
+ * so the tap law remains reachable at 1-step notes' centers).
+ */
 export const NOTE_EDGE_HIT_PX = 5;
 
 export interface PlayheadFrame {
@@ -396,6 +401,10 @@ export class DomGridRenderer implements GridRenderer {
     container.addEventListener("pointermove", this.onPointerMove);
     container.addEventListener("pointerup", this.onPointerUp);
     container.addEventListener("pointercancel", this.onPointerCancel);
+    // IN-4: while a gesture owns the pointer, the grid owns the context menu
+    // (an interrupting menu would strand the gesture — cancel is the only
+    // clean mid-gesture exit, and it arrives as pointercancel).
+    container.addEventListener("contextmenu", this.onContextMenu);
     if (typeof window !== "undefined" && window.matchMedia) {
       this.reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
     }
@@ -442,6 +451,11 @@ export class DomGridRenderer implements GridRenderer {
   setEditable(editable: boolean): void {
     if (this.editable === editable) return;
     this.editable = editable;
+    // IN-4 contract (the HP-1 help-mode law, pre-pinned): a MODE flip
+    // mid-gesture never cancels the active gesture — it was armed while
+    // editable and completes (or cancels via pointercancel) cleanly; only an
+    // external document sync (sync()) interrupts by cancelling. Never a
+    // stuck preview either way.
     // O(1) transitions: editable grids own exactly ONE tab stop (the roving
     // cell); view-only grids own none. The remembered roving cell survives
     // the flip, so re-entering edit mode returns to the same place.
@@ -529,6 +543,7 @@ export class DomGridRenderer implements GridRenderer {
     container.removeEventListener("pointermove", this.onPointerMove);
     container.removeEventListener("pointerup", this.onPointerUp);
     container.removeEventListener("pointercancel", this.onPointerCancel);
+    container.removeEventListener("contextmenu", this.onContextMenu);
   }
 
   // -- internals ------------------------------------------------------------
@@ -901,11 +916,22 @@ export class DomGridRenderer implements GridRenderer {
     this.cancelGesture();
   };
 
-  /** Clear any active gesture + its preview; commit NOTHING (IN-4 law). */
+  /** IN-4: the active gesture owns the pointer — no context menu mid-drag. */
+  private onContextMenu = (e: MouseEvent): void => {
+    if (this.gesture) e.preventDefault();
+  };
+
+  /**
+   * Clear any active gesture + its preview; commit NOTHING (IN-4 law). Also
+   * releases pointer capture (a sync-mid-gesture external edit must not leak
+   * the capture past the gesture — the browser reclaims it on the eventual
+   * pointerup, but explicit release keeps the container honest).
+   */
   private cancelGesture(): void {
     const g = this.gesture;
     this.gesture = null;
     if (!g) return;
+    this.releaseCapture(g.pointerId);
     if (g.kind === "create") this.clearCreatePreview();
     else if (g.kind === "resize") this.clearResizePreview(g.drag.row);
     else if (g.kind === "paint") this.clearPaintPreview();

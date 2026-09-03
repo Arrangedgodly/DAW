@@ -76,6 +76,13 @@ export class Transport {
   private timelineStart = 0;
   // Loop-relative step offset the timeline started from.
   private startStep = 0;
+  /**
+   * IN-4 fix (verifier finding: LOOP off mid-play stalled the transport —
+   * position parked at the window edge while `playing` stayed true and the
+   * button read STOP): true once a non-looping playthrough has ENDED and the
+   * transport auto-stopped. Parks the position display at the final step.
+   */
+  private oneShotEnded = false;
 
   constructor(opts: TransportOptions) {
     this.getContext = opts.getContext;
@@ -127,6 +134,7 @@ export class Transport {
     this.stepInPass = this.startStep;
     this.passIndex = 0;
     this.exhausted = false;
+    this.oneShotEnded = false;
     this._playing = true;
     this.scheduler.start();
     this.emit();
@@ -175,10 +183,11 @@ export class Transport {
    * Loop-relative seconds for the current audio-clock position (DES-4
    * playhead source). Same derivation as getPosition(): pre-roll reports the
    * start step's time; stopped reports the parked position; with looping off
-   * and the pattern finished, the loop end.
+   * and the pattern finished (IN-4: also after the auto-stop), the loop end.
    */
   getLoopTime(): number {
     const groove = { bpm: this._bpm, swing: this._swing };
+    if (this.oneShotEnded) return loopLengthSeconds(this._loopBars, this._bpm);
     if (!this._playing) return timeAtStep(this.startStep, groove);
     const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
     const elapsed = this.getContext().currentTime - this.timelineStart;
@@ -188,6 +197,8 @@ export class Transport {
   }
 
   getPosition(): Position {
+    if (this.oneShotEnded)
+      return barBeatStep(totalSteps(this._loopBars) - 1);
     if (!this._playing) return barBeatStep(this.startStep);
     const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
     const elapsed = this.getContext().currentTime - this.timelineStart;
@@ -208,6 +219,20 @@ export class Transport {
   }
 
   private compileTicks(_after: number, until: number): readonly EngineEvent[] {
+    // IN-4: a finished one-shot auto-stops on the first refill after its last
+    // step has sounded — `playing` goes false (the button says PLAY again),
+    // the position parks at the final step, and no later refill schedules or
+    // emits anything. Nothing is cancelled: every compiled event has already
+    // sounded, and tails (release + FX) ring out naturally.
+    if (
+      this.exhausted &&
+      !this._loop &&
+      this._playing &&
+      this.getContext().currentTime >= this.passStart
+    ) {
+      this.finishOneShot();
+      return [];
+    }
     const events: EngineEvent[] = [];
     if (this.exhausted) return events;
     const groove = { bpm: this._bpm, swing: this._swing };
@@ -238,6 +263,20 @@ export class Transport {
   private emit(): void {
     const snap = this.snapshot;
     for (const listener of this.listeners) listener(snap);
+  }
+
+  /**
+   * IN-4: the non-looping playthrough reached its end (all steps sounded).
+   * Stop the scheduler, flip `playing` off, and park the position at the
+   * final step — the observable "song finished" state. Re-enabling LOOP does
+   * not resurrect playback (press PLAY); `play()` clears the parked flag.
+   */
+  private finishOneShot(): void {
+    this.oneShotEnded = true;
+    this.startStep = totalSteps(this._loopBars) - 1;
+    this._playing = false;
+    this.scheduler.stop();
+    this.emit();
   }
 }
 

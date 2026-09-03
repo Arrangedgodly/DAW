@@ -322,6 +322,34 @@ describe("store actions: patterns + chain + cues", () => {
     expect(doc().chainCues?.lead ?? [null]).toEqual([null]);
   });
 
+  // IN-4 (verifier finding: `+`-append twice then Delete on an appended slot
+  // threw an uncaught ProjectValidationError and the slot survived): the cue
+  // callback must map the OLD chain's slots — withChain previously truncated
+  // the cue array to the NEW length first, so a slot removal dropped one
+  // entry too many and the parallel-length invariant failed validation.
+  it("append twice then Delete any appended slot: cues stay parallel, nothing throws", () => {
+    for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+      const selected = doc().songChain[lane][0]!;
+      appendChainSlot(lane, selected);
+      appendChainSlot(lane, selected);
+      const len = doc().songChain[lane].length;
+      for (const slot of [len - 2, len - 1]) {
+        expect(() => removeChainSlot(lane, slot)).not.toThrow();
+        expect(doc().songChain[lane]).toHaveLength(len - 1);
+        // Full-schema validity includes the chain↔cues parallel invariant.
+        expect(() => validateProject(doc())).not.toThrow();
+        if (doc().chainCues)
+          expect(doc().chainCues![lane].length).toBe(
+            doc().songChain[lane].length,
+          );
+        appendChainSlot(lane, selected); // restore length for the next pass
+      }
+      if (doc().chainCues)
+        for (const l of ["drums", "bass", "chords", "lead"] as const)
+          expect(doc().chainCues![l].length).toBe(doc().songChain[l].length);
+    }
+  });
+
   it("setChainCue sets, clears, and rejects over-length labels untouched", () => {
     setChainCue("drums", 0, "  VERSE  ");
     expect(doc().chainCues?.drums).toEqual(["VERSE"]);

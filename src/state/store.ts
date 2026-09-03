@@ -735,17 +735,25 @@ export function setLaneChain(
 // DES-6: pattern management + chain slot edits + named cue labels
 // ---------------------------------------------------------------------------
 
-/** Rewrite one lane's chain plus its parallel cue array. */
+/**
+ * Rewrite one lane's chain plus its parallel cue array.
+ *
+ * IN-4 fix (verifier finding: double `+`-append then Delete threw an uncaught
+ * ProjectValidationError): the cue callback maps the OLD chain's cue slots
+ * positionally, so it must receive the OLD array padded to the OLD chain
+ * length — padding to the NEW length first truncated away exactly the entry a
+ * slot removal had to drop, building a cues array one short of the chain.
+ * The callback's result is padded (never truncated) to the NEW length so the
+ * parallel invariant holds for every caller by construction.
+ */
 function withChain(
   doc: ProjectDocument,
   lane: LaneId,
   chain: string[],
   cues: (old: readonly (string | null)[]) => (string | null)[],
 ): ProjectDocument {
-  // Cue arrays are parallel to the chain — pad to chain length first, since
-  // lanes that never carried labels have no array at all.
-  const old = padCues(doc.chainCues?.[lane] ?? [], chain.length);
-  const nextCues = cues(old);
+  const old = padCues(doc.chainCues?.[lane] ?? [], doc.songChain[lane].length);
+  const nextCues = padCues(cues(old), chain.length);
   // Full four-lane object (schema requires every lane key, parallel lengths).
   const merged: Record<LaneId, (string | null)[]> = {
     drums: padCues(doc.chainCues?.drums ?? [], doc.songChain.drums.length),
@@ -812,8 +820,8 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
 export function appendChainSlot(lane: LaneId, patternId: string): void {
   const doc = docStore.getState().doc;
   if (!doc.patterns[lane].some((p) => p.id === patternId)) return;
-  // `old` arrives padded to the NEW chain length — the appended slot is the
-  // trailing null already.
+  // The callback returns the OLD slots as-is; withChain pads the trailing
+  // null for the appended slot.
   commit(
     withChain(doc, lane, [...doc.songChain[lane], patternId], (old) => [
       ...old,

@@ -124,8 +124,16 @@
 /* Beat shading: 4/4 grouping — beats 2/4 read slightly raised. */
 .cell {
   position: relative;
-  width: 24px; /* fallback; the renderer pins cell px inline */
-  height: 24px;
+  /* IN-4 honest hit geometry: the renderer's grid TEMPLATE owns the cell
+   * size (gridTemplateColumns/gridAutoRows pin the track px — 24 default,
+   * 16–20 in quadrants); the v0 width/height fallback made every cell
+   * 24px+2px border on a 16/17px track, so cells OVERLAPPED by ~9px and a
+   * 1-step note's element center landed inside the note-edge resize zone
+   * (the IN-2 verifier's 26px-on-17px finding). Grid stretch (auto) sizes
+   * the border-box to the track exactly — element center == column center,
+   * and every hit target matches the geometry the renderer computes. */
+  width: auto;
+  height: auto;
   border-radius: 3px;
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
   border: 1px solid
@@ -272,15 +280,22 @@
   box-shadow: none;
 }
 
-/* IN-2 right-edge resize hit zone: ±5px around the note's end, pointer-only
- * (the keyboard equivalent is +/- on the focused cell — spec v2; the zone is
- * aria-hidden inside the note-runs layer, never a tab stop). */
+/* IN-2 right-edge resize hit zone: ≤5px INSIDE the note's right edge,
+ * pointer-only (the keyboard equivalent is +/- on the focused cell — spec
+ * v2; the zone is aria-hidden inside the note-runs layer, never a tab stop).
+ *
+ * IN-4 honest-geometry law (verifier finding: the old ±5px straddle put 5px
+ * of hit zone over the NEXT cell and swallowed the right third of 1-step
+ * notes): the zone never extends past the bar's right edge — a press beyond
+ * the note is a plain cell press — and never covers a 1-step note's center,
+ * so the tap law (remove / trim) stays reachable where the note is drawn.
+ * min(5px, 100%) also clamps the zone inside sub-step-length bars. */
 .note-edge {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -5px;
-  width: 10px;
+  right: 0;
+  width: min(5px, 100%);
   cursor: ew-resize;
   touch-action: none;
   pointer-events: auto;
@@ -291,7 +306,7 @@
   position: absolute;
   top: 2px;
   bottom: 2px;
-  right: 4px;
+  right: 1px;
   width: 2px;
   border-radius: 1px;
   background: color-mix(in srgb, var(--color-ground) 45%, var(--lane-hue));
