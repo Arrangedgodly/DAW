@@ -13,12 +13,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CSP_POLICY } from "./csp-policy";
 
-const meta = `<meta http-equiv="Content-Security-Policy" content="${CSP_POLICY}" />`;
 
 describe("CA-1 CSP guard", () => {
   it("index.html carries the exact strict zero-network policy", () => {
     const html = readFileSync("index.html", "utf8");
-    expect(html).toContain(meta);
+    // Formatting-tolerant: extract the content attribute (prettier may wrap the
+    // tag across lines) and pin its VALUE verbatim against the canonical policy.
+    const content = html.match(
+      /http-equiv="Content-Security-Policy"\s+content="([^"]*)"/,
+    )?.[1];
+    expect(content).toBeDefined();
+    expect(content).toBe(CSP_POLICY);
     // Exactly one policy — no accidental duplicate/softer meta.
     expect(html.match(/http-equiv="Content-Security-Policy"/g)?.length).toBe(1);
   });
