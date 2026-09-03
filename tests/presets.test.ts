@@ -8,9 +8,16 @@ import {
   getDrumKit,
   getPreset,
   noteParamsFor,
+  sampleVoiceFieldIssue,
   type VoicePreset,
 } from "../src/audio/presets";
-import { DRUM_PIECES, createDefaultProject } from "../src/document/schema";
+import {
+  DRUM_PIECES,
+  createDefaultProject,
+  SampleProvenanceEntrySchema,
+  SampleRefSchema,
+} from "../src/document/schema";
+import { CONTENT_ASSETS } from "../src/assets/content/loader";
 
 function validatePreset(p: VoicePreset): void {
   expect(typeof p.id).toBe("string");
@@ -293,5 +300,202 @@ describe("noteParamsFor", () => {
         undefined,
       );
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PS-3: the voice-type slot (voiceType / sampleRef / rootMidi) — format laws.
+// The sample-voice ENGINE (SampleVoiceHost) is PS-4's; these pin the format.
+// ---------------------------------------------------------------------------
+
+describe("PS-3 voice-type slot (preset format)", () => {
+  /** A minimal sample-backed preset (PS-4's library entries will look like this). */
+  function samplePreset(
+    over: Partial<Pick<VoicePreset, "voiceType" | "sampleRef" | "rootMidi">>,
+  ): VoicePreset {
+    return {
+      id: "preset-sample-test",
+      name: "SAMPLE TEST",
+      wave: "pulse",
+      duty: 0.5,
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.02 },
+      noiseMix: 0,
+      noiseMode: "long",
+      noiseRate: 40,
+      level: 0.8,
+      pitchRange: { octaveBase: 3 },
+      seed: 42,
+      ...over,
+    };
+  }
+
+  it("the committed library is synth-voiced: canonical-empty slot, no orphan sample fields (AC: existing synth presets validate unchanged)", () => {
+    const all: VoicePreset[] = [
+      ...Object.values(PRESET_LIBRARY),
+      ...Object.values(DRUM_KITS).flatMap((kit) =>
+        Object.values(kit.pieces),
+      ),
+    ];
+    expect(all.length).toBeGreaterThan(60);
+    for (const p of all) {
+      // Canonical-empty law: synth is expressed by OMITTING the field, and a
+      // synth preset carries no half-sample fields.
+      expect(p.voiceType, p.id).toBeUndefined();
+      expect(p.sampleRef, p.id).toBeUndefined();
+      expect(p.rootMidi, p.id).toBeUndefined();
+      expect(() => v.parse(VoicePresetSchema, p), p.id).not.toThrow();
+    }
+  });
+
+  it("accepts a well-formed sample preset (sampleRef into the content manifest)", () => {
+    const p = samplePreset({
+      voiceType: "sample",
+      sampleRef: "voice.bass.lowtone",
+    });
+    const out = v.parse(VoicePresetSchema, p);
+    expect(out.voiceType).toBe("sample");
+    expect(out.sampleRef).toBe("voice.bass.lowtone");
+    expect(out.rootMidi).toBeUndefined();
+  });
+
+  it("accepts a sample preset with a measured rootMidi (PS-4 shape)", () => {
+    expect(() =>
+      v.parse(
+        VoicePresetSchema,
+        samplePreset({
+          voiceType: "sample",
+          sampleRef: "drums.808.kick",
+          rootMidi: 36,
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it("explicit voiceType 'synth' stays legal (non-canonical but round-trips; writers omit at default)", () => {
+    const out = v.parse(
+      VoicePresetSchema,
+      samplePreset({ voiceType: "synth" }),
+    );
+    expect(out.voiceType).toBe("synth");
+  });
+
+  const REJECTS: ReadonlyArray<[string, VoicePreset]> = [
+    [
+      "sample voice without sampleRef",
+      samplePreset({ voiceType: "sample" }),
+    ],
+    [
+      "synth preset (field absent) carrying sampleRef",
+      samplePreset({ sampleRef: "voice.bass.lowtone" }),
+    ],
+    [
+      "explicit synth preset carrying sampleRef",
+      samplePreset({ voiceType: "synth", sampleRef: "voice.bass.lowtone" }),
+    ],
+    [
+      "synth preset carrying rootMidi",
+      samplePreset({ rootMidi: 60 }),
+    ],
+    [
+      "sampleRef as a URL (ids are stable, URLs are per-build)",
+      samplePreset({
+        voiceType: "sample",
+        sampleRef: "https://bitbounce.test/asset.ogg",
+      }),
+    ],
+    [
+      "sampleRef with uppercase segments",
+      samplePreset({ voiceType: "sample", sampleRef: "Voice.Bass.Tone" }),
+    ],
+    [
+      "sampleRef without a dot separator",
+      samplePreset({ voiceType: "sample", sampleRef: "voicebass" }),
+    ],
+    [
+      "empty sampleRef",
+      samplePreset({ voiceType: "sample", sampleRef: "" }),
+    ],
+    [
+      "rootMidi below the MIDI range",
+      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: -1 }),
+    ],
+    [
+      "rootMidi above the MIDI range",
+      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: 128 }),
+    ],
+    [
+      "rootMidi not an integer",
+      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: 60.5 }),
+    ],
+    [
+      "unknown voiceType discriminant",
+      samplePreset({ voiceType: "sampler", sampleRef: "voice.bass.lowtone" }) as VoicePreset,
+    ],
+    [
+      "unknown preset field (strictObject still applies)",
+      { ...samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone" }), mystery: 1 } as unknown as VoicePreset,
+    ],
+  ];
+
+  for (const [label, presetRecord] of REJECTS) {
+    it(`rejects: ${label}`, () => {
+      expect(() => v.parse(VoicePresetSchema, presetRecord)).toThrow();
+    });
+  }
+
+  it("sampleVoiceFieldIssue names the exact broken law (module-load diagnostics)", () => {
+    expect(sampleVoiceFieldIssue({ voiceType: "sample" })).toBe(
+      "voiceType 'sample' requires sampleRef",
+    );
+    expect(
+      sampleVoiceFieldIssue({ sampleRef: "voice.bass.lowtone" }),
+    ).toMatch(/sampleRef requires voiceType 'sample'/);
+    expect(sampleVoiceFieldIssue({ rootMidi: 60 })).toMatch(
+      /rootMidi requires voiceType 'sample'/,
+    );
+    expect(sampleVoiceFieldIssue({})).toBeUndefined();
+    expect(
+      sampleVoiceFieldIssue({ voiceType: "sample", sampleRef: "drums.808.kick", rootMidi: 36 }),
+    ).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PS-3 connective tissue: the committed content manifest is provenance-
+// compatible — every asset id fits the sampleRef grammar, and every row's
+// license/sourceUrl/author echo parses as a SampleProvenanceEntry. The
+// preset format and the document provenance can carry the manifest verbatim.
+// ---------------------------------------------------------------------------
+
+describe("PS-3 manifest ↔ schema provenance compatibility", () => {
+  it("every CONTENT_ASSETS id parses SampleRefSchema (preset sampleRef + provenance keys share it)", () => {
+    expect(CONTENT_ASSETS.length).toBe(33);
+    for (const asset of CONTENT_ASSETS) {
+      expect(() => v.parse(SampleRefSchema, asset.id), asset.id).not.toThrow();
+    }
+  });
+
+  it("every manifest row's license echo parses SampleProvenanceEntrySchema verbatim", () => {
+    for (const asset of CONTENT_ASSETS) {
+      const entry = {
+        license: asset.license,
+        sourceUrl: asset.sourceUrl,
+        author: asset.author,
+      };
+      expect(() =>
+        v.parse(SampleProvenanceEntrySchema, entry),
+        asset.id,
+      ).not.toThrow();
+    }
+  });
+
+  it("a sample preset's sampleRef resolves against the manifest (spot: the shape PS-4 will select)", () => {
+    const p: VoicePreset = {
+      ...getPreset("preset-bass-1")!,
+      voiceType: "sample",
+      sampleRef: "voice.bass.lowtone",
+    };
+    expect(() => v.parse(VoicePresetSchema, p)).not.toThrow();
+    expect(CONTENT_ASSETS.some((a) => a.id === p.sampleRef)).toBe(true);
   });
 });

@@ -109,7 +109,31 @@ export function seedCorpus(midiProject: () => ProjectDocument): string[] {
     // mutations exercise the v1→v2 path, not just the v2 shape.
     v1DefaultProjectText(),
     sustainHeavyV1ProjectText(),
+    // PS-3: a project recording sample-voice provenance (real manifest echo
+    // shapes — dotted asset-id keys, CC0/https strings) so mutations hit the
+    // new field's keys, values, and nesting too, not only its absence.
+    encode(sampleProvenanceProject()),
   ];
+}
+
+/** PS-3 corpus neighbor: a synth project whose bass lane "went sample". */
+function sampleProvenanceProject(): ProjectDocument {
+  const doc = createDefaultProject();
+  doc.name = "Sample provenance";
+  doc.sampleProvenance = {
+    "voice.bass.lowtone": {
+      license: "CC0",
+      sourceUrl: "https://kenney.nl/assets/digital-audio",
+      author: "Kenney Vleugels (Kenney.nl)",
+    },
+    "drums.808.kick": {
+      license: "CC0",
+      sourceUrl:
+        "https://github.com/sgossner/VCSL/blob/c1ea7bc/Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav",
+      author: "Sam Gossner (VCSL)",
+    },
+  };
+  return doc;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +168,11 @@ const KEY_POOL = [
   "start",
   "length",
   "degree",
+  // PS-3 sample-voice provenance keys (same law: hit the new shape).
+  "sampleProvenance",
+  "license",
+  "sourceUrl",
+  "author",
   "nope",
 ];
 

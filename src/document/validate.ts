@@ -128,7 +128,9 @@ export function validateProject(input: unknown): ProjectDocument {
       issues,
     );
   }
-  return canonicalizeCues(normalizeProject(doc));
+  return canonicalizeSampleProvenance(
+    canonicalizeCues(normalizeProject(doc)),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -293,4 +295,27 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
       ? { ...doc, chainCues: null }
       : doc;
   return changed ? { ...doc, chainCues: next } : doc;
+}
+
+/**
+ * Canonicalize sample-voice provenance (PS-3): collapse an entry-less map to
+ * the omitted field (the canonical empty form, alongside the lane-mix and
+ * chainCues precedents — default documents stay byte-stable for the golden
+ * codec test). Per-entry values need no canonicalization: strict schema
+ * validation already trimmed them and rejected empties, and there is
+ * deliberately NO cross-check against the lanes — the document references
+ * voices by preset id, so which lanes are sample-backed is resolvable only
+ * against the preset library app-side; the map is the writer-maintained
+ * self-description (the store records/prunes it on preset selection).
+ * Identity-preserving when nothing changes.
+ */
+export function canonicalizeSampleProvenance(
+  doc: ProjectDocument,
+): ProjectDocument {
+  const map = doc.sampleProvenance;
+  if (!map) return doc;
+  if (Object.keys(map).length > 0) return doc;
+  const { sampleProvenance: _drop, ...rest } = doc;
+  void _drop;
+  return rest;
 }

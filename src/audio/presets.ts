@@ -11,7 +11,11 @@
  */
 
 import { MAX_VOICE_FREQ, midiToFreq, noteSeed } from "./dsp";
-import type { DrumPiece } from "../document/schema";
+import {
+  type DrumPiece,
+  MidiNoteSchema,
+  SampleRefSchema,
+} from "../document/schema";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +68,31 @@ export interface VoicePreset {
   readonly pitchSweep?: { readonly endRatio: number; readonly seconds: number };
   /** Pitched lanes only: which octave degree 0 sits in. */
   readonly pitchRange?: PitchRange;
+  /**
+   * Voice-type discriminant (PS-3, through the reserved slot RES-10
+   * committed): 'synth' (the default — ABSENT means synth; the worklet path
+   * every preset above uses) or 'sample' (a sample-backed voice: PS-4's
+   * native AudioBufferSourceNode SampleVoiceHost; the worklet is untouched).
+   * Canonical-empty at the default: library and store writers omit the field
+   * on synth presets (byte-stability law, SC-1 convention).
+   */
+  readonly voiceType?: "synth" | "sample";
+  /**
+   * Asset id into the content manifest (CONTENT_ASSETS, PS-2) — REQUIRED iff
+   * voiceType is 'sample' (enforced by VoicePresetSchema). Deliberately a
+   * manifest id, never a URL: vite-hashed URLs change per build, ids are the
+   * stable cross-build reference — and the key the project's
+   * `sampleProvenance` (document schema, PS-3) records.
+   */
+  readonly sampleRef?: string;
+  /**
+   * Pitch-mapping root for playbackRate (PS-3 field, PS-4 values): the MIDI
+   * note at which the sample plays back at rate 1.0 (rate = 2^((midi −
+   * rootMidi)/12)). Sample voices only; deliberately ABSENT on the committed
+   * content until PS-4 measures the one-shots' fundamentals — presets must
+   * not guess (RES-10 recorded law).
+   */
+  readonly rootMidi?: number;
   /** Deterministic LFSR seed base (per-note seeds derive from it). */
   readonly seed: number;
 }
@@ -186,27 +215,63 @@ export const EnvelopeSchema = v.strictObject({
   release: v.pipe(v.number(), v.minValue(0), v.maxValue(4)),
 });
 
-export const VoicePresetSchema = v.strictObject({
-  id: v.pipe(v.string(), v.minLength(1)),
-  name: v.pipe(v.string(), v.minLength(1), v.maxLength(14)),
-  wave: v.picklist(["pulse", "triangle", "noise", "pluck"]),
-  duty: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
-  envelope: EnvelopeSchema,
-  noiseMix: UnitInterval,
-  noiseMode: v.picklist(["long", "short"]),
-  noiseRate: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(64)),
-  level: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
-  baseFreq: v.optional(Positive),
-  pitchSweep: v.optional(
-    v.strictObject({ endRatio: Positive, seconds: Positive }),
+/**
+ * PS-3 cross-field law for the voice-type slot (exported for precise tests;
+ * the schema check below enforces it). Absent voiceType = 'synth'. Laws:
+ * a sample voice MUST carry sampleRef; a synth voice must NOT carry
+ * sampleRef or rootMidi (no orphan half-fields — strict canonical form);
+ * rootMidi rides only on a sample voice.
+ */
+export function sampleVoiceFieldIssue(
+  p: Pick<VoicePreset, "voiceType" | "sampleRef" | "rootMidi">,
+): string | undefined {
+  const isSample = (p.voiceType ?? "synth") === "sample";
+  if (isSample && p.sampleRef === undefined)
+    return "voiceType 'sample' requires sampleRef";
+  if (!isSample && p.sampleRef !== undefined)
+    return "sampleRef requires voiceType 'sample' ('synth' is the default — omit the field instead)";
+  if (!isSample && p.rootMidi !== undefined)
+    return "rootMidi requires voiceType 'sample'";
+  if (isSample && p.rootMidi !== undefined && p.sampleRef === undefined)
+    return "rootMidi requires sampleRef";
+  return undefined;
+}
+
+export const VoicePresetSchema = v.pipe(
+  v.strictObject({
+    id: v.pipe(v.string(), v.minLength(1)),
+    name: v.pipe(v.string(), v.minLength(1), v.maxLength(14)),
+    wave: v.picklist(["pulse", "triangle", "noise", "pluck"]),
+    duty: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
+    envelope: EnvelopeSchema,
+    noiseMix: UnitInterval,
+    noiseMode: v.picklist(["long", "short"]),
+    noiseRate: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(64)),
+    level: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
+    baseFreq: v.optional(Positive),
+    pitchSweep: v.optional(
+      v.strictObject({ endRatio: Positive, seconds: Positive }),
+    ),
+    pitchRange: v.optional(
+      v.strictObject({
+        octaveBase: v.pipe(
+          v.number(),
+          v.integer(),
+          v.minValue(1),
+          v.maxValue(6),
+        ),
+      }),
+    ),
+    voiceType: v.optional(v.picklist(["synth", "sample"])),
+    sampleRef: v.optional(SampleRefSchema),
+    rootMidi: v.optional(MidiNoteSchema),
+    seed: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(32767)),
+  }),
+  v.check(
+    (p) => sampleVoiceFieldIssue(p) === undefined,
+    "sample-voice fields inconsistent: a 'sample' voice requires sampleRef; a synth voice must omit sampleRef/rootMidi",
   ),
-  pitchRange: v.optional(
-    v.strictObject({
-      octaveBase: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(6)),
-    }),
-  ),
-  seed: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(32767)),
-});
+);
 
 function preset(p: VoicePreset): VoicePreset {
   // Data validity is part of the library contract (PX-2): a record that

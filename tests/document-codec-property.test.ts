@@ -21,6 +21,7 @@ import {
   LANE_IDS,
   type FxDevice,
   type Note,
+  type SampleProvenanceEntry,
 } from "../src/document/schema";
 import type { ProjectDocument } from "../src/document/schema";
 import { createDefaultProject } from "../src/document/schema";
@@ -154,6 +155,22 @@ function generateProject(rng: Rng): ProjectDocument {
       }
     }
   }
+  // PS-3: most projects are synth-only (canonical-empty — field omitted);
+  // the rest record a sample-voice provenance echo map of pseudo assets.
+  if (rng() < 0.5) {
+    const entries: Record<string, SampleProvenanceEntry> = {};
+    const count = range(rng, 1, 6);
+    for (let i = 0; i < count; i++) {
+      entries[`voice.${pick(rng, ["bass", "chords", "lead"])}.p${i}`] = {
+        license: pick(rng, ["CC0", "CC0 1.0", "MIT"]),
+        sourceUrl: `https://sources.test/${range(rng, 1, 999)}`,
+        author: `Author ${range(rng, 1, 99)}`,
+      };
+    }
+    doc.sampleProvenance = entries;
+  } else {
+    delete doc.sampleProvenance;
+  }
   return doc;
 }
 
@@ -214,6 +231,17 @@ describe("generator sanity", () => {
   it("produces distinct documents across seeds", () => {
     const hashes = new Set(CASES.map((doc) => contentHash(doc)));
     expect(hashes.size).toBeGreaterThan(N_PROJECTS / 2);
+  });
+
+  it("PS-3: both provenance states occur — synth-only (field omitted) AND sample-echo projects", () => {
+    const withEcho = CASES.filter((doc) => doc.sampleProvenance !== undefined);
+    // Both branches must be exercised so the round-trip/canonical/hash
+    // properties genuinely cover the new field (not just its absence).
+    expect(withEcho.length).toBeGreaterThan(0);
+    expect(withEcho.length).toBeLessThan(N_PROJECTS);
+    for (const doc of withEcho) {
+      expect(Object.keys(doc.sampleProvenance!).length).toBeGreaterThan(0);
+    }
   });
 });
 

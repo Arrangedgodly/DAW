@@ -5,6 +5,8 @@ import {
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
+import { encode, decode } from "../src/document/codec";
+import { v1DefaultProjectText } from "./v1Project";
 import {
   ProjectValidationError,
   normalizeProject,
@@ -240,6 +242,128 @@ const TRANSFORMS: ReadonlyArray<
       d["laneOverrides"] = { bass: { root: 2, mode: "ionian-but-wrong" } };
     },
   ],
+  // PS-3 sample provenance: rejection rows (strict shape, id grammar, caps).
+  [
+    "sampleProvenance not an object",
+    (d) => (d["sampleProvenance"] = ["nope"]),
+  ],
+  [
+    "sampleProvenance entry as array",
+    (d) => (d["sampleProvenance"] = { "voice.bass.lowtone": [] }),
+  ],
+  [
+    "sampleProvenance entry with an extra key",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+          file: "voice-bass-lowtone.ogg",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance key not an asset id (URL)",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "https://bitbounce.test/asset.ogg": {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance key without a dot separator",
+    (d) =>
+      (d["sampleProvenance"] = {
+        voicebass: {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance key uppercase",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "Voice.Bass.Tone": {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance empty license",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance license over the cap",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "CC0 " + "x".repeat(40),
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance sourceUrl not https",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "CC0",
+          sourceUrl: "http://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance sourceUrl over the cap",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "CC0",
+          sourceUrl: "https://" + "x".repeat(300) + ".test/a",
+          author: "Kenney Vleugels (Kenney.nl)",
+        },
+      }),
+  ],
+  [
+    "sampleProvenance author not a string",
+    (d) =>
+      (d["sampleProvenance"] = {
+        "voice.bass.lowtone": {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: 7,
+        },
+      }),
+  ],
+  [
+    "sampleProvenance over the entry cap (65 > 64)",
+    (d) => {
+      const entries: Record<string, unknown> = {};
+      for (let i = 0; i < 65; i++)
+        entries[`voice.bass.tone${i}`] = {
+          license: "CC0",
+          sourceUrl: "https://kenney.nl/assets/digital-audio",
+          author: "Kenney Vleugels (Kenney.nl)",
+        };
+      d["sampleProvenance"] = entries;
+    },
+  ],
 ];
 
 function clone(doc: ProjectDocument): Record<string, unknown> {
@@ -292,6 +416,82 @@ describe("validateProject (strict)", () => {
     for (const bad of [null, 42, "nope", [], true]) {
       expect(() => validateProject(bad)).toThrow(ProjectValidationError);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PS-3: in-project sample provenance — acceptance, canonical-empty, and the
+// no-migration proof for pre-PS-3 v2 documents.
+// ---------------------------------------------------------------------------
+
+describe("validateProject sampleProvenance (PS-3)", () => {
+  const kenneyEcho = {
+    license: "CC0",
+    sourceUrl: "https://kenney.nl/assets/digital-audio",
+    author: "Kenney Vleugels (Kenney.nl)",
+  };
+
+  it("accepts a project recording the assets its sample voices use (self-describing export)", () => {
+    const doc = clone(createDefaultProject());
+    doc["sampleProvenance"] = {
+      "voice.bass.lowtone": kenneyEcho,
+      "drums.808.kick": {
+        license: "CC0",
+        sourceUrl: "https://github.com/sgossner/VCSL",
+        author: "Sam Gossner (VCSL)",
+      },
+    };
+    const out = validateProject(doc);
+    expect(out.sampleProvenance).toEqual({
+      "voice.bass.lowtone": kenneyEcho,
+      "drums.808.kick": {
+        license: "CC0",
+        sourceUrl: "https://github.com/sgossner/VCSL",
+        author: "Sam Gossner (VCSL)",
+      },
+    });
+  });
+
+  it("canonicalizes an entry-less map to the omitted field (byte-stable default law)", () => {
+    const doc = clone(createDefaultProject());
+    doc["sampleProvenance"] = {};
+    const out = validateProject(doc);
+    expect("sampleProvenance" in out).toBe(false);
+  });
+
+  it("trims padded echo strings through the parse (cue-label precedent), then round-trips stably", () => {
+    const doc = clone(createDefaultProject());
+    doc["sampleProvenance"] = {
+      "voice.bass.lowtone": { ...kenneyEcho, license: " CC0 " },
+    };
+    const once = validateProject(doc);
+    expect(once.sampleProvenance?.["voice.bass.lowtone"]?.license).toBe("CC0");
+    // Canonical stability holds from the first canonical form onward.
+    expect(validateProject(once)).toEqual(once);
+  });
+
+  it("pre-PS-3 v2 documents decode with no migration: the field is purely additive (AC)", () => {
+    // A v2 synth-only project exactly as written before PS-3 — no
+    // sampleProvenance key anywhere. Validation must accept it unchanged and
+    // NOT inject the field (byte-identical canonical output).
+    const pre = encode(createDefaultProject());
+    expect(pre).not.toContain("sampleProvenance");
+    const out = decode(pre);
+    expect("sampleProvenance" in out).toBe(false);
+    expect(encode(out)).toBe(pre);
+    // Same law for the v1→v2 migration path: migrated docs gain no field.
+    const migrated = decode(v1DefaultProjectText());
+    expect("sampleProvenance" in migrated).toBe(false);
+    expect(encode(migrated)).toBe(encode(createDefaultProject()));
+  });
+
+  it("a provenance-carrying document exports self-describing bytes (license visible in the file)", () => {
+    const doc = clone(createDefaultProject()) as unknown as ProjectDocument;
+    doc.sampleProvenance = { "voice.bass.lowtone": kenneyEcho };
+    const bytes = encode(doc);
+    expect(bytes).toContain('"sampleProvenance"');
+    expect(bytes).toContain('"license":"CC0"');
+    expect(decode(bytes).sampleProvenance).toEqual(doc.sampleProvenance);
   });
 });
 

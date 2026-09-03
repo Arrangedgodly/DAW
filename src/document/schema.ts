@@ -631,6 +631,109 @@ const ChainCuesSchema = v.nullable(
   }),
 );
 
+// ---------------------------------------------------------------------------
+// Sample-voice provenance (PS-3, RES-10 committed fields)
+// ---------------------------------------------------------------------------
+
+/**
+ * Asset-id grammar for committed sample content (PS-3): dotted lowercase
+ * segments, e.g. "drums.808.kick" / "voice.bass.lowtone" — every committed
+ * CONTENT_ASSETS id (PS-2) matches it. The preset field `sampleRef`
+ * (src/audio/presets.ts) and the `sampleProvenance` keys below share this
+ * grammar, defined HERE so the audio preset layer and the document layer
+ * cannot drift apart (Mr. Fantastic connective tissue; presets.ts imports
+ * it, keeping the document layer free of any content/asset import — the
+ * lazy loader stays out of the app's initial JS graph, PS-2 law).
+ *
+ * Ids (not vite-hashed URLs) are the stable cross-build reference: the app
+ * resolves id → same-origin URL through the content manifest at
+ * selection/play time (PS-4), while documents carry only the id.
+ */
+export const SAMPLE_REF_PATTERN = /^[a-z][a-z0-9]*(?:\.[a-z0-9]+)+$/;
+export const SampleRefSchema = v.pipe(
+  v.string(),
+  v.minLength(3),
+  v.maxLength(64),
+  v.regex(SAMPLE_REF_PATTERN),
+);
+
+/** MIDI note number 0..127 (PS-3 `rootMidi`; integer by construction). */
+export const MidiNoteSchema = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(0),
+  v.maxValue(127),
+);
+
+/**
+ * Provenance echo limits, sized to the committed manifest (PS-2: longest
+ * license "CC0", longest author 27 chars, longest sourceUrl 161 chars) with
+ * headroom for future CC0/MIT-class rows — bounded so a hostile document
+ * cannot stuff megabytes of "provenance" past the codec's 1 MB text cap
+ * into per-entry strings (defense in depth, CA-2 stance).
+ */
+export const PROVENANCE_LICENSE_MAX = 32;
+export const PROVENANCE_SOURCE_MAX = 256;
+export const PROVENANCE_AUTHOR_MAX = 64;
+
+/**
+ * A real project can reference at most a handful of assets (3 pitched lanes
+ * × 1 preset + 1 drum kit of 6–9 pieces ≈ 12; stale entries are pruned by
+ * the writer when a lane moves off a sample voice). 64 bounds a hostile map
+ * while never constraining a real one.
+ */
+export const MAX_SAMPLE_PROVENANCE_ENTRIES = 64;
+
+/** One sample asset's license echo (mirrors a CONTENT_ASSETS manifest row). */
+export interface SampleProvenanceEntry {
+  /** License short name as recorded in the content manifest (e.g. "CC0"). */
+  readonly license: string;
+  /** Where the asset came from (manifest sourceUrl echo; https only). */
+  readonly sourceUrl: string;
+  /** Attribution line (manifest author echo). */
+  readonly author: string;
+}
+
+/**
+ * PS-3 in-project provenance: asset id (`sampleRef`) → license echo. Recorded
+ * by the store when a lane selects a sample-backed voice (the echo is copied
+ * from the content manifest row at selection time); pruned when the last lane
+ * using an asset moves off it. Exported/shared projects stay self-describing
+ * — a recipient sees exactly which sample assets the song uses and under
+ * which license, without our manifest.
+ */
+export type SampleProvenance = Readonly<Record<string, SampleProvenanceEntry>>;
+
+export const SampleProvenanceEntrySchema = v.strictObject({
+  license: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(PROVENANCE_LICENSE_MAX),
+  ),
+  sourceUrl: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(PROVENANCE_SOURCE_MAX),
+    v.regex(/^https:\/\/\S+$/, "must be an https URL"),
+  ),
+  author: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(PROVENANCE_AUTHOR_MAX),
+  ),
+});
+
+export const SampleProvenanceSchema = v.pipe(
+  v.record(SampleRefSchema, SampleProvenanceEntrySchema),
+  v.check(
+    (map) => Object.keys(map).length <= MAX_SAMPLE_PROVENANCE_ENTRIES,
+    `more than ${MAX_SAMPLE_PROVENANCE_ENTRIES} sample-provenance entries`,
+  ),
+);
+
 const PatternsSchema = v.strictObject({
   drums: v.array(PatternSchema),
   bass: v.array(PatternSchema),
@@ -662,6 +765,13 @@ export interface ProjectDocument {
   readonly songChain: SongChain;
   /** Optional per-slot section labels (DES-6); absent/null = no cues. */
   readonly chainCues?: LaneCues | null;
+  /**
+   * PS-3 sample-voice provenance; absent (canonical-empty) when no lane uses
+   * a sample-backed voice — synth-only projects, including every v2 document
+   * written before PS-3, stay byte-identical (purely additive field, no
+   * migration, no codec bump).
+   */
+  readonly sampleProvenance?: SampleProvenance;
 }
 
 export const ProjectDocumentSchema = v.pipe(
@@ -683,6 +793,8 @@ export const ProjectDocumentSchema = v.pipe(
     songChain: SongChainSchema,
     // Optional (backward compatible): pre-DES-6 docs omit it entirely.
     chainCues: v.optional(ChainCuesSchema),
+    // Optional (backward compatible): pre-PS-3 docs omit it entirely.
+    sampleProvenance: v.optional(SampleProvenanceSchema),
   }),
 );
 
