@@ -8,8 +8,15 @@
 
 import { describe, expect, it } from "vitest";
 import { decode, encode } from "../src/document/codec";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
-import { createMemoryProjectDb, type ProjectDb, type ProjectRecord } from "../src/persist/db";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
+import {
+  createMemoryProjectDb,
+  type ProjectDb,
+  type ProjectRecord,
+} from "../src/persist/db";
 import {
   deleteProject,
   listProjects,
@@ -71,7 +78,12 @@ describe("projectStore envelope (fake idb)", () => {
 
     const list = await listProjects(db);
     expect(list.map((p) => p.id)).toEqual(["new", "mid", "old"]);
-    expect(list[1]).toEqual({ id: "mid", name: "Mid", updatedAt: 200, dirty: true });
+    expect(list[1]).toEqual({
+      id: "mid",
+      name: "Mid",
+      updatedAt: 200,
+      dirty: true,
+    });
     // Metadata only — no document bytes leak into the listing.
     expect(JSON.stringify(list)).not.toContain("songChain");
   });

@@ -63,7 +63,12 @@ describe("MF-5 MIDI export — third-party parse-back (@tonejs/midi)", () => {
     expect(midi.header.timeSignatures[0].timeSignature).toEqual([4, 4]);
     expect(midi.header.ppq).toBe(PPQ);
     expect(midi.tracks).toHaveLength(4);
-    expect(midi.tracks.map((t) => t.name)).toEqual(["DRUMS", "BASS", "CHORDS", "LEAD"]);
+    expect(midi.tracks.map((t) => t.name)).toEqual([
+      "DRUMS",
+      "BASS",
+      "CHORDS",
+      "LEAD",
+    ]);
   });
 
   it("drums land on channel 9 with GM note numbers at exact 16th ticks", async () => {
@@ -78,12 +83,16 @@ describe("MF-5 MIDI export — third-party parse-back (@tonejs/midi)", () => {
     expect(drums.notes).toHaveLength(14); // 4 kicks + 2 snares + 8 hats
 
     const kicks = drums.notes.filter((n) => n.midi === 36);
-    expect(kicks.map((n) => n.ticks)).toEqual([0, 4, 8, 12].map((s) => s * TICKS_PER_STEP));
+    expect(kicks.map((n) => n.ticks)).toEqual(
+      [0, 4, 8, 12].map((s) => s * TICKS_PER_STEP),
+    );
     expect(kicks[0].velocity).toBeCloseTo(105 / 127, 4);
     expect(kicks[0].durationTicks).toBe(TICKS_PER_STEP); // gate 1 step
 
     const snares = drums.notes.filter((n) => n.midi === 38);
-    expect(snares.map((n) => n.ticks)).toEqual([4, 12].map((s) => s * TICKS_PER_STEP));
+    expect(snares.map((n) => n.ticks)).toEqual(
+      [4, 12].map((s) => s * TICKS_PER_STEP),
+    );
 
     const hats = drums.notes.filter((n) => n.midi === 42);
     expect(hats).toHaveLength(8);
@@ -109,7 +118,9 @@ describe("MF-5 MIDI export — third-party parse-back (@tonejs/midi)", () => {
     // Chords: channel 1, C-minor triad C3/Eb3/G3 stacked on the downbeat.
     const chords = midi.tracks[2];
     expect(chords.channel).toBe(1);
-    expect(chords.notes.map((n) => n.midi).sort((a, b) => a - b)).toEqual([48, 51, 55]);
+    expect(chords.notes.map((n) => n.midi).sort((a, b) => a - b)).toEqual([
+      48, 51, 55,
+    ]);
     for (const n of chords.notes) expect(n.ticks).toBe(0);
 
     // Lead: channel 2, program 80 (square lead), degree 3 of C minor at

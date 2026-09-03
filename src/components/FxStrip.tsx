@@ -22,7 +22,15 @@
  * suppressed under prefers-reduced-motion (matchMedia AND CSS).
  */
 
-import { createSignal, For, Index, onCleanup, onMount, Show, type JSX } from "solid-js";
+import {
+  createSignal,
+  For,
+  Index,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 import { type LaneId } from "../document/schema";
 import {
   addFxDevice,
@@ -121,8 +129,16 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
   };
 
   return (
-    <div class="fx-strip" data-lane={props.lane} aria-label={`${LANE_NAMES[props.lane]} FX chain`}>
-      <div class="fx-strip-modules" role="list" aria-label={`${LANE_NAMES[props.lane]} FX modules`}>
+    <div
+      class="fx-strip"
+      data-lane={props.lane}
+      aria-label={`${LANE_NAMES[props.lane]} FX chain`}
+    >
+      <div
+        class="fx-strip-modules"
+        role="list"
+        aria-label={`${LANE_NAMES[props.lane]} FX modules`}
+      >
         {/* DES-7: Index (position-keyed), not For — modules() mints fresh
             objects on every store commit, so reference-keyed For tore down and
             rebuilt the whole module list (DOM + range inputs) on every param
@@ -136,10 +152,15 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
               mod={mod()}
               count={modules().length}
               flash={flashIndex() === mod().index}
-              dropping={dropTarget() === mod().index && drag() !== null && drag()!.from !== mod().index}
+              dropping={
+                dropTarget() === mod().index &&
+                drag() !== null &&
+                drag()!.from !== mod().index
+              }
               onDragStart={() => setDrag({ from: mod().index })}
               onDragOver={() => {
-                if (drag() !== null && dropTarget() !== mod().index) setDropTarget(mod().index);
+                if (drag() !== null && dropTarget() !== mod().index)
+                  setDropTarget(mod().index);
               }}
               onDrop={() => {
                 const d = drag();
@@ -149,7 +170,9 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
                 setDrag(null);
                 setDropTarget(-1);
               }}
-              onMove={(delta) => moveFxDevice(props.lane, mod().index, mod().index + delta)}
+              onMove={(delta) =>
+                moveFxDevice(props.lane, mod().index, mod().index + delta)
+              }
               onRemove={() => removeFxDevice(props.lane, mod().index)}
             />
           )}
@@ -262,7 +285,9 @@ function FxModuleView(props: {
       onDragEnd={props.onDragEnd}
     >
       <header class="fx-mod-head">
-        <span class="fx-mod-name" aria-hidden="true">{label()}</span>
+        <span class="fx-mod-name" aria-hidden="true">
+          {label()}
+        </span>
         <span class="fx-mod-actions">
           <button
             type="button"
@@ -286,8 +311,12 @@ function FxModuleView(props: {
             type="button"
             class="fx-mod-btn fx-bypass-btn"
             aria-pressed={m().device.bypassed}
-            aria-label={m().device.bypassed ? `Enable ${label()}` : `Bypass ${label()}`}
-            onClick={() => setFxBypassed(props.lane, m().index, !m().device.bypassed)}
+            aria-label={
+              m().device.bypassed ? `Enable ${label()}` : `Bypass ${label()}`
+            }
+            onClick={() =>
+              setFxBypassed(props.lane, m().index, !m().device.bypassed)
+            }
           >
             <span aria-hidden="true">BYP</span>
           </button>
@@ -305,7 +334,11 @@ function FxModuleView(props: {
       <div class="fx-mod-params">
         <For each={m().spec.choices}>
           {(choice) => (
-            <FxChoiceControl lane={props.lane} mod={m()} choice={choice as FxChoiceSpec} />
+            <FxChoiceControl
+              lane={props.lane}
+              mod={m()}
+              choice={choice as FxChoiceSpec}
+            />
           )}
         </For>
         <For each={m().spec.sliders}>
@@ -328,12 +361,17 @@ function FxSliderControl(props: {
   slider: FxSliderSpec;
 }): JSX.Element {
   const s = () => props.slider;
-  const value = () => (props.mod.device.params as Record<string, number | string>)[s().key] as number;
+  const value = () =>
+    (props.mod.device.params as Record<string, number | string>)[
+      s().key
+    ] as number;
   const readout = () => formatFxParam(props.mod.device.type, s().key, value());
 
   return (
     <label class="fx-param">
-      <span class="fx-param-label" aria-hidden="true">{s().label}</span>
+      <span class="fx-param-label" aria-hidden="true">
+        {s().label}
+      </span>
       <input
         type="range"
         class="fx-param-slider"
@@ -352,7 +390,9 @@ function FxSliderControl(props: {
           )
         }
       />
-      <span class="fx-param-readout" data-testid="fx-readout">{readout()}</span>
+      <span class="fx-param-readout" data-testid="fx-readout">
+        {readout()}
+      </span>
     </label>
   );
 }
@@ -363,19 +403,25 @@ function FxChoiceControl(props: {
   choice: FxChoiceSpec;
 }): JSX.Element {
   const c = () => props.choice;
-  const value = () => (props.mod.device.params as Record<string, number | string>)[c().key];
+  const value = () =>
+    (props.mod.device.params as Record<string, number | string>)[c().key];
   const current = () =>
-    c().options.find((o) => String(o.value) === String(value()))?.value ?? c().options[0]!.value;
+    c().options.find((o) => String(o.value) === String(value()))?.value ??
+    c().options[0]!.value;
 
   return (
     <label class="fx-param fx-param-choice">
-      <span class="fx-param-label" aria-hidden="true">{c().label}</span>
+      <span class="fx-param-label" aria-hidden="true">
+        {c().label}
+      </span>
       <select
         class="fx-param-select"
         value={String(current())}
         aria-label={`${c().label} of ${props.mod.spec.label} on ${LANE_NAMES[props.lane]}`}
         onChange={(e) => {
-          const opt = c().options.find((o) => String(o.value) === e.currentTarget.value);
+          const opt = c().options.find(
+            (o) => String(o.value) === e.currentTarget.value,
+          );
           if (opt) setFxParam(props.lane, props.mod.index, c().key, opt.value);
         }}
       >

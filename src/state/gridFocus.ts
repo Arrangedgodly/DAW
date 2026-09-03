@@ -19,7 +19,9 @@ export interface GridFocusRequest {
   readonly seq: number;
 }
 
-const [focusRequest, setFocusRequest] = createSignal<GridFocusRequest | null>(null);
+const [focusRequest, setFocusRequest] = createSignal<GridFocusRequest | null>(
+  null,
+);
 let seq = 0;
 
 export { focusRequest };
@@ -29,7 +31,12 @@ export { focusRequest };
  * row index + step (clamped by the receiving grid). Clamps at the first/
  * last lane — never wraps (spec). Also makes the target lane active.
  */
-export function requestLaneFocus(from: LaneId, dir: -1 | 1, row: number, step: number): void {
+export function requestLaneFocus(
+  from: LaneId,
+  dir: -1 | 1,
+  row: number,
+  step: number,
+): void {
   const i = LANE_ORDER.indexOf(from as (typeof LANE_ORDER)[number]);
   if (i < 0) return;
   const next = Math.min(Math.max(i + dir, 0), LANE_ORDER.length - 1);
@@ -40,7 +47,11 @@ export function requestLaneFocus(from: LaneId, dir: -1 | 1, row: number, step: n
 }
 
 /** Focus a cell within one lane (used by tests + future SR jump links). */
-export function requestCellFocus(lane: LaneId, row: number, step: number): void {
+export function requestCellFocus(
+  lane: LaneId,
+  row: number,
+  step: number,
+): void {
   selectLane(lane);
   setFocusRequest({ lane, row, step, seq: ++seq });
 }

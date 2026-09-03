@@ -41,7 +41,13 @@ function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
   document.body.append(host);
   const dispose = render(() => <App />, host);
-  return { host, cleanup: () => { dispose(); host.remove(); } };
+  return {
+    host,
+    cleanup: () => {
+      dispose();
+      host.remove();
+    },
+  };
 }
 
 async function runAxe(context: HTMLElement) {
@@ -66,14 +72,20 @@ function expectClean(violations: axe.Result[], state: string) {
   const { blocking, moderates } = partition(violations);
   if (blocking.length > 0) {
     const detail = blocking
-      .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)
+      .map(
+        (v) =>
+          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+      )
       .join("\n  ");
     throw new Error(`[${state}] critical/serious axe violations:\n  ${detail}`);
   }
   const unexpected = moderates.filter((m) => !ACCEPTED_MODERATES.has(m.id));
   if (unexpected.length > 0) {
     const detail = unexpected
-      .map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)
+      .map(
+        (v) =>
+          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+      )
       .join("\n  ");
     throw new Error(
       `[${state}] untriaged moderate axe violations (triage in docs/dev/accessibility.md or fix):\n  ${detail}`,

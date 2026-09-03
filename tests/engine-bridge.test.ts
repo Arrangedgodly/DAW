@@ -38,7 +38,10 @@ interface FakeSession {
   setBpm(bpm: number): void;
   setSwingAmount(a: number): void;
   setMetronome(on: boolean): void;
-  transport: { setLoopBars(bars: number): void; snapshot: { bpm: number; swing: number } };
+  transport: {
+    setLoopBars(bars: number): void;
+    snapshot: { bpm: number; swing: number };
+  };
 }
 
 function fakeSession(): FakeSession {
@@ -103,7 +106,9 @@ describe("connectStoreToEngine", () => {
     expect(s.sounds["lead"]).toBe("preset-lead-1");
     // Pitched lanes got their effective scale (project default C minor).
     expect(s.scales["bass"]).toMatchObject({ root: 0, mode: "minor" });
-    expect(new Set(s.compiles)).toEqual(new Set(["drums", "bass", "chords", "lead"]));
+    expect(new Set(s.compiles)).toEqual(
+      new Set(["drums", "bass", "chords", "lead"]),
+    );
   });
 
   it("scale change recompiles pitched lanes with the new scale, not drums", () => {
@@ -158,7 +163,9 @@ describe("connectStoreToEngine", () => {
     setTransport({ bpm: 150, loopBars: 2 });
     expect(s.bpm).toBe(150);
     expect(s.loopBars).toBe(2);
-    expect(new Set(s.compiles)).toEqual(new Set(["drums", "bass", "chords", "lead"]));
+    expect(new Set(s.compiles)).toEqual(
+      new Set(["drums", "bass", "chords", "lead"]),
+    );
     disconnect();
   });
 });

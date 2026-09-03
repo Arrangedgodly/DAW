@@ -35,7 +35,13 @@ function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
   document.body.append(host);
   const dispose = render(() => <App />, host);
-  return { host, cleanup: () => { dispose(); host.remove(); } };
+  return {
+    host,
+    cleanup: () => {
+      dispose();
+      host.remove();
+    },
+  };
 }
 
 async function waitFor(predicate: () => boolean, ms = 4000): Promise<void> {
@@ -49,7 +55,12 @@ async function waitFor(predicate: () => boolean, ms = 4000): Promise<void> {
 
 function key(el: Element, k: string, opts: KeyboardEventInit = {}): void {
   el.dispatchEvent(
-    new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...opts }),
+    new KeyboardEvent("keydown", {
+      key: k,
+      bubbles: true,
+      cancelable: true,
+      ...opts,
+    }),
   );
 }
 
@@ -58,7 +69,9 @@ function laneHost(host: HTMLElement, lane: string): HTMLElement {
 }
 
 function rovingSeed(lane: HTMLElement): HTMLElement {
-  const seed = [...lane.querySelectorAll(".cell")].find((c) => c.tabIndex === 0);
+  const seed = [...lane.querySelectorAll(".cell")].find(
+    (c) => c.tabIndex === 0,
+  );
   if (!seed) throw new Error(`no roving seed cell in lane`);
   return seed as HTMLElement;
 }
@@ -70,17 +83,23 @@ describe("DA-1 keyboard journey (real app)", () => {
       // Boot: all four lane grids exist with one roving tab stop each.
       for (const lane of ["drums", "bass", "chords", "lead"]) {
         const floor = laneHost(host, lane);
-        expect(floor.querySelector('.lane-grid-scroll [role="grid"]')).toBeTruthy();
         expect(
-          [...floor.querySelectorAll(".cell")].filter((c) => c.tabIndex === 0).length,
+          floor.querySelector('.lane-grid-scroll [role="grid"]'),
+        ).toBeTruthy();
+        expect(
+          [...floor.querySelectorAll(".cell")].filter((c) => c.tabIndex === 0)
+            .length,
         ).toBe(1);
       }
 
       // PLAY by keyboard: body-level Space (the DA-1 transport shortcut).
       document.body.focus();
       key(document.body, " ");
-      await waitFor(() =>
-        (host.querySelector(".booth-btn-play") as HTMLButtonElement).getAttribute("aria-pressed") === "true",
+      await waitFor(
+        () =>
+          (
+            host.querySelector(".booth-btn-play") as HTMLButtonElement
+          ).getAttribute("aria-pressed") === "true",
       );
 
       // Navigate the drums grid: seed cell (KICK step 1) → right → down.
@@ -109,44 +128,59 @@ describe("DA-1 keyboard journey (real app)", () => {
 
       // Escape pops to the region head: the lane header's first control.
       key(document.activeElement!, "Escape");
-      await waitFor(() =>
-        !!document.activeElement && drums.querySelector(".lane-head")!.contains(document.activeElement),
+      await waitFor(
+        () =>
+          !!document.activeElement &&
+          drums.querySelector(".lane-head")!.contains(document.activeElement),
       );
 
       // Back into the grid via the (still-roving) seed's tab stop, then
       // lane-move: PageDown ×3 drums → bass → chords → lead.
       rovingSeed(drums).focus();
       key(document.activeElement!, "PageDown");
-      await waitFor(() => laneHost(host, "bass").contains(document.activeElement));
+      await waitFor(() =>
+        laneHost(host, "bass").contains(document.activeElement),
+      );
       key(document.activeElement!, "PageDown");
-      await waitFor(() => laneHost(host, "chords").contains(document.activeElement));
+      await waitFor(() =>
+        laneHost(host, "chords").contains(document.activeElement),
+      );
       key(document.activeElement!, "PageDown");
-      await waitFor(() => laneHost(host, "lead").contains(document.activeElement));
+      await waitFor(() =>
+        laneHost(host, "lead").contains(document.activeElement),
+      );
 
       // Edge clamp: one more PageDown stays in lead (no wrap, spec law).
       key(document.activeElement!, "PageDown");
-      expect(laneHost(host, "lead").contains(document.activeElement)).toBe(true);
+      expect(laneHost(host, "lead").contains(document.activeElement)).toBe(
+        true,
+      );
 
       // Toggle a lead note at the carried cell (row index carried, clamped).
       const leadCell = document.activeElement as HTMLElement;
       const leadRow = Number(leadCell.dataset.row);
       const leadStep = Number(leadCell.dataset.step);
       const leadPattern = activePatternOf("lead");
-      if (leadPattern.kind !== "pitched") throw new Error("expected pitched lead pattern");
+      if (leadPattern.kind !== "pitched")
+        throw new Error("expected pitched lead pattern");
       const leadBefore = leadPattern.rows[leadRow]!.steps[leadStep] !== 0;
       key(leadCell, "Enter");
       await waitFor(() => {
         const p = activePatternOf("lead");
-        return p.kind === "pitched" &&
-          (p.rows[leadRow]!.steps[leadStep] !== 0) === !leadBefore;
+        return (
+          p.kind === "pitched" &&
+          (p.rows[leadRow]!.steps[leadStep] !== 0) === !leadBefore
+        );
       });
 
       // UNDO (Ctrl+Z): both toggles coalesced into one gesture → both revert.
       key(document.activeElement!, "z", { ctrlKey: true });
       await waitFor(() => {
         const lead = activePatternOf("lead");
-        return lead.kind === "pitched" &&
-          (lead.rows[leadRow]!.steps[leadStep] !== 0) === leadBefore;
+        return (
+          lead.kind === "pitched" &&
+          (lead.rows[leadRow]!.steps[leadStep] !== 0) === leadBefore
+        );
       });
       expect(activeDrumsSteps("snare")[4]).toBe(snareBefore);
 
@@ -155,21 +189,27 @@ describe("DA-1 keyboard journey (real app)", () => {
       key(document.body, "?");
       const dialog = await waitForAndGrab(host);
       expect(dialog.getAttribute("role")).toBe("dialog");
-      expect(document.activeElement === dialog || dialog.contains(document.activeElement)).toBe(true);
+      expect(
+        document.activeElement === dialog ||
+          dialog.contains(document.activeElement),
+      ).toBe(true);
       key(dialog, "Escape");
       await waitFor(() => !host.querySelector(".help-panel"));
 
       // Stop playback (keyboard) to leave the world quiet.
       document.body.focus();
       key(document.body, " ");
-      await waitFor(() =>
-        (host.querySelector(".booth-btn-play") as HTMLButtonElement).getAttribute("aria-pressed") === "false",
+      await waitFor(
+        () =>
+          (
+            host.querySelector(".booth-btn-play") as HTMLButtonElement
+          ).getAttribute("aria-pressed") === "false",
       );
     } finally {
       // Best-effort stop before teardown.
-      void import("../../src/engine/session").then(({ getSession }) =>
-        getSession().transport.stop?.(),
-      ).catch(() => {});
+      void import("../../src/engine/session")
+        .then(({ getSession }) => getSession().transport.stop?.())
+        .catch(() => {});
       cleanup();
     }
   });

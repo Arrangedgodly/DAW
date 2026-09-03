@@ -11,7 +11,9 @@
 
 import { SCHEMA_VERSION } from "./schema";
 
-export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
+export type Migration = (
+  doc: Record<string, unknown>,
+) => Record<string, unknown>;
 
 /** version N → transform to N+1. */
 export type MigrationRegistry = Readonly<Record<number, Migration>>;
@@ -34,8 +36,14 @@ export function migrateWith(
   latest: number = LATEST_SCHEMA_VERSION,
 ): Record<string, unknown> {
   const version = doc["version"];
-  if (typeof version !== "number" || !Number.isInteger(version) || version < 0) {
-    throw new MigrationError(`Document has no integer schema version >= 0 (got ${String(version)})`);
+  if (
+    typeof version !== "number" ||
+    !Number.isInteger(version) ||
+    version < 0
+  ) {
+    throw new MigrationError(
+      `Document has no integer schema version >= 0 (got ${String(version)})`,
+    );
   }
   if (version > latest) {
     throw new MigrationError(
@@ -46,12 +54,16 @@ export function migrateWith(
   for (let v = version; v < latest; v++) {
     const step = registry[v];
     if (!step) {
-      throw new MigrationError(`No migration registered from version ${v} to ${v + 1}`);
+      throw new MigrationError(
+        `No migration registered from version ${v} to ${v + 1}`,
+      );
     }
     current = step(current);
     const next = current["version"];
     if (next !== v + 1) {
-      throw new MigrationError(`Migration ${v}→${v + 1} did not stamp version ${v + 1} (got ${String(next)})`);
+      throw new MigrationError(
+        `Migration ${v}→${v + 1} did not stamp version ${v + 1} (got ${String(next)})`,
+      );
     }
   }
   return current;

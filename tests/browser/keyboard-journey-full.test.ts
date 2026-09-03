@@ -69,7 +69,10 @@ describe("DA-3 full keyboard journey (built app)", () => {
     async () => {
       const bundleKey = Object.keys(bundleGlob)[0];
       const cssKey = Object.keys(cssGlob)[0];
-      expect(bundleKey, "built bundle missing (globalSetup build failed?)").toBeTruthy();
+      expect(
+        bundleKey,
+        "built bundle missing (globalSetup build failed?)",
+      ).toBeTruthy();
       expect(cssKey).toBeTruthy();
 
       const iframe = document.createElement("iframe");
@@ -103,12 +106,22 @@ describe("DA-3 full keyboard journey (built app)", () => {
       doc0.close();
 
       const idoc = () => iframe.contentDocument!;
-      const key = (el: Element, k: string, opts: KeyboardEventInit = {}): void => {
+      const key = (
+        el: Element,
+        k: string,
+        opts: KeyboardEventInit = {},
+      ): void => {
         el.dispatchEvent(
-          new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...opts }),
+          new KeyboardEvent("keydown", {
+            key: k,
+            bubbles: true,
+            cancelable: true,
+            ...opts,
+          }),
         );
       };
-      const active = (): HTMLElement | null => idoc().activeElement as HTMLElement | null;
+      const active = (): HTMLElement | null =>
+        idoc().activeElement as HTMLElement | null;
       /** Native Enter activation (see header note). */
       const kbActivate = (el: Element): void => {
         (el as HTMLElement).focus();
@@ -134,7 +147,11 @@ describe("DA-3 full keyboard journey (built app)", () => {
 
       try {
         // --- 1. BOOT: first-run demo song --------------------------------
-        await poll(() => !!idoc().querySelector(".booth"), T.boot, "app to mount");
+        await poll(
+          () => !!idoc().querySelector(".booth"),
+          T.boot,
+          "app to mount",
+        );
         const playBtn = () => $<HTMLButtonElement>(".booth-btn-play");
         // Demo loaded (PX-1): the rail carries named section cues.
         await poll(
@@ -147,7 +164,11 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 2. PLAY by body-level Space ---------------------------------
         idoc().body.focus();
         key(idoc().body, " ");
-        await poll(() => playBtn().getAttribute("aria-pressed") === "true", T.ui, "play to start");
+        await poll(
+          () => playBtn().getAttribute("aria-pressed") === "true",
+          T.ui,
+          "play to start",
+        );
 
         // --- 3. HELP mid-journey (? → dialog → Esc) -----------------------
         key(idoc().body, "?");
@@ -155,11 +176,17 @@ describe("DA-3 full keyboard journey (built app)", () => {
         expect(help.getAttribute("role")).toBe("dialog");
         await poll(() => help.contains(active()), T.ui, "help focus trap");
         key(help, "Escape");
-        await poll(() => !idoc().querySelector(".help-panel"), T.ui, "help to close");
+        await poll(
+          () => !idoc().querySelector(".help-panel"),
+          T.ui,
+          "help to close",
+        );
 
         // --- 4. DRUMS GRID NAVIGATION -------------------------------------
         const drums = $(`.lane-floor[data-lane="drums"]`);
-        const seed = [...drums.querySelectorAll(".cell")].find((c) => c.tabIndex === 0) as HTMLElement;
+        const seed = [...drums.querySelectorAll(".cell")].find(
+          (c) => c.tabIndex === 0,
+        ) as HTMLElement;
         seed.focus();
         key(active() ?? seed, "ArrowDown"); // KICK → SNARE row
         key(active() ?? seed, "End");
@@ -172,13 +199,19 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // The SNARE row's fill rail: + pulses twice (armed → dashed preview),
         // then SET commits. Row state is observable through data-on cells.
         const snareCell = (i: number) =>
-          $$('.lane-floor[data-lane="drums"] .grid-row')[1]!.querySelectorAll(".cell")[i]!;
+          $$('.lane-floor[data-lane="drums"] .grid-row')[1]!.querySelectorAll(
+            ".cell",
+          )[i]!;
         const fillRail = $('.row-fill[data-row="1"]');
         const morePulses = fillRail.querySelector<HTMLButtonElement>(
           'button[aria-label="More pulses for SNARE fill"]',
         )!;
         const pulsesValue = () =>
-          Number((fillRail.querySelector(".row-fill-value")!.textContent ?? "0/16").split("/")[0]);
+          Number(
+            (
+              fillRail.querySelector(".row-fill-value")!.textContent ?? "0/16"
+            ).split("/")[0],
+          );
         kbActivate(morePulses); // arm (custom rows re-arm at current density)
         const pulsesArmed = pulsesValue();
         kbActivate(morePulses); // raise by one
@@ -186,20 +219,26 @@ describe("DA-3 full keyboard journey (built app)", () => {
         const pulsesNow = pulsesValue();
         expect(pulsesNow).toBeGreaterThanOrEqual(1);
         await poll(
-          () => $$('.lane-floor[data-lane="drums"] .cell[data-preview="true"]').length > 0,
+          () =>
+            $$('.lane-floor[data-lane="drums"] .cell[data-preview="true"]')
+              .length > 0,
           T.ui,
           "euclid preview overlay",
         );
-        kbActivate(fillRail.querySelector<HTMLButtonElement>(
-          'button[aria-label^="Apply Euclidean fill to SNARE"]',
-        )!);
+        kbActivate(
+          fillRail.querySelector<HTMLButtonElement>(
+            'button[aria-label^="Apply Euclidean fill to SNARE"]',
+          )!,
+        );
         await poll(
           () => {
-            const onCount = Array.from({ length: 16 }, (_, i) => snareCell(i))
-              .filter((c) => c.dataset.on === "true").length;
+            const onCount = Array.from({ length: 16 }, (_, i) =>
+              snareCell(i),
+            ).filter((c) => c.dataset.on === "true").length;
             return (
               onCount === pulsesNow &&
-              $$('.lane-floor[data-lane="drums"] .cell[data-preview="true"]').length === 0
+              $$('.lane-floor[data-lane="drums"] .cell[data-preview="true"]')
+                .length === 0
             );
           },
           T.ui,
@@ -209,14 +248,20 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 6. CELL TOGGLE (Enter on the focused gridcell) ----------------
         // (Focus sits on the SET button after the fill; step back into the
         // row the grid way — the roving seed, then ArrowDown into SNARE.)
-        const seed2 = [...drums.querySelectorAll(".cell")].find((c) => c.tabIndex === 0) as HTMLElement;
+        const seed2 = [...drums.querySelectorAll(".cell")].find(
+          (c) => c.tabIndex === 0,
+        ) as HTMLElement;
         seed2.focus();
         key(active() ?? seed2, "ArrowDown");
         const cell = active() as HTMLElement;
         expect(cell.classList.contains("cell")).toBe(true);
         const wasOn = cell.dataset.on === "true";
         key(cell, "Enter");
-        await poll(() => cell.dataset.on === String(!wasOn), T.ui, "cell toggle");
+        await poll(
+          () => cell.dataset.on === String(!wasOn),
+          T.ui,
+          "cell toggle",
+        );
 
         // --- 7. LANE MOVE → BASS -------------------------------------------
         key(cell, "PageDown");
@@ -228,15 +273,33 @@ describe("DA-3 full keyboard journey (built app)", () => {
 
         // --- 8. PRESET + GATE STEPPERS --------------------------------------
         const bassSound = $('[aria-label="BASS sound"]');
-        const presetName = () => bassSound.querySelector(".head-ctl-value")!.textContent ?? "";
+        const presetName = () =>
+          bassSound.querySelector(".head-ctl-value")!.textContent ?? "";
         const presetBefore = presetName();
-        kbActivate(bassSound.querySelector<HTMLButtonElement>('button[aria-label="Next preset for BASS"]')!);
-        await poll(() => presetName() !== presetBefore && presetName() !== "", T.ui, "preset stepper");
+        kbActivate(
+          bassSound.querySelector<HTMLButtonElement>(
+            'button[aria-label="Next preset for BASS"]',
+          )!,
+        );
+        await poll(
+          () => presetName() !== presetBefore && presetName() !== "",
+          T.ui,
+          "preset stepper",
+        );
         const bassGate = $('[aria-label="BASS gate length"]');
-        const gateText = () => bassGate.querySelector(".head-ctl-value")!.textContent ?? "";
+        const gateText = () =>
+          bassGate.querySelector(".head-ctl-value")!.textContent ?? "";
         const gateBefore = Number((gateText().match(/(\d+)/) ?? ["", "1"])[1]);
-        kbActivate(bassGate.querySelector<HTMLButtonElement>('button[aria-label="Longer gate for BASS"]')!);
-        await poll(() => gateText().startsWith(String(gateBefore + 1)), T.ui, "gate stepper");
+        kbActivate(
+          bassGate.querySelector<HTMLButtonElement>(
+            'button[aria-label="Longer gate for BASS"]',
+          )!,
+        );
+        await poll(
+          () => gateText().startsWith(String(gateBefore + 1)),
+          T.ui,
+          "gate stepper",
+        );
 
         // --- 9. LANE SCALE OVERRIDE (popover, keyboard) ----------------------
         const chip = $(`.lane-floor[data-lane="bass"] .scale-chip`);
@@ -244,30 +307,62 @@ describe("DA-3 full keyboard journey (built app)", () => {
         const pop = $(".scale-pop");
         expect(pop.contains(active())).toBe(true);
         kbActivate(pop.querySelector<HTMLButtonElement>('[data-root="2"]')!); // D
-        kbActivate(pop.querySelector<HTMLButtonElement>('[data-mode="dorian"]')!);
+        kbActivate(
+          pop.querySelector<HTMLButtonElement>('[data-mode="dorian"]')!,
+        );
         kbActivate(pop.querySelector(".scale-pop-commit")); // OVERRIDE LANE
-        await poll(() => !idoc().querySelector(".scale-pop"), T.ui, "popover close");
         await poll(
-          () => chip.classList.contains("is-lane") && (chip.textContent ?? "").includes("D"),
+          () => !idoc().querySelector(".scale-pop"),
+          T.ui,
+          "popover close",
+        );
+        await poll(
+          () =>
+            chip.classList.contains("is-lane") &&
+            (chip.textContent ?? "").includes("D"),
           T.ui,
           "lane-override chip",
         );
         // Cancel path: reopen + Escape closes and refocuses the chip.
         kbActivate(chip);
-        await poll(() => !!idoc().querySelector(".scale-pop"), T.ui, "popover reopen");
+        await poll(
+          () => !!idoc().querySelector(".scale-pop"),
+          T.ui,
+          "popover reopen",
+        );
         key($(".scale-pop"), "Escape");
-        await poll(() => !idoc().querySelector(".scale-pop"), T.ui, "popover cancel");
+        await poll(
+          () => !idoc().querySelector(".scale-pop"),
+          T.ui,
+          "popover cancel",
+        );
         expect(active()).toBe(chip);
 
         // --- 10. FX DEVICE + PARAM ------------------------------------------
         kbActivate($(`.lane-floor[data-lane="bass"] .head-fx`));
-        await poll(() => !!idoc().querySelector('.fx-strip[data-lane="bass"]'), T.ui, "fx strip");
+        await poll(
+          () => !!idoc().querySelector('.fx-strip[data-lane="bass"]'),
+          T.ui,
+          "fx strip",
+        );
         kbActivate($(".fx-add-btn"));
-        await poll(() => !!idoc().querySelector(".fx-add-menu"), T.ui, "add menu");
+        await poll(
+          () => !!idoc().querySelector(".fx-add-menu"),
+          T.ui,
+          "add menu",
+        );
         // Menu convention (DA-3 fix): focus landed inside the menu.
-        await poll(() => $(".fx-add-menu").contains(active()), T.ui, "add menu focus");
+        await poll(
+          () => $(".fx-add-menu").contains(active()),
+          T.ui,
+          "add menu focus",
+        );
         kbActivate($(".fx-add-item")); // first device (FILTER)
-        await poll(() => $$('.fx-strip[data-lane="bass"] .fx-mod').length === 3, T.ui, "third fx module");
+        await poll(
+          () => $$('.fx-strip[data-lane="bass"] .fx-mod').length === 3,
+          T.ui,
+          "third fx module",
+        );
         // Param tweak: range input stepped by keyboard (5 arrow presses —
         // the log cutoff map can round a single step to the same readout).
         // NOTE: each param commit rebuilds the module DOM (For reference
@@ -277,12 +372,18 @@ describe("DA-3 full keyboard journey (built app)", () => {
             .closest("label")
             ?.querySelector(".fx-param-readout")?.textContent ?? "";
         const readoutBefore = sliderReadout();
-        for (let i = 0; i < 5; i++) kbStepSlider($<HTMLInputElement>(".fx-param-slider"), 1);
-        await poll(() => sliderReadout() !== readoutBefore, T.ui, "fx param readout");
+        for (let i = 0; i < 5; i++)
+          kbStepSlider($<HTMLInputElement>(".fx-param-slider"), 1);
+        await poll(
+          () => sliderReadout() !== readoutBefore,
+          T.ui,
+          "fx param readout",
+        );
 
         // --- 11. QUANTIZED SWITCH while playing ------------------------------
         const bassRow = $('.rail-row[data-lane="bass"]');
-        const tiles = () => Array.from(bassRow.querySelectorAll<HTMLButtonElement>(".rail-tile"));
+        const tiles = () =>
+          Array.from(bassRow.querySelectorAll<HTMLButtonElement>(".rail-tile"));
         expect(tiles().length).toBe(4); // demo bass chain: 4 distinct patterns
         tiles()[0]!.focus();
         // Rove to the last tile (arrows per the rail map) and trigger it.
@@ -293,27 +394,42 @@ describe("DA-3 full keyboard journey (built app)", () => {
         await poll(
           () => {
             sawPending ||= target.dataset.state === "pending";
-            return target.dataset.state === "active" || target.dataset.state === "selected";
+            return (
+              target.dataset.state === "active" ||
+              target.dataset.state === "selected"
+            );
           },
           T.switch,
           "quantized switch to land",
         );
         expect(sawPending, "switch never showed its pending state").toBe(true);
-        expect(target.getAttribute("aria-label") ?? "").not.toContain("switch pending");
+        expect(target.getAttribute("aria-label") ?? "").not.toContain(
+          "switch pending",
+        );
 
         // --- 12. STOP · DUPLICATE · APPEND ------------------------------------
         idoc().body.focus();
         key(idoc().body, " ");
-        await poll(() => playBtn().getAttribute("aria-pressed") === "false", T.ui, "stop");
+        await poll(
+          () => playBtn().getAttribute("aria-pressed") === "false",
+          T.ui,
+          "stop",
+        );
         kbActivate(
-          bassRow.querySelector<HTMLButtonElement>('button[aria-label="Duplicate BASS selected pattern"]')!,
+          bassRow.querySelector<HTMLButtonElement>(
+            'button[aria-label="Duplicate BASS selected pattern"]',
+          )!,
         );
         const tilesBefore = tiles().length;
         // "+" on a focused tile appends the selected pattern (DA-3 spec fix).
         const lastTile = tiles()[tiles().length - 1]!;
         lastTile.focus();
         key(lastTile, "+");
-        await poll(() => tiles().length === tilesBefore + 1, T.ui, "chain append");
+        await poll(
+          () => tiles().length === tilesBefore + 1,
+          T.ui,
+          "chain append",
+        );
         // Escape from a tile pops to the rail head (the view toggle).
         key(active() ?? lastTile, "Escape");
         await poll(
@@ -324,7 +440,11 @@ describe("DA-3 full keyboard journey (built app)", () => {
 
         // --- 13. EXPORTS via the Projects popover ------------------------------
         kbActivate($(".projects-btn"));
-        await poll(() => !!idoc().querySelector(".projects-pop"), T.ui, "projects popover");
+        await poll(
+          () => !!idoc().querySelector(".projects-pop"),
+          T.ui,
+          "projects popover",
+        );
         const actionByLabel = async (label: string) => {
           for (let i = 0; i < 60; i++) {
             const b = $$(".projects-action").find(
@@ -337,13 +457,19 @@ describe("DA-3 full keyboard journey (built app)", () => {
         };
         kbActivate(await actionByLabel("EXPORT WAV"));
         await poll(
-          () => $$(".toast-message").some((t) => t.textContent?.includes("WAV EXPORTED")),
+          () =>
+            $$(".toast-message").some((t) =>
+              t.textContent?.includes("WAV EXPORTED"),
+            ),
           T.render,
           "WAV export toast",
         );
         kbActivate(await actionByLabel("EXPORT MIDI"));
         await poll(
-          () => $$(".toast-message").some((t) => t.textContent?.includes("MIDI EXPORTED")),
+          () =>
+            $$(".toast-message").some((t) =>
+              t.textContent?.includes("MIDI EXPORTED"),
+            ),
           T.render,
           "MIDI export toast",
         );
@@ -353,21 +479,35 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 14. NEW PROJECT + Escape out of the popover -----------------------
         kbActivate(await actionByLabel("NEW"));
         await poll(
-          () => $$(".toast-message").some((t) => t.textContent?.includes("NEW PROJECT READY")),
+          () =>
+            $$(".toast-message").some((t) =>
+              t.textContent?.includes("NEW PROJECT READY"),
+            ),
           T.ui,
           "new project toast",
         );
         await poll(
-          () => (idoc().querySelector(".stage-hint")?.textContent ?? "").includes("PICK A PRESET"),
+          () =>
+            (idoc().querySelector(".stage-hint")?.textContent ?? "").includes(
+              "PICK A PRESET",
+            ),
           T.ui,
           "empty-project stage note",
         );
         // Popover closed itself on NEW; reopen and Escape to prove the trap
         // releases focus back to the PROJECTS button.
         kbActivate($(".projects-btn"));
-        await poll(() => !!idoc().querySelector(".projects-pop"), T.ui, "popover reopen");
+        await poll(
+          () => !!idoc().querySelector(".projects-pop"),
+          T.ui,
+          "popover reopen",
+        );
         key($(".projects-pop"), "Escape");
-        await poll(() => !idoc().querySelector(".projects-pop"), T.ui, "popover escape");
+        await poll(
+          () => !idoc().querySelector(".projects-pop"),
+          T.ui,
+          "popover escape",
+        );
         expect(active()?.classList.contains("projects-btn")).toBe(true);
       } finally {
         // Teardown (DA-3 fix): the journey ends on a NEW empty project that

@@ -11,7 +11,11 @@ import { decode } from "../../src/document/codec";
 import { docStore } from "../../src/state/store";
 import { startAutosave } from "../../src/persist/autosave";
 import { openRawProjectDb } from "../../src/persist/db";
-import { getProjectRecord, loadProject, saveProject } from "../../src/persist/projectStore";
+import {
+  getProjectRecord,
+  loadProject,
+  saveProject,
+} from "../../src/persist/projectStore";
 
 async function freshDb(name: string) {
   await new Promise<void>((resolve, reject) => {
@@ -91,14 +95,20 @@ describe("IndexedDB persistence (real browser database)", () => {
 
       // Simulate a document commit (the autosave subscription observes it).
       docStore.setState({ doc: { ...before, name: "crash-draft" } });
-      await waitForIdb(async () => (await getProjectRecord(db, "draft"))?.dirty === true);
+      await waitForIdb(
+        async () => (await getProjectRecord(db, "draft"))?.dirty === true,
+      );
 
       expect(ctl.isPending()).toBe(true);
 
       await vi.advanceTimersByTimeAsync(800); // debounce flush
       await waitForIdb(async () => {
         const row = await getProjectRecord(db, "draft");
-        return row !== undefined && row.dirty === false && decode(row.json).name === "crash-draft";
+        return (
+          row !== undefined &&
+          row.dirty === false &&
+          decode(row.json).name === "crash-draft"
+        );
       });
       expect(ctl.getStatus()).toBe("saved");
 

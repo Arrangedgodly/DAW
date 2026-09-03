@@ -28,14 +28,20 @@ export interface FocusedCell {
 
 function defaultActivePatterns(): Record<LaneId, string> {
   const doc = docStore.getState().doc;
-  const first = (lane: LaneId) => doc.songChain[lane][0] ?? doc.patterns[lane][0]!.id;
-  return { drums: first("drums"), bass: first("bass"), chords: first("chords"), lead: first("lead") };
+  const first = (lane: LaneId) =>
+    doc.songChain[lane][0] ?? doc.patterns[lane][0]!.id;
+  return {
+    drums: first("drums"),
+    bass: first("bass"),
+    chords: first("chords"),
+    lead: first("lead"),
+  };
 }
 
 const [activeLane, setActiveLane] = createSignal<LaneId>("drums");
-const [activePatterns, setActivePatterns] = createSignal<Record<LaneId, string>>(
-  defaultActivePatterns(),
-);
+const [activePatterns, setActivePatterns] = createSignal<
+  Record<LaneId, string>
+>(defaultActivePatterns());
 const [focusedCell, setFocusedCell] = createSignal<FocusedCell | null>(null);
 
 /**

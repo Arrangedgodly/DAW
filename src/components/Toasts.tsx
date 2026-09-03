@@ -18,9 +18,11 @@ function ToastCard(props: { toast: Toast }) {
         <p class="toast-message">{t().message}</p>
         {t().details && t().details!.length > 0 && (
           <ul class="toast-details">
-            {t().details!.slice(0, 3).map((line) => (
-              <li>{line}</li>
-            ))}
+            {t()
+              .details!.slice(0, 3)
+              .map((line) => (
+                <li>{line}</li>
+              ))}
           </ul>
         )}
         {t().suggestion && <p class="toast-suggestion">{t().suggestion}</p>}

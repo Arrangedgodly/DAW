@@ -13,7 +13,10 @@ import { ProjectValidationError } from "../src/document/validate";
 
 describe("migration framework", () => {
   it("v1 is identity: current-version docs pass through untouched", () => {
-    const doc = JSON.parse(JSON.stringify(createDefaultProject())) as Record<string, unknown>;
+    const doc = JSON.parse(JSON.stringify(createDefaultProject())) as Record<
+      string,
+      unknown
+    >;
     expect(migrate(doc)).toEqual(doc);
   });
 
@@ -30,13 +33,18 @@ describe("migration framework", () => {
   });
 
   it("refuses future versions", () => {
-    expect(() => migrate({ version: 2, name: "x" })).toThrow(/newer than supported/);
+    expect(() => migrate({ version: 2, name: "x" })).toThrow(
+      /newer than supported/,
+    );
   });
 
   it("applies a synthetic v0 → v1 migration ascending", () => {
     // Synthetic historical shape: a pre-release doc where lanes were called
     // "tracks" and there was no transport.metronome flag.
-    const v0 = JSON.parse(JSON.stringify(createDefaultProject())) as Record<string, unknown>;
+    const v0 = JSON.parse(JSON.stringify(createDefaultProject())) as Record<
+      string,
+      unknown
+    >;
     v0["version"] = 0;
     v0["tracks"] = v0["lanes"];
     delete v0["lanes"];
@@ -49,7 +57,10 @@ describe("migration framework", () => {
           ...rest,
           version: 1,
           lanes,
-          transport: { ...(doc["transport"] as Record<string, unknown>), metronome: false },
+          transport: {
+            ...(doc["transport"] as Record<string, unknown>),
+            metronome: false,
+          },
         };
       },
     };
@@ -57,7 +68,9 @@ describe("migration framework", () => {
     const migrated = migrateWith(registry, v0, 1);
     expect(migrated["version"]).toBe(1);
     expect(migrated["lanes"]).toBeDefined();
-    expect((migrated["transport"] as Record<string, unknown>)["metronome"]).toBe(false);
+    expect(
+      (migrated["transport"] as Record<string, unknown>)["metronome"],
+    ).toBe(false);
 
     // And the migrated doc now validates through the full codec pipeline.
     const revived = decode(JSON.stringify(migrated));
@@ -84,11 +97,15 @@ describe("migration framework", () => {
     const badRegistry: MigrationRegistry = {
       1: (doc) => ({ ...doc }), // forgot to stamp version 2
     };
-    expect(() => migrateWith(badRegistry, { version: 1 }, 2)).toThrow(/did not stamp/);
+    expect(() => migrateWith(badRegistry, { version: 1 }, 2)).toThrow(
+      /did not stamp/,
+    );
   });
 
   it("errors when a migration step is missing", () => {
-    expect(() => migrateWith({}, { version: 1 }, 2)).toThrow(/No migration registered/);
+    expect(() => migrateWith({}, { version: 1 }, 2)).toThrow(
+      /No migration registered/,
+    );
   });
 
   it("decode still validates strictly after migration (migrations are not a bypass)", () => {
@@ -97,6 +114,8 @@ describe("migration framework", () => {
     };
     const v0 = { version: 0 };
     const migrated = migrateWith(registry, v0, 1);
-    expect(() => decode(JSON.stringify(migrated))).toThrow(ProjectValidationError);
+    expect(() => decode(JSON.stringify(migrated))).toThrow(
+      ProjectValidationError,
+    );
   });
 });

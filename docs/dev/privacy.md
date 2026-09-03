@@ -3,7 +3,7 @@
 **Town-hall acceptance criterion 9:** "Zero network calls at runtime; no data
 leaves the device except explicit file exports."
 **Captain America's stance:** local-first forever; privacy is a first
-principle, not a feature. No telemetry — not "off by default", *absent*.
+principle, not a feature. No telemetry — not "off by default", _absent_.
 
 This document is the CA-1 record of how the guarantee is enforced, how it is
 tested, and what the app deliberately cannot do.
@@ -14,7 +14,7 @@ After the page's own module/asset loads, Bitbounce makes **zero** network
 requests of any kind:
 
 - No `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`,
-  `navigator.sendBeacon` calls — to any origin, *including same-origin*.
+  `navigator.sendBeacon` calls — to any origin, _including same-origin_.
 - No CDN assets, no remote fonts, no analytics, no error reporting, no
   update pings, no "phone home on boot".
 - The only sanctioned data egress is the user's **explicit file exports**
@@ -39,7 +39,7 @@ worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none';
 base-uri 'none'; form-action 'none'
 ```
 
-- **`connect-src 'none'`** is the core: it makes *any* fetch/XHR/WebSocket/
+- **`connect-src 'none'`** is the core: it makes _any_ fetch/XHR/WebSocket/
   EventSource/beacon unloadable — same-origin included. Even a future bug or
   a compromised dependency could not open a channel; the browser itself
   refuses.
@@ -48,7 +48,7 @@ base-uri 'none'; form-action 'none'
 - **`worker-src 'self'` is deliberately minimal.** The audio worklet module
   resolves to a plain same-origin asset URL in the built app
   (`src/audio/voiceEngine.ts`: `new URL("./worklets/voiceEngine.js",
-  import.meta.url)` → `/assets/voiceEngine-*.js`), so no `blob:` grant is
+import.meta.url)` → `/assets/voiceEngine-*.js`), so no `blob:` grant is
   needed. Do not add `blob:` here without re-justifying it.
 - `base-uri`/`form-action` `none` close the classic injection escape hatches
   (a smuggled `<base>` or form submit cannot exfiltrate anything).
@@ -61,9 +61,9 @@ policy; the served artifact users receive is never relaxed.
 
 ## How the tests guard it
 
-| Guard | File | What it proves |
-|---|---|---|
-| Policy guard | `tests/csp.test.ts` (unit) | `index.html` carries the exact canonical policy from `tests/csp-policy.ts` (single source of truth, no drift, no duplicate softer meta); also checks `dist/index.html` when present. |
+| Guard                | File                                           | What it proves                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Policy guard         | `tests/csp.test.ts` (unit)                     | `index.html` carries the exact canonical policy from `tests/csp-policy.ts` (single source of truth, no drift, no duplicate softer meta); also checks `dist/index.html` when present.                                                                                                                                             |
 | Zero-network journey | `tests/browser/zero-network.test.ts` (browser) | Runs the **real built bundle** (served same-origin via the browser project's `publicDir: "dist"`) in an iframe written with the exact CSP meta. Before any app code runs it installs recording shims for fetch/XHR/WebSocket/EventSource/sendBeacon, a `securitypolicyviolation` listener, and a `URL.createObjectURL` recorder. |
 
 The journey drives a full user session — boot → play 2 bars (playhead
@@ -72,12 +72,12 @@ EXPORT WAV (real offline render) → EXPORT MIDI → SAVE FILE → wait for the
 IndexedDB autosave flush — and then asserts:
 
 1. **Zero** fetch/XHR/WebSocket/EventSource/beacon calls, period.
-2. **Zero** CSP violations (an *attempted* forbidden load is as damning as a
+2. **Zero** CSP violations (an _attempted_ forbidden load is as damning as a
    completed one — the violation event fires either way).
 3. Every `performance.getEntriesByType("resource")` entry is same-origin
    (module, CSS, self-hosted fonts, worklet, on-demand export chunks).
 4. Exactly the expected blob downloads happened (the explicit exports) —
-   evidence the app still *works* under the policy rather than silently
+   evidence the app still _works_ under the policy rather than silently
    failing.
 
 The iframe approach exists because the dev pipeline strips the CSP meta (see
@@ -91,7 +91,7 @@ executes — only possible on a window the test creates itself.
 - Telemetry scan of the full dependency tree (206 installed packages):
   no `telemetry`/`analytics`/`sentry`/`segment`/`posthog`/`amplitude`/
   `mixpanel`/`datadog`/… packages. The only hit is `@opentelemetry/api`
-  listed as an **unmet optional** peer of vitest — it is *not installed*
+  listed as an **unmet optional** peer of vitest — it is _not installed_
   (`node_modules/@opentelemetry` does not exist) and vitest's tracing hooks
   never activate without it.
 - Source scan: no hardcoded `http(s)://` URLs and no network API usage

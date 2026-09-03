@@ -11,7 +11,12 @@
 
 import { AudioEngineContext, type AudioContextLike } from "../audio/context";
 import { Transport } from "../audio/transport";
-import { STEPS_PER_BEAT, STEPS_PER_BAR, clampSwing, stepIndexAtTime } from "../audio/time";
+import {
+  STEPS_PER_BEAT,
+  STEPS_PER_BAR,
+  clampSwing,
+  stepIndexAtTime,
+} from "../audio/time";
 import { type LaneSchedule, type LaneSegment } from "../audio/song";
 import { clamp } from "../lib/clamp";
 import {
@@ -44,7 +49,11 @@ import {
   type DrumPiece,
   type LaneId,
 } from "../document/schema";
-import { type EffectiveScale, degreeToMidi, toEffectiveScale } from "../document/scales";
+import {
+  type EffectiveScale,
+  degreeToMidi,
+  toEffectiveScale,
+} from "../document/scales";
 
 /** Audio-node surface the default metronome/master wiring needs. */
 interface AudioNodeContext extends AudioContextLike {
@@ -107,7 +116,8 @@ function sameStructure(a: LaneSchedule, b: LaneSchedule): boolean {
   if (a.segments.length !== b.segments.length) return false;
   return a.segments.every(
     (s, i) =>
-      s.patternId === b.segments[i].patternId && s.steps === b.segments[i].steps,
+      s.patternId === b.segments[i].patternId &&
+      s.steps === b.segments[i].steps,
   );
 }
 
@@ -120,7 +130,8 @@ function substituteInPlace(
   slot: LaneSegment,
   pattern: LaneSchedule,
 ): void {
-  for (let s = slot.startStep; s < slot.startStep + slot.steps; s++) byStep.delete(s);
+  for (let s = slot.startStep; s < slot.startStep + slot.steps; s++)
+    byStep.delete(s);
   for (const [step, events] of pattern.byStep) {
     byStep.set(step + slot.startStep, [...events]);
   }
@@ -191,7 +202,9 @@ export class Session {
    * effectiveScale(project, lane) here so audition matches what compilation
    * plays. Falls back to the document default (C minor) until connected.
    */
-  private laneScales: Partial<Record<Exclude<LaneId, "drums">, EffectiveScale>> = {};
+  private laneScales: Partial<
+    Record<Exclude<LaneId, "drums">, EffectiveScale>
+  > = {};
 
   constructor(opts: SessionOptions = {}) {
     this.engine = opts.engine ?? new AudioEngineContext();
@@ -468,10 +481,17 @@ export class Session {
     // ITERATION boundary ("iteration" mode — segment lengths change, so the
     // schedule is rebuilt there, never mid-iteration).
     const boundary = this.transport.snapshot.playing
-      ? this.nextBoundaryAfter(index, this.lastDeliveredStep, patternSchedule.chainSteps)
+      ? this.nextBoundaryAfter(
+          index,
+          this.lastDeliveredStep,
+          patternSchedule.chainSteps,
+        )
       : null;
-    if (boundary && boundary.mode === "boundary" &&
-        pb.schedule.segments[boundary.segment].patternId === patternId) {
+    if (
+      boundary &&
+      boundary.mode === "boundary" &&
+      pb.schedule.segments[boundary.segment].patternId === patternId
+    ) {
       // Switching to what the slot already plays = cancel any pending switch.
       pb.pendingSwitch = null;
       pb.substitutions.delete(boundary.segment);
@@ -508,14 +528,23 @@ export class Session {
       local = -1; // before anything: the first boundary is iteration step 0
       iterationStart = 0;
     } else {
-      local = ((fromStep - pb.anchorStep) % chainSteps + chainSteps) % chainSteps;
+      local =
+        (((fromStep - pb.anchorStep) % chainSteps) + chainSteps) % chainSteps;
       iterationStart = fromStep - local;
     }
     for (let i = 0; i < segments.length; i++) {
       if (segments[i].startStep > local) {
         return segments[i].steps === candidateSteps
-          ? { step: iterationStart + segments[i].startStep, segment: i, mode: "boundary" }
-          : { step: iterationStart + chainSteps, segment: 0, mode: "iteration" };
+          ? {
+              step: iterationStart + segments[i].startStep,
+              segment: i,
+              mode: "boundary",
+            }
+          : {
+              step: iterationStart + chainSteps,
+              segment: 0,
+              mode: "iteration",
+            };
       }
     }
     // Past the last segment: the next iteration's slot 0.
@@ -524,12 +553,16 @@ export class Session {
       : { step: iterationStart + chainSteps, segment: 0, mode: "iteration" };
   }
 
-  private applyDueSwitch(pb: (typeof this.lanePlayback)[number], step: number): void {
+  private applyDueSwitch(
+    pb: (typeof this.lanePlayback)[number],
+    step: number,
+  ): void {
     const pending = pb.pendingSwitch;
     if (!pending) return;
     // Must land exactly ON a segment boundary of the current schedule.
     const { chainSteps, segments } = pb.schedule;
-    const local = ((step - pb.anchorStep) % chainSteps + chainSteps) % chainSteps;
+    const local =
+      (((step - pb.anchorStep) % chainSteps) + chainSteps) % chainSteps;
     const segIndex = segments.findIndex((s) => s.startStep === local);
     const atBoundary = segIndex >= 0;
     const due =
@@ -577,7 +610,13 @@ export class Session {
           cursor += pending.schedule.chainSteps;
         } else {
           newSegments.push({ ...seg, startStep: cursor });
-          mergeShifted(byStep, pb.schedule.byStep, cursor, seg.startStep, seg.steps);
+          mergeShifted(
+            byStep,
+            pb.schedule.byStep,
+            cursor,
+            seg.startStep,
+            seg.steps,
+          );
           cursor += seg.steps;
         }
       });
@@ -619,7 +658,11 @@ export class Session {
     this.setLaneSchedule(laneId, {
       chainSteps: patternSteps,
       segments: [
-        { patternId: this.getActivePattern(laneId) ?? "pattern", startStep: 0, steps: patternSteps },
+        {
+          patternId: this.getActivePattern(laneId) ?? "pattern",
+          startStep: 0,
+          steps: patternSteps,
+        },
       ],
       byStep,
     });
@@ -657,10 +700,16 @@ export class Session {
         }
         this.applyDueSwitch(pb, step);
         // Recompute local: a rebuild switch may have re-anchored.
-        local = ((step - pb.anchorStep) % pb.schedule.chainSteps + pb.schedule.chainSteps) %
+        local =
+          (((step - pb.anchorStep) % pb.schedule.chainSteps) +
+            pb.schedule.chainSteps) %
           pb.schedule.chainSteps;
         const events = pb.schedule.byStep.get(local);
-        if (events) host.sendEvents(i, events.map((e) => ({ ...e, time: when })));
+        if (events)
+          host.sendEvents(
+            i,
+            events.map((e) => ({ ...e, time: when })),
+          );
       }
     });
   }
@@ -675,7 +724,10 @@ export class Session {
   }
 
   /** Set the effective scale a pitched lane auditions in (engineBridge). */
-  setLaneScale(laneId: Exclude<LaneId, "drums">, scale: EffectiveScale | null): void {
+  setLaneScale(
+    laneId: Exclude<LaneId, "drums">,
+    scale: EffectiveScale | null,
+  ): void {
     if (scale === null) delete this.laneScales[laneId];
     else this.laneScales[laneId] = scale;
   }
@@ -687,7 +739,10 @@ export class Session {
    * lane's effective scale (chord lanes trigger the diatonic triad, matching
    * compileLaneEvents' stackChord semantics).
    */
-  async audition(laneId: LaneId, degreeOrDrum: number | DrumPiece): Promise<void> {
+  async audition(
+    laneId: LaneId,
+    degreeOrDrum: number | DrumPiece,
+  ): Promise<void> {
     await this.engine.unlock();
     const host = await this.ensureVoiceEngine();
     if (!host) return;
@@ -710,14 +765,18 @@ export class Session {
     if (laneId === "drums") {
       const kit = this.resolveDrumKit();
       const pieceName =
-        typeof degreeOrDrum === "string" && (DRUM_PIECES as readonly string[]).includes(degreeOrDrum)
+        typeof degreeOrDrum === "string" &&
+        (DRUM_PIECES as readonly string[]).includes(degreeOrDrum)
           ? (degreeOrDrum as DrumPiece)
           : "kick";
       const piece = kit.pieces[pieceName];
       return [
         noteParamsFor(piece, {
           time: when,
-          holdSeconds: Math.max(piece.envelope.attack + piece.envelope.decay, 0.05),
+          holdSeconds: Math.max(
+            piece.envelope.attack + piece.envelope.decay,
+            0.05,
+          ),
           seedSalt: DRUM_PIECES.indexOf(pieceName),
         }),
       ];
@@ -726,7 +785,8 @@ export class Session {
     const degree = typeof degreeOrDrum === "number" ? degreeOrDrum : 0;
     // Lane's effective scale when connected; the project default (C minor)
     // before the engineBridge pushes the document's scale.
-    const scale = this.laneScales[laneId] ?? toEffectiveScale({ root: 0, mode: "minor" });
+    const scale =
+      this.laneScales[laneId] ?? toEffectiveScale({ root: 0, mode: "minor" });
     const octaveBase = preset.pitchRange?.octaveBase ?? 4;
     // Chord lanes audition the diatonic triad, one voice per chord tone.
     const offsets = laneId === "chords" ? [0, 2, 4] : [0];
@@ -750,9 +810,7 @@ export class Session {
       chords: "preset-chords-1",
       lead: "preset-lead-1",
     };
-    return (
-      getPreset(this.laneSounds[laneId]) ?? getPreset(fallback[laneId])!
-    );
+    return getPreset(this.laneSounds[laneId]) ?? getPreset(fallback[laneId])!;
   }
 
   // -------------------------------------------------------------------------
@@ -812,7 +870,8 @@ export class Session {
     const chain = new FxChainHost({
       // Adapter: the voice-engine host owns the per-lane worklet node.
       source: {
-        connect: (destination: FxConn) => host.connect(laneIndex, destination as AudioNode),
+        connect: (destination: FxConn) =>
+          host.connect(laneIndex, destination as AudioNode),
         disconnect: () => undefined,
       },
       sink: laneGain,
@@ -865,7 +924,8 @@ export class Session {
    * committed soft-clip stage (D2-D4; landed with PX-1) - the same node the
    * offline render master uses (parity law).
    */
-  private ensureMaster(): GainNode | null {    if (this.master) return this.master;
+  private ensureMaster(): GainNode | null {
+    if (this.master) return this.master;
     const ctx = this.engine.getContext();
     if (!hasAudioNodes(ctx)) return null;
     const gain = ctx.createGain();

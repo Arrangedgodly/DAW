@@ -40,7 +40,11 @@ import {
   Show,
   type JSX,
 } from "solid-js";
-import { CUE_MAX_CHARS, type LaneId, type PatternBars } from "../document/schema";
+import {
+  CUE_MAX_CHARS,
+  type LaneId,
+  type PatternBars,
+} from "../document/schema";
 import { LANE_NAMES } from "./laneMeta";
 import { getSession } from "../engine/session";
 import { requestPatternSwitch } from "../state/engineBridge";
@@ -110,9 +114,15 @@ function InlineEdit(props: {
 }
 
 function LaneRail(props: { lane: LaneId }): JSX.Element {
-  const [tiles, setTiles] = createSignal(railTiles(docStore.getState().doc, props.lane));
-  const [pool, setPool] = createSignal(patternPool(docStore.getState().doc, props.lane));
-  const [playing, setPlaying] = createSignal(session.transport.snapshot.playing);
+  const [tiles, setTiles] = createSignal(
+    railTiles(docStore.getState().doc, props.lane),
+  );
+  const [pool, setPool] = createSignal(
+    patternPool(docStore.getState().doc, props.lane),
+  );
+  const [playing, setPlaying] = createSignal(
+    session.transport.snapshot.playing,
+  );
   const [switchVersion, setSwitchVersion] = createSignal(0);
   const [structurePending, setStructurePending] = createSignal(false);
   const [focusedSlot, setFocusedSlot] = createSignal(0);
@@ -131,10 +141,14 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       ) {
         setTiles(railTiles(state.doc, props.lane));
         setPool(patternPool(state.doc, props.lane));
-        setFocusedSlot((f) => Math.min(f, Math.max(0, state.doc.songChain[props.lane].length - 1)));
+        setFocusedSlot((f) =>
+          Math.min(f, Math.max(0, state.doc.songChain[props.lane].length - 1)),
+        );
       }
     });
-    const unsubTransport = session.subscribe((snap) => setPlaying(snap.playing));
+    const unsubTransport = session.subscribe((snap) =>
+      setPlaying(snap.playing),
+    );
     const unsubSwitch = session.subscribeSwitches(() => {
       setSwitchVersion((v) => v + 1);
       setStructurePending(session.hasPendingSchedule(props.lane));
@@ -151,7 +165,8 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   createEffect(() => {
     void switchVersion();
     const pending = session.getPendingSwitch(props.lane);
-    if (pending) setAnnounce(pendingAnnouncement(LANE_NAMES[props.lane], pending));
+    if (pending)
+      setAnnounce(pendingAnnouncement(LANE_NAMES[props.lane], pending));
     else if (session.hasPendingSchedule(props.lane)) {
       setAnnounce(structurePendingAnnouncement(LANE_NAMES[props.lane]));
     } else {
@@ -215,12 +230,16 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       const next = clampSlot(count, tile.slot, e.key === "ArrowRight" ? 1 : -1);
       setFocusedSlot(next);
       const row = (e.currentTarget as HTMLElement).parentElement;
-      const tileButtons = row ? row.querySelectorAll<HTMLButtonElement>(".rail-tile") : [];
+      const tileButtons = row
+        ? row.querySelectorAll<HTMLButtonElement>(".rail-tile")
+        : [];
       tileButtons[next]?.focus();
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       if (removeChainSlot(props.lane, tile.slot)) {
-        setAnnounce(`${LANE_NAMES[props.lane]}: removed chain slot ${tile.slot + 1}`);
+        setAnnounce(
+          `${LANE_NAMES[props.lane]}: removed chain slot ${tile.slot + 1}`,
+        );
         // DA-3: the tile row rebuilds on chain edits — move focus to the tile
         // now occupying this slot (or the new last tile) instead of stranding
         // it on <body>.
@@ -238,10 +257,16 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       e.preventDefault();
       const wasLast = tile.slot === tiles().length - 1;
       appendChainSlot(props.lane, selectedId());
-      setAnnounce(`${LANE_NAMES[props.lane]}: appended chain slot ${tiles().length + 1}`);
+      setAnnounce(
+        `${LANE_NAMES[props.lane]}: appended chain slot ${tiles().length + 1}`,
+      );
       // The row rebuilds on chain edits — hand focus to the appended tile
       // (or stay on this slot) so focus is never stranded on <body>.
-      focusSlotAfterEdit(wasLast ? docStore.getState().doc.songChain[props.lane].length - 1 : tile.slot);
+      focusSlotAfterEdit(
+        wasLast
+          ? docStore.getState().doc.songChain[props.lane].length - 1
+          : tile.slot,
+      );
     } else if (e.key === "Escape") {
       // DA-3 (spec gap fix): Escape pops to the rail head (the view toggle),
       // matching the region-head law in docs/dev/keyboard.md.
@@ -268,7 +293,11 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     >
       <span class="rail-lane-name">{LANE_NAMES[props.lane]}</span>
 
-      <div class="rail-tiles" role="group" aria-label={`${LANE_NAMES[props.lane]} song chain`}>
+      <div
+        class="rail-tiles"
+        role="group"
+        aria-label={`${LANE_NAMES[props.lane]} song chain`}
+      >
         <For each={tiles()}>
           {(tile) => (
             <button
@@ -282,7 +311,10 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               onKeyDown={(e) => tileKeyDown(e, tile)}
             >
               <Show
-                when={editing()?.kind === "cue" && (editing() as { slot: number }).slot === tile.slot}
+                when={
+                  editing()?.kind === "cue" &&
+                  (editing() as { slot: number }).slot === tile.slot
+                }
               >
                 <InlineEdit
                   initial={tile.cue ?? ""}
@@ -306,7 +338,9 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               <span class="rail-tile-name">{tile.name}</span>
               <span class="rail-tile-bars">{tile.bars}B</span>
               <Show when={stateFor(tile) === "pending"}>
-                <span class="rail-tile-flag" aria-hidden="true">◆</span>
+                <span class="rail-tile-flag" aria-hidden="true">
+                  ◆
+                </span>
               </Show>
             </button>
           )}
@@ -320,11 +354,17 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
           +
         </button>
         <Show when={structurePending()}>
-          <span class="rail-struct-flag" role="status">CHAIN EDIT QUEUED</span>
+          <span class="rail-struct-flag" role="status">
+            CHAIN EDIT QUEUED
+          </span>
         </Show>
       </div>
 
-      <div class="rail-tools" role="group" aria-label={`${LANE_NAMES[props.lane]} pattern tools`}>
+      <div
+        class="rail-tools"
+        role="group"
+        aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+      >
         <Show
           when={editing()?.kind === "name"}
           fallback={
@@ -339,7 +379,9 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
           }
         >
           <InlineEdit
-            initial={pool().find((p) => p.patternId === selectedId())?.name ?? ""}
+            initial={
+              pool().find((p) => p.patternId === selectedId())?.name ?? ""
+            }
             maxChars={8}
             label={`Name for ${LANE_NAMES[props.lane]} selected pattern`}
             onCommit={(v) => {
@@ -401,9 +443,7 @@ export default function PatternRail(): JSX.Element {
           {viewMode() === "chain" ? "COLLAPSE TO PATTERN" : "EXPAND TO CHAIN"}
         </button>
       </div>
-      <For each={LANES}>
-        {(lane) => <LaneRail lane={lane} />}
-      </For>
+      <For each={LANES}>{(lane) => <LaneRail lane={lane} />}</For>
     </section>
   );
 }

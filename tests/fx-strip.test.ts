@@ -73,14 +73,24 @@ describe("fxStrip module list (render model)", () => {
   });
 
   it("covers exactly the five world-vocabulary device types", () => {
-    expect(FX_DEVICE_TYPES).toEqual(["filter", "drive", "bitcrusher", "delay", "reverb"]);
+    expect(FX_DEVICE_TYPES).toEqual([
+      "filter",
+      "drive",
+      "bitcrusher",
+      "delay",
+      "reverb",
+    ]);
   });
 
   it("flags chain-full at the 3-device cap", () => {
     expect(fxChainFull([])).toBe(false);
     expect(fxChainFull([defaultFxDevice("drive")])).toBe(false);
     expect(
-      fxChainFull([defaultFxDevice("drive"), defaultFxDevice("drive"), defaultFxDevice("drive")]),
+      fxChainFull([
+        defaultFxDevice("drive"),
+        defaultFxDevice("drive"),
+        defaultFxDevice("drive"),
+      ]),
     ).toBe(true);
   });
 });
@@ -121,9 +131,9 @@ describe("fxStrip slider mappings + readout formatting", () => {
   it("log-maps cutoff both ways inside the schema range", () => {
     for (const hzValue of [20, 100, 440, 8000, 20000]) {
       // Log slider granularity is 1/1000 of a decade → ≤0.25 % round-trip.
-      expect(Math.abs(sliderToCutoff(cutoffToSlider(hzValue)) - hzValue)).toBeLessThanOrEqual(
-        Math.max(1, hzValue * 0.01),
-      );
+      expect(
+        Math.abs(sliderToCutoff(cutoffToSlider(hzValue)) - hzValue),
+      ).toBeLessThanOrEqual(Math.max(1, hzValue * 0.01));
     }
     // Slider extremes clamp to the schema bounds.
     expect(sliderToCutoff(-5)).toBe(20);
@@ -162,7 +172,11 @@ describe("store FX actions", () => {
     expect(addFxDevice("bass", "delay")).toBe(true);
     expect(addFxDevice("bass", "reverb")).toBe(true);
     expect(addFxDevice("bass", "drive")).toBe(false);
-    expect(chain("bass").map((d) => d.type)).toEqual(["filter", "delay", "reverb"]);
+    expect(chain("bass").map((d) => d.type)).toEqual([
+      "filter",
+      "delay",
+      "reverb",
+    ]);
   });
 
   it("adds schema-valid defaults", () => {
@@ -191,7 +205,11 @@ describe("store FX actions", () => {
     addFxDevice("bass", "reverb");
     const before = doc();
     moveFxDevice("bass", 0, 99); // clamps to end
-    expect(chain("bass").map((d) => d.type)).toEqual(["drive", "reverb", "filter"]);
+    expect(chain("bass").map((d) => d.type)).toEqual([
+      "drive",
+      "reverb",
+      "filter",
+    ]);
     const mid = doc();
     moveFxDevice("bass", 1, 1); // no-op
     expect(doc()).toBe(mid);
@@ -215,7 +233,9 @@ describe("store FX actions", () => {
       mix: 0.35,
     });
     setFxParam("bass", 0, "timeSteps", 4); // choice select → numeric
-    expect((chain("bass")[0]!.params as { timeSteps: number }).timeSteps).toBe(4);
+    expect((chain("bass")[0]!.params as { timeSteps: number }).timeSteps).toBe(
+      4,
+    );
     const before = doc();
     expect(() => setFxParam("bass", 0, "feedback", 2)).toThrow(); // > 0.95
     expect(doc()).toBe(before); // store untouched
@@ -228,7 +248,9 @@ describe("store FX actions", () => {
     setFxParam("bass", 0, "amount", 0.4);
     setFxParam("bass", 0, "amount", 0.6);
     undo(); // one undo returns to the pre-gesture state
-    expect((chain("bass")[0]!.params as { amount: number }).amount).toBeCloseTo(0.3);
+    expect((chain("bass")[0]!.params as { amount: number }).amount).toBeCloseTo(
+      0.3,
+    );
     undo(); // the add is still one more step
     expect(chain("bass")).toHaveLength(0);
     expect(canUndo()).toBe(false);
@@ -285,27 +307,31 @@ describe("engineBridge pushes fx edits live (IM-4)", () => {
 
     addFxDevice("bass", "filter");
     expect(session.chains.get("bass")).toHaveLength(1);
-    expect((session.chains.get("bass") as { type: string }[])[0]!.type).toBe("filter");
+    expect((session.chains.get("bass") as { type: string }[])[0]!.type).toBe(
+      "filter",
+    );
 
     setFxParam("bass", 0, "cutoffHz", 1200);
     expect(
-      (session.chains.get("bass") as { params: { cutoffHz: number } }[])[0]!.params.cutoffHz,
+      (session.chains.get("bass") as { params: { cutoffHz: number } }[])[0]!
+        .params.cutoffHz,
     ).toBe(1200);
 
     setFxBypassed("bass", 0, true);
-    expect((session.chains.get("bass") as { bypassed: boolean }[])[0]!.bypassed).toBe(true);
+    expect(
+      (session.chains.get("bass") as { bypassed: boolean }[])[0]!.bypassed,
+    ).toBe(true);
 
     addFxDevice("bass", "delay");
     moveFxDevice("bass", 0, 1);
-    expect((session.chains.get("bass") as { type: string }[]).map((d) => d.type)).toEqual([
-      "delay",
-      "filter",
-    ]);
+    expect(
+      (session.chains.get("bass") as { type: string }[]).map((d) => d.type),
+    ).toEqual(["delay", "filter"]);
 
     removeFxDevice("bass", 0);
-    expect((session.chains.get("bass") as { type: string }[]).map((d) => d.type)).toEqual([
-      "filter",
-    ]);
+    expect(
+      (session.chains.get("bass") as { type: string }[]).map((d) => d.type),
+    ).toEqual(["filter"]);
 
     disconnect();
   });

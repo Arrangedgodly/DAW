@@ -51,11 +51,7 @@ export function pulseValue(phase: number, duty: number): number {
  * rising edge (phase 0) and the falling edge (phase = duty).
  * `dt` = freq / sampleRate.
  */
-export function pulseSample(
-  phase: number,
-  duty: number,
-  dt: number,
-): number {
+export function pulseSample(phase: number, duty: number, dt: number): number {
   let v = pulseValue(phase, duty);
   v += polyblep(phase, dt);
   const tFall = phase - duty + 1; // phase past the falling edge, [1-duty, 1+... )

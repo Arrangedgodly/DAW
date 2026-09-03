@@ -43,14 +43,23 @@ function duckableSession() {
     },
     createGain: () => master as unknown as GainNode,
     createWaveShaper: () =>
-      ({ connect: () => undefined, curve: null, oversample: "none" }) as unknown as WaveShaperNode,
+      ({
+        connect: () => undefined,
+        curve: null,
+        oversample: "none",
+      }) as unknown as WaveShaperNode,
   };
   const session = new Session({
     engine: new AudioEngineContext(() => ctx),
     playTickSound: () => undefined,
     cancelTickSounds: () => undefined,
   });
-  return { session, gain, ensureMaster: () => (session as unknown as { ensureMaster: () => GainNode }).ensureMaster() };
+  return {
+    session,
+    gain,
+    ensureMaster: () =>
+      (session as unknown as { ensureMaster: () => GainNode }).ensureMaster(),
+  };
 }
 
 describe("Session.duckMaster (HU-2 pop guard)", () => {
@@ -98,7 +107,9 @@ describe("voice-steal stats (HU-2, dev-only by design)", () => {
   });
 
   it("togglePlay's start branch resets the counter (source-verified wiring)", () => {
-    expect(Session.prototype.togglePlay.toString()).toContain("resetVoiceStealCount");
+    expect(Session.prototype.togglePlay.toString()).toContain(
+      "resetVoiceStealCount",
+    );
   });
 
   it("the worklet reports steals (source-verified: busy-voice branch posts)", async () => {

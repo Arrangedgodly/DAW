@@ -26,7 +26,10 @@ export type AutosaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 /** The narrow store seam (zustand/vanilla docStore satisfies this). */
 export interface DocStoreLike {
   subscribe(
-    listener: (state: { doc: ProjectDocument }, prev: { doc: ProjectDocument }) => void,
+    listener: (
+      state: { doc: ProjectDocument },
+      prev: { doc: ProjectDocument },
+    ) => void,
   ): () => void;
   getState(): { doc: ProjectDocument };
 }
@@ -40,7 +43,10 @@ export interface AutosaveOptions {
   readonly intervalMs?: number;
   readonly store?: DocStoreLike;
   /** Window-like event target for flush-on-hide; omit in tests. */
-  readonly windowImpl?: Pick<Window, "addEventListener" | "removeEventListener">;
+  readonly windowImpl?: Pick<
+    Window,
+    "addEventListener" | "removeEventListener"
+  >;
   readonly onStatus?: (status: AutosaveStatus) => void;
   /** Clock for `updatedAt` stamps (tests). */
   readonly now?: () => number;
@@ -117,7 +123,8 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
       const doc = store!.getState().doc;
       const existing = await db.getRecord(projectId);
       // Keep the last SAVED json; only the flag and mtime move.
-      const record = existing ?? makeRecord(projectId, doc, encode(doc), now(), true);
+      const record =
+        existing ?? makeRecord(projectId, doc, encode(doc), now(), true);
       await db.putRecord({ ...record, dirty: true, updatedAt: now() });
     }).catch(() => undefined);
   }
@@ -149,7 +156,9 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
     setStatus("saving");
     try {
       await enqueue(async () => {
-        await db.putRecord(makeRecord(projectId, doc, encode(doc), now(), false));
+        await db.putRecord(
+          makeRecord(projectId, doc, encode(doc), now(), false),
+        );
       });
       savedHash = hash;
       lastSaved = { at: now(), hash };
@@ -165,7 +174,10 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
     }
   }
 
-  function onCommit(state: { doc: ProjectDocument }, prev: { doc: ProjectDocument }): void {
+  function onCommit(
+    state: { doc: ProjectDocument },
+    prev: { doc: ProjectDocument },
+  ): void {
     if (state.doc === prev.doc) return;
     const hash = contentHash(state.doc);
     if (hash === savedHash) {
@@ -229,7 +241,10 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
       intervalTimer = null;
     }
     unsubscribe?.();
-    opts.windowImpl?.removeEventListener("visibilitychange", onVisibilityChange);
+    opts.windowImpl?.removeEventListener(
+      "visibilitychange",
+      onVisibilityChange,
+    );
     opts.windowImpl?.removeEventListener("pagehide", onHidden);
     if (pending) await flush().catch(() => undefined);
   }

@@ -47,7 +47,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
   border-radius: 3px;
   width: 20px;
   height: 20px;
@@ -91,7 +92,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
   padding: 4px 8px;
   cursor: pointer;
@@ -134,7 +136,8 @@
   flex-direction: column;
   gap: var(--space-4);
   background: var(--color-ground);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   border-radius: 6px;
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
@@ -161,7 +164,8 @@
   font: var(--text-value);
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
   border-radius: 3px;
   padding: 4px 0;
   cursor: pointer;
@@ -179,7 +183,8 @@
   gap: var(--space-1);
   max-height: 168px;
   overflow-y: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground)) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+    transparent;
 }
 
 .scale-pop-mode {
@@ -189,7 +194,8 @@
   text-align: left;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
   border-radius: 3px;
   padding: 4px 8px;
   cursor: pointer;
@@ -231,7 +237,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
   padding: 6px 8px;
   cursor: pointer;

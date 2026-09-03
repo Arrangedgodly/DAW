@@ -63,12 +63,16 @@ export default function Projects(): JSX.Element {
       }
     };
     document.addEventListener("keydown", onDocKeydown, true);
-    onCleanup(() => document.removeEventListener("keydown", onDocKeydown, true));
+    onCleanup(() =>
+      document.removeEventListener("keydown", onDocKeydown, true),
+    );
   });
 
   function focusables(): HTMLElement[] {
     if (!panel) return [];
-    return Array.from(panel.querySelectorAll<HTMLElement>("button:not([disabled])"));
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>("button:not([disabled])"),
+    );
   }
 
   const handleKeydown = (e: KeyboardEvent) => {
@@ -116,7 +120,8 @@ export default function Projects(): JSX.Element {
       close();
     } catch {
       showError(`Could not open "${meta.name}".`, {
-        suggestion: "Your current project is untouched — the row may be damaged.",
+        suggestion:
+          "Your current project is untouched — the row may be damaged.",
       });
     } finally {
       setBusy(false);
@@ -133,7 +138,9 @@ export default function Projects(): JSX.Element {
       // document lands, so the old row can never receive the new bytes.
       await switchToProject(record.id);
       loadDocument(doc);
-      showSuccess("NEW PROJECT READY", { suggestion: "Pick a preset, paint the grid." });
+      showSuccess("NEW PROJECT READY", {
+        suggestion: "Pick a preset, paint the grid.",
+      });
       close();
     } catch {
       showError("Could not start a new project.", {
@@ -162,7 +169,9 @@ export default function Projects(): JSX.Element {
       const { exportWav } = await import("../audio/exportWav");
       const result = await exportWav(docStore.getState().doc);
       if (result.ok) {
-        showSuccess(`WAV EXPORTED · ${result.bars} BAR${result.bars === 1 ? "" : "S"}`);
+        showSuccess(
+          `WAV EXPORTED · ${result.bars} BAR${result.bars === 1 ? "" : "S"}`,
+        );
       } else {
         showError(result.message, { suggestion: result.suggestion });
       }
@@ -250,14 +259,20 @@ export default function Projects(): JSX.Element {
                   <button
                     type="button"
                     class="projects-item"
-                    classList={{ "is-current": meta.id === getActiveProjectId() }}
-                    aria-current={meta.id === getActiveProjectId() ? "true" : undefined}
+                    classList={{
+                      "is-current": meta.id === getActiveProjectId(),
+                    }}
+                    aria-current={
+                      meta.id === getActiveProjectId() ? "true" : undefined
+                    }
                     disabled={busy()}
                     onClick={() => void handleOpenProject(meta)}
                   >
                     <span class="projects-name">{meta.name}</span>
                     <span class="projects-when">
-                      {meta.dirty ? "unsaved" : relativeTime(meta.updatedAt, Date.now())}
+                      {meta.dirty
+                        ? "unsaved"
+                        : relativeTime(meta.updatedAt, Date.now())}
                     </span>
                   </button>
                 </li>
@@ -302,14 +317,15 @@ export default function Projects(): JSX.Element {
               disabled={busy()}
               onClick={() => fileInput?.click()}
             >
-            OPEN FILE
-          </button>
+              OPEN FILE
+            </button>
           </div>
           {/* R3 (DES-7): the MIDI-limitation note, in-world silkscreen copy —
               GM programs are hint-only, so the same file sounds different in
               any other DAW's instruments. Lives with the button it qualifies. */}
           <p class="projects-note">
-            MIDI CARRIES NOTES + CUES, NOT THIS SYNTH — SOUNDS VARY IN OTHER DAWS
+            MIDI CARRIES NOTES + CUES, NOT THIS SYNTH — SOUNDS VARY IN OTHER
+            DAWS
           </p>
         </div>
       )}

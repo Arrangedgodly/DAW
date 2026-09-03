@@ -62,23 +62,41 @@ function valibotIssues(error: unknown): string[] {
  * them). Reject them explicitly, at every level, before schema parsing:
  * a validated document must never carry a prototype-chain-shaped own key.
  */
-const DANGEROUS_OWN_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+const DANGEROUS_OWN_KEYS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 
-function dangerousKeyIssues(input: unknown, path: string, issues: string[], depth: number): void {
+function dangerousKeyIssues(
+  input: unknown,
+  path: string,
+  issues: string[],
+  depth: number,
+): void {
   if (depth > 64) {
     issues.push(`${path}: nesting deeper than 64 levels before validation`);
     return;
   }
   if (Array.isArray(input)) {
-    input.forEach((el, i) => dangerousKeyIssues(el, `${path}.${i}`, issues, depth + 1));
+    input.forEach((el, i) =>
+      dangerousKeyIssues(el, `${path}.${i}`, issues, depth + 1),
+    );
     return;
   }
   if (input === null || typeof input !== "object") return;
   for (const key of Object.keys(input)) {
     if (DANGEROUS_OWN_KEYS.has(key)) {
-      issues.push(`${path}.${key}: forbidden own key '${key}' (prototype-pollution vector)`);
+      issues.push(
+        `${path}.${key}: forbidden own key '${key}' (prototype-pollution vector)`,
+      );
     }
-    dangerousKeyIssues((input as Record<string, unknown>)[key], `${path}.${key}`, issues, depth + 1);
+    dangerousKeyIssues(
+      (input as Record<string, unknown>)[key],
+      `${path}.${key}`,
+      issues,
+      depth + 1,
+    );
   }
 }
 
@@ -105,7 +123,10 @@ export function validateProject(input: unknown): ProjectDocument {
   const doc = result.output as ProjectDocument;
   const issues = semanticIssues(doc);
   if (issues.length > 0) {
-    throw new ProjectValidationError(`Invalid project document (${issues.length} issues)`, issues);
+    throw new ProjectValidationError(
+      `Invalid project document (${issues.length} issues)`,
+      issues,
+    );
   }
   return canonicalizeCues(normalizeProject(doc));
 }
@@ -119,15 +140,18 @@ function semanticIssues(doc: ProjectDocument): string[] {
 
   // Lanes: fixed order, exact set.
   doc.lanes.forEach((lane, i) => {
-    if (lane.id !== LANE_IDS[i]) issues.push(`lanes.${i}.id: expected '${LANE_IDS[i]}', got '${lane.id}'`);
+    if (lane.id !== LANE_IDS[i])
+      issues.push(`lanes.${i}.id: expected '${LANE_IDS[i]}', got '${lane.id}'`);
   });
 
   // Scale + overrides name known modes.
-  if (!isModeName(doc.scale.mode)) issues.push(`scale.mode: unknown mode '${doc.scale.mode}'`);
+  if (!isModeName(doc.scale.mode))
+    issues.push(`scale.mode: unknown mode '${doc.scale.mode}'`);
   if (doc.laneOverrides) {
     for (const laneId of LANE_IDS) {
       const o = doc.laneOverrides[laneId];
-      if (o && !isModeName(o.mode)) issues.push(`laneOverrides.${laneId}.mode: unknown mode '${o.mode}'`);
+      if (o && !isModeName(o.mode))
+        issues.push(`laneOverrides.${laneId}.mode: unknown mode '${o.mode}'`);
     }
   }
 
@@ -138,15 +162,21 @@ function semanticIssues(doc: ProjectDocument): string[] {
     const seen = new Set<string>();
     patterns.forEach((p, i) => {
       if (p.kind !== expectedKind) {
-        issues.push(`patterns.${laneId}.${i}.kind: expected '${expectedKind}', got '${p.kind}'`);
+        issues.push(
+          `patterns.${laneId}.${i}.kind: expected '${expectedKind}', got '${p.kind}'`,
+        );
       }
-      if (seen.has(p.id)) issues.push(`patterns.${laneId}.${i}.id: duplicate pattern id '${p.id}'`);
+      if (seen.has(p.id))
+        issues.push(
+          `patterns.${laneId}.${i}.id: duplicate pattern id '${p.id}'`,
+        );
       seen.add(p.id);
     });
 
     // Song chain references must exist in that lane's patterns.
     doc.songChain[laneId].forEach((id, i) => {
-      if (!seen.has(id)) issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
+      if (!seen.has(id))
+        issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
     });
 
     // DES-6 cue labels are positional: one entry per chain slot (parallel array).
@@ -194,13 +224,18 @@ function normalizePitchedPattern(p: PitchedPattern): PitchedPattern {
   const rows = p.rows.map((row) => {
     if (row.steps.length === p.bars * STEPS_PER_BAR) return row;
     changed = true;
-    return { ...row, steps: fitSteps(row.steps, p.bars, 0 satisfies PitchedCell) };
+    return {
+      ...row,
+      steps: fitSteps(row.steps, p.bars, 0 satisfies PitchedCell),
+    };
   });
   return changed ? { ...p, rows } : p;
 }
 
 function normalizePattern(p: Pattern): Pattern {
-  return p.kind === "drums" ? normalizeDrumPattern(p) : normalizePitchedPattern(p);
+  return p.kind === "drums"
+    ? normalizeDrumPattern(p)
+    : normalizePitchedPattern(p);
 }
 
 /**
@@ -215,7 +250,9 @@ export function normalizeProject(doc: ProjectDocument): ProjectDocument {
     const source = doc.patterns[laneId];
     const normalized = source.map(normalizePattern);
     // Keep array identity per lane when every pattern survived unchanged.
-    patterns[laneId] = normalized.some((p, i) => p !== source[i]) ? normalized : (source as Pattern[]);
+    patterns[laneId] = normalized.some((p, i) => p !== source[i])
+      ? normalized
+      : (source as Pattern[]);
     if (patterns[laneId] !== source) changed = true;
   }
   return changed ? { ...doc, patterns } : doc;
@@ -241,9 +278,12 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
         return null;
       }
       anyLabel = true;
-      return trimmed === label ? label : (changed = true, trimmed);
+      return trimmed === label ? label : ((changed = true), trimmed);
     });
   }
-  if (!anyLabel) return changed || doc.chainCues !== null ? { ...doc, chainCues: null } : doc;
+  if (!anyLabel)
+    return changed || doc.chainCues !== null
+      ? { ...doc, chainCues: null }
+      : doc;
   return changed ? { ...doc, chainCues: next } : doc;
 }

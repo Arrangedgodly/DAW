@@ -47,7 +47,10 @@ export function euclid(pulses: number, steps: number, rotation = 0): boolean[] {
 }
 
 /** True when two patterns are element-wise equal (length must match). */
-export function patternEquals(a: readonly boolean[], b: readonly boolean[]): boolean {
+export function patternEquals(
+  a: readonly boolean[],
+  b: readonly boolean[],
+): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;

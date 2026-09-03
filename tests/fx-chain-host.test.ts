@@ -111,9 +111,9 @@ function harness(devices: readonly FxDevice[]): Harness {
     ramp,
     created,
     devices() {
-      return (host as unknown as { wired: { instance: FakeDevice }[] }).wired.map(
-        (w) => w.instance,
-      );
+      return (
+        host as unknown as { wired: { instance: FakeDevice }[] }
+      ).wired.map((w) => w.instance);
     },
   };
   return h;

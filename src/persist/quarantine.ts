@@ -9,7 +9,12 @@
  * RECOVER toast action) — a non-destructive recovery path.
  */
 
-import { FILE_EXTENSION, downloadTextFile, safeFileStem, type DownloadSeam } from "./fileIO";
+import {
+  FILE_EXTENSION,
+  downloadTextFile,
+  safeFileStem,
+  type DownloadSeam,
+} from "./fileIO";
 import type { ProjectDb, ProjectRecord } from "./db";
 
 export const QUARANTINE_MARK = ".corrupt";
@@ -75,5 +80,9 @@ export function exportQuarantinedBytes(
   quarantine: Pick<QuarantineResult, "name" | "json">,
   seam?: DownloadSeam,
 ): string {
-  return downloadTextFile(quarantineFilename(quarantine.name), quarantine.json, seam);
+  return downloadTextFile(
+    quarantineFilename(quarantine.name),
+    quarantine.json,
+    seam,
+  );
 }

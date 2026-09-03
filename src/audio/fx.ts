@@ -65,7 +65,10 @@ export function reverbSeconds(size: number): number {
 
 export interface ImpulseResponse {
   /** Two decorrelated channels (L/R) of the same decay envelope. */
-  readonly channels: readonly [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>];
+  readonly channels: readonly [
+    Float32Array<ArrayBuffer>,
+    Float32Array<ArrayBuffer>,
+  ];
   readonly lengthSeconds: number;
 }
 
@@ -171,7 +174,9 @@ const driveCurveCache = new Map<number, Float32Array<ArrayBuffer>>();
 
 /** Cached WaveShaper curve for a drive amount 0..1 (bucketed key). */
 export function driveCurve(amount: number): Float32Array<ArrayBuffer> {
-  const key = Math.round(Math.min(1, Math.max(0, amount)) * DRIVE_CURVE_BUCKETS);
+  const key = Math.round(
+    Math.min(1, Math.max(0, amount)) * DRIVE_CURVE_BUCKETS,
+  );
   let curve = driveCurveCache.get(key);
   if (!curve) {
     curve = new Float32Array(DRIVE_CURVE_LENGTH);
@@ -187,7 +192,7 @@ export function driveCurve(amount: number): Float32Array<ArrayBuffer> {
 /** Bitcrusher quantization (canonical; twin lives in the worklet). */
 export function quantizeBits(x: number, bits: number): number {
   const levels = Math.pow(2, Math.min(16, Math.max(1, bits))) - 1;
-  return Math.round(((x + 1) / 2) * levels) / levels * 2 - 1;
+  return (Math.round(((x + 1) / 2) * levels) / levels) * 2 - 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +231,9 @@ export function softClipCurve(): Float32Array<ArrayBuffer> {
   if (!softClipCurveCache) {
     softClipCurveCache = new Float32Array(SOFT_CLIP_CURVE_LENGTH);
     for (let i = 0; i < SOFT_CLIP_CURVE_LENGTH; i++) {
-      softClipCurveCache[i] = softClip((i / (SOFT_CLIP_CURVE_LENGTH - 1)) * 2 - 1);
+      softClipCurveCache[i] = softClip(
+        (i / (SOFT_CLIP_CURVE_LENGTH - 1)) * 2 - 1,
+      );
     }
   }
   return softClipCurveCache;
@@ -240,7 +247,9 @@ export function softClipCurve(): Float32Array<ArrayBuffer> {
  * ~18% overshoot), which would defeat the ceiling; the 1024-point curve is
  * linearly interpolated by the platform, so "none" stays exactly bounded.
  */
-export function createSoftClipNode(ctx: { createWaveShaper(): WaveShaperNode }): WaveShaperNode {
+export function createSoftClipNode(ctx: {
+  createWaveShaper(): WaveShaperNode;
+}): WaveShaperNode {
   const node = ctx.createWaveShaper();
   node.oversample = "none";
   node.curve = softClipCurve();
@@ -266,9 +275,15 @@ export function computeTailSamples(
     for (const device of chain) {
       if (device.bypassed) continue;
       if (device.type === "reverb") {
-        maxSeconds = Math.max(maxSeconds, reverbSeconds(device.params.size) + 0.05);
+        maxSeconds = Math.max(
+          maxSeconds,
+          reverbSeconds(device.params.size) + 0.05,
+        );
       } else if (device.type === "delay") {
-        maxSeconds = Math.max(maxSeconds, delaySeconds(device.params.timeSteps, bpm) * 6);
+        maxSeconds = Math.max(
+          maxSeconds,
+          delaySeconds(device.params.timeSteps, bpm) * 6,
+        );
       }
     }
   }
@@ -288,7 +303,11 @@ export interface FxConn {
 export interface FxParam {
   readonly value: number;
   setValueAtTime(value: number, startTime: number): void;
-  setTargetAtTime(target: number, startTime: number, timeConstant: number): void;
+  setTargetAtTime(
+    target: number,
+    startTime: number,
+    timeConstant: number,
+  ): void;
   linearRampToValueAtTime(value: number, endTime: number): void;
   cancelScheduledValues(cancelTime: number): void;
 }
@@ -518,7 +537,11 @@ export function createReverbDevice(
           size: d.params.size,
           sampleRate: ctx.sampleRate,
         });
-        const buf = ctx.createBuffer(2, next.channels[0].length, ctx.sampleRate);
+        const buf = ctx.createBuffer(
+          2,
+          next.channels[0].length,
+          ctx.sampleRate,
+        );
         buf.copyToChannel(next.channels[0], 0);
         buf.copyToChannel(next.channels[1], 1);
         convolver.buffer = buf;
@@ -716,7 +739,9 @@ export function createRealFxDeviceFactory(
       case "delay":
         return createDelayDevice(ctx, device, timing);
       case "reverb":
-        return createReverbDevice(ctx, device, { seed: deviceSeed(opts.laneSeed, index) });
+        return createReverbDevice(ctx, device, {
+          seed: deviceSeed(opts.laneSeed, index),
+        });
     }
   };
 }

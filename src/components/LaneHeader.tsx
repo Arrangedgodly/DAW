@@ -68,7 +68,9 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [chip, setChip] = createSignal(initial.chip);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
   const [fxOpen, setFxOpen] = createSignal(false);
-  const [fxCount, setFxCount] = createSignal(laneFxChain(docStore.getState().doc, props.lane).length);
+  const [fxCount, setFxCount] = createSignal(
+    laneFxChain(docStore.getState().doc, props.lane).length,
+  );
   const [announce, setAnnounce] = createSignal("");
 
   let chipBtn: HTMLButtonElement | undefined;
@@ -84,8 +86,12 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
-      if (state.doc.lanes === prev.doc.lanes && state.doc.scale === prev.doc.scale &&
-          state.doc.laneOverrides === prev.doc.laneOverrides) return;
+      if (
+        state.doc.lanes === prev.doc.lanes &&
+        state.doc.scale === prev.doc.scale &&
+        state.doc.laneOverrides === prev.doc.laneOverrides
+      )
+        return;
       const next = readState(props.lane);
       setSoundId(next.soundId);
       setGate(next.gate);
@@ -99,7 +105,10 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
 
   const options = () => soundOptionsFor(props.lane);
   const soundIndex = () =>
-    Math.max(0, options().findIndex((o) => o.id === soundId()));
+    Math.max(
+      0,
+      options().findIndex((o) => o.id === soundId()),
+    );
   const soundName = () => options()[soundIndex()]?.name ?? soundId();
 
   const stepSound = (delta: number) => {
@@ -137,8 +146,17 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     <div class="lane-head lane-head-strip">
       <span class="lane-name">{LANE_NAMES[props.lane]}</span>
 
-      <div class="lane-head-controls" ref={(el) => { stripEl = el; }}>
-        <div class="head-ctl" role="group" aria-label={`${LANE_NAMES[props.lane]} sound`}>
+      <div
+        class="lane-head-controls"
+        ref={(el) => {
+          stripEl = el;
+        }}
+      >
+        <div
+          class="head-ctl"
+          role="group"
+          aria-label={`${LANE_NAMES[props.lane]} sound`}
+        >
           <span class="head-ctl-label" aria-hidden="true">
             {props.lane === "drums" ? "KIT" : "PRESET"}
           </span>
@@ -194,7 +212,11 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           </Show>
         </span>
 
-        <div class="head-ctl" role="group" aria-label={`${LANE_NAMES[props.lane]} gate length`}>
+        <div
+          class="head-ctl"
+          role="group"
+          aria-label={`${LANE_NAMES[props.lane]} gate length`}
+        >
           <span class="head-ctl-label" aria-hidden="true">
             GATE
           </span>
@@ -235,7 +257,10 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         >
           FX
           <Show when={fxCount() > 0}>
-            <span class="head-fx-count" aria-hidden="true"> · {fxCount()}</span>
+            <span class="head-fx-count" aria-hidden="true">
+              {" "}
+              · {fxCount()}
+            </span>
           </Show>
         </button>
       </div>

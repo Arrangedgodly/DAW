@@ -20,7 +20,10 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "../../src/document/schema";
 import type { ProjectDocument, PitchedCell } from "../../src/document/schema";
-import { renderProjectToBuffer, EXPORT_SAMPLE_RATE } from "../../src/audio/render";
+import {
+  renderProjectToBuffer,
+  EXPORT_SAMPLE_RATE,
+} from "../../src/audio/render";
 import { exportWav } from "../../src/audio/exportWav";
 import type { DownloadSeam } from "../../src/persist/fileIO";
 
@@ -40,7 +43,11 @@ function referenceProject(): ProjectDocument {
     { type: "bitcrusher", bypassed: false, params: { bits: 8, downsample: 2 } },
   ];
   doc.lanes.find((l) => l.id === "lead")!.fxChain = [
-    { type: "delay", bypassed: false, params: { timeSteps: 2, feedback: 0.4, mix: 0.4 } },
+    {
+      type: "delay",
+      bypassed: false,
+      params: { timeSteps: 2, feedback: 0.4, mix: 0.4 },
+    },
     { type: "reverb", bypassed: false, params: { size: 0.4, mix: 0.35 } },
   ];
   return doc;
@@ -79,7 +86,11 @@ function parseWav16Stereo(bytes: Uint8Array): ParsedWav {
     String.fromCharCode(...bytes.slice(at, at + n));
   const u16 = (at: number) => bytes[at] | (bytes[at + 1] << 8);
   const u32 = (at: number) =>
-    (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) >>> 0;
+    (bytes[at] |
+      (bytes[at + 1] << 8) |
+      (bytes[at + 2] << 16) |
+      (bytes[at + 3] << 24)) >>>
+    0;
   const i16 = (at: number) => {
     const u = bytes[at] | (bytes[at + 1] << 8);
     return u >= 0x8000 ? u - 0x10000 : u;
@@ -92,7 +103,8 @@ function parseWav16Stereo(bytes: Uint8Array): ParsedWav {
   const channelsCount = u16(22);
   const sampleRate = u32(24);
   const bits = u16(34);
-  if (ascii(36, 4) !== "data") throw new Error("no data chunk (not canonical layout)");
+  if (ascii(36, 4) !== "data")
+    throw new Error("no data chunk (not canonical layout)");
   const dataBytes = u32(40);
   const frames = dataBytes / 4;
 
@@ -133,80 +145,96 @@ function captureSeam(): { seam: DownloadSeam; blob: () => Blob | undefined } {
 const Q = 1 / 32767; // one quantization step
 
 describe("MF-4 WAV export — the file IS the loop (real render + encoder)", () => {
-  it("exports the reference project: header fields exact + sample-exact length", { timeout: 120000 }, async () => {
-    const cap = captureSeam();
-    const result = await exportWav(referenceProject(), { seam: cap.seam });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
+  it(
+    "exports the reference project: header fields exact + sample-exact length",
+    { timeout: 120000 },
+    async () => {
+      const cap = captureSeam();
+      const result = await exportWav(referenceProject(), { seam: cap.seam });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
 
-    const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
-    expect(cap.blob()!.type).toBe("audio/wav");
+      const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
+      expect(cap.blob()!.type).toBe("audio/wav");
 
-    // Render metadata for the cross-checks.
-    const rendered = await renderProjectToBuffer(referenceProject());
-    expect(rendered.loopSamples).toBe(result.ok ? result.loopSamples : 0);
+      // Render metadata for the cross-checks.
+      const rendered = await renderProjectToBuffer(referenceProject());
+      expect(rendered.loopSamples).toBe(result.ok ? result.loopSamples : 0);
 
-    const wav = parseWav16Stereo(bytes);
-    // (a) header fields exact
-    expect(wav.audioFormat).toBe(1); // PCM
-    expect(wav.channelsCount).toBe(2); // stereo
-    expect(wav.bits).toBe(16);
-    expect(wav.sampleRate).toBe(EXPORT_SAMPLE_RATE); // 44100
-    expect(wav.dataBytes).toBe(rendered.loopSamples * 4); // data size = loopSamples×4
-    expect(wav.riffSize).toBe(bytes.byteLength - 8);
-    expect(bytes.byteLength).toBe(44 + rendered.loopSamples * 4);
+      const wav = parseWav16Stereo(bytes);
+      // (a) header fields exact
+      expect(wav.audioFormat).toBe(1); // PCM
+      expect(wav.channelsCount).toBe(2); // stereo
+      expect(wav.bits).toBe(16);
+      expect(wav.sampleRate).toBe(EXPORT_SAMPLE_RATE); // 44100
+      expect(wav.dataBytes).toBe(rendered.loopSamples * 4); // data size = loopSamples×4
+      expect(wav.riffSize).toBe(bytes.byteLength - 8);
+      expect(bytes.byteLength).toBe(44 + rendered.loopSamples * 4);
 
-    // (b) sample-exact length: bars × beats × samplesPerBeat (IM-5 law; a
-    // 16th step = samplesPerBeat/4 — same integer product either way).
-    const bpm = 120;
-    const samplesPerBeat = (EXPORT_SAMPLE_RATE * 60) / bpm; // 22050
-    const expectedSamples = 1 * 4 * samplesPerBeat; // 88200
-    expect(Number.isInteger(expectedSamples)).toBe(true);
-    expect(wav.frames).toBe(expectedSamples);
-    expect(wav.frames).toBe(rendered.loopSamples);
-    if (result.ok) expect(result.bars).toBe(1);
+      // (b) sample-exact length: bars × beats × samplesPerBeat (IM-5 law; a
+      // 16th step = samplesPerBeat/4 — same integer product either way).
+      const bpm = 120;
+      const samplesPerBeat = (EXPORT_SAMPLE_RATE * 60) / bpm; // 22050
+      const expectedSamples = 1 * 4 * samplesPerBeat; // 88200
+      expect(Number.isInteger(expectedSamples)).toBe(true);
+      expect(wav.frames).toBe(expectedSamples);
+      expect(wav.frames).toBe(rendered.loopSamples);
+      if (result.ok) expect(result.bars).toBe(1);
 
-    // Decoded export ≡ folded render re-encoded (quantization-exact round
-    // trip through our own law): byte-equality with encodeWav16 of render.
-    const { encodeWav16 } = await import("../../src/audio/wav");
-    expect(bytes).toEqual(encodeWav16(rendered.channels, rendered.sampleRate));
-  });
+      // Decoded export ≡ folded render re-encoded (quantization-exact round
+      // trip through our own law): byte-equality with encodeWav16 of render.
+      const { encodeWav16 } = await import("../../src/audio/wav");
+      expect(bytes).toEqual(
+        encodeWav16(rendered.channels, rendered.sampleRate),
+      );
+    },
+  );
 
-  it("loop-tight at the file level: IM-5 stitch assertion on the exported bytes", { timeout: 180000 }, async () => {
-    // One iteration exported (file), and the same content as a genuine
-    // 2-bar render whose second loop region carries the TRUE continuation
-    // across the seam.
-    const cap = captureSeam();
-    const result = await exportWav(referenceProject(), { seam: cap.seam });
-    expect(result.ok).toBe(true);
-    const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
-    const wav = parseWav16Stereo(bytes);
+  it(
+    "loop-tight at the file level: IM-5 stitch assertion on the exported bytes",
+    { timeout: 180000 },
+    async () => {
+      // One iteration exported (file), and the same content as a genuine
+      // 2-bar render whose second loop region carries the TRUE continuation
+      // across the seam.
+      const cap = captureSeam();
+      const result = await exportWav(referenceProject(), { seam: cap.seam });
+      expect(result.ok).toBe(true);
+      const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
+      const wav = parseWav16Stereo(bytes);
 
-    const two = await renderProjectToBuffer(twoIterationProject(), { includeRaw: true });
-    const one = await renderProjectToBuffer(referenceProject());
-    const L = one.loopSamples;
-    const T = one.tailSamples;
-    expect(two.loopSamples).toBe(2 * L);
-    expect(T).toBeGreaterThan(0);
+      const two = await renderProjectToBuffer(twoIterationProject(), {
+        includeRaw: true,
+      });
+      const one = await renderProjectToBuffer(referenceProject());
+      const L = one.loopSamples;
+      const T = one.tailSamples;
+      expect(two.loopSamples).toBe(2 * L);
+      expect(T).toBeGreaterThan(0);
 
-    // Compare the second-iteration window (past the fold-affected head) of
-    // the long render against the decoded export shifted by one loop — the
-    // only allowed difference is wrapped-tail residue + one quantization
-    // step.
-    let peak = 0;
-    let maxDiff = 0;
-    for (let i = L + T; i < 2 * L; i += 7 /* sampled: full sweep ×7 off-by-one is covered by determinism */) {
-      const truth = two.raw![0][i];
-      const exported = wav.channels[0][i - L];
-      peak = Math.max(peak, Math.abs(truth));
-      const d = Math.abs(truth - exported);
-      if (d > maxDiff) maxDiff = d;
-    }
-    expect(peak).toBeGreaterThan(0.01); // real signal at the seam window
-    expect(maxDiff).toBeLessThan(peak * 0.05 + Q);
+      // Compare the second-iteration window (past the fold-affected head) of
+      // the long render against the decoded export shifted by one loop — the
+      // only allowed difference is wrapped-tail residue + one quantization
+      // step.
+      let peak = 0;
+      let maxDiff = 0;
+      for (
+        let i = L + T;
+        i < 2 * L;
+        i += 7 /* sampled: full sweep ×7 off-by-one is covered by determinism */
+      ) {
+        const truth = two.raw![0][i];
+        const exported = wav.channels[0][i - L];
+        peak = Math.max(peak, Math.abs(truth));
+        const d = Math.abs(truth - exported);
+        if (d > maxDiff) maxDiff = d;
+      }
+      expect(peak).toBeGreaterThan(0.01); // real signal at the seam window
+      expect(maxDiff).toBeLessThan(peak * 0.05 + Q);
 
-    // Seam continuity in the file itself: last sample → first sample, no spike.
-    const seamJump = Math.abs(wav.channels[0][0] - wav.channels[0][L - 1]);
-    expect(seamJump).toBeLessThan(0.5);
-  });
+      // Seam continuity in the file itself: last sample → first sample, no spike.
+      const seamJump = Math.abs(wav.channels[0][0] - wav.channels[0][L - 1]);
+      expect(seamJump).toBeLessThan(0.5);
+    },
+  );
 });

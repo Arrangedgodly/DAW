@@ -23,19 +23,25 @@ import { encodeWav16 } from "../../src/audio/wav";
 import { encodeMidi } from "../../src/audio/exportMidi";
 import { referenceMidiProject } from "../midiReference";
 import { expectGolden, __forTests_setManifestPath } from "./golden";
-import { RENDER_FP_GOLDEN_NAME, WAV_EXPORT_FP_GOLDEN_NAME } from "./render-fp-protocol";
+import {
+  RENDER_FP_GOLDEN_NAME,
+  WAV_EXPORT_FP_GOLDEN_NAME,
+} from "./render-fp-protocol";
 
 const manifest = JSON.parse(
   readFileSync(join(import.meta.dirname, "manifest.json"), "utf8"),
 ) as {
   env: { node: string; regeneratedVia: string };
-  goldens: Record<string, {
-    sha256: string;
-    byteLength: number;
-    kind?: "bytes" | "render";
-    note?: string;
-    renderEnv?: Record<string, unknown>;
-  }>;
+  goldens: Record<
+    string,
+    {
+      sha256: string;
+      byteLength: number;
+      kind?: "bytes" | "render";
+      note?: string;
+      renderEnv?: Record<string, unknown>;
+    }
+  >;
 };
 
 /** The real bytes each HARD golden pins (same producers as the golden tests). */
@@ -61,10 +67,9 @@ function realBytesFor(name: string): Uint8Array {
 function tamperedManifestPath(name: string): string {
   const copy = structuredClone(manifest);
   const entry = copy.goldens[name];
-  entry.sha256 =
-    entry.sha256.startsWith("00")
-      ? entry.sha256.replace(/^00/, "11")
-      : `00${entry.sha256.slice(2)}`;
+  entry.sha256 = entry.sha256.startsWith("00")
+    ? entry.sha256.replace(/^00/, "11")
+    : `00${entry.sha256.slice(2)}`;
   const dir = mkdtempSync(join(tmpdir(), "golden-tamper-"));
   const path = join(dir, "manifest.json");
   writeFileSync(path, JSON.stringify(copy), "utf8");
@@ -90,8 +95,13 @@ describe("HW-3 golden manifest hygiene", () => {
     for (const name of [RENDER_FP_GOLDEN_NAME, WAV_EXPORT_FP_GOLDEN_NAME]) {
       const entry = manifest.goldens[name];
       expect(entry?.kind, `${name} kind`).toBe("render");
-      expect(entry?.renderEnv?.playwright, `${name} renderEnv.playwright`).toBeTruthy();
-      expect(entry?.renderEnv?.sampleRate, `${name} renderEnv.sampleRate`).toBe(44100);
+      expect(
+        entry?.renderEnv?.playwright,
+        `${name} renderEnv.playwright`,
+      ).toBeTruthy();
+      expect(entry?.renderEnv?.sampleRate, `${name} renderEnv.sampleRate`).toBe(
+        44100,
+      );
     }
   });
 });

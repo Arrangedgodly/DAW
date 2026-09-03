@@ -9,16 +9,16 @@ Law: **every edit action is reachable from the keyboard alone** (Daredevil).
 
 The screen is a stack of composite regions. Each composite region exposes
 **exactly one Tab stop** (roving tabindex, APG); Tab walks region to region,
-arrows walk *inside* a region:
+arrows walk _inside_ a region:
 
-| Region | Tab stops | Arrows inside |
-|---|---|---|
-| Booth (transport) | native controls (few; documented linear strip) | native (ranges, steppers are buttons) |
-| Pattern rail — tiles, per lane | 1 (focused tile) | ←/→ along the chain, Enter triggers |
-| Pattern rail — tools, per lane | native buttons | native |
-| Lane header, per lane | 1 (roving group, see below) | ←/→ across the header controls |
-| Lane grid, per lane | 1 (focused cell) | the grid map below |
-| Help overlay | 1 (dialog, focus-trapped) | native inside |
+| Region                         | Tab stops                                      | Arrows inside                         |
+| ------------------------------ | ---------------------------------------------- | ------------------------------------- |
+| Booth (transport)              | native controls (few; documented linear strip) | native (ranges, steppers are buttons) |
+| Pattern rail — tiles, per lane | 1 (focused tile)                               | ←/→ along the chain, Enter triggers   |
+| Pattern rail — tools, per lane | native buttons                                 | native                                |
+| Lane header, per lane          | 1 (roving group, see below)                    | ←/→ across the header controls        |
+| Lane grid, per lane            | 1 (focused cell)                               | the grid map below                    |
+| Help overlay                   | 1 (dialog, focus-trapped)                      | native inside                         |
 
 - **Roving seed**: first item of each region is the Tab stop until the user
   moves; moving roving updates `tabIndex` only (never reorders DOM).
@@ -34,27 +34,27 @@ arrows walk *inside* a region:
 Pure math lives in `src/grid/keynav.ts`; bounds clamp (no wrap — see
 "Wrap rules").
 
-| Key | Action |
-|---|---|
-| ← / → | move one step (clamp at row ends) |
-| ↑ / ↓ | move one row (clamp at top/bottom row) |
-| Home / End | first / last step of the current row |
-| PageDown / PageUp | jump to the same cell position in the next / previous lane |
+| Key                            | Action                                                            |
+| ------------------------------ | ----------------------------------------------------------------- |
+| ← / →                          | move one step (clamp at row ends)                                 |
+| ↑ / ↓                          | move one row (clamp at top/bottom row)                            |
+| Home / End                     | first / last step of the current row                              |
+| PageDown / PageUp              | jump to the same cell position in the next / previous lane        |
 | Ctrl+↓ / Ctrl+↑ (or `]` / `[`) | move to next / previous lane (same position, clamped to its rows) |
-| Ctrl+→ / Ctrl+← (or `.` / `,`) | beat jump: ±4 steps (one 4/4 beat), clamped |
-| Enter / Space | toggle the cell (audition fires on placement, DES-4) |
-| Shift+Enter | audition the focused cell WITHOUT toggling |
+| Ctrl+→ / Ctrl+← (or `.` / `,`) | beat jump: ±4 steps (one 4/4 beat), clamped                       |
+| Enter / Space                  | toggle the cell (audition fires on placement, DES-4)              |
+| Shift+Enter                    | audition the focused cell WITHOUT toggling                        |
 
-Lane moves keep the row *index* (clamped to the target grid's row count)
+Lane moves keep the row _index_ (clamped to the target grid's row count)
 and the step (clamped to its pattern length); drums rows map by position,
 pitched rows by position into that lane's own degree rows.
 
 ## Pattern ops (global, when not typing in a text field)
 
-| Key | Action |
-|---|---|
-| `n` | new 1-bar pattern in the active lane (selects it for editing) |
-| `d` | duplicate the active lane's selected pattern (selects it) |
+| Key | Action                                                                                                                                    |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `n` | new 1-bar pattern in the active lane (selects it for editing)                                                                             |
+| `d` | duplicate the active lane's selected pattern (selects it)                                                                                 |
 | `r` | rename — moves focus to the active lane's rail REN control (the inline field takes over from there; Enter commits, Esc cancels per DES-6) |
 
 Rail-local keys (DES-6, unchanged): ←/→ rove tiles, Enter/Space trigger a
@@ -63,10 +63,10 @@ edits the cue, `+` appends a slot.
 
 ## Transport
 
-| Key | Action |
-|---|---|
-| Space | play/stop — **only when focus is not on an interactive element** (body/document level). Inside a grid, Space toggles the cell instead (APG grid law); on a focused button it activates the button natively. |
-| Enter on PLAY | play/stop (native button activation in the booth) |
+| Key           | Action                                                                                                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Space         | play/stop — **only when focus is not on an interactive element** (body/document level). Inside a grid, Space toggles the cell instead (APG grid law); on a focused button it activates the button natively. |
+| Enter on PLAY | play/stop (native button activation in the booth)                                                                                                                                                           |
 
 Rationale: a global Space would hijack buttons and the grid; the booth PLAY
 button plus body-level Space cover both "just started" and "deep in the
@@ -74,10 +74,10 @@ grid" contexts without conflict.
 
 ## Undo
 
-| Key | Action |
-|---|---|
-| Ctrl+Z (⌘Z) | undo (zundo, limit 50, coalesced gestures — IM-6) |
-| Ctrl+Shift+Z (⌘⇧Z) / Ctrl+Y | redo |
+| Key                         | Action                                            |
+| --------------------------- | ------------------------------------------------- |
+| Ctrl+Z (⌘Z)                 | undo (zundo, limit 50, coalesced gestures — IM-6) |
+| Ctrl+Shift+Z (⌘⇧Z) / Ctrl+Y | redo                                              |
 
 Skipped while typing in a text entry (inline rename/cue fields, the tempo
 input) so native text undo is preserved.
@@ -90,10 +90,10 @@ additional bindings — the fill controls are plain focusable buttons.
 
 ## Help overlay
 
-| Key | Action |
-|---|---|
-| `?` (Shift+/) | open the in-world help overlay listing every binding above |
-| Escape or CLOSE | dismiss; focus returns to the opener |
+| Key             | Action                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `?` (Shift+/)   | open the in-world help overlay listing every binding above |
+| Escape or CLOSE | dismiss; focus returns to the opener                       |
 
 The overlay is a `role="dialog"` `aria-modal`, focus-trapped (Tab cycles
 inside), dismissible. Also opened by the booth **KEYS** button (mouse parity).
@@ -101,6 +101,7 @@ inside), dismissible. Also opened by the booth **KEYS** button (mouse parity).
 ## Deliberate exclusions (never hijacked)
 
 These browser / screen-reader keys are NEVER intercepted anywhere:
+
 - Tab / Shift+Tab — region traversal (only tabindex roving, never swallowed)
 - the screen-reader virtual-cursor pass-through keys (quick-nav keys,
   browse-mode letter navigation) — letter shortcuts (`n`, `d`, `r`, `?`, `l`)
@@ -143,22 +144,22 @@ test replicates exactly those defaults (focus + Enter keydown + click;
 focus + Arrow keydown + stepUp + input event). Nothing is driven by mouse
 coordinates; every action begins from a focused element.
 
-| # | Step (keys) | Observable outcome asserted |
-|---|---|---|
-| 1 | Boot (no keys — first run) | booth mounts, 4 grids, demo cue labels (VERSE) in the rail |
-| 2 | `Space` at body level | PLAY aria-pressed → true (transport runs) |
-| 3 | `?` … inspect … `Escape` | role=dialog help overlay, focus trapped inside, dismissed |
-| 4 | Focus drums roving seed → `↓` `End` `Home` `.` | SNARE row, step 15 → 0 → beat-jump to 4 |
-| 5 | Tab to SNARE fill rail → `Enter` on `+` pulses ×2 → `Enter` on SET | readout counts p/16, dashed data-preview overlay, then the row paints exactly p on-cells and preview clears |
-| 6 | `Enter` on a focused cell | data-on / aria-selected flips |
-| 7 | `PageDown` | focus lands in the BASS grid (position carried, clamped) |
-| 8 | Header strip: `Enter` on preset `+`, gate `+` | preset name changes; gate value steps 1 → 2 ST |
-| 9 | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip |
-| 10 | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value |
-| 11 | Rail: focus tile 1 → `→`×3 → `Enter` | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing |
-| 12 | `Space` (stop) → `Enter` on DUP → focus last tile → `+` → `Escape` | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle) |
-| 13 | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam) |
-| 14 | `Enter` NEW … then reopen popover → `Escape` | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button |
+| #   | Step (keys)                                                                          | Observable outcome asserted                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Boot (no keys — first run)                                                           | booth mounts, 4 grids, demo cue labels (VERSE) in the rail                                                                                            |
+| 2   | `Space` at body level                                                                | PLAY aria-pressed → true (transport runs)                                                                                                             |
+| 3   | `?` … inspect … `Escape`                                                             | role=dialog help overlay, focus trapped inside, dismissed                                                                                             |
+| 4   | Focus drums roving seed → `↓` `End` `Home` `.`                                       | SNARE row, step 15 → 0 → beat-jump to 4                                                                                                               |
+| 5   | Tab to SNARE fill rail → `Enter` on `+` pulses ×2 → `Enter` on SET                   | readout counts p/16, dashed data-preview overlay, then the row paints exactly p on-cells and preview clears                                           |
+| 6   | `Enter` on a focused cell                                                            | data-on / aria-selected flips                                                                                                                         |
+| 7   | `PageDown`                                                                           | focus lands in the BASS grid (position carried, clamped)                                                                                              |
+| 8   | Header strip: `Enter` on preset `+`, gate `+`                                        | preset name changes; gate value steps 1 → 2 ST                                                                                                        |
+| 9   | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE                | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip         |
+| 10  | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value                       |
+| 11  | Rail: focus tile 1 → `→`×3 → `Enter`                                                 | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing                                  |
+| 12  | `Space` (stop) → `Enter` on DUP → focus last tile → `+` → `Escape`                   | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle)               |
+| 13  | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI                                  | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam) |
+| 14  | `Enter` NEW … then reopen popover → `Escape`                                         | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button  |
 
 Gaps the walk found (fixed in DA-3, all in this repo):
 

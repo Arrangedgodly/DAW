@@ -68,8 +68,7 @@ function nowMs(): number {
  */
 function expandDefaultGrids(doc: ProjectDocument): ProjectDocument {
   const size = modeSize(doc.scale.mode);
-  const degrees = (count: number) =>
-    Array.from({ length: count }, (_, i) => i);
+  const degrees = (count: number) => Array.from({ length: count }, (_, i) => i);
   const expand = (lane: Exclude<LaneId, "drums">, count: number) => {
     const patterns = doc.patterns[lane].map((p) => {
       const pitched = p as PitchedPattern;
@@ -148,13 +147,13 @@ export const docStore = createStore<DocState>()(
  * document, validation is a gate, not a transformation. (Load paths from
  * untrusted JSON keep using validateProject's normalized output.)
  */
-function commit(
-  next: ProjectDocument,
-  coalesceKey?: string,
-): ProjectDocument {
+function commit(next: ProjectDocument, coalesceKey?: string): ProjectDocument {
   validateProject(next); // throws → store unchanged
   if (coalesceKey !== undefined) {
-    if (lastCoalesceKey === coalesceKey && nowMs() - lastCoalesceAt < COALESCE_WINDOW_MS) {
+    if (
+      lastCoalesceKey === coalesceKey &&
+      nowMs() - lastCoalesceAt < COALESCE_WINDOW_MS
+    ) {
       skipNextHistoryEntry = true;
       // zundo only clears the redo future when it records a past state; a
       // skipped entry must clear it ourselves (a new edit invalidates redo).
@@ -216,14 +215,14 @@ export interface ToggleResult {
   readonly turnedOn: boolean;
 }
 
-export function toggleDrumStep(
-  piece: DrumPiece,
-  step: number,
-): ToggleResult {
+export function toggleDrumStep(piece: DrumPiece, step: number): ToggleResult {
   const doc = docStore.getState().doc;
   const patterns = doc.patterns.drums.filter((p) => p.kind === "drums");
   const current = patterns.some((p) => p.steps[piece][step]);
-  commit(withDrumStep(docStore.getState().doc, piece, step, !current), "toggle");
+  commit(
+    withDrumStep(docStore.getState().doc, piece, step, !current),
+    "toggle",
+  );
   return { turnedOn: !current };
 }
 
@@ -239,7 +238,10 @@ export function togglePitchedCell(
     .find((r) => r.degree === degree);
   const current: PitchedCell = row ? (row.steps[step] ?? 0) : 0;
   const next: PitchedCell = current === 0 ? 1 : 0;
-  commit(withPitchedCell(docStore.getState().doc, lane, degree, step, next), "toggle");
+  commit(
+    withPitchedCell(docStore.getState().doc, lane, degree, step, next),
+    "toggle",
+  );
   return { turnedOn: next === 1 };
 }
 
@@ -276,7 +278,9 @@ export function applyEuclidFill(
 function withLane(
   doc: ProjectDocument,
   lane: LaneId,
-  patch: (lane: ProjectDocument["lanes"][number]) => ProjectDocument["lanes"][number],
+  patch: (
+    lane: ProjectDocument["lanes"][number],
+  ) => ProjectDocument["lanes"][number],
 ): ProjectDocument {
   const lanes = doc.lanes.map((l) => (l.id === lane ? patch(l) : l));
   return { ...doc, lanes };
@@ -284,14 +288,19 @@ function withLane(
 
 /** Set the gate length of one lane (cell-width raise). Coalesced while dragging. */
 export function setLaneGate(lane: LaneId, gate: LaneGate): void {
-  commit(withLane(docStore.getState().doc, lane, (l) => ({ ...l, gate })), `gate:${lane}`);
+  commit(
+    withLane(docStore.getState().doc, lane, (l) => ({ ...l, gate })),
+    `gate:${lane}`,
+  );
 }
 
 /** Choose the drum kit (drums lane) or the voice preset (pitched lanes). */
 export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
   commit(
     withLane(docStore.getState().doc, lane, (l) =>
-      l.id === "drums" ? { ...l, kitId: presetOrKitId } : { ...l, presetId: presetOrKitId },
+      l.id === "drums"
+        ? { ...l, kitId: presetOrKitId }
+        : { ...l, presetId: presetOrKitId },
     ),
   );
 }
@@ -342,7 +351,11 @@ export function moveFxDevice(lane: LaneId, from: number, to: number): void {
 }
 
 /** Set one device's bypass state (lit/dimmed on the module). */
-export function setFxBypassed(lane: LaneId, index: number, bypassed: boolean): void {
+export function setFxBypassed(
+  lane: LaneId,
+  index: number,
+  bypassed: boolean,
+): void {
   const doc = docStore.getState().doc;
   const conf = doc.lanes.find((l) => l.id === lane)!;
   if (index < 0 || index >= conf.fxChain.length) return;
@@ -368,7 +381,8 @@ export function setFxParam(
   const doc = docStore.getState().doc;
   const conf = doc.lanes.find((l) => l.id === lane)!;
   const device = conf.fxChain[index];
-  if (!device) throw new Error(`setFxParam: no device ${index} in lane '${lane}'`);
+  if (!device)
+    throw new Error(`setFxParam: no device ${index} in lane '${lane}'`);
   commit(
     withLane(doc, lane, (l) => ({
       ...l,
@@ -392,13 +406,20 @@ export function setProjectScale(scale: ScaleConfig): void {
 }
 
 /** Set (or clear with null) one lane's scale override. */
-export function setLaneScaleOverride(lane: LaneId, scale: ScaleConfig | null): void {
+export function setLaneScaleOverride(
+  lane: LaneId,
+  scale: ScaleConfig | null,
+): void {
   const doc = docStore.getState().doc;
-  const current: Partial<Record<LaneId, ScaleConfig>> = { ...(doc.laneOverrides ?? {}) };
+  const current: Partial<Record<LaneId, ScaleConfig>> = {
+    ...(doc.laneOverrides ?? {}),
+  };
   if (scale === null) delete current[lane];
   else current[lane] = scale;
   // Collapse to null when no override remains (schema's canonical empty form).
-  const hasAny = (Object.keys(current) as LaneId[]).some((k) => current[k] != null);
+  const hasAny = (Object.keys(current) as LaneId[]).some(
+    (k) => current[k] != null,
+  );
   commit({ ...doc, laneOverrides: hasAny ? current : null });
 }
 
@@ -413,7 +434,9 @@ export function setTransport(
   const doc = docStore.getState().doc;
   commit(
     { ...doc, transport: { ...doc.transport, ...patch } },
-    Object.keys(patch).length === 1 ? `transport:${Object.keys(patch)[0]}` : undefined,
+    Object.keys(patch).length === 1
+      ? `transport:${Object.keys(patch)[0]}`
+      : undefined,
   );
 }
 
@@ -421,7 +444,10 @@ export function setTransport(
 // Pattern management (store-level primitives; the pattern UI is DES-6/IM-7)
 // ---------------------------------------------------------------------------
 
-function pitchedRowCount(lane: Exclude<LaneId, "drums">, doc: ProjectDocument): number {
+function pitchedRowCount(
+  lane: Exclude<LaneId, "drums">,
+  doc: ProjectDocument,
+): number {
   const size = modeSize(effectiveMode(doc, lane));
   return lane === "chords" ? size : size * 2;
 }
@@ -438,7 +464,11 @@ function newPatternId(lane: LaneId): string {
 }
 
 /** Append a new empty pattern to a lane. Returns the new pattern id. */
-export function addPattern(lane: LaneId, bars: PatternBars = 1, name = "?"): string {
+export function addPattern(
+  lane: LaneId,
+  bars: PatternBars = 1,
+  name = "?",
+): string {
   const doc = docStore.getState().doc;
   const id = newPatternId(lane);
   const pattern: Pattern =
@@ -449,7 +479,10 @@ export function addPattern(lane: LaneId, bars: PatternBars = 1, name = "?"): str
           name,
           bars,
           steps: Object.fromEntries(
-            DRUM_PIECES.map((piece) => [piece, new Array(16 * bars).fill(false)]),
+            DRUM_PIECES.map((piece) => [
+              piece,
+              new Array(16 * bars).fill(false),
+            ]),
           ) as Record<DrumPiece, boolean[]>,
         }
       : {
@@ -457,12 +490,18 @@ export function addPattern(lane: LaneId, bars: PatternBars = 1, name = "?"): str
           id,
           name,
           bars,
-          rows: Array.from({ length: pitchedRowCount(lane, doc) }, (_, degree) => ({
-            degree,
-            steps: new Array(16 * bars).fill(0) as PitchedCell[],
-          })),
+          rows: Array.from(
+            { length: pitchedRowCount(lane, doc) },
+            (_, degree) => ({
+              degree,
+              steps: new Array(16 * bars).fill(0) as PitchedCell[],
+            }),
+          ),
         };
-  commit({ ...doc, patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] } });
+  commit({
+    ...doc,
+    patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
+  });
   return id;
 }
 
@@ -470,17 +509,29 @@ export function addPattern(lane: LaneId, bars: PatternBars = 1, name = "?"): str
 export function duplicatePattern(lane: LaneId, patternId: string): string {
   const doc = docStore.getState().doc;
   const source = doc.patterns[lane].find((p) => p.id === patternId);
-  if (!source) throw new Error(`duplicatePattern: no pattern '${patternId}' in lane '${lane}'`);
+  if (!source)
+    throw new Error(
+      `duplicatePattern: no pattern '${patternId}' in lane '${lane}'`,
+    );
   const id = newPatternId(lane);
   const copy = { ...deepClone(source), id, name: `${source.name}+` };
-  commit({ ...doc, patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], copy] } });
+  commit({
+    ...doc,
+    patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], copy] },
+  });
   return id;
 }
 
 /** Rename a pattern. */
-export function renamePattern(lane: LaneId, patternId: string, name: string): void {
+export function renamePattern(
+  lane: LaneId,
+  patternId: string,
+  name: string,
+): void {
   const doc = docStore.getState().doc;
-  const patterns = doc.patterns[lane].map((p) => (p.id === patternId ? { ...p, name } : p));
+  const patterns = doc.patterns[lane].map((p) =>
+    p.id === patternId ? { ...p, name } : p,
+  );
   commit({ ...doc, patterns: { ...doc.patterns, [lane]: patterns } });
 }
 
@@ -490,7 +541,10 @@ export function renamePattern(lane: LaneId, patternId: string, name: string): vo
  * positional, so they ride the rewrite index-aligned (slot i keeps its label
  * when a chain rewrite keeps slot i; new slots start unlabeled).
  */
-export function setLaneChain(lane: LaneId, patternIds: readonly string[]): void {
+export function setLaneChain(
+  lane: LaneId,
+  patternIds: readonly string[],
+): void {
   const doc = docStore.getState().doc;
   commit(
     withChain(doc, lane, [...patternIds], (old) =>
@@ -533,7 +587,10 @@ function withChain(
   };
 }
 
-function padCues(slots: readonly (string | null)[], length: number): (string | null)[] {
+function padCues(
+  slots: readonly (string | null)[],
+  length: number,
+): (string | null)[] {
   return Array.from({ length }, (_, i) => slots[i] ?? null);
 }
 
@@ -563,7 +620,12 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
     return true;
   }
   commit(
-    withChain(base, lane, kept.map((s) => s.id), () => kept.map((s) => s.cue)),
+    withChain(
+      base,
+      lane,
+      kept.map((s) => s.id),
+      () => kept.map((s) => s.cue),
+    ),
   );
   return true;
 }
@@ -574,7 +636,11 @@ export function appendChainSlot(lane: LaneId, patternId: string): void {
   if (!doc.patterns[lane].some((p) => p.id === patternId)) return;
   // `old` arrives padded to the NEW chain length — the appended slot is the
   // trailing null already.
-  commit(withChain(doc, lane, [...doc.songChain[lane], patternId], (old) => [...old]));
+  commit(
+    withChain(doc, lane, [...doc.songChain[lane], patternId], (old) => [
+      ...old,
+    ]),
+  );
 }
 
 /** Remove chain slot `index`; refuses (returns false) on the last slot. */
@@ -583,8 +649,11 @@ export function removeChainSlot(lane: LaneId, index: number): boolean {
   const chain = doc.songChain[lane];
   if (chain.length <= 1 || index < 0 || index >= chain.length) return false;
   commit(
-    withChain(doc, lane, chain.filter((_, i) => i !== index), (old) =>
-      old.filter((_, i) => i !== index),
+    withChain(
+      doc,
+      lane,
+      chain.filter((_, i) => i !== index),
+      (old) => old.filter((_, i) => i !== index),
     ),
   );
   return true;
@@ -596,7 +665,11 @@ export function removeChainSlot(lane: LaneId, index: number): boolean {
  * input throws through validation (schema CUE_MAX_CHARS) with the store
  * untouched. Rapid edits coalesce per slot.
  */
-export function setChainCue(lane: LaneId, index: number, label: string | null): void {
+export function setChainCue(
+  lane: LaneId,
+  index: number,
+  label: string | null,
+): void {
   const doc = docStore.getState().doc;
   const trimmed = (label ?? "").trim();
   const value = trimmed === "" ? null : trimmed;

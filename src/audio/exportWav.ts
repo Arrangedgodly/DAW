@@ -84,7 +84,8 @@ export async function exportWav(
   project: ProjectDocument,
   opts: ExportWavOptions = {},
 ): Promise<ExportWavResult> {
-  const render = opts.render ?? ((doc: ProjectDocument) => renderProjectToBuffer(doc));
+  const render =
+    opts.render ?? ((doc: ProjectDocument) => renderProjectToBuffer(doc));
 
   let rendered: RenderedLoop;
   try {
@@ -101,7 +102,9 @@ export async function exportWav(
   // Trim to EXACTLY the loop region (defensive: the folded buffer's channel
   // length is the contract, the file length is the promise).
   const loop = rendered.channels.map((ch) =>
-    ch.length === rendered.loopSamples ? ch : ch.subarray(0, rendered.loopSamples),
+    ch.length === rendered.loopSamples
+      ? ch
+      : ch.subarray(0, rendered.loopSamples),
   );
 
   let bytes: Uint8Array;
@@ -147,6 +150,7 @@ function defaultSeam(): DownloadSeam {
   return {
     createObjectURL: (blob) => URL.createObjectURL(blob),
     revokeObjectURL: (url) => URL.revokeObjectURL(url),
-    createElement: (tag) => document.createElement(tag as "a") as HTMLAnchorElement,
+    createElement: (tag) =>
+      document.createElement(tag as "a") as HTMLAnchorElement,
   };
 }

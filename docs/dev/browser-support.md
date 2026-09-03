@@ -12,11 +12,11 @@ constructor existence and reads `audioWorklet` off the constructor prototype.
 Feature set: `audioContext`, `offlineAudioContext`, `audioWorklet`,
 `indexedDB`, `secureContext` (`window.isSecureContext === true`).
 
-| Tier | Condition | What works | What breaks |
-|---|---|---|---|
-| `full` | all five features present | everything (engine, FX, offline render/export, persistence) | — |
-| `degraded-worklet` | Web Audio + IndexedDB + secure context present, `audioWorklet` missing | UI, editing, project persistence, file import/export UI | **No sound.** The voice engine is AudioWorklet-only; `NativePeriodicVoice` (src/audio/voiceEngine.ts) is an unimplemented interface stub — there is **no native-fallback voice engine yet**. Silent operation is impossible by design: the session refuses to build a voice engine host when the context isn't worklet-capable, and a banner says so. Sound in this tier arrives only if/when v1 ships the native fallback. |
-| `unsupported` | any of AudioContext / OfflineAudioContext / IndexedDB / secure context missing | page loads, banner | the app cannot run (no audio graph, no storage, or insecure origin blocks worklet module loading) |
+| Tier               | Condition                                                                      | What works                                                  | What breaks                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `full`             | all five features present                                                      | everything (engine, FX, offline render/export, persistence) | —                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `degraded-worklet` | Web Audio + IndexedDB + secure context present, `audioWorklet` missing         | UI, editing, project persistence, file import/export UI     | **No sound.** The voice engine is AudioWorklet-only; `NativePeriodicVoice` (src/audio/voiceEngine.ts) is an unimplemented interface stub — there is **no native-fallback voice engine yet**. Silent operation is impossible by design: the session refuses to build a voice engine host when the context isn't worklet-capable, and a banner says so. Sound in this tier arrives only if/when v1 ships the native fallback. |
+| `unsupported`      | any of AudioContext / OfflineAudioContext / IndexedDB / secure context missing | page loads, banner                                          | the app cannot run (no audio graph, no storage, or insecure origin blocks worklet module loading)                                                                                                                                                                                                                                                                                                                           |
 
 ### Why IndexedDB and secure context are hard requirements
 
@@ -29,11 +29,11 @@ Feature set: `audioContext`, `offlineAudioContext`, `audioWorklet`,
 
 Boot-time, at most one banner, selected by the pure `bannerFor(report, ua)`:
 
-| Condition | Banner |
-|---|---|
-| `unsupported` | **THIS BROWSER CAN'T RUN BITBOUNCE** — lists the missing features |
+| Condition          | Banner                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsupported`      | **THIS BROWSER CAN'T RUN BITBOUNCE** — lists the missing features                                                                           |
 | `degraded-worklet` | **NO SOUND IN THIS BROWSER** — states plainly that the voice engine needs AudioWorklet, there is no fallback yet, editing/saving still work |
-| `full` + Safari UA | **SAFARI SUPPORT IS EXPERIMENTAL — CHROME RECOMMENDED** — app still attempts everything |
+| `full` + Safari UA | **SAFARI SUPPORT IS EXPERIMENTAL — CHROME RECOMMENDED** — app still attempts everything                                                     |
 
 - `role=alert`, keyboard-dismissible (dismiss button + Escape), in-world
   styling (near-black ground, warm-white ink, Silkscreen label face).

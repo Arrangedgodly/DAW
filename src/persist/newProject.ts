@@ -21,8 +21,13 @@ export async function createNewProject(
   opts: NewProjectOptions = {},
 ): Promise<{ record: ProjectRecord; doc: ProjectDocument }> {
   const doc = createFreshProjectDocument();
-  const record = await saveProject(db, (opts.newId ?? (() => crypto.randomUUID()))(), doc, {
-    now: opts.now?.(),
-  });
+  const record = await saveProject(
+    db,
+    (opts.newId ?? (() => crypto.randomUUID()))(),
+    doc,
+    {
+      now: opts.now?.(),
+    },
+  );
   return { record, doc };
 }

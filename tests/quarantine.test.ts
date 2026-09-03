@@ -22,15 +22,29 @@ import {
 } from "../src/persist/quarantine";
 import type { DownloadSeam } from "../src/persist/fileIO";
 import { initPersistence, getAutosaveController } from "../src/persist/boot";
-import { docStore, toggleDrumStep, createFreshProjectDocument } from "../src/state/store";
+import {
+  docStore,
+  toggleDrumStep,
+  createFreshProjectDocument,
+} from "../src/state/store";
 import { clearToasts, toastStack } from "../src/state/toasts";
 import { createNewProject } from "../src/persist/newProject";
 import { isProjectEmpty } from "../src/state/emptyProject";
 
 function badRecord(id = "default", name = "broken song"): ProjectRecord {
   const base = createDefaultProject();
-  const bad = JSON.stringify({ ...base, transport: { ...base.transport, bpm: 9999 } });
-  return { id, name, schemaVersion: 1, updatedAt: 1000, dirty: false, json: bad };
+  const bad = JSON.stringify({
+    ...base,
+    transport: { ...base.transport, bpm: 9999 },
+  });
+  return {
+    id,
+    name,
+    schemaVersion: 1,
+    updatedAt: 1000,
+    dirty: false,
+    json: bad,
+  };
 }
 
 describe("quarantineProjectRecord", () => {
@@ -65,7 +79,9 @@ describe("quarantineProjectRecord", () => {
 
   it("RECOVER downloads the ORIGINAL raw bytes under a .corrupt filename", async () => {
     const bad = badRecord("default", "my/song");
-    expect(quarantineFilename("my/song (corrupt)")).toBe("mysong.corrupt.bitbounce.json");
+    expect(quarantineFilename("my/song (corrupt)")).toBe(
+      "mysong.corrupt.bitbounce.json",
+    );
 
     const downloads: { name: string; blob: Blob }[] = [];
     const seam: DownloadSeam = {
@@ -76,7 +92,10 @@ describe("quarantineProjectRecord", () => {
       revokeObjectURL: () => undefined,
       createElement: () => ({ click: () => undefined, href: "", download: "" }),
     };
-    const name = exportQuarantinedBytes({ name: "my song (corrupt)", json: bad.json }, seam);
+    const name = exportQuarantinedBytes(
+      { name: "my song (corrupt)", json: bad.json },
+      seam,
+    );
     expect(name).toBe("my song.corrupt.bitbounce.json");
     expect(downloads).toHaveLength(1);
     expect(await downloads[0]!.blob.text()).toBe(bad.json);
@@ -141,7 +160,11 @@ describe("boot quarantine flow (fake db)", () => {
     const freshRow = await db.getRecord("fresh-1");
     await db.putRecord({ ...freshRow!, updatedAt: 9000 });
 
-    const boot2 = await initPersistence({ db, newId: () => "fresh-2", now: () => 50 });
+    const boot2 = await initPersistence({
+      db,
+      newId: () => "fresh-2",
+      now: () => 50,
+    });
     expect(boot2.quarantined).toBeUndefined();
     expect(boot2.restored).toBe(true);
     await getAutosaveController()!.stop();
@@ -151,10 +174,19 @@ describe("boot quarantine flow (fake db)", () => {
 describe("NEW project flow (createNewProject)", () => {
   it("persists a fresh empty default under a NEW id without touching the old row", async () => {
     const db: ProjectDb = createMemoryProjectDb();
-    const original = makeRecord("default", createDefaultProject(), encode(createDefaultProject()), 1, false);
+    const original = makeRecord(
+      "default",
+      createDefaultProject(),
+      encode(createDefaultProject()),
+      1,
+      false,
+    );
     await db.putRecord(original);
 
-    const { record, doc } = await createNewProject(db, { newId: () => "new-1", now: () => 99 });
+    const { record, doc } = await createNewProject(db, {
+      newId: () => "new-1",
+      now: () => 99,
+    });
     expect(record.id).toBe("new-1");
     expect(doc.name).toBe("Untitled");
     expect(isProjectEmpty(doc)).toBe(true);

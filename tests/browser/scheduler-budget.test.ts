@@ -29,7 +29,12 @@ import type {
   LaneGate,
   PitchedPattern,
 } from "../../src/document/schema";
-import { SAMPLE_RATE, detectOnsets, renderOffline, assertCleanAudio } from "./helpers";
+import {
+  SAMPLE_RATE,
+  detectOnsets,
+  renderOffline,
+  assertCleanAudio,
+} from "./helpers";
 
 const GROOVE: GrooveOptions = { bpm: 120, swing: 0.15 };
 const BARS = 2;
@@ -150,8 +155,8 @@ describe("scheduler onset budget (offline, real worklet)", () => {
     });
 
     const onsets = detectOnsets(mono);
-    const expectedSamples = lane.expected.map(
-      (t) => Math.round((t + START_TIME) * SAMPLE_RATE),
+    const expectedSamples = lane.expected.map((t) =>
+      Math.round((t + START_TIME) * SAMPLE_RATE),
     );
 
     // No spurious onsets (region splits inside a tail) and none missed.
@@ -224,9 +229,11 @@ describe("scheduler onset budget — swing sweep (HW-2, D8 layer-2 completeness)
         assertCleanAudio(mono, `swing ${swing} ${name}`);
 
         const onsets = detectOnsets(mono);
-        const expectedSamples = [...new Set(
-          events.map((e) => Math.round((e.time + START_TIME) * SAMPLE_RATE)),
-        )].sort((a, b) => a - b);
+        const expectedSamples = [
+          ...new Set(
+            events.map((e) => Math.round((e.time + START_TIME) * SAMPLE_RATE)),
+          ),
+        ].sort((a, b) => a - b);
 
         expect(onsets.length, `swing ${swing} ${name}: onset count`).toBe(
           expectedSamples.length,

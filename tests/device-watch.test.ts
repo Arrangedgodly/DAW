@@ -131,8 +131,16 @@ describe("late-bound context", () => {
     const onUnexpectedSuspend = vi.fn();
     const dispose = watchAudioDevices(
       { mediaDevices: null, getContext: () => ctx },
-      { isPlaying: () => true, duckMaster: () => undefined, unlock: async () => undefined },
-      { onDeviceChange: () => undefined, onUnexpectedSuspend, onAudioResumed: () => undefined },
+      {
+        isPlaying: () => true,
+        duckMaster: () => undefined,
+        unlock: async () => undefined,
+      },
+      {
+        onDeviceChange: () => undefined,
+        onUnexpectedSuspend,
+        onAudioResumed: () => undefined,
+      },
     );
     ctx = new FakeContext();
     vi.advanceTimersByTime(600); // poll interval

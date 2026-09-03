@@ -10,7 +10,11 @@
  */
 
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
-import { bannerFor, dismissBanner, isBannerDismissed } from "../support/banners";
+import {
+  bannerFor,
+  dismissBanner,
+  isBannerDismissed,
+} from "../support/banners";
 import { detectSupport } from "../support/detect";
 import "../styles/banner.css";
 
@@ -21,7 +25,9 @@ const DISMISS_LABEL: Record<string, string> = {
 };
 
 export default function SupportBanners() {
-  const [dismissedKinds, setDismissedKinds] = createSignal<ReadonlySet<string>>(new Set());
+  const [dismissedKinds, setDismissedKinds] = createSignal<ReadonlySet<string>>(
+    new Set(),
+  );
   const refresh = () => setDismissedKinds(new Set(isBannerDismissedSet()));
 
   const report = detectSupport(globalThis.window);

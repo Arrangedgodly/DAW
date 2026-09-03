@@ -35,13 +35,22 @@ export async function saveProject(
   opts: { dirty?: boolean; now?: number } = {},
 ): Promise<ProjectRecord> {
   const json = encode(doc);
-  const record = makeRecord(id, doc, json, opts.now ?? Date.now(), opts.dirty ?? false);
+  const record = makeRecord(
+    id,
+    doc,
+    json,
+    opts.now ?? Date.now(),
+    opts.dirty ?? false,
+  );
   await db.putRecord(record);
   return record;
 }
 
 /** Load + decode one project. Throws DecodeError/MigrationError on bad rows. */
-export async function loadProject(db: ProjectDb, id: string): Promise<ProjectDocument> {
+export async function loadProject(
+  db: ProjectDb,
+  id: string,
+): Promise<ProjectDocument> {
   const record = await db.getRecord(id);
   if (!record) throw new Error(`loadProject: no project '${id}'`);
   return decode(record.json);
@@ -59,14 +68,19 @@ export async function getProjectRecord(
  * Delete one project row. NOT wired to any UI in MF-2 (destructive; the
  * project-list UX arrives later). Resolves to true when a row was removed.
  */
-export async function deleteProject(db: ProjectDb, id: string): Promise<boolean> {
+export async function deleteProject(
+  db: ProjectDb,
+  id: string,
+): Promise<boolean> {
   const existing = await db.getRecord(id);
   await db.deleteRecord(id);
   return existing !== undefined;
 }
 
 /** The most recently updated row, or undefined when nothing was ever saved. */
-export async function mostRecentProject(db: ProjectDb): Promise<ProjectRecord | undefined> {
+export async function mostRecentProject(
+  db: ProjectDb,
+): Promise<ProjectRecord | undefined> {
   const records = await db.allRecords();
   if (records.length === 0) return undefined;
   return records.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));

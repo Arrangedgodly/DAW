@@ -136,15 +136,13 @@ export function compileSong(
       lane === "drums"
         ? compileLaneSchedule({
             chain,
-            preset:
-              getDrumKit(laneConf.kitId) ?? getDrumKit("kit-default")!,
+            preset: getDrumKit(laneConf.kitId) ?? getDrumKit("kit-default")!,
             gate: laneConf.gate,
             groove,
           })
         : compileLaneSchedule({
             chain,
-            preset:
-              getPreset(laneConf.presetId) ?? getPreset("preset-lead-1")!,
+            preset: getPreset(laneConf.presetId) ?? getPreset("preset-lead-1")!,
             gate: laneConf.gate,
             groove,
             scale: effectiveScale(doc, lane),

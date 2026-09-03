@@ -39,7 +39,10 @@ import {
 } from "../src/document/codec";
 import { MigrationError } from "../src/document/migrate";
 import { ProjectValidationError } from "../src/document/validate";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
 import { importProjectFile } from "../src/persist/fileIO";
 import { createMemoryProjectDb } from "../src/persist/db";
 
@@ -72,7 +75,9 @@ function wavLineageProject(): ProjectDocument {
   const lead = doc.patterns.lead[0];
   const steps = new Array(16).fill(0);
   steps[8] = 1;
-  lead.rows = lead.rows.map((row, idx) => (idx === 3 ? { degree: 3, steps } : row));
+  lead.rows = lead.rows.map((row, idx) =>
+    idx === 3 ? { degree: 3, steps } : row,
+  );
   return doc;
 }
 
@@ -141,12 +146,16 @@ const UNICODE_EDGES = [
   '"', // premature string close
 ];
 
-function firstKeyIndex(text: string): { start: number; end: number } | undefined {
+function firstKeyIndex(
+  text: string,
+): { start: number; end: number } | undefined {
   const m = /"([A-Za-z_][A-Za-z0-9_-]*)"\s*:/.exec(text);
   return m ? { start: m.index, end: m.index + m[0].length } : undefined;
 }
 
-function firstNumberIndex(text: string): { start: number; end: number } | undefined {
+function firstNumberIndex(
+  text: string,
+): { start: number; end: number } | undefined {
   const m = /-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/.exec(text);
   return m ? { start: m.index, end: m.index + m[0].length } : undefined;
 }
@@ -155,7 +164,11 @@ function deepNestJson(depth: number): string {
   return '{"a":'.repeat(depth) + "1" + "}".repeat(depth);
 }
 
-function applyMutation(name: MutationName, rng: () => number, text: string): string {
+function applyMutation(
+  name: MutationName,
+  rng: () => number,
+  text: string,
+): string {
   const pos = (max: number) => Math.floor(rng() * Math.max(1, max));
   switch (name) {
     case "byte-flip": {
@@ -187,7 +200,9 @@ function applyMutation(name: MutationName, rng: () => number, text: string): str
     case "huge-number": {
       const n = firstNumberIndex(text);
       if (!n) return text;
-      return text.slice(0, n.start) + "9".repeat(100 + pos(800)) + text.slice(n.end);
+      return (
+        text.slice(0, n.start) + "9".repeat(100 + pos(800)) + text.slice(n.end)
+      );
     }
     case "unicode-edge": {
       const edge = UNICODE_EDGES[pos(UNICODE_EDGES.length)]!;
@@ -229,7 +244,10 @@ export const MUTATIONS: readonly MutationName[] = [
 // Counting twin of the pre-scan (hang-freedom proof: iterations === length)
 // ---------------------------------------------------------------------------
 
-function countingDepthScan(text: string): { depth: number; iterations: number } {
+function countingDepthScan(text: string): {
+  depth: number;
+  iterations: number;
+} {
   let depth = 0;
   let max = 0;
   let inString = false;
@@ -268,8 +286,12 @@ function dangerousOwnKey(value: unknown, depth: number): string | undefined {
   }
   if (value !== null && typeof value === "object") {
     for (const key of Object.keys(value)) {
-      if (DANGEROUS_KEYS.has(key)) return `own key "${key}" reached the validated doc`;
-      const hit = dangerousOwnKey((value as Record<string, unknown>)[key], depth + 1);
+      if (DANGEROUS_KEYS.has(key))
+        return `own key "${key}" reached the validated doc`;
+      const hit = dangerousOwnKey(
+        (value as Record<string, unknown>)[key],
+        depth + 1,
+      );
       if (hit) return hit;
     }
   }
@@ -318,17 +340,23 @@ export async function runFuzz(
     try {
       text = applyMutation(mutation, rng, base);
     } catch (error) {
-      summary.crashes.push(`case ${i} (${mutation}): mutator threw ${String(error)}`);
+      summary.crashes.push(
+        `case ${i} (${mutation}): mutator threw ${String(error)}`,
+      );
       continue;
     }
 
     // Hang-freedom, operation-counted: the pre-scan is exactly linear.
     const counted = countingDepthScan(text);
     if (counted.iterations > text.length + 1) {
-      summary.crashes.push(`case ${i} (${mutation}): pre-scan iterations exceeded input length`);
+      summary.crashes.push(
+        `case ${i} (${mutation}): pre-scan iterations exceeded input length`,
+      );
     }
     if (text.length > 1_048_576) {
-      summary.crashes.push(`case ${i} (${mutation}): mutated text exceeded 1 MB (${text.length})`);
+      summary.crashes.push(
+        `case ${i} (${mutation}): mutated text exceeded 1 MB (${text.length})`,
+      );
     }
     scanJsonDepth(text); // the production scan must terminate too (same invariant)
 
@@ -366,7 +394,9 @@ export async function runFuzz(
         );
       }
       if (e2 !== undefined && e2 !== e1) {
-        summary.crashes.push(`case ${i} (${mutation}): encode(decode(encode(x))) !== encode(x)`);
+        summary.crashes.push(
+          `case ${i} (${mutation}): encode(decode(encode(x))) !== encode(x)`,
+        );
       }
       // Property: dangerous keys never reach the validated doc.
       const hit = dangerousOwnKey(doc, 0);
@@ -375,19 +405,25 @@ export async function runFuzz(
 
     // Property: Object.prototype never polluted by anything above.
     if (prototypePolluted()) {
-      summary.crashes.push(`case ${i} (${mutation}): Object.prototype polluted`);
+      summary.crashes.push(
+        `case ${i} (${mutation}): Object.prototype polluted`,
+      );
     }
 
     // importProjectFile text path: typed result, never a throw.
     try {
-      const file = new File([text], "fuzz.bitbounce.json", { type: "application/json" });
+      const file = new File([text], "fuzz.bitbounce.json", {
+        type: "application/json",
+      });
       const result = await importProjectFile(file, db, {
         newId: () => `fuzz-${i}`,
         now: () => 0,
         readFile: () => Promise.resolve(text),
       });
       if (typeof result.ok !== "boolean") {
-        summary.crashes.push(`case ${i} (${mutation}): importProjectFile returned non-result`);
+        summary.crashes.push(
+          `case ${i} (${mutation}): importProjectFile returned non-result`,
+        );
       }
     } catch (error) {
       summary.crashes.push(

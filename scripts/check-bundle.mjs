@@ -30,7 +30,9 @@ const FONT_BUDGET_KB = 50 * 1024; // bytes, raw woff2 (fonts are already compres
 function build() {
   if (process.env.SKIP_BUILD === "1") {
     if (!existsSync(join(DIST, "index.html"))) {
-      console.error("SKIP_BUILD=1 but dist/ has no build — run npm run build first.");
+      console.error(
+        "SKIP_BUILD=1 but dist/ has no build — run npm run build first.",
+      );
       process.exit(1);
     }
     console.log("check-bundle: SKIP_BUILD=1 — measuring existing dist/");
@@ -43,10 +45,11 @@ function build() {
 /** All <script type="module" src=...> entry points in dist/index.html. */
 function entryScripts() {
   const html = readFileSync(join(DIST, "index.html"), "utf8");
-  const srcs = [...html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"/g)].map(
-    (m) => m[1],
-  );
-  if (srcs.length === 0) throw new Error("no module script found in dist/index.html");
+  const srcs = [
+    ...html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"/g),
+  ].map((m) => m[1]);
+  if (srcs.length === 0)
+    throw new Error("no module script found in dist/index.html");
   return srcs;
 }
 
@@ -55,7 +58,9 @@ function eagerImports(chunkName, seen = new Set()) {
   if (seen.has(chunkName)) return seen;
   seen.add(chunkName);
   const src = readFileSync(join(DIST, chunkName), "utf8");
-  for (const m of src.matchAll(/import\s[^"']*from?\s*["'](\.\/[^"']+\.(?:js|mjs))["']/g)) {
+  for (const m of src.matchAll(
+    /import\s[^"']*from?\s*["'](\.\/[^"']+\.(?:js|mjs))["']/g,
+  )) {
     eagerImports(`assets/${m[1].slice(2)}`, seen);
   }
   // Chunk-to-chunk static imports may also appear as plain import "..." forms.
@@ -71,7 +76,9 @@ const kb = (bytes, digits = 2) => `${(bytes / 1024).toFixed(digits)} KB`;
 build();
 
 const assets = join(DIST, "assets");
-const allJs = readdirSync(assets).map((f) => `assets/${f}`).filter((f) => f.endsWith(".js"));
+const allJs = readdirSync(assets)
+  .map((f) => `assets/${f}`)
+  .filter((f) => f.endsWith(".js"));
 const entryNames = entryScripts().map((s) => s.replace(/^\/?/, ""));
 const eager = new Set();
 for (const e of entryNames) eagerImports(e, eager);
@@ -82,32 +89,45 @@ for (const f of allJs) sizes.set(f, gz(readFileSync(join(DIST, f))));
 const initialJs = [...eager].reduce((n, f) => n + (sizes.get(f) ?? 0), 0);
 const lazyJs = allJs.filter((f) => !eager.has(f));
 
-const fonts = readdirSync(assets).filter((f) => f.endsWith(".woff2")).map((f) => `assets/${f}`);
-const fontBytes = fonts.reduce((n, f) => n + readFileSync(join(DIST, f)).length, 0);
+const fonts = readdirSync(assets)
+  .filter((f) => f.endsWith(".woff2"))
+  .map((f) => `assets/${f}`);
+const fontBytes = fonts.reduce(
+  (n, f) => n + readFileSync(join(DIST, f)).length,
+  0,
+);
 // The worklet asset (matched by name) is fetched via URL when audio starts —
 // it is never module-imported, so it can never appear in the eager graph;
 // listed under its own category so the breakdown names it explicitly.
 const worklet = allJs.filter((f) => /voiceEngine|worklet/i.test(f));
 
-
 console.log("\nBundle breakdown (TH-2 gate):");
 console.log("  initial-load JS (entry + eager chunks, gz):");
-for (const f of [...eager].sort()) console.log(`    ${f.padEnd(34)} ${kb(sizes.get(f) ?? 0).padStart(9)}`);
+for (const f of [...eager].sort())
+  console.log(`    ${f.padEnd(34)} ${kb(sizes.get(f) ?? 0).padStart(9)}`);
 console.log(`    ${"-".repeat(34)} ${"-".repeat(9)}`);
 console.log(`    ${"TOTAL".padEnd(34)} ${kb(initialJs).padStart(9)}`);
 console.log("  lazy chunks (dynamic import, on demand, gz):");
 for (const f of lazyJs.sort())
-  console.log(`    ${f.padEnd(34)} ${kb(sizes.get(f) ?? 0).padStart(9)}${worklet.includes(f) ? "  (worklet: fetched at first play)" : ""}`);
-console.log(`  fonts (woff2, raw): ${fonts.length} files, ${kb(fontBytes)} — budget ≤ 50 KB ${fontBytes > FONT_BUDGET_KB ? "OVER" : "ok"}`);
+  console.log(
+    `    ${f.padEnd(34)} ${kb(sizes.get(f) ?? 0).padStart(9)}${worklet.includes(f) ? "  (worklet: fetched at first play)" : ""}`,
+  );
+console.log(
+  `  fonts (woff2, raw): ${fonts.length} files, ${kb(fontBytes)} — budget ≤ 50 KB ${fontBytes > FONT_BUDGET_KB ? "OVER" : "ok"}`,
+);
 const cssFile = readdirSync(assets).find((f) => f.endsWith(".css"));
 if (cssFile)
-  console.log(`  css (info, not gated): ${cssFile} ${kb(gz(readFileSync(join(assets, cssFile))))} gz`);
+  console.log(
+    `  css (info, not gated): ${cssFile} ${kb(gz(readFileSync(join(assets, cssFile))))} gz`,
+  );
 
 console.log(
   `\nGate: initial JS ${kb(initialJs)} gz ≤ 300 KB gz → ${initialJs <= JS_BUDGET_KB ? "PASS" : "FAIL"}`,
 );
 if (initialJs > JS_BUDGET_KB) {
-  console.error(`Bundle budget exceeded: ${kb(initialJs)} > 300 KB gz initial JS.`);
+  console.error(
+    `Bundle budget exceeded: ${kb(initialJs)} > 300 KB gz initial JS.`,
+  );
   process.exit(1);
 }
 if (fontBytes > FONT_BUDGET_KB) {

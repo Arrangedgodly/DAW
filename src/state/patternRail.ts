@@ -78,8 +78,12 @@ export interface TileStateInput {
  * target is the most time-critical state (Hulk: pending must be visible).
  */
 export function tileState(tile: RailTile, input: TileStateInput): TileState {
-  if (input.pending && input.pending.toPatternId === tile.patternId) return "pending";
-  if (input.activePatternId != null && input.activePatternId === tile.patternId) {
+  if (input.pending && input.pending.toPatternId === tile.patternId)
+    return "pending";
+  if (
+    input.activePatternId != null &&
+    input.activePatternId === tile.patternId
+  ) {
     return input.selectedPatternId === tile.patternId ? "selected" : "active";
   }
   if (input.selectedPatternId === tile.patternId) return "selected";
@@ -94,11 +98,12 @@ export function pendingAnnouncement(
   laneName: string,
   pending: PendingSwitchSnapshot,
 ): string {
-  const when = pending.appliesAtStep == null
-    ? "when playback starts"
-    : pending.mode === "boundary"
-      ? `at step ${pending.appliesAtStep}`
-      : `at step ${pending.appliesAtStep} (next chain pass)`;
+  const when =
+    pending.appliesAtStep == null
+      ? "when playback starts"
+      : pending.mode === "boundary"
+        ? `at step ${pending.appliesAtStep}`
+        : `at step ${pending.appliesAtStep} (next chain pass)`;
   return `${laneName}: switching to ${pending.toPatternId} ${when}`;
 }
 

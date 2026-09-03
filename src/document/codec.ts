@@ -29,7 +29,11 @@ export function canonicalize(value: unknown): string {
  * own enumerable property, so `{"__proto__":{...}}` survives as inert data
  * (and is then rejected by strict validation as an unknown key).
  */
-function defineOwn(out: Record<string, unknown>, key: string, value: unknown): void {
+function defineOwn(
+  out: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void {
   Object.defineProperty(out, key, {
     value,
     enumerable: true,
@@ -76,7 +80,10 @@ export function contentHash(value: unknown): string {
 // ---------------------------------------------------------------------------
 
 export class DecodeError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = "DecodeError";
   }
@@ -104,7 +111,9 @@ export const DECODE_MAX_DEPTH = 64;
 /** Thrown by the pre-parse guards; subclasses DecodeError so callers see one type. */
 export class TextTooLargeError extends DecodeError {
   constructor(readonly length: number) {
-    super(`Project text exceeds the ${DECODE_MAX_CHARS / 1024} KB decode limit (${length} chars)`);
+    super(
+      `Project text exceeds the ${DECODE_MAX_CHARS / 1024} KB decode limit (${length} chars)`,
+    );
     this.name = "TextTooLargeError";
   }
 }
@@ -112,7 +121,9 @@ export class TextTooLargeError extends DecodeError {
 /** Thrown when the pre-scan finds nesting deeper than DECODE_MAX_DEPTH. */
 export class DepthLimitError extends DecodeError {
   constructor(readonly depth: number) {
-    super(`Project JSON nests ${depth} levels deep (limit ${DECODE_MAX_DEPTH})`);
+    super(
+      `Project JSON nests ${depth} levels deep (limit ${DECODE_MAX_DEPTH})`,
+    );
     this.name = "DepthLimitError";
   }
 }
@@ -132,7 +143,8 @@ export function scanJsonDepth(text: string): number {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (inString) {
-      if (ch === "\\") i++; // skip escaped char (handles \" and \\ correctly)
+      if (ch === "\\")
+        i++; // skip escaped char (handles \" and \\ correctly)
       else if (ch === '"') inString = false;
       continue;
     }
@@ -177,7 +189,9 @@ export function decode(text: string): ProjectDocument {
     throw new DecodeError("Project file is not valid JSON", cause);
   }
   if (!isPlainObject(parsed)) {
-    throw new ProjectValidationError("Project file is not a JSON object", ["(root): expected an object"]);
+    throw new ProjectValidationError("Project file is not a JSON object", [
+      "(root): expected an object",
+    ]);
   }
   const migrated = migrate(parsed as Record<string, unknown>);
   return validateProject(migrated);

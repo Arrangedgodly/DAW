@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { canonicalize, contentHash, decode, encode } from "../src/document/codec";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
+import {
+  canonicalize,
+  contentHash,
+  decode,
+  encode,
+} from "../src/document/codec";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
 import { ProjectValidationError } from "../src/document/validate";
 
 describe("encode/decode round-trip", () => {
@@ -11,12 +19,18 @@ describe("encode/decode round-trip", () => {
   });
 
   it("mutated project round-trips", () => {
-    const doc: ProjectDocument = JSON.parse(JSON.stringify(createDefaultProject()));
+    const doc: ProjectDocument = JSON.parse(
+      JSON.stringify(createDefaultProject()),
+    );
     doc.transport.bpm = 174;
     doc.scale = { root: 9, mode: "phrygian" };
     doc.laneOverrides = { chords: { root: 4, mode: "lydian" } };
     doc.lanes[3].fxChain = [
-      { type: "delay", bypassed: false, params: { timeSteps: 6, feedback: 0.4, mix: 0.2 } },
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 6, feedback: 0.4, mix: 0.2 },
+      },
     ];
     expect(decode(encode(doc))).toEqual(doc);
   });
@@ -28,15 +42,21 @@ describe("encode/decode round-trip", () => {
 
   it("decode rejects structurally valid JSON of the wrong shape", () => {
     // No version field → migration layer refuses before validation ever runs.
-    expect(() => decode(JSON.stringify({ hello: "world" }))).toThrow(/schema version/);
+    expect(() => decode(JSON.stringify({ hello: "world" }))).toThrow(
+      /schema version/,
+    );
     // Has a version but wrong body → strict validation refuses.
-    expect(() => decode(JSON.stringify({ version: 1 }))).toThrow(ProjectValidationError);
+    expect(() => decode(JSON.stringify({ version: 1 }))).toThrow(
+      ProjectValidationError,
+    );
   });
 });
 
 describe("canonical bytes", () => {
   it("sorts keys at every level", () => {
-    expect(canonicalize({ b: 1, a: { z: 1, c: 2 } })).toBe('{"a":{"c":2,"z":1},"b":1}');
+    expect(canonicalize({ b: 1, a: { z: 1, c: 2 } })).toBe(
+      '{"a":{"c":2,"z":1},"b":1}',
+    );
   });
 
   it("is stable regardless of key insertion order", () => {
@@ -74,7 +94,7 @@ describe("contentHash", () => {
     expect(h).toBe(contentHash(createDefaultProject()));
   });
 
-  it("known-vector check (FNV-1a of canonical \"1\")", () => {
+  it('known-vector check (FNV-1a of canonical "1")', () => {
     // FNV-1a 32-bit of the byte '1' (0x31): documented reference value.
     expect(contentHash(1)).toBe("340ca71c");
   });

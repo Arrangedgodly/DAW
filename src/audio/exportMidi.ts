@@ -99,14 +99,17 @@ export const GM_DRUM_VELOCITIES: Readonly<Record<DrumPiece, number>> = {
 export const PITCHED_VELOCITY = 96;
 
 /** One MIDI channel per pitched lane (drums own channel 9). */
-export const LANE_CHANNELS: Readonly<Record<Exclude<LaneId, "drums">, number>> = {
-  bass: 0,
-  chords: 1,
-  lead: 2,
-} as const;
+export const LANE_CHANNELS: Readonly<Record<Exclude<LaneId, "drums">, number>> =
+  {
+    bass: 0,
+    chords: 1,
+    lead: 2,
+  } as const;
 
 /** Fallback octave of scale degree 0 when a preset carries no pitch range. */
-export const LANE_OCTAVE_FALLBACK: Readonly<Record<Exclude<LaneId, "drums">, number>> = {
+export const LANE_OCTAVE_FALLBACK: Readonly<
+  Record<Exclude<LaneId, "drums">, number>
+> = {
   bass: 2,
   chords: 3,
   lead: 4,
@@ -176,11 +179,15 @@ export function stepTick(step: number, swing = 0): number {
 export function gateTicks(gate: LaneGate, bpm: number): number {
   return gate.unit === "steps"
     ? Math.round(gate.value * TICKS_PER_STEP)
-    : Math.round(gate.value * (PPQ * bpm) / 60);
+    : Math.round((gate.value * (PPQ * bpm)) / 60);
 }
 
 /** Minimum one tick so a zero/near-zero gate still round-trips as a note. */
-function noteDuration(gate: LaneGate, sustainSteps: number, bpm: number): number {
+function noteDuration(
+  gate: LaneGate,
+  sustainSteps: number,
+  bpm: number,
+): number {
   return Math.max(1, gateTicks(gate, bpm) + sustainSteps * TICKS_PER_STEP);
 }
 
@@ -234,9 +241,13 @@ export function buildPitchedNotes(
   swing: number,
 ): MidiNote[] {
   const laneConf = doc.lanes.find((l) => l.id === lane);
-  const presetId = laneConf && laneConf.id !== "drums" ? laneConf.presetId : undefined;
-  const preset = (presetId !== undefined ? getPreset(presetId) : undefined) ?? getPreset("preset-lead-1");
-  const octaveBase = preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane];
+  const presetId =
+    laneConf && laneConf.id !== "drums" ? laneConf.presetId : undefined;
+  const preset =
+    (presetId !== undefined ? getPreset(presetId) : undefined) ??
+    getPreset("preset-lead-1");
+  const octaveBase =
+    preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane];
   const scale = effectiveScale(doc, lane);
   const stack = lane === "chords" ? [0, 2, 4] : [0];
   const notes: MidiNote[] = [];
@@ -251,7 +262,10 @@ export function buildPitchedNotes(
       for (let step = 0; step < steps.length; step++) {
         if (steps[step] !== 1) continue;
         let sustain = 0;
-        while (step + 1 + sustain < steps.length && steps[step + 1 + sustain] === 2) {
+        while (
+          step + 1 + sustain < steps.length &&
+          steps[step + 1 + sustain] === 2
+        ) {
           sustain++;
         }
         for (const off of stack) {
@@ -273,7 +287,9 @@ export function buildPitchedNotes(
  * Cue markers (DES-6 free win): every non-null chainCues label at its slot's
  * chain-start tick, deduped across lanes (same tick + same text = one event).
  */
-export function buildCueMarkers(doc: ProjectDocument): { tick: number; text: string }[] {
+export function buildCueMarkers(
+  doc: ProjectDocument,
+): { tick: number; text: string }[] {
   const cues = doc.chainCues;
   if (!cues) return [];
   const seen = new Set<string>();
@@ -333,7 +349,9 @@ function orderOf(e: MidiEvent): number {
   return e.type === "noteOff" ? 0 : 1;
 }
 function noteOf(e: MidiEvent): number {
-  return e.type === "noteOn" || e.type === "noteOff" || e.type === "noteAftertouch"
+  return e.type === "noteOn" ||
+    e.type === "noteOff" ||
+    e.type === "noteAftertouch"
     ? e.noteNumber
     : -1;
 }
@@ -353,12 +371,44 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
   // --- Track 0: tempo map + 4/4 + cue markers ------------------------------
   const tempoUs = Math.round(60_000_000 / bpm);
   const track0 = deltaEncode([
-    { tick: 0, event: { deltaTime: 0, type: "trackName", meta: true, text: TRACK_NAMES.tempo } },
-    { tick: 0, event: { deltaTime: 0, type: "timeSignature", meta: true, numerator: 4, denominator: 4, metronome: 24, thirtyseconds: 8 } },
-    { tick: 0, event: { deltaTime: 0, type: "setTempo", meta: true, microsecondsPerBeat: tempoUs } },
+    {
+      tick: 0,
+      event: {
+        deltaTime: 0,
+        type: "trackName",
+        meta: true,
+        text: TRACK_NAMES.tempo,
+      },
+    },
+    {
+      tick: 0,
+      event: {
+        deltaTime: 0,
+        type: "timeSignature",
+        meta: true,
+        numerator: 4,
+        denominator: 4,
+        metronome: 24,
+        thirtyseconds: 8,
+      },
+    },
+    {
+      tick: 0,
+      event: {
+        deltaTime: 0,
+        type: "setTempo",
+        meta: true,
+        microsecondsPerBeat: tempoUs,
+      },
+    },
     ...buildCueMarkers(doc).map((m) => ({
       tick: m.tick,
-      event: { deltaTime: 0, type: "marker", meta: true, text: m.text } as const,
+      event: {
+        deltaTime: 0,
+        type: "marker",
+        meta: true,
+        text: m.text,
+      } as const,
     })),
   ]);
   const tempoTrack: MidiEvent[] = [
@@ -372,27 +422,89 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
     const lane = laneConf.id;
     const chain = resolveChainPatterns(doc, lane);
     const events: PendingEvent[] = [
-      { tick: 0, event: { deltaTime: 0, type: "trackName", meta: true, text: TRACK_NAMES[lane] } },
+      {
+        tick: 0,
+        event: {
+          deltaTime: 0,
+          type: "trackName",
+          meta: true,
+          text: TRACK_NAMES[lane],
+        },
+      },
     ];
     if (lane === "drums") {
       // Drums: GM channel 9, no program change (channel 10 IS the program).
       for (const note of buildDrumNotes(chain, laneConf.gate, bpm, swing)) {
-        events.push({ tick: note.tick, event: { deltaTime: 0, type: "noteOn", channel: DRUM_CHANNEL, noteNumber: note.noteNumber, velocity: note.velocity } });
-        events.push({ tick: note.tick + note.durationTicks, event: { deltaTime: 0, type: "noteOff", channel: DRUM_CHANNEL, noteNumber: note.noteNumber, velocity: 0 } });
+        events.push({
+          tick: note.tick,
+          event: {
+            deltaTime: 0,
+            type: "noteOn",
+            channel: DRUM_CHANNEL,
+            noteNumber: note.noteNumber,
+            velocity: note.velocity,
+          },
+        });
+        events.push({
+          tick: note.tick + note.durationTicks,
+          event: {
+            deltaTime: 0,
+            type: "noteOff",
+            channel: DRUM_CHANNEL,
+            noteNumber: note.noteNumber,
+            velocity: 0,
+          },
+        });
       }
     } else {
       const channel = LANE_CHANNELS[lane];
       const presetId = laneConf.presetId;
       const program = PRESET_GM_PROGRAMS[presetId];
       if (program !== undefined) {
-        events.push({ tick: 0, event: { deltaTime: 0, type: "programChange", channel, programNumber: program } });
+        events.push({
+          tick: 0,
+          event: {
+            deltaTime: 0,
+            type: "programChange",
+            channel,
+            programNumber: program,
+          },
+        });
       }
-      for (const note of buildPitchedNotes(doc, lane, chain, laneConf.gate, bpm, swing)) {
-        events.push({ tick: note.tick, event: { deltaTime: 0, type: "noteOn", channel, noteNumber: note.noteNumber, velocity: note.velocity } });
-        events.push({ tick: note.tick + note.durationTicks, event: { deltaTime: 0, type: "noteOff", channel, noteNumber: note.noteNumber, velocity: 0 } });
+      for (const note of buildPitchedNotes(
+        doc,
+        lane,
+        chain,
+        laneConf.gate,
+        bpm,
+        swing,
+      )) {
+        events.push({
+          tick: note.tick,
+          event: {
+            deltaTime: 0,
+            type: "noteOn",
+            channel,
+            noteNumber: note.noteNumber,
+            velocity: note.velocity,
+          },
+        });
+        events.push({
+          tick: note.tick + note.durationTicks,
+          event: {
+            deltaTime: 0,
+            type: "noteOff",
+            channel,
+            noteNumber: note.noteNumber,
+            velocity: 0,
+          },
+        });
       }
     }
-    laneTracks.push([...deltaEncode(events), { deltaTime: 0, type: "endOfTrack", meta: true }]);
+    laneTracks.push([
+      ...deltaEncode(events),
+      { deltaTime: 0, type: "endOfTrack", meta: true },
+    ]);
   }
 
   return {
@@ -413,8 +525,20 @@ export function noteCount(doc: ProjectDocument): number {
     const chain = resolveChainPatterns(doc, laneConf.id);
     n +=
       laneConf.id === "drums"
-        ? buildDrumNotes(chain, laneConf.gate, doc.transport.bpm, doc.transport.swing).length
-        : buildPitchedNotes(doc, laneConf.id, chain, laneConf.gate, doc.transport.bpm, doc.transport.swing).length;
+        ? buildDrumNotes(
+            chain,
+            laneConf.gate,
+            doc.transport.bpm,
+            doc.transport.swing,
+          ).length
+        : buildPitchedNotes(
+            doc,
+            laneConf.id,
+            chain,
+            laneConf.gate,
+            doc.transport.bpm,
+            doc.transport.swing,
+          ).length;
   }
   return n;
 }
@@ -487,6 +611,7 @@ function defaultSeam(): DownloadSeam {
   return {
     createObjectURL: (blob) => URL.createObjectURL(blob),
     revokeObjectURL: (url) => URL.revokeObjectURL(url),
-    createElement: (tag) => document.createElement(tag as "a") as HTMLAnchorElement,
+    createElement: (tag) =>
+      document.createElement(tag as "a") as HTMLAnchorElement,
   };
 }

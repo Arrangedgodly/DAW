@@ -14,9 +14,18 @@ import { docStore, loadDocument } from "../state/store";
 import { armFirstRunNudge } from "../state/firstRun";
 import { showInfo, showError } from "../state/toasts";
 import { relativeTime } from "../lib/reltime";
-import { startAutosave, type AutosaveController, type AutosaveStatus } from "./autosave";
+import {
+  startAutosave,
+  type AutosaveController,
+  type AutosaveStatus,
+} from "./autosave";
 import { BOOT_PROJECT_ID, type ProjectDb, openProjectDb } from "./db";
-import { listProjects, mostRecentProject, saveProject, type ProjectMeta } from "./projectStore";
+import {
+  listProjects,
+  mostRecentProject,
+  saveProject,
+  type ProjectMeta,
+} from "./projectStore";
 import { createNewProject } from "./newProject";
 import {
   exportQuarantinedBytes,
@@ -115,7 +124,8 @@ export interface BootResult {
 /** Options: `db` injects a pre-opened handle (browser tests isolate DB names). */
 export async function initPersistence(
   opts: { db?: ProjectDb; newId?: () => string; now?: () => number } = {},
-): Promise<BootResult> {  const db = opts.db ?? (await openProjectDb());
+): Promise<BootResult> {
+  const db = opts.db ?? (await openProjectDb());
   activeDb = db;
   const recent = await mostRecentProject(db);
   let projectId = BOOT_PROJECT_ID;
@@ -135,7 +145,8 @@ export async function initPersistence(
         showInfo(
           `RECOVERED UNSAVED WORK — last change ${relativeTime(recent.updatedAt, Date.now())}`,
           {
-            suggestion: "Your edits survived the crash. Autosave kept this project.",
+            suggestion:
+              "Your edits survived the crash. Autosave kept this project.",
           },
         );
         // The draft HAS been recovered — clear the stale flag so a later boot
@@ -147,15 +158,24 @@ export async function initPersistence(
       // Corrupt/future-version row (HU-2): quarantine (rename, never delete),
       // continue with a FRESH default project, and surface a sticky error
       // toast whose RECOVER action downloads the original raw bytes.
-      console.warn("[persist] stored project failed validation; quarantining", error);
-      quarantined = await quarantineProjectRecord(db, recent, { now: opts.now });
-      const fresh = await createNewProject(db, { newId: opts.newId, now: opts.now });
+      console.warn(
+        "[persist] stored project failed validation; quarantining",
+        error,
+      );
+      quarantined = await quarantineProjectRecord(db, recent, {
+        now: opts.now,
+      });
+      const fresh = await createNewProject(db, {
+        newId: opts.newId,
+        now: opts.now,
+      });
       projectId = fresh.record.id;
       loadDocument(fresh.doc);
       showError(
         `Saved project "${recent.name}" was damaged and could not be loaded.`,
         {
-          suggestion: "A fresh project was started instead. The damaged data was kept.",
+          suggestion:
+            "A fresh project was started instead. The damaged data was kept.",
           action: {
             label: "RECOVER",
             run: () => {
@@ -180,5 +200,11 @@ export async function initPersistence(
   startController(projectId);
   // Narrow for the result type (startController always assigns synchronously).
   const started = controller as AutosaveController;
-  return { db, projectId, restored, controller: started, ...(quarantined ? { quarantined } : {}) };
+  return {
+    db,
+    projectId,
+    restored,
+    controller: started,
+    ...(quarantined ? { quarantined } : {}),
+  };
 }

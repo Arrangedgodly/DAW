@@ -8,7 +8,15 @@ import { describe, expect, it } from "vitest";
 import { euclid, matchEuclid, patternEquals } from "../src/audio/euclid";
 
 const on = (pattern: string): boolean[] =>
-  [...pattern].map((c) => (c === "x" ? true : c === "." ? false : (() => { throw new Error(`bad char ${c}`); })()));
+  [...pattern].map((c) =>
+    c === "x"
+      ? true
+      : c === "."
+        ? false
+        : (() => {
+            throw new Error(`bad char ${c}`);
+          })(),
+  );
 
 describe("euclid algorithm (threshold method)", () => {
   it("E(3,8) = x..x..x.", () => {
@@ -66,7 +74,10 @@ describe("euclid algorithm (threshold method)", () => {
 describe("matchEuclid (custom-state detection)", () => {
   it("recovers canonical parameters for unrotated patterns", () => {
     expect(matchEuclid(on("x..x..x."))).toEqual({ pulses: 3, rotation: 0 });
-    expect(matchEuclid(on("x...x..x..x..x.."))).toEqual({ pulses: 5, rotation: 0 });
+    expect(matchEuclid(on("x...x..x..x..x.."))).toEqual({
+      pulses: 5,
+      rotation: 0,
+    });
     expect(matchEuclid(on("x.x"))).toEqual({ pulses: 2, rotation: 0 });
   });
 
@@ -76,8 +87,14 @@ describe("matchEuclid (custom-state detection)", () => {
   });
 
   it("empty and full rows match their degenerate patterns", () => {
-    expect(matchEuclid(new Array(8).fill(false))).toEqual({ pulses: 0, rotation: 0 });
-    expect(matchEuclid(new Array(8).fill(true))).toEqual({ pulses: 8, rotation: 0 });
+    expect(matchEuclid(new Array(8).fill(false))).toEqual({
+      pulses: 0,
+      rotation: 0,
+    });
+    expect(matchEuclid(new Array(8).fill(true))).toEqual({
+      pulses: 8,
+      rotation: 0,
+    });
   });
 
   it("a hand-edited (non-Euclidean) row matches nothing", () => {

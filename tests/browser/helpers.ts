@@ -6,9 +6,7 @@
  * offline), so onset assertions run against the true rendering path.
  */
 
-import {
-  type VoiceNoteOnEvent,
-} from "../../src/audio/presets";
+import { type VoiceNoteOnEvent } from "../../src/audio/presets";
 import {
   createVoiceEngine,
   workletContextFor,
@@ -199,7 +197,11 @@ export async function hashChannelsHex(
     merged.set(ch, at);
     at += ch.length;
   }
-  const bytes = new Uint8Array(merged.buffer, merged.byteOffset, merged.byteLength);
+  const bytes = new Uint8Array(
+    merged.buffer,
+    merged.byteOffset,
+    merged.byteLength,
+  );
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -213,4 +215,3 @@ export async function hashBytesHex(bytes: Uint8Array): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
-

@@ -65,7 +65,11 @@ export function gridMoveForKey(key: string, ctrl: boolean): GridMove | null {
 }
 
 /** Next focused cell for a within-grid move (clamped, never wraps). */
-export function nextCell(pos: CellPos, dims: GridDims, move: GridMove): CellPos {
+export function nextCell(
+  pos: CellPos,
+  dims: GridDims,
+  move: GridMove,
+): CellPos {
   switch (move) {
     case "left":
       return { row: pos.row, step: clamp(pos.step - 1, 0, dims.steps - 1) };
@@ -80,9 +84,15 @@ export function nextCell(pos: CellPos, dims: GridDims, move: GridMove): CellPos 
     case "end":
       return { row: pos.row, step: dims.steps - 1 };
     case "beatBack":
-      return { row: pos.row, step: clamp(pos.step - BEAT_STEPS, 0, dims.steps - 1) };
+      return {
+        row: pos.row,
+        step: clamp(pos.step - BEAT_STEPS, 0, dims.steps - 1),
+      };
     case "beatForward":
-      return { row: pos.row, step: clamp(pos.step + BEAT_STEPS, 0, dims.steps - 1) };
+      return {
+        row: pos.row,
+        step: clamp(pos.step + BEAT_STEPS, 0, dims.steps - 1),
+      };
   }
 }
 
@@ -95,7 +105,11 @@ export type LaneName = (typeof LANE_ORDER)[number];
  * clamped at the first/last lane. Returns the SAME index at the edges —
  * no wrap (spec).
  */
-export function laneMoveIndex(fromIndex: number, laneCount: number, dir: -1 | 1): number {
+export function laneMoveIndex(
+  fromIndex: number,
+  laneCount: number,
+  dir: -1 | 1,
+): number {
   return clamp(fromIndex + dir, 0, laneCount - 1);
 }
 

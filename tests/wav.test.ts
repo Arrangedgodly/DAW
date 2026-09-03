@@ -21,7 +21,13 @@ function u16le(bytes: Uint8Array, at: number): number {
 }
 
 function u32le(bytes: Uint8Array, at: number): number {
-  return (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) >>> 0;
+  return (
+    (bytes[at] |
+      (bytes[at + 1] << 8) |
+      (bytes[at + 2] << 16) |
+      (bytes[at + 3] << 24)) >>>
+    0
+  );
 }
 
 function i16le(bytes: Uint8Array, at: number): number {
@@ -120,7 +126,10 @@ describe("encodeWav16 — the one committed variant (throws otherwise)", () => {
 
   it("three channels throw", () => {
     expect(() =>
-      encodeWav16([new Float32Array(4), new Float32Array(4), new Float32Array(4)], SR),
+      encodeWav16(
+        [new Float32Array(4), new Float32Array(4), new Float32Array(4)],
+        SR,
+      ),
     ).toThrow(/2 channels/);
   });
 
@@ -131,15 +140,17 @@ describe("encodeWav16 — the one committed variant (throws otherwise)", () => {
   });
 
   it("empty buffer throws", () => {
-    expect(() => encodeWav16([new Float32Array(0), new Float32Array(0)], SR)).toThrow(/empty/);
+    expect(() =>
+      encodeWav16([new Float32Array(0), new Float32Array(0)], SR),
+    ).toThrow(/empty/);
   });
 
   it("non-integer / non-positive sample rate throws", () => {
-    expect(() => encodeWav16([new Float32Array(2), new Float32Array(2)], 44100.5)).toThrow(
-      /sample rate/,
-    );
-    expect(() => encodeWav16([new Float32Array(2), new Float32Array(2)], 0)).toThrow(
-      /sample rate/,
-    );
+    expect(() =>
+      encodeWav16([new Float32Array(2), new Float32Array(2)], 44100.5),
+    ).toThrow(/sample rate/);
+    expect(() =>
+      encodeWav16([new Float32Array(2), new Float32Array(2)], 0),
+    ).toThrow(/sample rate/);
   });
 });

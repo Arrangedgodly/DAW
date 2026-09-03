@@ -27,7 +27,10 @@ import "./styles/help.css";
 // quarantined inside initPersistence (HU-2) with a RECOVER toast; only an
 // outright boot failure (e.g. no storage at all) lands here.
 void initPersistence().catch((error) => {
-  console.warn("[persist] boot restore failed; starting from default project", error);
+  console.warn(
+    "[persist] boot restore failed; starting from default project",
+    error,
+  );
 });
 
 export default function App() {

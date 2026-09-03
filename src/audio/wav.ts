@@ -40,7 +40,9 @@ function writeU16(bytes: Uint8Array, at: number, value: number): void {
   bytes[at + 1] = (value >>> 8) & 0xff;
 }
 
-/** float → int16 with the documented clamp/scale/round law. */export function floatToInt16(v: number): number {
+/** float → int16 with the documented clamp/scale/round law. */ export function floatToInt16(
+  v: number,
+): number {
   const clamped = v < -1 ? -1 : v > 1 ? 1 : v;
   return Math.round(clamped * 32767);
 }

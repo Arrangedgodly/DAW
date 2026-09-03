@@ -19,10 +19,12 @@ function cspDevStrip(): Plugin {
     name: "csp-dev-strip",
     apply: "serve",
     transformIndexHtml(html) {
-      return html.replace(/\s*<!--\s*\n?\s*CA-1 zero-network[\s\S]*?-->\n?/, "").replace(
-        /\s*<meta\s+http-equiv="Content-Security-Policy"[^>]*\/>\n?/,
-        "\n",
-      );
+      return html
+        .replace(/\s*<!--\s*\n?\s*CA-1 zero-network[\s\S]*?-->\n?/, "")
+        .replace(
+          /\s*<meta\s+http-equiv="Content-Security-Policy"[^>]*\/>\n?/,
+          "\n",
+        );
     },
   };
 }
@@ -60,9 +62,7 @@ export default defineConfig({
           // binding. We use vanilla only (D1): alias it away and
           // inline the deps so node-mode externalization can't bypass the
           // alias (neither test nor build ever resolves react).
-          alias: [
-            { find: /^zustand$/, replacement: "zustand/vanilla" },
-          ],
+          alias: [{ find: /^zustand$/, replacement: "zustand/vanilla" }],
           server: { deps: { inline: ["zundo", "zustand"] } },
           include: ["tests/**/*.test.ts"],
           exclude: ["tests/browser/**"],
@@ -98,9 +98,7 @@ export default defineConfig({
           extends: true,
           include: ["tests/browser/**/*.test.{ts,tsx}"],
           globalSetup: ["tests/browser/globalSetup.ts"],
-          alias: [
-            { find: /^zustand$/, replacement: "zustand/vanilla" },
-          ],
+          alias: [{ find: /^zustand$/, replacement: "zustand/vanilla" }],
           browser: {
             enabled: true,
             provider: playwright({

@@ -22,7 +22,8 @@ export default function AudioStatus() {
   onMount(() => {
     const mediaDevices: MediaDevicesLike | null =
       typeof navigator !== "undefined" && "mediaDevices" in navigator
-        ? (navigator as Navigator & { mediaDevices?: MediaDevicesLike }).mediaDevices ?? null
+        ? ((navigator as Navigator & { mediaDevices?: MediaDevicesLike })
+            .mediaDevices ?? null)
         : null;
     const dispose = watchAudioDevices(
       {

@@ -17,7 +17,10 @@
       artifact users receive always carries the full policy. Guarded by
       tests/browser/zero-network.test.ts; see docs/dev/privacy.md.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>Bitbounce</title>
     <!-- res-9 critical-path preload set ONLY: the font-display:swap value/ui
          faces that ship as separate files (Departure Mono ≈ 5.9 KB, IBM Plex
@@ -27,8 +30,20 @@
          duplicate bytes. The font-display:optional faces (VT323, Press Start
          2P) and the numeric-field weight (Plex 500) are deliberately NOT
          preloaded — the stage never depends on them. -->
-    <link rel="preload" href="/src/assets/fonts/departure-mono-400.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/src/assets/fonts/ibm-plex-mono-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/departure-mono-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/ibm-plex-mono-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
   </head>
   <body>
     <!--

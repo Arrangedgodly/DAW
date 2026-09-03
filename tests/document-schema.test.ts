@@ -5,75 +5,180 @@ import {
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
-import { ProjectValidationError, normalizeProject, validateProject } from "../src/document/validate";
-import { isModeName, MODE_NAMES, toEffectiveScale } from "../src/document/scales";
+import {
+  ProjectValidationError,
+  normalizeProject,
+  validateProject,
+} from "../src/document/validate";
+import {
+  isModeName,
+  MODE_NAMES,
+  toEffectiveScale,
+} from "../src/document/scales";
 
-const TRANSFORMS: ReadonlyArray<[label: string, mutate: (d: Record<string, unknown>) => void]> = [
+const TRANSFORMS: ReadonlyArray<
+  [label: string, mutate: (d: Record<string, unknown>) => void]
+> = [
   ["wrong type: name as number", (d) => (d["name"] = 7)],
-  ["wrong type: bpm as string", (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = "120")],
-  ["out of range: bpm 300", (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = 300)],
-  ["out of range: bpm 40", (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = 40)],
-  ["out of range: swing 1.5", (d) => ((d["transport"] as Record<string, unknown>)["swing"] = 1.5)],
-  ["out of range: negative swing", (d) => ((d["transport"] as Record<string, unknown>)["swing"] = -0.1)],
-  ["invalid loopBars 3", (d) => ((d["transport"] as Record<string, unknown>)["loopBars"] = 3)],
-  ["metronome not boolean", (d) => ((d["transport"] as Record<string, unknown>)["metronome"] = "on")],
+  [
+    "wrong type: bpm as string",
+    (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = "120"),
+  ],
+  [
+    "out of range: bpm 300",
+    (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = 300),
+  ],
+  [
+    "out of range: bpm 40",
+    (d) => ((d["transport"] as Record<string, unknown>)["bpm"] = 40),
+  ],
+  [
+    "out of range: swing 1.5",
+    (d) => ((d["transport"] as Record<string, unknown>)["swing"] = 1.5),
+  ],
+  [
+    "out of range: negative swing",
+    (d) => ((d["transport"] as Record<string, unknown>)["swing"] = -0.1),
+  ],
+  [
+    "invalid loopBars 3",
+    (d) => ((d["transport"] as Record<string, unknown>)["loopBars"] = 3),
+  ],
+  [
+    "metronome not boolean",
+    (d) => ((d["transport"] as Record<string, unknown>)["metronome"] = "on"),
+  ],
   ["extra root key", (d) => (d["surprise"] = true)],
-  ["extra transport key", (d) => ((d["transport"] as Record<string, unknown>)["extra"] = 1)],
-  ["extra fx param key", (d) => {
-    const lane = (d["lanes"] as Record<string, unknown>[])[1];
-    (lane["fxChain"] as unknown[]).push({ type: "drive", bypassed: false, params: { amount: 0.5, extra: 1 } });
-  }],
+  [
+    "extra transport key",
+    (d) => ((d["transport"] as Record<string, unknown>)["extra"] = 1),
+  ],
+  [
+    "extra fx param key",
+    (d) => {
+      const lane = (d["lanes"] as Record<string, unknown>[])[1];
+      (lane["fxChain"] as unknown[]).push({
+        type: "drive",
+        bypassed: false,
+        params: { amount: 0.5, extra: 1 },
+      });
+    },
+  ],
   ["wrong schema version literal", (d) => (d["version"] = 2)],
-  ["unknown mode name", (d) => ((d["scale"] as Record<string, unknown>)["mode"] = "aeolian-exotic")],
-  ["unknown root pitch class 12", (d) => ((d["scale"] as Record<string, unknown>)["root"] = 12)],
+  [
+    "unknown mode name",
+    (d) => ((d["scale"] as Record<string, unknown>)["mode"] = "aeolian-exotic"),
+  ],
+  [
+    "unknown root pitch class 12",
+    (d) => ((d["scale"] as Record<string, unknown>)["root"] = 12),
+  ],
   ["lane count 3", (d) => (d["lanes"] = (d["lanes"] as unknown[]).slice(0, 3))],
-  ["lane order swapped", (d) => {
-    const lanes = d["lanes"] as unknown[];
-    const tmp = lanes[0];
-    lanes[0] = lanes[1];
-    lanes[1] = tmp;
-  }],
-  ["drums pattern kind pitched", (d) => {
-    const patterns = d["patterns"] as Record<string, unknown>;
-    patterns["drums"] = [{ kind: "pitched", id: "x", name: "x", bars: 1, rows: [] }];
-  }],
-  ["pitched pattern kind drums", (d) => {
-    const patterns = d["patterns"] as Record<string, unknown>;
-    patterns["bass"] = [{ kind: "drums", id: "x", name: "x", bars: 1, steps: {} }];
-  }],
-  ["duplicate pattern id in lane", (d) => {
-    const patterns = d["patterns"] as Record<string, unknown>;
-    patterns["bass"] = [...(patterns["bass"] as unknown[]), (patterns["bass"] as unknown[])[0]];
-  }],
-  ["song chain references unknown pattern", (d) => {
-    const chain = d["songChain"] as Record<string, unknown>;
-    chain["lead"] = ["nope"];
-  }],
-  ["drum piece steps not booleans", (d) => {
-    const patterns = d["patterns"] as Record<string, unknown>;
-    const drums = (patterns["drums"] as Record<string, unknown>[])[0];
-    ((drums["steps"] as Record<string, unknown>)["kick"] as unknown[])[0] = "yes";
-  }],
-  ["pitched cell out of enum", (d) => {
-    const patterns = d["patterns"] as Record<string, unknown>;
-    const bass = (patterns["bass"] as Record<string, unknown>[])[0];
-    (((bass["rows"] as Record<string, unknown>[])[0] as Record<string, unknown>)["steps"] as unknown[])[0] = 5;
-  }],
-  ["4 fx devices exceeds max", (d) => {
-    const lane = (d["lanes"] as Record<string, unknown>[])[1];
-    lane["fxChain"] = [1, 2, 3, 4].map(() => ({ type: "drive", bypassed: false, params: { amount: 0.1 } }));
-  }],
-  ["fx variant type misspelled", (d) => {
-    const lane = (d["lanes"] as Record<string, unknown>[])[1];
-    lane["fxChain"] = [{ type: "distortion", bypassed: false, params: {} }];
-  }],
-  ["delay feedback > 0.95", (d) => {
-    const lane = (d["lanes"] as Record<string, unknown>[])[1];
-    lane["fxChain"] = [{ type: "delay", bypassed: false, params: { timeSteps: 3, feedback: 0.99, mix: 0.3 } }];
-  }],
-  ["laneOverrides with unknown mode", (d) => {
-    d["laneOverrides"] = { bass: { root: 2, mode: "ionian-but-wrong" } };
-  }],
+  [
+    "lane order swapped",
+    (d) => {
+      const lanes = d["lanes"] as unknown[];
+      const tmp = lanes[0];
+      lanes[0] = lanes[1];
+      lanes[1] = tmp;
+    },
+  ],
+  [
+    "drums pattern kind pitched",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      patterns["drums"] = [
+        { kind: "pitched", id: "x", name: "x", bars: 1, rows: [] },
+      ];
+    },
+  ],
+  [
+    "pitched pattern kind drums",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      patterns["bass"] = [
+        { kind: "drums", id: "x", name: "x", bars: 1, steps: {} },
+      ];
+    },
+  ],
+  [
+    "duplicate pattern id in lane",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      patterns["bass"] = [
+        ...(patterns["bass"] as unknown[]),
+        (patterns["bass"] as unknown[])[0],
+      ];
+    },
+  ],
+  [
+    "song chain references unknown pattern",
+    (d) => {
+      const chain = d["songChain"] as Record<string, unknown>;
+      chain["lead"] = ["nope"];
+    },
+  ],
+  [
+    "drum piece steps not booleans",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const drums = (patterns["drums"] as Record<string, unknown>[])[0];
+      ((drums["steps"] as Record<string, unknown>)["kick"] as unknown[])[0] =
+        "yes";
+    },
+  ],
+  [
+    "pitched cell out of enum",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (
+        (
+          (bass["rows"] as Record<string, unknown>[])[0] as Record<
+            string,
+            unknown
+          >
+        )["steps"] as unknown[]
+      )[0] = 5;
+    },
+  ],
+  [
+    "4 fx devices exceeds max",
+    (d) => {
+      const lane = (d["lanes"] as Record<string, unknown>[])[1];
+      lane["fxChain"] = [1, 2, 3, 4].map(() => ({
+        type: "drive",
+        bypassed: false,
+        params: { amount: 0.1 },
+      }));
+    },
+  ],
+  [
+    "fx variant type misspelled",
+    (d) => {
+      const lane = (d["lanes"] as Record<string, unknown>[])[1];
+      lane["fxChain"] = [{ type: "distortion", bypassed: false, params: {} }];
+    },
+  ],
+  [
+    "delay feedback > 0.95",
+    (d) => {
+      const lane = (d["lanes"] as Record<string, unknown>[])[1];
+      lane["fxChain"] = [
+        {
+          type: "delay",
+          bypassed: false,
+          params: { timeSteps: 3, feedback: 0.99, mix: 0.3 },
+        },
+      ];
+    },
+  ],
+  [
+    "laneOverrides with unknown mode",
+    (d) => {
+      d["laneOverrides"] = { bass: { root: 2, mode: "ionian-but-wrong" } };
+    },
+  ],
 ];
 
 function clone(doc: ProjectDocument): Record<string, unknown> {
@@ -91,7 +196,11 @@ describe("validateProject (strict)", () => {
     const lanes = doc["lanes"] as Record<string, unknown>[];
     lanes[3]["fxChain"] = [
       { type: "filter", bypassed: false, params: { cutoffHz: 2000, q: 1 } },
-      { type: "bitcrusher", bypassed: true, params: { bits: 6, downsample: 2 } },
+      {
+        type: "bitcrusher",
+        bypassed: true,
+        params: { bits: 6, downsample: 2 },
+      },
       { type: "reverb", bypassed: false, params: { size: 0.4, mix: 0.25 } },
     ];
     const out = validateProject(doc);
@@ -112,7 +221,9 @@ describe("validateProject (strict)", () => {
       expect(error).toBeInstanceOf(ProjectValidationError);
       const issues = (error as ProjectValidationError).issues;
       expect(issues.length).toBeGreaterThan(0);
-      expect(issues.every((i) => typeof i === "string" && i.length > 0)).toBe(true);
+      expect(issues.every((i) => typeof i === "string" && i.length > 0)).toBe(
+        true,
+      );
     });
   }
 
@@ -129,7 +240,9 @@ describe("normalizeProject", () => {
     const drums = doc.patterns.drums[0] as { steps: Record<string, boolean[]> };
     drums.steps.kick = [true]; // 1 step instead of 16
     drums.steps.snare = new Array(20).fill(true); // 20 instead of 16
-    const bass = doc.patterns.bass[0] as { rows: { degree: number; steps: number[] }[] };
+    const bass = doc.patterns.bass[0] as {
+      rows: { degree: number; steps: number[] }[];
+    };
     bass.rows[0].steps = [1]; // short pitched row
     const out = normalizeProject(doc);
     const drumsOut = out.patterns.drums[0];
@@ -138,7 +251,9 @@ describe("normalizeProject", () => {
     expect(drumsOut.kind === "drums" && drumsOut.steps.kick[15]).toBe(false);
     expect(drumsOut.kind === "drums" && drumsOut.steps.snare).toHaveLength(16);
     const bassOut = out.patterns.bass[0];
-    expect(bassOut.kind === "pitched" && bassOut.rows[0].steps).toHaveLength(16);
+    expect(bassOut.kind === "pitched" && bassOut.rows[0].steps).toHaveLength(
+      16,
+    );
   });
 
   it("adds missing drum pieces as silent rows", () => {
@@ -147,7 +262,9 @@ describe("normalizeProject", () => {
     delete drums.steps.tom;
     const out = normalizeProject(doc);
     const drumsOut = out.patterns.drums[0];
-    expect(drumsOut.kind === "drums" && drumsOut.steps.tom).toEqual(new Array(16).fill(false));
+    expect(drumsOut.kind === "drums" && drumsOut.steps.tom).toEqual(
+      new Array(16).fill(false),
+    );
   });
 });
 

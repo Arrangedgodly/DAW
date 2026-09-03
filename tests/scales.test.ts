@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
 import {
   MODE_INTERVALS,
   MODE_NAMES,
@@ -54,7 +57,11 @@ describe("mode definitions", () => {
 });
 
 describe("degreeToMidi", () => {
-  const cMajor = { root: 0, mode: "major" as const, intervals: MODE_INTERVALS.major };
+  const cMajor = {
+    root: 0,
+    mode: "major" as const,
+    intervals: MODE_INTERVALS.major,
+  };
 
   it("maps C major degrees in octave 4 to the white keys", () => {
     expect(degreeToMidi(cMajor, 0, 4)).toBe(60); // C4
@@ -69,14 +76,22 @@ describe("degreeToMidi", () => {
   });
 
   it("transposes by root and octave base", () => {
-    const aMinor = { root: 9, mode: "minor" as const, intervals: MODE_INTERVALS.minor };
+    const aMinor = {
+      root: 9,
+      mode: "minor" as const,
+      intervals: MODE_INTERVALS.minor,
+    };
     expect(degreeToMidi(aMinor, 0, 3)).toBe(57); // A3
     expect(degreeToMidi(aMinor, 2, 3)).toBe(60); // C4
     expect(degreeToMidi(aMinor, 0, 4)).toBe(69); // A4
   });
 
   it("pentatonic modes wrap with 5-note octaves", () => {
-    const penta = { root: 0, mode: "pentatonicMinor" as const, intervals: MODE_INTERVALS.pentatonicMinor };
+    const penta = {
+      root: 0,
+      mode: "pentatonicMinor" as const,
+      intervals: MODE_INTERVALS.pentatonicMinor,
+    };
     expect(degreeToMidi(penta, 0, 4)).toBe(60); // C
     expect(degreeToMidi(penta, 1, 4)).toBe(63); // Eb
     expect(degreeToMidi(penta, 5, 4)).toBe(72); // C + octave
@@ -84,7 +99,9 @@ describe("degreeToMidi", () => {
 });
 
 describe("effectiveScale", () => {
-  const base: ProjectDocument = JSON.parse(JSON.stringify(createDefaultProject()));
+  const base: ProjectDocument = JSON.parse(
+    JSON.stringify(createDefaultProject()),
+  );
 
   it("returns the project default when no override exists", () => {
     expect(effectiveScale(base, "bass")).toEqual({
@@ -116,20 +133,34 @@ describe("effectiveScale", () => {
   it("pentatonic override changes interval set only for that lane", () => {
     const doc: ProjectDocument = JSON.parse(JSON.stringify(base));
     doc.laneOverrides = { lead: { root: 0, mode: "pentatonicMajor" } };
-    expect(effectiveScale(doc, "lead").intervals).toBe(MODE_INTERVALS.pentatonicMajor);
+    expect(effectiveScale(doc, "lead").intervals).toBe(
+      MODE_INTERVALS.pentatonicMajor,
+    );
     expect(effectiveScale(doc, "chords").intervals).toBe(MODE_INTERVALS.minor);
   });
 });
 
 describe("chordRows", () => {
   it("derives one diatonic triad row per scale degree", () => {
-    const cMajor = { root: 0, mode: "major" as const, intervals: MODE_INTERVALS.major };
+    const cMajor = {
+      root: 0,
+      mode: "major" as const,
+      intervals: MODE_INTERVALS.major,
+    };
     const rows = chordRows(cMajor, 4);
     expect(rows).toHaveLength(7);
     // Row 0 = C major triad: C E G = 60 64 67.
-    expect(rows[0]).toEqual({ degree: 0, degrees: [0, 2, 4], midi: [60, 64, 67] });
+    expect(rows[0]).toEqual({
+      degree: 0,
+      degrees: [0, 2, 4],
+      midi: [60, 64, 67],
+    });
     // Row 1 = D minor triad: D F A = 62 65 69.
-    expect(rows[1]).toEqual({ degree: 1, degrees: [1, 3, 5], midi: [62, 65, 69] });
+    expect(rows[1]).toEqual({
+      degree: 1,
+      degrees: [1, 3, 5],
+      midi: [62, 65, 69],
+    });
     // Row 2 = E minor: E G B.
     expect(rows[2].midi).toEqual([64, 67, 71]);
     // Row 5 = A minor.
@@ -137,7 +168,11 @@ describe("chordRows", () => {
   });
 
   it("wraps past the top of the mode into the next octave", () => {
-    const cMajor = { root: 0, mode: "major" as const, intervals: MODE_INTERVALS.major };
+    const cMajor = {
+      root: 0,
+      mode: "major" as const,
+      intervals: MODE_INTERVALS.major,
+    };
     const rows = chordRows(cMajor, 4);
     // Row 4 (G triad): G B D5 = 67 71 74 — the fifth wraps up an octave.
     expect(rows[4].midi).toEqual([67, 71, 74]);
@@ -146,7 +181,11 @@ describe("chordRows", () => {
   });
 
   it("derives minor-key diatonic chords in a minor scale", () => {
-    const aMinor = { root: 9, mode: "minor" as const, intervals: MODE_INTERVALS.minor };
+    const aMinor = {
+      root: 9,
+      mode: "minor" as const,
+      intervals: MODE_INTERVALS.minor,
+    };
     const rows = chordRows(aMinor, 3);
     expect(rows).toHaveLength(7);
     // Row 0 = A minor: A C E = 57 60 64.
@@ -158,7 +197,11 @@ describe("chordRows", () => {
   });
 
   it("yields 5 rows for pentatonic scales", () => {
-    const penta = { root: 0, mode: "pentatonicMinor" as const, intervals: MODE_INTERVALS.pentatonicMinor };
+    const penta = {
+      root: 0,
+      mode: "pentatonicMinor" as const,
+      intervals: MODE_INTERVALS.pentatonicMinor,
+    };
     expect(chordRows(penta, 4)).toHaveLength(5);
   });
 });

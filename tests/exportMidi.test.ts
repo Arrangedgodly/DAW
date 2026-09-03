@@ -7,7 +7,11 @@
 
 import { describe, expect, it } from "vitest";
 import { parseMidi, writeMidi } from "midi-file";
-import { createDefaultProject, type PitchedCell, type ProjectDocument } from "../src/document/schema";
+import {
+  createDefaultProject,
+  type PitchedCell,
+  type ProjectDocument,
+} from "../src/document/schema";
 import {
   buildCueMarkers,
   buildDrumNotes,
@@ -144,21 +148,28 @@ describe("note building", () => {
     );
     // 4 kicks + 2 snares + 8 hats = 14 hits.
     expect(notes).toHaveLength(14);
-    expect(notes.filter((n) => n.noteNumber === 36).map((n) => n.tick)).toEqual([
-      0, 480, 960, 1440,
-    ]);
-    expect(notes.filter((n) => n.noteNumber === 38).map((n) => n.tick)).toEqual([
-      480, 1440,
-    ]);
-    expect(notes.filter((n) => n.noteNumber === 42).map((n) => n.tick)).toEqual([
-      0, 240, 480, 720, 960, 1200, 1440, 1680,
-    ]);
+    expect(notes.filter((n) => n.noteNumber === 36).map((n) => n.tick)).toEqual(
+      [0, 480, 960, 1440],
+    );
+    expect(notes.filter((n) => n.noteNumber === 38).map((n) => n.tick)).toEqual(
+      [480, 1440],
+    );
+    expect(notes.filter((n) => n.noteNumber === 42).map((n) => n.tick)).toEqual(
+      [0, 240, 480, 720, 960, 1200, 1440, 1680],
+    );
     for (const n of notes) expect(n.durationTicks).toBe(120);
   });
 
   it("bass: scale-degree resolution C minor octave 2 (degree 0 = C2 = 36) with sustain", () => {
     const lane = doc.lanes.find((l) => l.id === "bass")!;
-    const notes = buildPitchedNotes(doc, "bass", [doc.patterns.bass[0]], lane.gate, 120, 0);
+    const notes = buildPitchedNotes(
+      doc,
+      "bass",
+      [doc.patterns.bass[0]],
+      lane.gate,
+      120,
+      0,
+    );
     expect(notes).toHaveLength(1);
     // preset-bass-1 pitchRange.octaveBase = 2; C minor degree 0 → 12*(2+1)+0 = 36.
     expect(notes[0].noteNumber).toBe(36);
@@ -169,15 +180,31 @@ describe("note building", () => {
 
   it("chords: diatonic triad stack [0, 2, 4] at the lane channel", () => {
     const lane = doc.lanes.find((l) => l.id === "chords")!;
-    const notes = buildPitchedNotes(doc, "chords", [doc.patterns.chords[0]], lane.gate, 120, 0);
+    const notes = buildPitchedNotes(
+      doc,
+      "chords",
+      [doc.patterns.chords[0]],
+      lane.gate,
+      120,
+      0,
+    );
     // C minor triad from degree 0 at octave base 3 (preset-chords-1): C3, Eb3, G3.
-    expect(notes.map((n) => n.noteNumber).sort((a, b) => a - b)).toEqual([48, 51, 55]);
+    expect(notes.map((n) => n.noteNumber).sort((a, b) => a - b)).toEqual([
+      48, 51, 55,
+    ]);
     for (const n of notes) expect(n.tick).toBe(0);
   });
 
   it("lead: degree 3 of C minor at octave 4 = F4 = 65 on step 8", () => {
     const lane = doc.lanes.find((l) => l.id === "lead")!;
-    const notes = buildPitchedNotes(doc, "lead", [doc.patterns.lead[0]], lane.gate, 120, 0);
+    const notes = buildPitchedNotes(
+      doc,
+      "lead",
+      [doc.patterns.lead[0]],
+      lane.gate,
+      120,
+      0,
+    );
     expect(notes).toHaveLength(1);
     expect(notes[0].noteNumber).toBe(65);
     expect(notes[0].tick).toBe(8 * 120);
@@ -210,8 +237,16 @@ describe("cue markers", () => {
     expect(buildCueMarkers(doc)).toEqual([{ tick: 0, text: "VERSE" }]);
 
     // A 2-slot chain places slot 1 at its accumulated step offset.
-    doc.chainCues = { drums: [null, "DROP"], bass: [null], chords: [null], lead: [null] };
-    doc.songChain = { ...doc.songChain, drums: [doc.patterns.drums[0].id, doc.patterns.drums[0].id] };
+    doc.chainCues = {
+      drums: [null, "DROP"],
+      bass: [null],
+      chords: [null],
+      lead: [null],
+    };
+    doc.songChain = {
+      ...doc.songChain,
+      drums: [doc.patterns.drums[0].id, doc.patterns.drums[0].id],
+    };
     expect(buildCueMarkers(doc)).toEqual([{ tick: 16 * 120, text: "DROP" }]);
   });
 
@@ -235,7 +270,12 @@ describe("hand-computed bytes through writeMidi", () => {
     const leadSteps = new Array(16).fill(0) as PitchedCell[];
     leadSteps[0] = 1;
     doc.patterns.lead[0].rows[0].steps = leadSteps;
-    doc.chainCues = { drums: ["A"], bass: [null], chords: [null], lead: [null] };
+    doc.chainCues = {
+      drums: ["A"],
+      bass: [null],
+      chords: [null],
+      lead: [null],
+    };
     return doc;
   }
 

@@ -7,13 +7,13 @@ manifest.
 
 ## What each entry pins
 
-| Entry | Kind | Test | On mismatch |
-|---|---|---|---|
-| `codec/default-project-canonical-v1` | bytes (pure TS, stable everywhere) | `tests/golden/codec-default-project.golden.test.ts` | **hard fail** |
-| `wav/encoder-stereo-2frame-v1` | bytes (pure TS; hand-computed spec bytes double-checked in-test) | `tests/golden/wav-encoder.golden.test.ts` | **hard fail** |
-| `midi/reference-project-v1` | bytes (pure TS; structure check in-test, third-party parse-back in `tests/browser/exportMidi.test.ts` via `@tonejs/midi`) | `tests/golden/midi-export.golden.test.ts` | **hard fail** |
-| `render/reference-loop-fp-v1` | render fingerprint (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts` | soft: console `RENDER FINGERPRINT DRIFT` warning |
-| `wav/reference-export-fp-v1` | render fingerprint of the exported .wav file bytes (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts` | soft: console `EXPORT FINGERPRINT DRIFT` warning |
+| Entry                                | Kind                                                                                                                      | Test                                                | On mismatch                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `codec/default-project-canonical-v1` | bytes (pure TS, stable everywhere)                                                                                        | `tests/golden/codec-default-project.golden.test.ts` | **hard fail**                                    |
+| `wav/encoder-stereo-2frame-v1`       | bytes (pure TS; hand-computed spec bytes double-checked in-test)                                                          | `tests/golden/wav-encoder.golden.test.ts`           | **hard fail**                                    |
+| `midi/reference-project-v1`          | bytes (pure TS; structure check in-test, third-party parse-back in `tests/browser/exportMidi.test.ts` via `@tonejs/midi`) | `tests/golden/midi-export.golden.test.ts`           | **hard fail**                                    |
+| `render/reference-loop-fp-v1`        | render fingerprint (**environment-pinned**)                                                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `RENDER FINGERPRINT DRIFT` warning |
+| `wav/reference-export-fp-v1`         | render fingerprint of the exported .wav file bytes (**environment-pinned**)                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 
 Decode-and-assert coverage (structure, not just hashes): the reference-project
 exported WAV's headers/sample-count/seam-continuity live in

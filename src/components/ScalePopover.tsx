@@ -61,7 +61,9 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
       }
     };
     document.addEventListener("keydown", onDocKeydown, true);
-    onCleanup(() => document.removeEventListener("keydown", onDocKeydown, true));
+    onCleanup(() =>
+      document.removeEventListener("keydown", onDocKeydown, true),
+    );
   });
 
   const handleKeydown = (e: KeyboardEvent) => {
@@ -81,8 +83,13 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
     sel.root = pc;
     // Re-render selection purely through DOM state (no reactive machinery).
     if (panel) {
-      for (const btn of panel.querySelectorAll<HTMLButtonElement>("[data-root]")) {
-        btn.setAttribute("aria-pressed", String(Number(btn.dataset.root) === pc));
+      for (const btn of panel.querySelectorAll<HTMLButtonElement>(
+        "[data-root]",
+      )) {
+        btn.setAttribute(
+          "aria-pressed",
+          String(Number(btn.dataset.root) === pc),
+        );
       }
     }
   };
@@ -90,7 +97,9 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
   const pickMode = (mode: ModeName) => {
     sel.mode = mode;
     if (panel) {
-      for (const btn of panel.querySelectorAll<HTMLButtonElement>("[data-mode]")) {
+      for (const btn of panel.querySelectorAll<HTMLButtonElement>(
+        "[data-mode]",
+      )) {
         btn.setAttribute("aria-pressed", String(btn.dataset.mode === mode));
       }
     }

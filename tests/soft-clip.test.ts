@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { SOFT_CLIP_CEILING, softClip, softClipCurve, createSoftClipNode } from "../src/audio/fx";
+import {
+  SOFT_CLIP_CEILING,
+  softClip,
+  softClipCurve,
+  createSoftClipNode,
+} from "../src/audio/fx";
 
 describe("softClip (pure)", () => {
   it("is bounded: |y| < ceiling for every input, however hot", () => {
@@ -24,7 +29,8 @@ describe("softClip (pure)", () => {
   });
 
   it("is odd and monotonic (transients keep their order)", () => {
-    for (const x of [0.1, 0.7, 2]) expect(softClip(-x)).toBeCloseTo(-softClip(x), 12);
+    for (const x of [0.1, 0.7, 2])
+      expect(softClip(-x)).toBeCloseTo(-softClip(x), 12);
     let prev = -Infinity;
     for (let i = 0; i <= 100; i++) {
       const y = softClip((i / 100) * 4 - 2);
@@ -38,7 +44,8 @@ describe("softClip (pure)", () => {
     expect(curve).toHaveLength(1024);
     expect(curve[0]).toBeCloseTo(softClip(-1), 6);
     expect(curve[1023]).toBeCloseTo(softClip(1), 6);
-    for (const v of curve) expect(Math.abs(v)).toBeLessThanOrEqual(SOFT_CLIP_CEILING);
+    for (const v of curve)
+      expect(Math.abs(v)).toBeLessThanOrEqual(SOFT_CLIP_CEILING);
     // Cached: same reference on repeat calls (no per-render allocation).
     expect(softClipCurve()).toBe(curve);
   });

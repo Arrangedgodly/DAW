@@ -14,13 +14,16 @@
  * Pitched lanes are out of scope by design (row-level drum tooling only).
  */
 
-import { createEffect, createSignal, onCleanup, onMount, type JSX } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  type JSX,
+} from "solid-js";
 import { type DrumPiece } from "../document/schema";
 import { getSession } from "../engine/session";
-import {
-  applyEuclidFill,
-  docStore,
-} from "../state/store";
+import { applyEuclidFill, docStore } from "../state/store";
 import { currentPatternFor } from "../state/selection";
 import {
   fillDisplay,
@@ -58,7 +61,9 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
       if (state.doc.patterns.drums === prev.doc.patterns.drums) return;
-      setSessionState((s) => (s.armed ? s : readFillSession(drumRow(props.piece))));
+      setSessionState((s) =>
+        s.armed ? s : readFillSession(drumRow(props.piece)),
+      );
     });
     onCleanup(unsubscribe);
   });
@@ -93,7 +98,8 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
     if (!action) return;
     // Buttons fire Enter/Space as native clicks; a group-level Enter must
     // not double-fire. Escape always cancels (no button maps it).
-    if (action === "commit" && (e.target as HTMLElement).tagName === "BUTTON") return;
+    if (action === "commit" && (e.target as HTMLElement).tagName === "BUTTON")
+      return;
     if (action === "commit") commit();
     else cancel();
   };
@@ -111,21 +117,29 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
       aria-label={`Euclidean fill for ${props.label}`}
       onKeyDown={onKeyDown}
     >
-      <span class="row-fill-tag" aria-hidden="true">E</span>
+      <span class="row-fill-tag" aria-hidden="true">
+        E
+      </span>
       <div class="head-stepper row-fill-step">
         <button
           type="button"
           class="head-step-btn"
           aria-label={`Fewer pulses for ${props.label} fill`}
           onClick={() => step("pulses", -1)}
-        >–</button>
-        <span class="row-fill-value" aria-live="polite">{display()}</span>
+        >
+          –
+        </button>
+        <span class="row-fill-value" aria-live="polite">
+          {display()}
+        </span>
         <button
           type="button"
           class="head-step-btn"
           aria-label={`More pulses for ${props.label} fill`}
           onClick={() => step("pulses", 1)}
-        >+</button>
+        >
+          +
+        </button>
       </div>
       <div class="head-stepper row-fill-step">
         <button
@@ -133,14 +147,20 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
           class="head-step-btn"
           aria-label={`Rotate ${props.label} fill back`}
           onClick={() => step("rotation", -1)}
-        >–</button>
-        <span class="row-fill-value" aria-live="polite">{rotation()}</span>
+        >
+          –
+        </button>
+        <span class="row-fill-value" aria-live="polite">
+          {rotation()}
+        </span>
         <button
           type="button"
           class="head-step-btn"
           aria-label={`Rotate ${props.label} fill forward`}
           onClick={() => step("rotation", 1)}
-        >+</button>
+        >
+          +
+        </button>
       </div>
       <button
         type="button"
@@ -149,7 +169,9 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
         disabled={!sessionState().armed}
         aria-label={`Apply Euclidean fill to ${props.label} row`}
         onClick={commit}
-      >SET</button>
+      >
+        SET
+      </button>
     </div>
   );
 }

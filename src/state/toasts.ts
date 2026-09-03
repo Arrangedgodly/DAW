@@ -96,9 +96,15 @@ export function clearToasts(): void {
 }
 
 /** Convenience wrappers for the three kinds. */
-export const showError = (message: string, extra: Omit<ToastInput, "kind" | "message"> = {}) =>
-  pushToast({ kind: "error", message, ...extra });
-export const showInfo = (message: string, extra: Omit<ToastInput, "kind" | "message"> = {}) =>
-  pushToast({ kind: "info", message, ...extra });
-export const showSuccess = (message: string, extra: Omit<ToastInput, "kind" | "message"> = {}) =>
-  pushToast({ kind: "success", message, ...extra });
+export const showError = (
+  message: string,
+  extra: Omit<ToastInput, "kind" | "message"> = {},
+) => pushToast({ kind: "error", message, ...extra });
+export const showInfo = (
+  message: string,
+  extra: Omit<ToastInput, "kind" | "message"> = {},
+) => pushToast({ kind: "info", message, ...extra });
+export const showSuccess = (
+  message: string,
+  extra: Omit<ToastInput, "kind" | "message"> = {},
+) => pushToast({ kind: "success", message, ...extra });

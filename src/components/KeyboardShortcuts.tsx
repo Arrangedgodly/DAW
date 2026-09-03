@@ -32,7 +32,12 @@ function isTextEntry(target: EventTarget | null): boolean {
   if (target.tagName === "TEXTAREA") return true;
   if (target.tagName === "INPUT") {
     const type = (target as HTMLInputElement).type;
-    return type !== "checkbox" && type !== "radio" && type !== "range" && type !== "button";
+    return (
+      type !== "checkbox" &&
+      type !== "radio" &&
+      type !== "range" &&
+      type !== "button"
+    );
   }
   return false;
 }
@@ -53,7 +58,11 @@ export default function KeyboardShortcuts(): JSX.Element {
 
     // Undo / redo — Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. Skipped in text
     // entries so native text undo survives.
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "y")) {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      !e.altKey &&
+      (e.key === "z" || e.key === "y")
+    ) {
       if (isTextEntry(target)) return;
       e.preventDefault();
       if (e.key === "y" || e.shiftKey) redo();
@@ -64,7 +73,12 @@ export default function KeyboardShortcuts(): JSX.Element {
     // Space = play/stop ONLY at body/document level (an interactive target
     // — button, cell, range — keeps its native Space meaning; inside grids
     // Space toggles the cell per the APG contract).
-    if (e.key === " " && (target === document.body || target === null || target === document.documentElement)) {
+    if (
+      e.key === " " &&
+      (target === document.body ||
+        target === null ||
+        target === document.documentElement)
+    ) {
       e.preventDefault();
       void session.togglePlay();
       return;
@@ -90,7 +104,7 @@ export default function KeyboardShortcuts(): JSX.Element {
       // the inline field takes over from there.
       e.preventDefault();
       const rail = document.querySelector(`.rail-row[data-lane="${lane}"]`);
-      (rail?.querySelector<HTMLElement>(".rail-tools button"))?.focus();
+      rail?.querySelector<HTMLElement>(".rail-tools button")?.focus();
     }
   };
 

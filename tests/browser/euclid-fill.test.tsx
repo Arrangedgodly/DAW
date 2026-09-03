@@ -15,11 +15,20 @@ import { render } from "solid-js/web";
 import LaneGrid from "../../src/components/LaneGrid";
 import { applyEuclidFill, docStore } from "../../src/state/store";
 
-function mount(lane: "drums" | "bass"): { host: HTMLElement; cleanup: () => void } {
+function mount(lane: "drums" | "bass"): {
+  host: HTMLElement;
+  cleanup: () => void;
+} {
   const host = document.createElement("div");
   document.body.append(host);
   const dispose = render(() => <LaneGrid lane={lane} />, host);
-  return { host, cleanup: () => { dispose(); host.remove(); } };
+  return {
+    host,
+    cleanup: () => {
+      dispose();
+      host.remove();
+    },
+  };
 }
 
 function doc() {
@@ -47,9 +56,20 @@ describe("Euclidean fill control (browser DOM)", () => {
     try {
       const rails = host.querySelectorAll(".row-fill");
       expect(rails.length).toBe(6);
-      const labels = [...host.querySelectorAll(".row-label")].map((el) => el.textContent);
-      expect(labels).toEqual(["KICK", "SNARE", "HAT", "OPENHAT", "CLAP", "TOM"]);
-      expect(host.querySelector(".lane-grid")!.classList.contains("has-fill-rail")).toBe(true);
+      const labels = [...host.querySelectorAll(".row-label")].map(
+        (el) => el.textContent,
+      );
+      expect(labels).toEqual([
+        "KICK",
+        "SNARE",
+        "HAT",
+        "OPENHAT",
+        "CLAP",
+        "TOM",
+      ]);
+      expect(
+        host.querySelector(".lane-grid")!.classList.contains("has-fill-rail"),
+      ).toBe(true);
     } finally {
       cleanup();
     }
@@ -66,8 +86,12 @@ describe("Euclidean fill control (browser DOM)", () => {
     applyEuclidFill("kick", 0, 0);
     const { host, cleanup } = mount("drums");
     try {
-      const kickRail = host.querySelector('.row-fill[data-row="0"]')! as HTMLElement;
-      const buttons = [...kickRail.querySelectorAll("button")] as HTMLButtonElement[];
+      const kickRail = host.querySelector(
+        '.row-fill[data-row="0"]',
+      )! as HTMLElement;
+      const buttons = [
+        ...kickRail.querySelectorAll("button"),
+      ] as HTMLButtonElement[];
       expect(buttons.length).toBe(5); // – + – + SET
 
       // Keyboard reachability: the opacity gate never evicts the buttons
@@ -97,15 +121,23 @@ describe("Euclidean fill control (browser DOM)", () => {
       const set = buttons[4]!;
       expect(set.disabled).toBe(false);
       set.focus();
-      set.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      set.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
       set.click();
-      await waitFor(() => firstDrumsPattern().steps.kick.filter(Boolean).length === 4);
+      await waitFor(
+        () => firstDrumsPattern().steps.kick.filter(Boolean).length === 4,
+      );
       const committed = [...firstDrumsPattern().steps.kick];
       expect(committed[0]).toBe(true);
-      expect(grid.querySelectorAll('.cell[data-preview="true"]').length).toBe(0);
+      expect(grid.querySelectorAll('.cell[data-preview="true"]').length).toBe(
+        0,
+      );
 
       // Hand edit still works after the fill, and the row then reads custom.
-      const kickCells = [...grid.querySelectorAll(".grid-row")][0]!.querySelectorAll(".cell");
+      const kickCells = [
+        ...grid.querySelectorAll(".grid-row"),
+      ][0]!.querySelectorAll(".cell");
       (kickCells[1] as HTMLElement).click();
       await waitFor(() => firstDrumsPattern().steps.kick[1] === true);
       expect(kickRail.textContent).toContain("—");

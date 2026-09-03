@@ -14,7 +14,9 @@ import { DRUM_PIECES, createDefaultProject } from "../src/document/schema";
 
 function validatePreset(p: VoicePreset): void {
   expect(typeof p.id).toBe("string");
-  expect(p.wave === "pulse" || p.wave === "triangle" || p.wave === "noise").toBe(true);
+  expect(
+    p.wave === "pulse" || p.wave === "triangle" || p.wave === "noise",
+  ).toBe(true);
   expect(p.duty).toBeGreaterThan(0);
   expect(p.duty).toBeLessThanOrEqual(1);
   expect(p.noiseMix).toBeGreaterThanOrEqual(0);
@@ -25,7 +27,8 @@ function validatePreset(p: VoicePreset): void {
   expect(p.seed).toBeLessThanOrEqual(32767);
   expect(p.noiseRate).toBeGreaterThan(0);
   const { attack, decay, sustain, release } = p.envelope;
-  for (const seg of [attack, decay, release]) expect(seg).toBeGreaterThanOrEqual(0);
+  for (const seg of [attack, decay, release])
+    expect(seg).toBeGreaterThanOrEqual(0);
   expect(sustain).toBeGreaterThanOrEqual(0);
   expect(sustain).toBeLessThanOrEqual(1);
 }
@@ -45,7 +48,10 @@ describe("preset library", () => {
     }
     for (const kit of Object.values(DRUM_KITS)) {
       for (const piece of DRUM_PIECES) {
-        expect(() => v.parse(VoicePresetSchema, kit.pieces[piece]), `${kit.id}.${piece}`).not.toThrow();
+        expect(
+          () => v.parse(VoicePresetSchema, kit.pieces[piece]),
+          `${kit.id}.${piece}`,
+        ).not.toThrow();
       }
     }
   });
@@ -100,7 +106,9 @@ describe("preset library", () => {
 
   it("kits vary the committed character axes (kick sweep, snare mix, hat decay)", () => {
     const kits = Object.values(DRUM_KITS);
-    const kickRatios = new Set(kits.map((k) => k.pieces.kick.pitchSweep!.endRatio));
+    const kickRatios = new Set(
+      kits.map((k) => k.pieces.kick.pitchSweep!.endRatio),
+    );
     const snareMixes = new Set(kits.map((k) => k.pieces.snare.noiseMix));
     const hatDecays = new Set(kits.map((k) => k.pieces.hat.envelope.decay));
     expect(kickRatios.size).toBeGreaterThanOrEqual(4);
@@ -134,7 +142,11 @@ describe("noteParamsFor", () => {
   it("derives freq from midi and clamps to the voice cap", () => {
     const ev = noteParamsFor(preset, { time: 1, midi: 36, holdSeconds: 0.2 });
     expect(ev.freq).toBeCloseTo(440 * Math.pow(2, (36 - 69) / 12), 9);
-    const high = noteParamsFor(preset, { time: 1, midi: 127, holdSeconds: 0.2 });
+    const high = noteParamsFor(preset, {
+      time: 1,
+      midi: 127,
+      holdSeconds: 0.2,
+    });
     expect(high.freq).toBe(12400);
   });
 
@@ -142,7 +154,10 @@ describe("noteParamsFor", () => {
     const kick = getDrumKit("kit-default")!.pieces.kick;
     const ev = noteParamsFor(kick, { time: 0, holdSeconds: 0.2 });
     expect(ev.freq).toBe(kick.baseFreq);
-    expect(ev.freqEnd).toBeCloseTo(kick.baseFreq! * kick.pitchSweep!.endRatio, 9);
+    expect(ev.freqEnd).toBeCloseTo(
+      kick.baseFreq! * kick.pitchSweep!.endRatio,
+      9,
+    );
     expect(ev.sweepSeconds).toBe(kick.pitchSweep!.seconds);
   });
 
@@ -155,13 +170,17 @@ describe("noteParamsFor", () => {
     expect(a.seed).toBe(b.seed);
     expect(a.seed).toBeGreaterThanOrEqual(1);
     expect(a.seed).toBeLessThanOrEqual(32767);
-    expect(noteParamsFor(hat, { time: 2, holdSeconds: 0.05, seedSalt: 4 }).seed).not.toBe(a.seed);
+    expect(
+      noteParamsFor(hat, { time: 2, holdSeconds: 0.05, seedSalt: 4 }).seed,
+    ).not.toBe(a.seed);
   });
 
   it("maps wave names to stable wire codes", () => {
     expect(WAVE_CODE.pulse).toBe(0);
     expect(WAVE_CODE.triangle).toBe(1);
     expect(WAVE_CODE.noise).toBe(2);
-    expect(noteParamsFor(preset, { time: 0, midi: 60, holdSeconds: 0.1 }).wave).toBe(0);
+    expect(
+      noteParamsFor(preset, { time: 0, midi: 60, holdSeconds: 0.1 }).wave,
+    ).toBe(0);
   });
 });

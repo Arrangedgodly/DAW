@@ -13,7 +13,10 @@ import { initPersistence, getAutosaveController } from "../../src/persist/boot";
 import { createDefaultProject } from "../../src/document/schema";
 import { docStore, createFreshProjectDocument } from "../../src/state/store";
 import { clearToasts, toastStack } from "../../src/state/toasts";
-import { createVoiceEngine, workletContextFor } from "../../src/audio/voiceEngine";
+import {
+  createVoiceEngine,
+  workletContextFor,
+} from "../../src/audio/voiceEngine";
 import type { VoiceNoteOnEvent } from "../../src/audio/presets";
 
 async function freshDb(name: string) {
@@ -28,8 +31,18 @@ async function freshDb(name: string) {
 
 function badRow(): ProjectRecord {
   const base = createDefaultProject();
-  const bad = JSON.stringify({ ...base, transport: { ...base.transport, bpm: 9999 } });
-  return { id: "default", name: "broken song", schemaVersion: 1, updatedAt: 5000, dirty: false, json: bad };
+  const bad = JSON.stringify({
+    ...base,
+    transport: { ...base.transport, bpm: 9999 },
+  });
+  return {
+    id: "default",
+    name: "broken song",
+    schemaVersion: 1,
+    updatedAt: 5000,
+    dirty: false,
+    json: bad,
+  };
 }
 
 describe("boot quarantine (real IndexedDB)", () => {
@@ -39,7 +52,11 @@ describe("boot quarantine (real IndexedDB)", () => {
     await db.putRecord(bad);
     clearToasts();
 
-    const boot = await initPersistence({ db, newId: () => "fresh-1", now: () => 42 });
+    const boot = await initPersistence({
+      db,
+      newId: () => "fresh-1",
+      now: () => 42,
+    });
     try {
       // Row renamed, never deleted; original key freed.
       const rows = await db.allRecords();
@@ -62,11 +79,15 @@ describe("boot quarantine (real IndexedDB)", () => {
 
       // RECOVER exports the original bytes through the real seam.
       const downloads: { name: string; blob: Blob }[] = [];
-      const urlSpy = vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
-        downloads.push({ name: "", blob });
-        return "blob:hu2";
-      });
-      const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+      const urlSpy = vi
+        .spyOn(URL, "createObjectURL")
+        .mockImplementation((blob) => {
+          downloads.push({ name: "", blob });
+          return "blob:hu2";
+        });
+      const revokeSpy = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
       try {
         toasts[0]!.action!.run();
         expect(downloads).toHaveLength(1);

@@ -38,7 +38,12 @@ export const PITCH_CLASS_NAMES = [
 ] as const;
 export type PitchClass = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
-export const PitchClassSchema = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(11));
+export const PitchClassSchema = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(0),
+  v.maxValue(11),
+);
 
 /** Fixed lane order is part of the schema: drums, bass, chords, lead. */
 export const LANE_IDS = ["drums", "bass", "chords", "lead"] as const;
@@ -46,7 +51,14 @@ export type LaneId = (typeof LANE_IDS)[number];
 export const LaneIdSchema = v.picklist(LANE_IDS);
 
 /** Drum pieces (minimum set; engine may add more via schemaVersion bump). */
-export const DRUM_PIECES = ["kick", "snare", "hat", "openhat", "clap", "tom"] as const;
+export const DRUM_PIECES = [
+  "kick",
+  "snare",
+  "hat",
+  "openhat",
+  "clap",
+  "tom",
+] as const;
 export type DrumPiece = (typeof DRUM_PIECES)[number];
 
 // ---------------------------------------------------------------------------
@@ -113,7 +125,11 @@ export type FxDevice =
   | {
       readonly type: "delay";
       readonly bypassed: boolean;
-      readonly params: { readonly timeSteps: number; readonly feedback: number; readonly mix: number };
+      readonly params: {
+        readonly timeSteps: number;
+        readonly feedback: number;
+        readonly mix: number;
+      };
     }
   | {
       readonly type: "reverb";
@@ -147,7 +163,12 @@ export const FxDeviceSchema = v.variant("type", [
     bypassed: v.boolean(),
     params: v.strictObject({
       bits: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(16)),
-      downsample: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(64)),
+      downsample: v.pipe(
+        v.number(),
+        v.integer(),
+        v.minValue(1),
+        v.maxValue(64),
+      ),
     }),
   }),
   v.strictObject({
@@ -175,8 +196,14 @@ export type LaneGate =
   | { readonly unit: "seconds"; readonly value: number }
   | { readonly unit: "steps"; readonly value: number };
 export const LaneGateSchema = v.variant("unit", [
-  v.strictObject({ unit: v.literal("seconds"), value: v.pipe(v.number(), v.minValue(0.005), v.maxValue(4)) }),
-  v.strictObject({ unit: v.literal("steps"), value: v.pipe(v.number(), v.minValue(0.25), v.maxValue(64)) }),
+  v.strictObject({
+    unit: v.literal("seconds"),
+    value: v.pipe(v.number(), v.minValue(0.005), v.maxValue(4)),
+  }),
+  v.strictObject({
+    unit: v.literal("steps"),
+    value: v.pipe(v.number(), v.minValue(0.25), v.maxValue(64)),
+  }),
 ]);
 
 export interface DrumsLane {
@@ -202,9 +229,21 @@ const LaneCommon = {
 
 export const LaneSchema = v.variant("id", [
   v.strictObject({ id: v.literal("drums"), kitId: v.string(), ...LaneCommon }),
-  v.strictObject({ id: v.literal("bass"), presetId: v.string(), ...LaneCommon }),
-  v.strictObject({ id: v.literal("chords"), presetId: v.string(), ...LaneCommon }),
-  v.strictObject({ id: v.literal("lead"), presetId: v.string(), ...LaneCommon }),
+  v.strictObject({
+    id: v.literal("bass"),
+    presetId: v.string(),
+    ...LaneCommon,
+  }),
+  v.strictObject({
+    id: v.literal("chords"),
+    presetId: v.string(),
+    ...LaneCommon,
+  }),
+  v.strictObject({
+    id: v.literal("lead"),
+    presetId: v.string(),
+    ...LaneCommon,
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -359,17 +398,26 @@ export const ProjectDocumentSchema = v.pipe(
 
 function emptyDrumSteps(bars: PatternBars): Record<DrumPiece, boolean[]> {
   const out = {} as Record<DrumPiece, boolean[]>;
-  for (const piece of DRUM_PIECES) out[piece] = new Array(16 * bars).fill(false);
+  for (const piece of DRUM_PIECES)
+    out[piece] = new Array(16 * bars).fill(false);
   return out;
 }
 
-function emptyPitchedPattern(id: string, name: string, bars: PatternBars, degrees: number[]): PitchedPattern {
+function emptyPitchedPattern(
+  id: string,
+  name: string,
+  bars: PatternBars,
+  degrees: number[],
+): PitchedPattern {
   return {
     kind: "pitched",
     id,
     name,
     bars,
-    rows: degrees.map((degree) => ({ degree, steps: new Array(16 * bars).fill(0) as PitchedCell[] })),
+    rows: degrees.map((degree) => ({
+      degree,
+      steps: new Array(16 * bars).fill(0) as PitchedCell[],
+    })),
   };
 }
 
@@ -385,13 +433,41 @@ export function createDefaultProject(): ProjectDocument {
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,
     lanes: [
-      { id: "drums", kitId: "kit-default", gate: { unit: "steps", value: 1 }, fxChain: [] },
-      { id: "bass", presetId: "preset-bass-1", gate: { unit: "steps", value: 2 }, fxChain: [] },
-      { id: "chords", presetId: "preset-chords-1", gate: { unit: "steps", value: 4 }, fxChain: [] },
-      { id: "lead", presetId: "preset-lead-1", gate: { unit: "steps", value: 2 }, fxChain: [] },
+      {
+        id: "drums",
+        kitId: "kit-default",
+        gate: { unit: "steps", value: 1 },
+        fxChain: [],
+      },
+      {
+        id: "bass",
+        presetId: "preset-bass-1",
+        gate: { unit: "steps", value: 2 },
+        fxChain: [],
+      },
+      {
+        id: "chords",
+        presetId: "preset-chords-1",
+        gate: { unit: "steps", value: 4 },
+        fxChain: [],
+      },
+      {
+        id: "lead",
+        presetId: "preset-lead-1",
+        gate: { unit: "steps", value: 2 },
+        fxChain: [],
+      },
     ],
     patterns: {
-      drums: [{ kind: "drums", id: "drums-1", name: "A", bars: 1, steps: emptyDrumSteps(1) }],
+      drums: [
+        {
+          kind: "drums",
+          id: "drums-1",
+          name: "A",
+          bars: 1,
+          steps: emptyDrumSteps(1),
+        },
+      ],
       bass: [emptyPitchedPattern("bass-1", "A", 1, [0, 1, 2, 3, 4, 5, 6])],
       chords: [
         {

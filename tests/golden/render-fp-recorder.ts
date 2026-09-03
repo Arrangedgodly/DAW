@@ -57,7 +57,9 @@ export function onRenderFingerprintConsoleLog(log: string): boolean {
   if (!log.startsWith(RENDER_FP_PREFIX)) return true; // not ours — print it
   if (process.env.UPDATE_GOLDENS === "1") {
     try {
-      const payload = JSON.parse(log.slice(RENDER_FP_PREFIX.length)) as RecordPayload;
+      const payload = JSON.parse(
+        log.slice(RENDER_FP_PREFIX.length),
+      ) as RecordPayload;
       const manifest = existsSync(MANIFEST_PATH)
         ? (JSON.parse(readFileSync(MANIFEST_PATH, "utf8")) as {
             manifestVersion: number;
@@ -81,11 +83,16 @@ export function onRenderFingerprintConsoleLog(log: string): boolean {
       };
       manifest.env.regeneratedVia =
         "npm run goldens:update (UPDATE_GOLDENS=1 vitest run tests/golden && UPDATE_GOLDENS=1 vitest run --project browser tests/browser/render-fingerprint.test.ts)";
-      writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-       
-      console.log(`[render-fingerprint] recorded '${payload.name}' → ${payload.sha256}`);
+      writeFileSync(
+        MANIFEST_PATH,
+        JSON.stringify(manifest, null, 2) + "\n",
+        "utf8",
+      );
+
+      console.log(
+        `[render-fingerprint] recorded '${payload.name}' → ${payload.sha256}`,
+      );
     } catch (err) {
-       
       console.error("[render-fingerprint] failed to record:", err);
     }
   }

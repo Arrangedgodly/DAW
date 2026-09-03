@@ -27,10 +27,7 @@ import {
   setProjectScale,
   setTransport,
 } from "../state/store";
-import {
-  announceScale,
-  projectScaleChipLabel,
-} from "../state/scaleChip";
+import { announceScale, projectScaleChipLabel } from "../state/scaleChip";
 import { dismissFirstRunNudge, firstRunNudge } from "../state/firstRun";
 import { openHelp } from "../state/helpOverlay";
 import ScalePopover from "./ScalePopover";
@@ -44,7 +41,9 @@ const BEAT_LED_COUNT = 4;
 export default function Booth() {
   // Project-scale chip (DES-3): mirrors the document scale into signals via
   // one subscription; the popover commits through the store seam.
-  const [scaleChip, setScaleChip] = createSignal(projectScaleChipLabel(docStore.getState().doc));
+  const [scaleChip, setScaleChip] = createSignal(
+    projectScaleChipLabel(docStore.getState().doc),
+  );
   const [scalePopOpen, setScalePopOpen] = createSignal(false);
   const [scaleAnnounce, setScaleAnnounce] = createSignal("");
   let scaleChipBtn: HTMLButtonElement | undefined;
@@ -163,7 +162,10 @@ export default function Booth() {
         <button
           type="button"
           class="booth-btn booth-btn-play"
-          classList={{ "is-on": playing(), "booth-nudge": firstRunNudge() && !playing() }}
+          classList={{
+            "is-on": playing(),
+            "booth-nudge": firstRunNudge() && !playing(),
+          }}
           data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
           aria-pressed={playing()}
           onClick={handleTogglePlay}
@@ -263,7 +265,10 @@ export default function Booth() {
               store={{ setProjectScale, setLaneScaleOverride }}
               onApplied={() =>
                 setScaleAnnounce(
-                  announceScale(projectScaleChipLabel(docStore.getState().doc), "Project"),
+                  announceScale(
+                    projectScaleChipLabel(docStore.getState().doc),
+                    "Project",
+                  ),
                 )
               }
               onClose={() => {

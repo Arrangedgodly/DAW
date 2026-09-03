@@ -56,7 +56,9 @@ export default function HelpOverlay(): JSX.Element {
   const trapTab = (e: KeyboardEvent) => {
     if (!helpOpen() || e.key !== "Tab" || !panel) return;
     const focusables = [
-      ...panel.querySelectorAll<HTMLElement>("button, [href], input, select, textarea"),
+      ...panel.querySelectorAll<HTMLElement>(
+        "button, [href], input, select, textarea",
+      ),
     ].filter((el) => !el.hasAttribute("disabled"));
     if (focusables.length === 0) return;
     const first = focusables[0]!;
@@ -109,7 +111,9 @@ export default function HelpOverlay(): JSX.Element {
                     <For each={section.bindings}>
                       {(b) => (
                         <div class="help-row">
-                          <dt><kbd>{b.keys}</kbd></dt>
+                          <dt>
+                            <kbd>{b.keys}</kbd>
+                          </dt>
                           <dd>{b.action}</dd>
                         </div>
                       )}

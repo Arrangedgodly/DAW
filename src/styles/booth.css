@@ -179,14 +179,16 @@
   height: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
 .booth-range::-moz-range-track {
   height: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
 .booth-range::-webkit-slider-thumb {
@@ -197,7 +199,8 @@
   margin-top: -4px;
   border-radius: 1px;
   background: var(--color-ink);
-  border: 1px solid color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
 }
 
 .booth-range::-moz-range-thumb {
@@ -205,7 +208,8 @@
   height: 10px;
   border-radius: 1px;
   background: var(--color-ink);
-  border: 1px solid color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
 }
 
 .booth-range:focus-visible {

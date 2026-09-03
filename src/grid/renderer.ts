@@ -166,10 +166,7 @@ export class DomGridRenderer implements GridRenderer {
         // Beat shading: 4/4 grouping — odd beats read slightly raised.
         cell.dataset.beat = String(Math.floor(step / 4) % 2);
         cell.tabIndex = -1;
-        cell.setAttribute(
-          "aria-label",
-          `${rowLabels[row]} step ${step + 1}`,
-        );
+        cell.setAttribute("aria-label", `${rowLabels[row]} step ${step + 1}`);
         cellsEl.append(cell);
         rowCells.push(cell);
       }
@@ -361,9 +358,11 @@ export class DomGridRenderer implements GridRenderer {
     if (e.key === "Escape") {
       // Pop to the region head: the lane header's first control.
       e.preventDefault();
-      const head = this.opts.container.closest(".lane-floor")?.querySelector<HTMLElement>(
-        ".lane-head button, .lane-head input, .lane-head [href]",
-      );
+      const head = this.opts.container
+        .closest(".lane-floor")
+        ?.querySelector<HTMLElement>(
+          ".lane-head button, .lane-head input, .lane-head [href]",
+        );
       if (head) head.focus();
       else this.opts.onEscape?.();
       return;
@@ -381,7 +380,11 @@ export class DomGridRenderer implements GridRenderer {
     const move = gridMoveForKey(e.key, e.ctrlKey || e.metaKey);
     if (move !== null) {
       e.preventDefault();
-      const next = nextCell(pos, { rows: this.cells.length, steps: this.cells[0]?.length ?? 0 }, move);
+      const next = nextCell(
+        pos,
+        { rows: this.cells.length, steps: this.cells[0]?.length ?? 0 },
+        move,
+      );
       this.moveFocus(next.row, next.step);
     }
   };
@@ -414,15 +417,22 @@ export class DomGridRenderer implements GridRenderer {
       this.clearColumnHighlight();
       this.lastQuantized = null;
     } else {
-      const reduced = this.reducedMotion?.matches ?? this.opts.host.prefersReducedMotion();
+      const reduced =
+        this.reducedMotion?.matches ?? this.opts.host.prefersReducedMotion();
       if (reduced) {
         // D9: quantized column highlight, no sweep.
         this.setPlayhead(null);
       } else {
-        this.setPlayhead(playheadX(frame.loopTime, frame.options, STEP_WIDTH_PX));
+        this.setPlayhead(
+          playheadX(frame.loopTime, frame.options, STEP_WIDTH_PX),
+        );
       }
       const q = quantizedStep(frame.loopTime, frame.options);
-      const crossed = stepsCrossed(this.lastQuantized, q, frame.options.bars * 16);
+      const crossed = stepsCrossed(
+        this.lastQuantized,
+        q,
+        frame.options.bars * 16,
+      );
       for (const step of crossed) {
         if (reduced) this.highlightColumn(step);
         else this.triggerGlow(step);

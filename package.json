@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test:browser": "vitest run --project browser",
     "test:all": "vitest run",
-    "fuzz": "node scripts/fuzz.mjs"
+    "fuzz": "node scripts/fuzz.mjs",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=bitbounce --branch=main"
   },
   "dependencies": {
     "idb": "^8.0.3",
@@ -38,6 +39,7 @@
     "typescript-eslint": "^8.69.0",
     "vite": "^8.2.2",
     "vite-plugin-solid": "^2.11.14",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.128.0"
   }
 }

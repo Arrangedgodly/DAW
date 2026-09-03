@@ -30,7 +30,9 @@ export default function SaveIndicator() {
   const label = () => indicatorLabel(autosaveStatus(), getLastSavedAt(), now());
   const aria = () => {
     const savedAt = getLastSavedAt();
-    return savedAt === null ? label() : `${label()} (last saved ${fullTimestamp(savedAt)})`;
+    return savedAt === null
+      ? label()
+      : `${label()} (last saved ${fullTimestamp(savedAt)})`;
   };
 
   return (
@@ -40,7 +42,9 @@ export default function SaveIndicator() {
       role="status"
       tabindex="0"
       aria-label={aria()}
-      title={getLastSavedAt() === null ? label() : fullTimestamp(getLastSavedAt()!)}
+      title={
+        getLastSavedAt() === null ? label() : fullTimestamp(getLastSavedAt()!)
+      }
     >
       <span class="save-dot" aria-hidden="true" />
       <span class="save-label" aria-hidden="true">

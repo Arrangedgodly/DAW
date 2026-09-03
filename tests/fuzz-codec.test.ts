@@ -33,7 +33,11 @@ describe("CA-2 fuzz: decode parse surface is total (validate or typed-reject)", 
   it(
     `every one of ${CASES} seeded mutation cases is safe`,
     async () => {
-      const summary = await runFuzz(seedCorpus(referenceMidiProject), CASES, FUZZ_SEED);
+      const summary = await runFuzz(
+        seedCorpus(referenceMidiProject),
+        CASES,
+        FUZZ_SEED,
+      );
       if (process.env.FUZZ_VERBOSE) {
         console.log(
           `[fuzz] cases=${CASES} valid=${summary.valid} rejected=${summary.rejected} crashes=${summary.crashes.length}\n[fuzz] byMutation=${JSON.stringify(summary.byMutation)}`,
@@ -96,16 +100,26 @@ describe("CA-2 prototype-pollution proofs", () => {
     ) as Record<string, unknown>;
     // The canonical form carries it as an own key (sorted: __proto__ first);
     // re-canonicalizing must not pollute and must round-trip byte-stably.
-    expect(canonicalize(out)).toBe(canonicalize({ safe: 1, __proto__: { polluted: "yes" } }));
+    expect(canonicalize(out)).toBe(
+      canonicalize({ safe: 1, __proto__: { polluted: "yes" } }),
+    );
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(JSON.stringify(Object.prototype)).toBe(before);
   });
 
   it("decode rejects __proto__/constructor keys at the root (strict schema)", () => {
-    const base = JSON.parse(encode(createDefaultProject())) as Record<string, unknown>;
+    const base = JSON.parse(encode(createDefaultProject())) as Record<
+      string,
+      unknown
+    >;
     for (const key of ["__proto__", "constructor"]) {
-      const hostile = { ...base, [key]: { polluted: true } } as Record<string, unknown>;
-      expect(() => decode(JSON.stringify(hostile))).toThrowError(/Invalid project document/);
+      const hostile = { ...base, [key]: { polluted: true } } as Record<
+        string,
+        unknown
+      >;
+      expect(() => decode(JSON.stringify(hostile))).toThrowError(
+        /Invalid project document/,
+      );
       expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     }
   });

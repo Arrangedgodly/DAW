@@ -52,7 +52,11 @@ export const MODE_LONG: Readonly<Record<ModeName, string>> = {
 export const MODE_LIST: readonly ModeName[] = MODE_NAMES;
 
 export function rootName(root: number): string {
-  return PITCH_CLASS_NAMES[root as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11] ?? "?";
+  return (
+    PITCH_CLASS_NAMES[
+      root as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+    ] ?? "?"
+  );
 }
 
 /** "C MIN" — the scale half of the chip label. */
@@ -72,7 +76,10 @@ export interface ScaleChipLabel {
 }
 
 /** Resolve one lane's chip label from the document (override wins). */
-export function laneScaleChipLabel(doc: ProjectDocument, lane: LaneId): ScaleChipLabel {
+export function laneScaleChipLabel(
+  doc: ProjectDocument,
+  lane: LaneId,
+): ScaleChipLabel {
   const override = doc.laneOverrides?.[lane];
   if (override) {
     return {

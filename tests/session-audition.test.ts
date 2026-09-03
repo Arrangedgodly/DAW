@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Session } from "../src/engine/session";
-import { getDrumKit, getPreset, type VoiceNoteOnEvent } from "../src/audio/presets";
+import {
+  getDrumKit,
+  getPreset,
+  type VoiceNoteOnEvent,
+} from "../src/audio/presets";
 import { EventOutbox, type VoiceEngineHost } from "../src/audio/voiceEngine";
 import type { AudioContextLike } from "../src/audio/context";
 
@@ -95,7 +99,11 @@ describe("Session.audition", () => {
     const fallbackMidi = midiOfFreq(sent[0][0].freq);
 
     // D major (root 2): degree 0 is two semitones above C.
-    session.setLaneScale("bass", { root: 2, mode: "major", intervals: [0, 2, 4, 5, 7, 9, 11] });
+    session.setLaneScale("bass", {
+      root: 2,
+      mode: "major",
+      intervals: [0, 2, 4, 5, 7, 9, 11],
+    });
     sent.length = 0;
     await session.audition("bass", 0);
     expect(midiOfFreq(sent[0][0].freq)).toBe(fallbackMidi + 2);

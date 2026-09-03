@@ -129,7 +129,8 @@ export function noteParamsFor(
     freqEnd,
     sweepSeconds: sweepSeconds > 0 ? sweepSeconds : 0,
     duty: preset.duty,
-    noiseMix: preset.wave === "noise" ? Math.max(preset.noiseMix, 1) : preset.noiseMix,
+    noiseMix:
+      preset.wave === "noise" ? Math.max(preset.noiseMix, 1) : preset.noiseMix,
     noiseShort: preset.noiseMode === "short",
     noiseRate: preset.noiseRate,
     attack: preset.envelope.attack,
@@ -138,7 +139,11 @@ export function noteParamsFor(
     release: preset.envelope.release,
     holdSeconds: opts.holdSeconds,
     level: preset.level,
-    seed: noteSeed(preset.seed, Math.round(opts.time * 1000), opts.seedSalt ?? 0),
+    seed: noteSeed(
+      preset.seed,
+      Math.round(opts.time * 1000),
+      opts.seedSalt ?? 0,
+    ),
   };
 }
 
@@ -508,15 +513,28 @@ interface KitSpec {
   };
 }
 
-function kit(id: string, name: string, seedBase: number, spec: KitSpec): DrumKit {
+function kit(
+  id: string,
+  name: string,
+  seedBase: number,
+  spec: KitSpec,
+): DrumKit {
   const s = (i: number) => seedBase + i;
   return {
     id,
     name,
     pieces: {
       kick: piece(id, "Kick", spec.kick.start, {
-        pitchSweep: { endRatio: spec.kick.endRatio, seconds: spec.kick.seconds },
-        envelope: { attack: 0.001, decay: spec.kick.decay, sustain: 0, release: 0.02 },
+        pitchSweep: {
+          endRatio: spec.kick.endRatio,
+          seconds: spec.kick.seconds,
+        },
+        envelope: {
+          attack: 0.001,
+          decay: spec.kick.decay,
+          sustain: 0,
+          release: 0.02,
+        },
         level: spec.kick.level,
         seed: s(1),
       }),
@@ -524,7 +542,12 @@ function kit(id: string, name: string, seedBase: number, spec: KitSpec): DrumKit
         wave: "triangle",
         noiseMix: spec.snare.noiseMix,
         noiseRate: spec.snare.noiseRate,
-        envelope: { attack: 0.001, decay: spec.snare.decay, sustain: 0, release: 0.03 },
+        envelope: {
+          attack: 0.001,
+          decay: spec.snare.decay,
+          sustain: 0,
+          release: 0.03,
+        },
         level: spec.snare.level,
         seed: s(2),
       }),
@@ -532,7 +555,12 @@ function kit(id: string, name: string, seedBase: number, spec: KitSpec): DrumKit
         wave: "noise",
         noiseMode: "short",
         noiseRate: spec.hat.rate,
-        envelope: { attack: 0, decay: spec.hat.decay, sustain: 0, release: 0.005 },
+        envelope: {
+          attack: 0,
+          decay: spec.hat.decay,
+          sustain: 0,
+          release: 0.005,
+        },
         level: spec.hat.level,
         seed: s(3),
       }),
@@ -553,14 +581,24 @@ function kit(id: string, name: string, seedBase: number, spec: KitSpec): DrumKit
         wave: "noise",
         noiseMode: "long",
         noiseRate: spec.clap.rate,
-        envelope: { attack: 0.001, decay: spec.clap.decay, sustain: 0.1, release: 0.08 },
+        envelope: {
+          attack: 0.001,
+          decay: spec.clap.decay,
+          sustain: 0.1,
+          release: 0.08,
+        },
         level: spec.clap.level,
         seed: s(5),
       }),
       tom: piece(id, "Tom", spec.tom.freq, {
         wave: "triangle",
         pitchSweep: { endRatio: spec.tom.endRatio, seconds: 0.12 },
-        envelope: { attack: 0.001, decay: spec.tom.decay, sustain: 0.1, release: 0.04 },
+        envelope: {
+          attack: 0.001,
+          decay: spec.tom.decay,
+          sustain: 0.1,
+          release: 0.04,
+        },
         level: spec.tom.level,
         seed: s(6),
       }),
@@ -570,23 +608,53 @@ function kit(id: string, name: string, seedBase: number, spec: KitSpec): DrumKit
 
 export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
   "kit-default": kit("kit-default", "8-BIT ROOM", 5000, {
-    kick: { start: 160, endRatio: 0.28, seconds: 0.06, decay: 0.18, level: 0.9 },
-    snare: { freq: 190, noiseMix: 0.7, noiseRate: 36, decay: 0.12, level: 0.75 },
+    kick: {
+      start: 160,
+      endRatio: 0.28,
+      seconds: 0.06,
+      decay: 0.18,
+      level: 0.9,
+    },
+    snare: {
+      freq: 190,
+      noiseMix: 0.7,
+      noiseRate: 36,
+      decay: 0.12,
+      level: 0.75,
+    },
     hat: { rate: 4, decay: 0.03, level: 0.4 },
     openhat: { rate: 4, decay: 0.22, sustain: 0.15, level: 0.35 },
     clap: { rate: 12, decay: 0.15, level: 0.6 },
     tom: { freq: 220, endRatio: 0.5, decay: 0.18, level: 0.7 },
   }),
   "kit-grit": kit("kit-grit", "NOISE PUNK", 6000, {
-    kick: { start: 150, endRatio: 0.22, seconds: 0.06, decay: 0.22, level: 0.95 },
-    snare: { freq: 175, noiseMix: 0.85, noiseRate: 20, decay: 0.18, level: 0.9 },
+    kick: {
+      start: 150,
+      endRatio: 0.22,
+      seconds: 0.06,
+      decay: 0.22,
+      level: 0.95,
+    },
+    snare: {
+      freq: 175,
+      noiseMix: 0.85,
+      noiseRate: 20,
+      decay: 0.18,
+      level: 0.9,
+    },
     hat: { rate: 6, decay: 0.04, level: 0.45 },
     openhat: { rate: 5, decay: 0.3, sustain: 0.2, level: 0.4 },
     clap: { rate: 18, decay: 0.12, level: 0.68 },
     tom: { freq: 200, endRatio: 0.45, decay: 0.2, level: 0.75 },
   }),
   "kit-metal": kit("kit-metal", "CHIP METAL", 6100, {
-    kick: { start: 170, endRatio: 0.15, seconds: 0.05, decay: 0.15, level: 0.92 },
+    kick: {
+      start: 170,
+      endRatio: 0.15,
+      seconds: 0.05,
+      decay: 0.15,
+      level: 0.92,
+    },
     snare: { freq: 200, noiseMix: 0.75, noiseRate: 28, decay: 0.1, level: 0.8 },
     hat: { rate: 2, decay: 0.025, level: 0.42 },
     openhat: { rate: 3, decay: 0.15, sustain: 0.1, level: 0.36 },
@@ -603,15 +671,33 @@ export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
   }),
   "kit-dust": kit("kit-dust", "DUST ROOM", 6300, {
     kick: { start: 140, endRatio: 0.3, seconds: 0.07, decay: 0.2, level: 0.85 },
-    snare: { freq: 185, noiseMix: 0.78, noiseRate: 16, decay: 0.16, level: 0.7 },
+    snare: {
+      freq: 185,
+      noiseMix: 0.78,
+      noiseRate: 16,
+      decay: 0.16,
+      level: 0.7,
+    },
     hat: { rate: 10, decay: 0.06, level: 0.28 },
     openhat: { rate: 9, decay: 0.35, sustain: 0.18, level: 0.24 },
     clap: { rate: 30, decay: 0.18, level: 0.52 },
     tom: { freq: 210, endRatio: 0.5, decay: 0.2, level: 0.65 },
   }),
   "kit-lab": kit("kit-lab", "PULSE LAB", 6400, {
-    kick: { start: 180, endRatio: 0.2, seconds: 0.04, decay: 0.12, level: 0.88 },
-    snare: { freq: 210, noiseMix: 0.65, noiseRate: 40, decay: 0.09, level: 0.72 },
+    kick: {
+      start: 180,
+      endRatio: 0.2,
+      seconds: 0.04,
+      decay: 0.12,
+      level: 0.88,
+    },
+    snare: {
+      freq: 210,
+      noiseMix: 0.65,
+      noiseRate: 40,
+      decay: 0.09,
+      level: 0.72,
+    },
     hat: { rate: 5, decay: 0.02, level: 0.38 },
     openhat: { rate: 4, decay: 0.18, sustain: 0.12, level: 0.32 },
     clap: { rate: 8, decay: 0.12, level: 0.58 },

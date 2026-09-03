@@ -16,10 +16,7 @@
 
 import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
 import { getDrumKit, getPreset } from "../audio/presets";
-import {
-  type LaneId,
-  type ProjectDocument,
-} from "../document/schema";
+import { type LaneId, type ProjectDocument } from "../document/schema";
 import { effectiveScale } from "../document/scales";
 import { getSession, type Session } from "../engine/session";
 import { docStore } from "./store";
@@ -38,10 +35,10 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
     chain,
     preset:
       lane === "drums"
-        ? getDrumKit((laneConf as { kitId: string }).kitId) ??
-          getDrumKit("kit-default")!
-        : getPreset((laneConf as { presetId: string }).presetId) ??
-          getPreset("preset-lead-1")!,
+        ? (getDrumKit((laneConf as { kitId: string }).kitId) ??
+          getDrumKit("kit-default")!)
+        : (getPreset((laneConf as { presetId: string }).presetId) ??
+          getPreset("preset-lead-1")!),
     gate: laneConf.gate,
     groove,
     ...(lane === "drums"
@@ -125,9 +122,11 @@ export function connectStoreToEngine(
     if (doc === prev.doc) return;
     if (doc.transport !== prev.doc.transport) syncTransport(doc, session);
     const scaleChanged =
-      doc.scale !== prev.doc.scale || doc.laneOverrides !== prev.doc.laneOverrides;
+      doc.scale !== prev.doc.scale ||
+      doc.laneOverrides !== prev.doc.laneOverrides;
     // Lane config (sound ids) and effective scales both ride syncLaneConfig.
-    if (doc.lanes !== prev.doc.lanes || scaleChanged) syncLaneConfig(doc, session);
+    if (doc.lanes !== prev.doc.lanes || scaleChanged)
+      syncLaneConfig(doc, session);
     // Compilation inputs per lane: pattern content, lane config (gate/preset),
     // effective scale, song chain (first-pattern selection), groove (bpm/swing).
     const grooveChanged = doc.transport !== prev.doc.transport;
@@ -135,7 +134,8 @@ export function connectStoreToEngine(
       // Per-lane config identity (gate/preset live on the lane object; the
       // lanes array is replaced wholesale on any lane edit).
       const laneConfChanged =
-        doc.lanes.find((l) => l.id === lane) !== prev.doc.lanes.find((l) => l.id === lane) ||
+        doc.lanes.find((l) => l.id === lane) !==
+          prev.doc.lanes.find((l) => l.id === lane) ||
         doc.songChain[lane] !== prev.doc.songChain[lane];
       const pitchedScaleChanged = scaleChanged && lane !== "drums";
       if (

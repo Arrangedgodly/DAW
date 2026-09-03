@@ -17,7 +17,8 @@
 
 .help-panel {
   background: var(--color-ground);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   color: var(--color-ink);
   border-radius: 6px;
   padding: var(--space-5) var(--space-6);
@@ -25,7 +26,8 @@
   width: min(92vw, 640px);
   max-height: 84vh;
   overflow: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground)) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+    transparent;
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
 
@@ -75,7 +77,8 @@
   font: var(--text-value);
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 8%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
   border-radius: 3px;
   padding: 1px 4px;
   white-space: nowrap;

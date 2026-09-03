@@ -7,11 +7,7 @@
  * compiled list feeds online playback and offline renders (IM-5 parity).
  */
 
-import {
-  type GrooveOptions,
-  secondsPerStep,
-  timeAtStep,
-} from "./time";
+import { type GrooveOptions, secondsPerStep, timeAtStep } from "./time";
 import {
   type DrumKit,
   type VoiceNoteOnEvent,
@@ -94,7 +90,10 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
         if (cell !== 1) continue;
         // gate + one extra step per following sustain marker (cell 2)
         let sustain = 0;
-        while (step + 1 + sustain < steps.length && steps[step + 1 + sustain] === 2) {
+        while (
+          step + 1 + sustain < steps.length &&
+          steps[step + 1 + sustain] === 2
+        ) {
           sustain++;
         }
         const hold = gateSec + sustain * stepSec;

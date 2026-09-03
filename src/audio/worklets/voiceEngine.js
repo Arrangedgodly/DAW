@@ -166,23 +166,14 @@ function voiceSample(v, invSampleRate) {
   if (v.releasing) {
     v.releaseT += invSampleRate;
     env =
-      v.release > 0
-        ? v.sustain * Math.max(0, 1 - v.releaseT / v.release)
-        : 0;
+      v.release > 0 ? v.sustain * Math.max(0, 1 - v.releaseT / v.release) : 0;
     if (v.releaseT >= v.release) {
       v.active = false;
       return 0;
     }
   } else {
     v.t += invSampleRate;
-    env = adsrLevel(
-      v.t,
-      v.attack,
-      v.decay,
-      v.sustain,
-      v.release,
-      v.hold,
-    );
+    env = adsrLevel(v.t, v.attack, v.decay, v.sustain, v.release, v.hold);
     if (v.t >= v.hold) v.releasing = true;
   }
 
@@ -229,7 +220,9 @@ var VOICE_COUNT = 8;
 // (The node parity import has no AudioWorkletProcessor global, hence the
 // guarded base class.)
 var __ProcessorBase =
-  typeof AudioWorkletProcessor === "function" ? AudioWorkletProcessor : class {};
+  typeof AudioWorkletProcessor === "function"
+    ? AudioWorkletProcessor
+    : class {};
 class VoiceEngineProcessor extends __ProcessorBase {
   constructor() {
     super();
@@ -382,7 +375,10 @@ VoiceEngineProcessor.prototype.process = function (_inputs, outputs) {
       this.port.postMessage({ type: "consumed", untilTime: currentTime });
     } else if (this.pending[this.pendingIndex - 1].time > this.consumedUntil) {
       this.consumedUntil = this.pending[this.pendingIndex - 1].time;
-      this.port.postMessage({ type: "consumed", untilTime: this.consumedUntil });
+      this.port.postMessage({
+        type: "consumed",
+        untilTime: this.consumedUntil,
+      });
     }
   }
 
@@ -406,7 +402,8 @@ class BitcrusherProcessor extends __ProcessorBase {
     this.port.onmessage = (ev) => {
       const msg = ev.data;
       if (!msg || typeof msg !== "object" || msg.type !== "params") return;
-      if (Number.isFinite(msg.bits)) this.bits = Math.min(16, Math.max(1, msg.bits));
+      if (Number.isFinite(msg.bits))
+        this.bits = Math.min(16, Math.max(1, msg.bits));
       if (Number.isFinite(msg.downsample)) {
         this.downsample = Math.min(64, Math.max(1, Math.round(msg.downsample)));
       }
@@ -426,8 +423,8 @@ BitcrusherProcessor.prototype.process = function (inputs, outputs) {
       // quantizeBits in src/audio/fx.ts — change both or neither)
       var xl = inChL ? inChL[s] : 0;
       var xr = inChR ? inChR[s] : 0;
-      this.heldL = Math.round(((xl + 1) / 2) * levels) / levels * 2 - 1;
-      this.heldR = Math.round(((xr + 1) / 2) * levels) / levels * 2 - 1;
+      this.heldL = (Math.round(((xl + 1) / 2) * levels) / levels) * 2 - 1;
+      this.heldR = (Math.round(((xr + 1) / 2) * levels) / levels) * 2 - 1;
       this.countdown = this.downsample;
     }
     this.countdown -= 1;

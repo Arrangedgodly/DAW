@@ -101,7 +101,8 @@ export function detectSupport(win: WindowLike): SupportReport {
     audioContext: isFunction(win.AudioContext),
     offlineAudioContext: isFunction(win.OfflineAudioContext),
     audioWorklet:
-      hasAudioWorklet(win.AudioContext) || hasAudioWorklet(win.OfflineAudioContext),
+      hasAudioWorklet(win.AudioContext) ||
+      hasAudioWorklet(win.OfflineAudioContext),
     indexedDB: !!win.indexedDB,
     secureContext: win.isSecureContext === true,
   };
@@ -109,7 +110,11 @@ export function detectSupport(win: WindowLike): SupportReport {
     (key) => FEATURE_LABELS[key],
   );
   const tier: SupportTier =
-    missing.length > 0 ? "unsupported" : features.audioWorklet ? "full" : "degraded-worklet";
+    missing.length > 0
+      ? "unsupported"
+      : features.audioWorklet
+        ? "full"
+        : "degraded-worklet";
   return { features, missing, tier };
 }
 

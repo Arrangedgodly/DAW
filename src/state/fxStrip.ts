@@ -61,7 +61,11 @@ export function defaultFxDevice(type: FxDeviceType): FxDevice {
         params: { timeSteps: 2, feedback: 0.35, mix: 0.35 },
       };
     case "reverb":
-      return { type: "reverb", bypassed: false, params: { size: 0.4, mix: 0.3 } };
+      return {
+        type: "reverb",
+        bypassed: false,
+        params: { size: 0.4, mix: 0.3 },
+      };
   }
 }
 
@@ -127,7 +131,14 @@ export const FX_DEVICE_SPECS: Readonly<Record<FxDeviceType, FxDeviceSpec>> = {
     type: "filter",
     label: FX_DEVICE_LABELS.filter,
     sliders: [
-      { key: "cutoffHz", label: "CUTOFF", min: 20, max: 20000, step: 1, log: true },
+      {
+        key: "cutoffHz",
+        label: "CUTOFF",
+        min: 20,
+        max: 20000,
+        step: 1,
+        log: true,
+      },
       { key: "q", label: "Q", min: 0.1, max: 18, step: 0.1 },
     ],
     choices: [FILTER_KIND as unknown as FxChoiceSpec<never>],
@@ -186,7 +197,10 @@ export function fxModuleList(chain: readonly FxDevice[]): readonly FxModule[] {
   }));
 }
 
-export function laneFxChain(doc: ProjectDocument, lane: LaneId): readonly FxDevice[] {
+export function laneFxChain(
+  doc: ProjectDocument,
+  lane: LaneId,
+): readonly FxDevice[] {
   return doc.lanes.find((l) => l.id === lane)?.fxChain ?? [];
 }
 
@@ -246,18 +260,12 @@ export function sliderToCutoff(slider: number): number {
 }
 
 /** The numeric value a param's range input should carry. */
-export function paramToSlider(
-  spec: FxSliderSpec,
-  value: number,
-): number {
+export function paramToSlider(spec: FxSliderSpec, value: number): number {
   return spec.log ? cutoffToSlider(value) : value;
 }
 
 /** Back from the range input to the document value. */
-export function sliderToParam(
-  spec: FxSliderSpec,
-  slider: number,
-): number {
+export function sliderToParam(spec: FxSliderSpec, slider: number): number {
   return spec.log ? sliderToCutoff(slider) : slider;
 }
 
@@ -283,7 +291,10 @@ export function formatFxParam(
 ): string {
   switch (`${type}.${key}`) {
     case "filter.kind":
-      return FILTER_KIND.options.find((o) => o.value === value)?.label ?? String(value);
+      return (
+        FILTER_KIND.options.find((o) => o.value === value)?.label ??
+        String(value)
+      );
     case "filter.cutoffHz":
       return hz(value as number);
     case "filter.q":

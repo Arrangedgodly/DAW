@@ -21,7 +21,8 @@ export function indicatorLabel(
       return "SAVE FAILED — RETRYING";
     case "saved":
     case "idle":
-      if (lastSavedAt === null) return status === "idle" ? "AUTOSAVE ON" : "SAVED";
+      if (lastSavedAt === null)
+        return status === "idle" ? "AUTOSAVE ON" : "SAVED";
       return `SAVED ${relativeTime(lastSavedAt, now).toUpperCase()}`;
     default:
       return "AUTOSAVE ON";

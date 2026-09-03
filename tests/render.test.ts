@@ -69,7 +69,11 @@ describe("expandLaneEventsForLoop", () => {
       [0, [fakeEvent(0)]],
       [3, [fakeEvent(0.1)]],
     ]);
-    const events = expandLaneEventsForLoop({ chainSteps: 16, byStep }, 32, groove);
+    const events = expandLaneEventsForLoop(
+      { chainSteps: 16, byStep },
+      32,
+      groove,
+    );
     // step 0 → global 0 and 16; step 3 → global 3 and 19.
     expect(events.map((e) => e.time)).toEqual([
       timeAtStep(0, groove),
@@ -88,7 +92,11 @@ describe("expandLaneEventsForLoop", () => {
   it("preserves exact swing times on wrapped iterations", () => {
     const groove = { bpm: 120, swing: 0.3 };
     const byStep = new Map<number, VoiceNoteOnEvent[]>([[1, [fakeEvent(0)]]]);
-    const events = expandLaneEventsForLoop({ chainSteps: 16, byStep }, 32, groove);
+    const events = expandLaneEventsForLoop(
+      { chainSteps: 16, byStep },
+      32,
+      groove,
+    );
     expect(events.map((e) => e.time)).toEqual([
       timeAtStep(1, groove),
       timeAtStep(17, groove),
@@ -100,19 +108,27 @@ describe("expandLaneEventsForLoop", () => {
     const byStep = new Map<number, VoiceNoteOnEvent[]>([
       [5, [fakeEvent(0), fakeEvent(0)]],
     ]);
-    const events = expandLaneEventsForLoop({ chainSteps: 8, byStep }, 16, groove);
+    const events = expandLaneEventsForLoop(
+      { chainSteps: 8, byStep },
+      16,
+      groove,
+    );
     expect(events).toHaveLength(4);
     for (let i = 1; i < events.length; i++) {
       expect(events[i].time).toBeGreaterThanOrEqual(events[i - 1].time);
     }
-    expect(expandLaneEventsForLoop({ chainSteps: 0, byStep }, 16, groove)).toEqual([]);
+    expect(
+      expandLaneEventsForLoop({ chainSteps: 0, byStep }, 16, groove),
+    ).toEqual([]);
   });
 });
 
 describe("foldTail", () => {
   it("wraps the tail beyond loopSamples onto the first tail-length samples", () => {
     const L = 10; // tail length is implied: raw.length - L = 4
-    const raw = [new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 200, 300, 400])];
+    const raw = [
+      new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 200, 300, 400]),
+    ];
     const [out] = foldTail(raw, L);
     expect(out).toHaveLength(L);
     // out[i] = raw[i] + raw[L+i] for i < T, else raw[i].

@@ -92,7 +92,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
   border-radius: 3px;
   min-width: 20px;
   height: 20px;
@@ -128,7 +129,11 @@
 }
 
 .fx-remove-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-lane-drums) 55%, var(--color-ground));
+  border-color: color-mix(
+    in srgb,
+    var(--color-lane-drums) 55%,
+    var(--color-ground)
+  );
 }
 
 /* ---- Params ---- */
@@ -172,14 +177,16 @@
   height: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
 .fx-param-slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
 .fx-param-slider::-webkit-slider-thumb {
@@ -218,7 +225,8 @@
   font: var(--text-value);
   color: var(--color-ink);
   background: var(--color-ground);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
   padding: 2px 4px;
   width: 100%;
@@ -256,7 +264,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px dashed color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
+  border: 1px dashed
+    color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
   border-radius: 3px;
   padding: 4px 10px;
   cursor: pointer;
@@ -286,7 +295,8 @@
   gap: var(--space-1);
   padding: var(--space-2);
   background: var(--color-ground);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   border-radius: 4px;
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
@@ -296,7 +306,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
   border-radius: 3px;
   padding: 5px 8px;
   cursor: pointer;

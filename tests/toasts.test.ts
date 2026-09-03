@@ -57,7 +57,11 @@ describe("toast bus (HU-2)", () => {
     showInfo("three");
     showInfo("four");
     expect(toastStack()).toHaveLength(MAX_TOASTS);
-    expect(toastStack().map((t) => t.message)).toEqual(["two", "three", "four"]);
+    expect(toastStack().map((t) => t.message)).toEqual([
+      "two",
+      "three",
+      "four",
+    ]);
     // The dropped toast's timer is cancelled too — it cannot resurrect.
     vi.advanceTimersByTime(AUTO_DISMISS_MS + 1);
     expect(toastStack()).toHaveLength(0);

@@ -12,7 +12,14 @@
  * outside, so collapse/expand and pattern switches never lose your place.
  */
 
-import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { render } from "solid-js/web";
 import {
   DRUM_PIECES,
@@ -23,12 +30,13 @@ import {
 } from "../document/schema";
 import { effectiveScale, modeSize } from "../document/scales";
 import { getSession } from "../engine/session";
-import {
-  DomGridRenderer,
-  type PlayheadFrame,
-} from "../grid/renderer";
+import { DomGridRenderer, type PlayheadFrame } from "../grid/renderer";
 import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
-import { activePatterns, currentPatternFor, selectLane } from "../state/selection";
+import {
+  activePatterns,
+  currentPatternFor,
+  selectLane,
+} from "../state/selection";
 import { focusRequest, requestLaneFocus } from "../state/gridFocus";
 import LaneHeader from "./LaneHeader";
 import EuclidFill from "./EuclidFill";
@@ -46,7 +54,10 @@ function drumLabels(): string[] {
 }
 
 /** Degree rows for a pitched lane: note names over ~2 octaves (1 for chords). */
-function pitchedLabels(lane: Exclude<LaneId, "drums">, pattern: Pattern): {
+function pitchedLabels(
+  lane: Exclude<LaneId, "drums">,
+  pattern: Pattern,
+): {
   labels: string[];
   degrees: number[];
 } {
@@ -124,7 +135,9 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
                       piece={piece}
                       steps={steps}
                       label={rowLabels[row] ?? piece}
-                      onPreview={(values) => rendererRef?.previewRow(row, values)}
+                      onPreview={(values) =>
+                        rendererRef?.previewRow(row, values)
+                      }
                     />
                   ),
                   el,
@@ -152,7 +165,8 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       },
       // DA-1 lane moves: this grid asks the coordinator; the target lane's
       // surface consumes the request below.
-      onLaneMove: (dir, from) => requestLaneFocus(lane, dir, from.row, from.step),
+      onLaneMove: (dir, from) =>
+        requestLaneFocus(lane, dir, from.row, from.step),
       // DA-1 audition key: Shift+Enter sounds the focused cell, no toggle.
       onAudition: (row) => {
         if (lane === "drums") {
@@ -218,7 +232,11 @@ export default function LaneGrid(props: { lane: LaneId }) {
   };
 
   return (
-    <section class="lane-floor" data-lane={props.lane} aria-label={LANE_NAMES[props.lane]}>
+    <section
+      class="lane-floor"
+      data-lane={props.lane}
+      aria-label={LANE_NAMES[props.lane]}
+    >
       <LaneHeader lane={props.lane} />
       <Show when={key()} keyed>
         {(keyed: string) =>

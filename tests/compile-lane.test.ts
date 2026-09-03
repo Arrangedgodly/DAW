@@ -9,13 +9,18 @@ const groove = { bpm: 120, swing: 0 };
 const swung = { bpm: 130, swing: 0.4 };
 const scale = toEffectiveScale({ root: 0, mode: "minor" });
 
-function pitchedPattern(rows: { degree: number; steps: number[] }[]): PitchedPattern {
+function pitchedPattern(
+  rows: { degree: number; steps: number[] }[],
+): PitchedPattern {
   return {
     kind: "pitched",
     id: "p",
     name: "P",
     bars: 1,
-    rows: rows.map((r) => ({ degree: r.degree, steps: r.steps as PitchedPattern["rows"][number]["steps"] })),
+    rows: rows.map((r) => ({
+      degree: r.degree,
+      steps: r.steps as PitchedPattern["rows"][number]["steps"],
+    })),
   };
 }
 
@@ -26,41 +31,80 @@ describe("compileLaneEvents — pitched", () => {
     const pattern = pitchedPattern([
       { degree: 0, steps: [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1] },
     ]);
-    const events = compileLaneEvents({ pattern, preset, gate: { unit: "steps", value: 2 }, groove: swung, scale });
+    const events = compileLaneEvents({
+      pattern,
+      preset,
+      gate: { unit: "steps", value: 2 },
+      groove: swung,
+      scale,
+    });
     const onSteps = [0, 2, 8, 15];
-    expect(events.map((e) => e.time)).toEqual(onSteps.map((s) => timeAtStep(s, swung)));
+    expect(events.map((e) => e.time)).toEqual(
+      onSteps.map((s) => timeAtStep(s, swung)),
+    );
     expect(events).toEqual([...events].sort((a, b) => a.time - b.time));
   });
 
   it("gate in steps → holdSeconds = gate * secondsPerStep", () => {
-    const pattern = pitchedPattern([{ degree: 0, steps: [1, ...Array(15).fill(0)] }]);
-    const events = compileLaneEvents({ pattern, preset, gate: { unit: "steps", value: 2 }, groove, scale });
+    const pattern = pitchedPattern([
+      { degree: 0, steps: [1, ...Array(15).fill(0)] },
+    ]);
+    const events = compileLaneEvents({
+      pattern,
+      preset,
+      gate: { unit: "steps", value: 2 },
+      groove,
+      scale,
+    });
     expect(events[0].holdSeconds).toBeCloseTo(2 * secondsPerStep(120), 12);
   });
 
   it("gate in seconds is passed through", () => {
-    const pattern = pitchedPattern([{ degree: 0, steps: [1, ...Array(15).fill(0)] }]);
-    const events = compileLaneEvents({ pattern, preset, gate: { unit: "seconds", value: 0.31 }, groove, scale });
+    const pattern = pitchedPattern([
+      { degree: 0, steps: [1, ...Array(15).fill(0)] },
+    ]);
+    const events = compileLaneEvents({
+      pattern,
+      preset,
+      gate: { unit: "seconds", value: 0.31 },
+      groove,
+      scale,
+    });
     expect(events[0].holdSeconds).toBe(0.31);
   });
 
   it("sustain markers (cell 2) extend the hold by one step each", () => {
-    const pattern = pitchedPattern([{ degree: 0, steps: [1, 2, 2, 0, ...Array(12).fill(0)] }]);
+    const pattern = pitchedPattern([
+      { degree: 0, steps: [1, 2, 2, 0, ...Array(12).fill(0)] },
+    ]);
     const gate = { unit: "steps" as const, value: 1 };
     const events = compileLaneEvents({ pattern, preset, gate, groove, scale });
     expect(events.length).toBe(1);
-    expect(events[0].holdSeconds).toBeCloseTo((1 + 2) * secondsPerStep(120), 12);
+    expect(events[0].holdSeconds).toBeCloseTo(
+      (1 + 2) * secondsPerStep(120),
+      12,
+    );
   });
 
   it("frequency comes from degreeToMidi at the preset octave", () => {
-    const pattern = pitchedPattern([{ degree: 7, steps: [1, ...Array(15).fill(0)] }]);
-    const events = compileLaneEvents({ pattern, preset, gate: { unit: "steps", value: 1 }, groove, scale });
+    const pattern = pitchedPattern([
+      { degree: 7, steps: [1, ...Array(15).fill(0)] },
+    ]);
+    const events = compileLaneEvents({
+      pattern,
+      preset,
+      gate: { unit: "steps", value: 1 },
+      groove,
+      scale,
+    });
     // degree 7 in 7-note minor at octaveBase 2 = root one octave up = MIDI 48
     expect(events[0].freq).toBeCloseTo(440 * Math.pow(2, (48 - 69) / 12), 9);
   });
 
   it("chord stacking emits degree, +2, +4 at the same time", () => {
-    const pattern = pitchedPattern([{ degree: 0, steps: [1, ...Array(15).fill(0)] }]);
+    const pattern = pitchedPattern([
+      { degree: 0, steps: [1, ...Array(15).fill(0)] },
+    ]);
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -75,9 +119,16 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("throws when a pitched pattern has no scale", () => {
-    const pattern = pitchedPattern([{ degree: 0, steps: [1, ...Array(15).fill(0)] }]);
+    const pattern = pitchedPattern([
+      { degree: 0, steps: [1, ...Array(15).fill(0)] },
+    ]);
     expect(() =>
-      compileLaneEvents({ pattern, preset, gate: { unit: "steps", value: 1 }, groove }),
+      compileLaneEvents({
+        pattern,
+        preset,
+        gate: { unit: "steps", value: 1 },
+        groove,
+      }),
     ).toThrow(/scale/);
   });
 });
@@ -90,7 +141,24 @@ describe("compileLaneEvents — drums", () => {
     name: "D",
     bars: 1,
     steps: {
-      kick: [true, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false],
+      kick: [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ],
       snare: Array(16).fill(false),
       hat: Array(16).fill(false),
       openhat: Array(16).fill(false),
@@ -108,7 +176,9 @@ describe("compileLaneEvents — drums", () => {
       groove: swung,
     });
     expect(events.length).toBe(3);
-    const kickTimes = events.filter((e) => e.freq === kit.pieces.kick.baseFreq).map((e) => e.time);
+    const kickTimes = events
+      .filter((e) => e.freq === kit.pieces.kick.baseFreq)
+      .map((e) => e.time);
     expect(kickTimes).toEqual([timeAtStep(0, swung), timeAtStep(7, swung)]);
     const snare = events.find((e) => e.freq === kit.pieces.snare.baseFreq)!;
     expect(snare.time).toBe(timeAtStep(4, swung));

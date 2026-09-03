@@ -9,7 +9,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { decode, encode } from "../src/document/codec";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
 import { createMemoryProjectDb } from "../src/persist/db";
 import { saveProject } from "../src/persist/projectStore";
 import {
@@ -100,7 +103,10 @@ describe("importProjectFile — happy path (fake idb)", () => {
 
 describe("importProjectFile — error taxonomy (no exceptions cross the API)", () => {
   it("not-json: malformed text", async () => {
-    const result = await importProjectFile(jsonFile("{oops"), createMemoryProjectDb());
+    const result = await importProjectFile(
+      jsonFile("{oops"),
+      createMemoryProjectDb(),
+    );
     expect(result).toMatchObject({ ok: false, kind: "not-json" });
   });
 
@@ -130,7 +136,10 @@ describe("importProjectFile — error taxonomy (no exceptions cross the API)", (
   it("future-version: version > current, message names both versions", async () => {
     const doc = sampleDoc();
     const future = JSON.stringify({ ...doc, version: 99 });
-    const result = await importProjectFile(jsonFile(future), createMemoryProjectDb());
+    const result = await importProjectFile(
+      jsonFile(future),
+      createMemoryProjectDb(),
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.kind).toBe("future-version");
@@ -154,23 +163,33 @@ describe("importProjectFile — error taxonomy (no exceptions cross the API)", (
   });
 
   it("io: unreadable file and failed saves", async () => {
-    const unreadable = await importProjectFile(jsonFile("{}"), createMemoryProjectDb(), {
-      readFile: () => Promise.reject(new Error("gone")),
-    });
+    const unreadable = await importProjectFile(
+      jsonFile("{}"),
+      createMemoryProjectDb(),
+      {
+        readFile: () => Promise.reject(new Error("gone")),
+      },
+    );
     expect(unreadable).toMatchObject({ ok: false, kind: "io" });
 
     const failingDb = {
       ...createMemoryProjectDb(),
       putRecord: () => Promise.reject(new Error("quota")),
     };
-    const unsavable = await importProjectFile(jsonFile(encode(sampleDoc())), failingDb);
+    const unsavable = await importProjectFile(
+      jsonFile(encode(sampleDoc())),
+      failingDb,
+    );
     expect(unsavable).toMatchObject({ ok: false, kind: "io" });
   });
 });
 
 describe("import path security (Captain America)", () => {
   it("fileIO source contains no eval / Function constructors", () => {
-    const source = readFileSync(new URL("../src/persist/fileIO.ts", import.meta.url), "utf8");
+    const source = readFileSync(
+      new URL("../src/persist/fileIO.ts", import.meta.url),
+      "utf8",
+    );
     expect(source).not.toMatch(/\beval\s*\(/);
     expect(source).not.toMatch(/new\s+Function\b/);
     expect(source).not.toMatch(/\bFunction\s*\(/);

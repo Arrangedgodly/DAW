@@ -60,7 +60,12 @@ export interface ProjectDb {
 }
 
 export function recordMeta(record: ProjectRecord): ProjectMeta {
-  return { id: record.id, name: record.name, updatedAt: record.updatedAt, dirty: record.dirty };
+  return {
+    id: record.id,
+    name: record.name,
+    updatedAt: record.updatedAt,
+    dirty: record.dirty,
+  };
 }
 
 /** The id the boot flow uses when no project exists yet (MF-2 wiring). */
@@ -92,11 +97,15 @@ function toProjectDb(db: IDBPDatabase<BitbounceDb>): ProjectDb {
  * on unexpected failures; callers decide the fallback. `name` overrides the
  * database name (browser tests isolate per-suite).
  */
-export async function openRawProjectDb(name: string = DB_NAME): Promise<ProjectDb> {
+export async function openRawProjectDb(
+  name: string = DB_NAME,
+): Promise<ProjectDb> {
   const db = await idbOpen<BitbounceDb>(name, DB_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains(PROJECTS_STORE)) {
-        const store = database.createObjectStore(PROJECTS_STORE, { keyPath: "id" });
+        const store = database.createObjectStore(PROJECTS_STORE, {
+          keyPath: "id",
+        });
         store.createIndex("by-updated", "updatedAt");
       }
       // Future store-layout migrations branch here on database.oldVersion.
@@ -114,7 +123,10 @@ export async function openProjectDb(): Promise<ProjectDb> {
   try {
     return await openRawProjectDb();
   } catch (error) {
-    console.warn("[persist] IndexedDB unavailable, using in-memory fallback", error);
+    console.warn(
+      "[persist] IndexedDB unavailable, using in-memory fallback",
+      error,
+    );
     return createMemoryProjectDb();
   }
 }
@@ -151,5 +163,12 @@ export function makeRecord(
   updatedAt: number,
   dirty: boolean,
 ): ProjectRecord {
-  return { id, name: doc.name, schemaVersion: SCHEMA_VERSION, updatedAt, dirty, json };
+  return {
+    id,
+    name: doc.name,
+    schemaVersion: SCHEMA_VERSION,
+    updatedAt,
+    dirty,
+    json,
+  };
 }

@@ -55,7 +55,11 @@ function referenceProject(): ProjectDocument {
     { type: "bitcrusher", bypassed: false, params: { bits: 8, downsample: 2 } },
   ];
   doc.lanes.find((l) => l.id === "lead")!.fxChain = [
-    { type: "delay", bypassed: false, params: { timeSteps: 2, feedback: 0.4, mix: 0.4 } },
+    {
+      type: "delay",
+      bypassed: false,
+      params: { timeSteps: 2, feedback: 0.4, mix: 0.4 },
+    },
     { type: "reverb", bypassed: false, params: { size: 0.4, mix: 0.35 } },
   ];
   return doc;
@@ -77,63 +81,68 @@ async function loadManifestEntry(
 }
 
 describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
-  it("reference render passes tolerance checks; hash drift only warns", { timeout: 90000 }, async () => {
-    const result = await renderProjectToBuffer(referenceProject());
+  it(
+    "reference render passes tolerance checks; hash drift only warns",
+    { timeout: 90000 },
+    async () => {
+      const result = await renderProjectToBuffer(referenceProject());
 
-    // --- Hard tolerance checks (these DO fail the test) ---
-    expect(result.sampleRate).toBe(EXPORT_SAMPLE_RATE);
-    // 1 bar @120 BPM = exactly 88200 samples (integer bars×beats law).
-    expect(result.loopSamples).toBe(1 * 4 * ((44100 * 60) / 120));
-    expect(result.tailSamples).toBeGreaterThan(0); // delay + reverb tails
-    expect(result.channels).toHaveLength(2);
-    for (const ch of result.channels) expect(ch).toHaveLength(result.loopSamples);
-    const peak = assertCleanAudio(result.channels, "reference render");
-    expect(peak).toBeGreaterThan(0.05); // audibly non-trivial content
-    expect(peak).toBeLessThanOrEqual(4); // sane master sum (0.9 master gain)
+      // --- Hard tolerance checks (these DO fail the test) ---
+      expect(result.sampleRate).toBe(EXPORT_SAMPLE_RATE);
+      // 1 bar @120 BPM = exactly 88200 samples (integer bars×beats law).
+      expect(result.loopSamples).toBe(1 * 4 * ((44100 * 60) / 120));
+      expect(result.tailSamples).toBeGreaterThan(0); // delay + reverb tails
+      expect(result.channels).toHaveLength(2);
+      for (const ch of result.channels)
+        expect(ch).toHaveLength(result.loopSamples);
+      const peak = assertCleanAudio(result.channels, "reference render");
+      expect(peak).toBeGreaterThan(0.05); // audibly non-trivial content
+      expect(peak).toBeLessThanOrEqual(4); // sane master sum (0.9 master gain)
 
-    // --- Fingerprint canary (soft: warning only, by design) ---
-    const hash = await hashChannelsHex(result.channels);
-    const byteLength =
-      result.channels.reduce((n, ch) => n + ch.byteLength, 0);
-    const entry = await loadManifestEntry();
-
-    // Always offer the current fingerprint to the node-side recorder; it
-    // only writes under UPDATE_GOLDENS=1 (npm run goldens:update).
-    console.log(
-      RENDER_FP_PREFIX +
-        JSON.stringify({
-          name: GOLDEN_NAME,
-          sha256: hash,
-          byteLength,
-          sampleRate: result.sampleRate,
-          loopSamples: result.loopSamples,
-        }),
-    );
-
-    if (!entry?.sha256) {
-       
-      console.warn(
-        `[render-fingerprint] no manifest entry for '${GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+      // --- Fingerprint canary (soft: warning only, by design) ---
+      const hash = await hashChannelsHex(result.channels);
+      const byteLength = result.channels.reduce(
+        (n, ch) => n + ch.byteLength,
+        0,
       );
-    } else if (entry.sha256 !== hash) {
-       
-      console.warn(
-        `[render-fingerprint] RENDER FINGERPRINT DRIFT on '${GOLDEN_NAME}': ` +
-          `manifest ${entry.sha256} (playwright env: ${entry.renderEnv?.playwright ?? "?"}, ` +
-          `${entry.renderEnv?.chromium ?? "?"}) vs current ${hash}. ` +
-          `This is NOT a failure — the hash is environment-pinned (pinned Chromium via ` +
-          `playwright; not comparable across engines/platforms). ` +
-          `If the change is deliberate, regenerate: npm run goldens:update`,
-      );
-    } else {
-      // Match: record the healthy state for the run log.
-       
+      const entry = await loadManifestEntry();
+
+      // Always offer the current fingerprint to the node-side recorder; it
+      // only writes under UPDATE_GOLDENS=1 (npm run goldens:update).
       console.log(
-        `[render-fingerprint] '${GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        RENDER_FP_PREFIX +
+          JSON.stringify({
+            name: GOLDEN_NAME,
+            sha256: hash,
+            byteLength,
+            sampleRate: result.sampleRate,
+            loopSamples: result.loopSamples,
+          }),
       );
-    }
-    expect(true).toBe(true); // canary never blocks
-  });
+
+      if (!entry?.sha256) {
+        console.warn(
+          `[render-fingerprint] no manifest entry for '${GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+        );
+      } else if (entry.sha256 !== hash) {
+        console.warn(
+          `[render-fingerprint] RENDER FINGERPRINT DRIFT on '${GOLDEN_NAME}': ` +
+            `manifest ${entry.sha256} (playwright env: ${entry.renderEnv?.playwright ?? "?"}, ` +
+            `${entry.renderEnv?.chromium ?? "?"}) vs current ${hash}. ` +
+            `This is NOT a failure — the hash is environment-pinned (pinned Chromium via ` +
+            `playwright; not comparable across engines/platforms). ` +
+            `If the change is deliberate, regenerate: npm run goldens:update`,
+        );
+      } else {
+        // Match: record the healthy state for the run log.
+
+        console.log(
+          `[render-fingerprint] '${GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        );
+      }
+      expect(true).toBe(true); // canary never blocks
+    },
+  );
 
   // HW-3: byte-golden of the exported WAV FILE for the reference project.
   // Same environment pinning as the render fingerprint (the encoder is pure
@@ -141,55 +150,63 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
   // canary semantics — drift warns, never fails. Deep structural/decode
   // assertions (headers exact, sample count, seam continuity) live in
   // MF-4's tests/browser/exportWav.test.ts; this pins the exact BYTES.
-  it("exported reference WAV byte fingerprint; drift only warns", { timeout: 120000 }, async () => {
-    let captured: Blob | undefined;
-    const seam: DownloadSeam = {
-      createObjectURL: (blob) => {
-        captured = blob;
-        return "blob:captured";
-      },
-      revokeObjectURL: () => undefined,
-      createElement: () => ({ click: () => undefined, href: "", download: "" }),
-    };
-    const result = await exportWav(referenceProject(), { seam });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    const bytes = new Uint8Array(await captured!.arrayBuffer());
-    expect(captured!.type).toBe("audio/wav");
-    // Hard structural floor (full header/length/seam suite is MF-4's).
-    expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
-    expect(result.loopSamples).toBe(88200);
-
-    // --- Soft canary (same protocol + recorder as the render fp) ---
-    const hash = await hashBytesHex(bytes);
-    const entry = await loadManifestEntry(WAV_EXPORT_FP_GOLDEN_NAME);
-    console.log(
-      RENDER_FP_PREFIX +
-        JSON.stringify({
-          name: WAV_EXPORT_FP_GOLDEN_NAME,
-          sha256: hash,
-          byteLength: bytes.byteLength,
-          sampleRate: result.sampleRate,
-          loopSamples: result.loopSamples,
+  it(
+    "exported reference WAV byte fingerprint; drift only warns",
+    { timeout: 120000 },
+    async () => {
+      let captured: Blob | undefined;
+      const seam: DownloadSeam = {
+        createObjectURL: (blob) => {
+          captured = blob;
+          return "blob:captured";
+        },
+        revokeObjectURL: () => undefined,
+        createElement: () => ({
+          click: () => undefined,
+          href: "",
+          download: "",
         }),
-    );
-    if (!entry?.sha256) {
-      console.warn(
-        `[wav-export-fingerprint] no manifest entry for '${WAV_EXPORT_FP_GOLDEN_NAME}' — seed it with: npm run goldens:update`,
-      );
-    } else if (entry.sha256 !== hash) {
-      console.warn(
-        `[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on '${WAV_EXPORT_FP_GOLDEN_NAME}': ` +
-          `manifest ${entry.sha256} (env: ${entry.renderEnv?.playwright ?? "?"}) vs current ${hash}. ` +
-          `NOT a failure — environment-pinned like the render fp. ` +
-          `If deliberate, regenerate: npm run goldens:update`,
-      );
-    } else {
+      };
+      const result = await exportWav(referenceProject(), { seam });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const bytes = new Uint8Array(await captured!.arrayBuffer());
+      expect(captured!.type).toBe("audio/wav");
+      // Hard structural floor (full header/length/seam suite is MF-4's).
+      expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+      expect(result.loopSamples).toBe(88200);
+
+      // --- Soft canary (same protocol + recorder as the render fp) ---
+      const hash = await hashBytesHex(bytes);
+      const entry = await loadManifestEntry(WAV_EXPORT_FP_GOLDEN_NAME);
       console.log(
-        `[wav-export-fingerprint] '${WAV_EXPORT_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        RENDER_FP_PREFIX +
+          JSON.stringify({
+            name: WAV_EXPORT_FP_GOLDEN_NAME,
+            sha256: hash,
+            byteLength: bytes.byteLength,
+            sampleRate: result.sampleRate,
+            loopSamples: result.loopSamples,
+          }),
       );
-    }
-    expect(true).toBe(true); // canary never blocks
-  });
+      if (!entry?.sha256) {
+        console.warn(
+          `[wav-export-fingerprint] no manifest entry for '${WAV_EXPORT_FP_GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+        );
+      } else if (entry.sha256 !== hash) {
+        console.warn(
+          `[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on '${WAV_EXPORT_FP_GOLDEN_NAME}': ` +
+            `manifest ${entry.sha256} (env: ${entry.renderEnv?.playwright ?? "?"}) vs current ${hash}. ` +
+            `NOT a failure — environment-pinned like the render fp. ` +
+            `If deliberate, regenerate: npm run goldens:update`,
+        );
+      } else {
+        console.log(
+          `[wav-export-fingerprint] '${WAV_EXPORT_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        );
+      }
+      expect(true).toBe(true); // canary never blocks
+    },
+  );
 });

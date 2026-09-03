@@ -40,8 +40,7 @@ export function playheadX(
   const steps = totalSteps(opts.bars);
   const t0 = timeAtStep(step, opts);
   // End of the last step = loop end (uniform: swing only delays within beats).
-  const t1 =
-    step + 1 < steps ? timeAtStep(step + 1, opts) : loopLen;
+  const t1 = step + 1 < steps ? timeAtStep(step + 1, opts) : loopLen;
   const span = Math.max(t1 - t0, 1e-9);
   const frac = Math.min(Math.max((local - t0) / span, 0), 1);
   return (step + frac) * stepWidthPx;

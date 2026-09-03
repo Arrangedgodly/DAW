@@ -13,7 +13,11 @@ import { indicatorLabel } from "../src/lib/saveIndicator";
 import { createMemoryProjectDb } from "../src/persist/db";
 import { saveProject, getProjectRecord } from "../src/persist/projectStore";
 import { createNewProject } from "../src/persist/newProject";
-import { initPersistence, getAutosaveController, switchToProject } from "../src/persist/boot";
+import {
+  initPersistence,
+  getAutosaveController,
+  switchToProject,
+} from "../src/persist/boot";
 import { docStore, loadDocument } from "../src/state/store";
 import { clearToasts, toastStack } from "../src/state/toasts";
 import { decode } from "../src/document/codec";
@@ -68,7 +72,12 @@ describe("draft-recovery toast conditionality (boot)", () => {
     const crashed: ProjectDocument = { ...restore, name: "crashed song" };
     await saveProject(db, "recent", crashed, { now: T0, dirty: true });
     // An older clean row must lose to the dirty one.
-    await saveProject(db, "older", { ...crashed, name: "older" }, { now: T0 - 999, dirty: false });
+    await saveProject(
+      db,
+      "older",
+      { ...crashed, name: "older" },
+      { now: T0 - 999, dirty: false },
+    );
 
     const result = await initPersistence({ db, now: () => T0 });
     expect(result.restored).toBe(true);
@@ -89,7 +98,12 @@ describe("draft-recovery toast conditionality (boot)", () => {
 
   it("a clean most-recent row loads silently (no toast)", async () => {
     const db = createMemoryProjectDb();
-    await saveProject(db, "recent", { ...restore, name: "tidy song" }, { now: T0, dirty: false });
+    await saveProject(
+      db,
+      "recent",
+      { ...restore, name: "tidy song" },
+      { now: T0, dirty: false },
+    );
 
     const result = await initPersistence({ db, now: () => T0 });
     expect(result.restored).toBe(true);

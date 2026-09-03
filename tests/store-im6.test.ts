@@ -59,8 +59,13 @@ describe("lane config actions", () => {
   it("setLaneSoundId swaps preset (pitched) and kit (drums)", () => {
     setLaneSoundId("lead", "preset-lead-2");
     setLaneSoundId("drums", "kit-808");
-    expect((doc().lanes.find((l) => l.id === "lead") as { presetId: string }).presetId).toBe("preset-lead-2");
-    expect((doc().lanes.find((l) => l.id === "drums") as { kitId: string }).kitId).toBe("kit-808");
+    expect(
+      (doc().lanes.find((l) => l.id === "lead") as { presetId: string })
+        .presetId,
+    ).toBe("preset-lead-2");
+    expect(
+      (doc().lanes.find((l) => l.id === "drums") as { kitId: string }).kitId,
+    ).toBe("kit-808");
   });
 });
 
@@ -68,7 +73,9 @@ describe("scale mutations", () => {
   it("setProjectScale changes root and mode", () => {
     setProjectScale({ root: 7, mode: "mixolydian" });
     expect(doc().scale).toEqual({ root: 7, mode: "mixolydian" });
-    expect(effectiveScale(doc(), "bass").intervals).toBe(MODE_INTERVALS.mixolydian);
+    expect(effectiveScale(doc(), "bass").intervals).toBe(
+      MODE_INTERVALS.mixolydian,
+    );
   });
 
   it("setLaneScaleOverride sets and clears an override, collapsing to null", () => {
@@ -160,7 +167,8 @@ describe("pattern primitives + song chain", () => {
     const copy = doc().patterns.bass.find((p) => p.id === id)!;
     expect(copy).not.toBe(original);
     expect(copy.id).not.toBe(original.id);
-    if (copy.kind !== "pitched" || original.kind !== "pitched") throw new Error("kind");
+    if (copy.kind !== "pitched" || original.kind !== "pitched")
+      throw new Error("kind");
     expect(copy.rows[0].steps[0]).toBe(1);
     copy.rows[0].steps[0] = 0; // mutate the copy…
     expect(original.rows[0].steps[0]).toBe(1); // …original untouched (deep)
@@ -213,7 +221,8 @@ describe("round-trip + deep undo", () => {
     const dup = duplicatePattern("lead", "lead-1");
     renamePattern("lead", dup, "COPY");
     setLaneChain("lead", [dup, "lead-1"]);
-    undo(); redo(); // mid-sequence undo/redo must not corrupt history
+    undo();
+    redo(); // mid-sequence undo/redo must not corrupt history
 
     expect(doc()).not.toEqual(initial);
     while (canUndo()) undo();
@@ -222,6 +231,11 @@ describe("round-trip + deep undo", () => {
     while (canRedo()) redo();
     expect(doc().scale).toEqual({ root: 5, mode: "dorian" });
     expect(doc().songChain.lead).toEqual([dup, "lead-1"]);
-    expect(doc().transport).toEqual({ bpm: 96, swing: 0.22, loopBars: 2, metronome: true });
+    expect(doc().transport).toEqual({
+      bpm: 96,
+      swing: 0.22,
+      loopBars: 2,
+      metronome: true,
+    });
   });
 });

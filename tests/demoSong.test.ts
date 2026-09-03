@@ -24,17 +24,25 @@ import { createMemoryProjectDb } from "../src/persist/db";
 import { initPersistence } from "../src/persist/boot";
 import { createNewProject } from "../src/persist/newProject";
 import { docStore } from "../src/state/store";
-import { armFirstRunNudge, dismissFirstRunNudge, firstRunNudge } from "../src/state/firstRun";
+import {
+  armFirstRunNudge,
+  dismissFirstRunNudge,
+  firstRunNudge,
+} from "../src/state/firstRun";
 
 const doc = createDemoProject();
 const scale = toEffectiveScale(doc.scale);
-const scalePitchClasses = new Set(scale.intervals.map((i) => (i + scale.root) % 12));
+const scalePitchClasses = new Set(
+  scale.intervals.map((i) => (i + scale.root) % 12),
+);
 
 /** Active (note-on) steps of a pitched row, by degree. */
 function noteOns(p: PitchedPattern): Map<number, number[]> {
   const out = new Map<number, number[]>();
   for (const row of p.rows) {
-    const steps = row.steps.map((c, i) => (c === 1 ? i : -1)).filter((i) => i >= 0);
+    const steps = row.steps
+      .map((c, i) => (c === 1 ? i : -1))
+      .filter((i) => i >= 0);
     if (steps.length) out.set(row.degree, steps);
   }
   return out;
@@ -164,9 +172,7 @@ describe("PX-1 structural musicality", () => {
     }
     // Fill bar: ≥2 snare/tom hits in the last quarter, kick still on 0/8.
     const fill = doc.patterns.drums[3]!.steps;
-    const tail = [12, 13, 14, 15].filter(
-      (s) => fill.snare[s] || fill.tom[s],
-    );
+    const tail = [12, 13, 14, 15].filter((s) => fill.snare[s] || fill.tom[s]);
     expect(tail.length).toBeGreaterThanOrEqual(3);
     expect(fill.kick[8]).toBe(true);
   });
@@ -225,6 +231,9 @@ describe("PX-1 boot contract", () => {
 
 describe("PX-1 golden: canonical demo bytes", () => {
   it("matches the manifest SHA-256 + byteLength (deterministic factory)", () => {
-    expectGolden("codec/demo-project-canonical-v1", new TextEncoder().encode(encode(doc)));
+    expectGolden(
+      "codec/demo-project-canonical-v1",
+      new TextEncoder().encode(encode(doc)),
+    );
   });
 });

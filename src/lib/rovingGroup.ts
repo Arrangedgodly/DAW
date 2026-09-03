@@ -68,7 +68,11 @@ export function rovingGroup(container: HTMLElement): RovingGroup {
   const onfocusin = () => {
     // Keep the roving tab stop in sync with actual focus (mouse users).
     const el = document.activeElement;
-    if (el instanceof HTMLElement && container.contains(el) && el.matches(FOCUSABLE)) {
+    if (
+      el instanceof HTMLElement &&
+      container.contains(el) &&
+      el.matches(FOCUSABLE)
+    ) {
       setRoving(el, focusables());
     }
   };
@@ -86,6 +90,9 @@ export function rovingGroup(container: HTMLElement): RovingGroup {
 function isNativeArrowTarget(el: HTMLElement): boolean {
   const tag = el.tagName;
   return (
-    tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || el.isContentEditable
+    tag === "INPUT" ||
+    tag === "SELECT" ||
+    tag === "TEXTAREA" ||
+    el.isContentEditable
   );
 }

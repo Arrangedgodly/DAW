@@ -12,7 +12,8 @@
   width: 100%;
   margin: 0 auto;
   padding: var(--space-4) var(--space-5) 0;
-  border-top: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
 .rail-head {
@@ -33,7 +34,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
@@ -57,10 +59,18 @@
   flex-wrap: wrap;
 }
 
-.rail-row[data-lane="drums"] { --lane-hue: var(--color-lane-drums); }
-.rail-row[data-lane="bass"] { --lane-hue: var(--color-lane-bass); }
-.rail-row[data-lane="chords"] { --lane-hue: var(--color-lane-chords); }
-.rail-row[data-lane="lead"] { --lane-hue: var(--color-lane-lead); }
+.rail-row[data-lane="drums"] {
+  --lane-hue: var(--color-lane-drums);
+}
+.rail-row[data-lane="bass"] {
+  --lane-hue: var(--color-lane-bass);
+}
+.rail-row[data-lane="chords"] {
+  --lane-hue: var(--color-lane-chords);
+}
+.rail-row[data-lane="lead"] {
+  --lane-hue: var(--color-lane-lead);
+}
 
 .rail-lane-name {
   flex: none;
@@ -86,7 +96,8 @@
   padding: var(--space-2) var(--space-3);
   min-width: 64px;
   border-radius: 3px;
-  border: 1px solid color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
   background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
   cursor: pointer;
   font: var(--text-value);
@@ -143,7 +154,8 @@
 .rail-tile[data-state="selected"] {
   border-color: var(--lane-hue);
   background: color-mix(in srgb, var(--lane-hue) 28%, var(--color-ground));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
 }
 
 /* PENDING: pattern-bordered with a marching fill — the quantized switch is
@@ -170,7 +182,8 @@
   font: var(--text-value);
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
-  border: 1px dashed color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border: 1px dashed
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   border-radius: 3px;
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
@@ -190,7 +203,8 @@
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   color: var(--color-ink);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
   border-radius: 3px;
   padding: var(--space-2) var(--space-3);
 }
@@ -207,7 +221,8 @@
   letter-spacing: 0.05em;
   color: var(--color-ink);
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
@@ -238,7 +253,10 @@
  * arrangement stays reachable one click away); grids enlarge. Selection is
  * untouched — expanding returns the exact editing place. ---- */
 
-.rail[data-view="focus"] .rail-tile:not([data-state="active"]):not([data-state="pending"]):not([data-state="selected"]),
+.rail[data-view="focus"]
+  .rail-tile:not([data-state="active"]):not([data-state="pending"]):not(
+    [data-state="selected"]
+  ),
 .rail[data-view="focus"] .rail-tools,
 .rail[data-view="focus"] .rail-append {
   display: none;

@@ -7,8 +7,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { decode } from "../src/document/codec";
-import { createDefaultProject, type ProjectDocument } from "../src/document/schema";
-import { createMemoryProjectDb, type ProjectDb, type ProjectRecord } from "../src/persist/db";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../src/document/schema";
+import {
+  createMemoryProjectDb,
+  type ProjectDb,
+  type ProjectRecord,
+} from "../src/persist/db";
 import { startAutosave, type DocStoreLike } from "../src/persist/autosave";
 import { saveProject } from "../src/persist/projectStore";
 
@@ -20,9 +27,14 @@ function editedDoc(doc: ProjectDocument): ProjectDocument {
   return { ...doc, name: `${doc.name}!` };
 }
 
-function fakeStore(initial: ProjectDocument): DocStoreLike & { set(doc: ProjectDocument): void } {
+function fakeStore(
+  initial: ProjectDocument,
+): DocStoreLike & { set(doc: ProjectDocument): void } {
   let state = { doc: initial };
-  const subs: ((s: { doc: ProjectDocument }, p: { doc: ProjectDocument }) => void)[] = [];
+  const subs: ((
+    s: { doc: ProjectDocument },
+    p: { doc: ProjectDocument },
+  ) => void)[] = [];
   return {
     subscribe(fn) {
       subs.push(fn);
@@ -67,7 +79,10 @@ function fakeWindow() {
       listeners.set(type, [...(listeners.get(type) ?? []), fn]);
     },
     removeEventListener(type: string, fn: () => void) {
-      listeners.set(type, (listeners.get(type) ?? []).filter((f) => f !== fn));
+      listeners.set(
+        type,
+        (listeners.get(type) ?? []).filter((f) => f !== fn),
+      );
     },
     dispatch(type: string) {
       for (const fn of [...(listeners.get(type) ?? [])]) fn();
@@ -147,7 +162,12 @@ describe("autosave debounce + flush", () => {
     const store = fakeStore(sampleDoc());
     const { db } = spyDb(createMemoryProjectDb());
     const win = fakeWindow();
-    const ctl = startAutosave({ db, projectId: "p1", store, windowImpl: win as never });
+    const ctl = startAutosave({
+      db,
+      projectId: "p1",
+      store,
+      windowImpl: win as never,
+    });
 
     store.set(editedDoc(store.getState().doc));
     win.dispatch("pagehide");

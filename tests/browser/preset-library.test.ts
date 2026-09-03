@@ -20,7 +20,7 @@ const LANE_MIDI = { bass: 40, chords: 55, lead: 67 } as const;
 
 function renderDuration(p: VoicePreset): number {
   const { attack, decay, release } = p.envelope;
-  return attack + decay + 0.4 /* hold */ + release + 0.3 /* tail margin */;
+  return attack + decay + 0.4 /* hold */ + release + 0.3; /* tail margin */
 }
 
 interface RenderStats {
@@ -28,7 +28,10 @@ interface RenderStats {
   readonly nonFinite: number;
 }
 
-async function renderPresetOnce(p: VoicePreset, midi?: number): Promise<RenderStats> {
+async function renderPresetOnce(
+  p: VoicePreset,
+  midi?: number,
+): Promise<RenderStats> {
   const ev = noteParamsFor(p, { time: 0.05, midi, holdSeconds: 0.4 });
   const { mono } = await renderOffline({
     startTime: 0.05,
@@ -57,10 +60,19 @@ describe("preset library renders correctly through the real engine", () => {
   it("every drum kit piece is audible, finite, and within sane peak bounds", async () => {
     for (const kit of Object.values(DRUM_KITS)) {
       for (const pieceName of DRUM_PIECES) {
-        const { peak, nonFinite } = await renderPresetOnce(kit.pieces[pieceName]);
-        expect(nonFinite, `${kit.id}.${pieceName} produced NaN/Infinity`).toBe(0);
-        expect(peak, `${kit.id}.${pieceName} rendered silent`).toBeGreaterThan(0.005);
-        expect(peak, `${kit.id}.${pieceName} peak out of sane bounds`).toBeLessThanOrEqual(1.2);
+        const { peak, nonFinite } = await renderPresetOnce(
+          kit.pieces[pieceName],
+        );
+        expect(nonFinite, `${kit.id}.${pieceName} produced NaN/Infinity`).toBe(
+          0,
+        );
+        expect(peak, `${kit.id}.${pieceName} rendered silent`).toBeGreaterThan(
+          0.005,
+        );
+        expect(
+          peak,
+          `${kit.id}.${pieceName} peak out of sane bounds`,
+        ).toBeLessThanOrEqual(1.2);
       }
     }
   }, 120_000);

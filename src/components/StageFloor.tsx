@@ -23,7 +23,9 @@ export default function StageFloor() {
   // HU-2 empty-project hint: pure predicate over the document — true while
   // every lane is silent and untouched, gone on the first edit by
   // construction (no hidden flags). A subtle in-world note, never a modal.
-  const [empty, setEmpty] = createSignal(isProjectEmpty(docStore.getState().doc));
+  const [empty, setEmpty] = createSignal(
+    isProjectEmpty(docStore.getState().doc),
+  );
   onMount(() => {
     const unsubscribeDoc = docStore.subscribe((state, prev) => {
       if (state.doc === prev.doc) return;

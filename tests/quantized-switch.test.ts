@@ -24,7 +24,11 @@ const GROOVE = { bpm: 120, swing: 0 };
 const SPB = 0.125; // seconds per 16th at 120 bpm
 const TIMELINE = 10.1; // play() at ctx.now = 10 + 0.1 start delay
 
-function drumPattern(id: string, bars: 1 | 2 | 4, kickSteps: number[]): DrumPattern {
+function drumPattern(
+  id: string,
+  bars: 1 | 2 | 4,
+  kickSteps: number[],
+): DrumPattern {
   const kick = new Array(16 * bars).fill(false);
   for (const s of kickSteps) kick[s] = true;
   const empty = () => new Array(16 * bars).fill(false);
@@ -33,12 +37,24 @@ function drumPattern(id: string, bars: 1 | 2 | 4, kickSteps: number[]): DrumPatt
     id,
     name: id,
     bars,
-    steps: { kick, snare: empty(), hat: empty(), openhat: empty(), clap: empty(), tom: empty() },
+    steps: {
+      kick,
+      snare: empty(),
+      hat: empty(),
+      openhat: empty(),
+      clap: empty(),
+      tom: empty(),
+    },
   };
 }
 
 function scheduleFor(chain: Pattern[]): LaneSchedule {
-  return compileLaneSchedule({ chain, preset: KIT, gate: GATE, groove: GROOVE });
+  return compileLaneSchedule({
+    chain,
+    preset: KIT,
+    gate: GATE,
+    groove: GROOVE,
+  });
 }
 
 interface Harness {
@@ -47,7 +63,9 @@ interface Harness {
   deliverUpTo(step: number): Promise<void>;
 }
 
-async function makeHarness(initial: Partial<Record<LaneId, LaneSchedule>>): Promise<Harness> {
+async function makeHarness(
+  initial: Partial<Record<LaneId, LaneSchedule>>,
+): Promise<Harness> {
   const state = { now: 10 };
   const ctx: AudioContextLike = {
     get currentTime() {
@@ -64,7 +82,11 @@ async function makeHarness(initial: Partial<Record<LaneId, LaneSchedule>>): Prom
     outbox: new EventOutbox(4),
     sendEvents: (lane, events) => {
       for (const e of events) {
-        sent.push({ lane, step: Math.round((e.time - TIMELINE) / SPB), freq: e.freq });
+        sent.push({
+          lane,
+          step: Math.round((e.time - TIMELINE) / SPB),
+          freq: e.freq,
+        });
       }
     },
     connect: () => {},
@@ -82,7 +104,10 @@ async function makeHarness(initial: Partial<Record<LaneId, LaneSchedule>>): Prom
     },
     clearIntervalFn: () => {},
   });
-  for (const [lane, schedule] of Object.entries(initial) as [LaneId, LaneSchedule][]) {
+  for (const [lane, schedule] of Object.entries(initial) as [
+    LaneId,
+    LaneSchedule,
+  ][]) {
     session.setLaneSchedule(lane, schedule);
   }
   session.transport.play();
@@ -97,8 +122,14 @@ async function makeHarness(initial: Partial<Record<LaneId, LaneSchedule>>): Prom
   return { session, sent, deliverUpTo };
 }
 
-function freqsAt(h: Harness, lane: number, step: number): (number | undefined)[] {
-  return h.sent.filter((s) => s.lane === lane && s.step === step).map((s) => s.freq);
+function freqsAt(
+  h: Harness,
+  lane: number,
+  step: number,
+): (number | undefined)[] {
+  return h.sent
+    .filter((s) => s.lane === lane && s.step === step)
+    .map((s) => s.freq);
 }
 
 const A1 = drumPattern("A1", 1, [0]); // kick at pattern step 0
@@ -172,9 +203,16 @@ describe("quantized live switching (IM-7)", () => {
       groove: GROOVE,
       scale: toEffectiveScale({ root: 0, mode: "minor" }),
     });
-    const h = await makeHarness({ drums: scheduleFor([A1, B1]), bass: bassSchedule });
+    const h = await makeHarness({
+      drums: scheduleFor([A1, B1]),
+      bass: bassSchedule,
+    });
     await h.deliverUpTo(5);
-    h.session.setActivePattern("drums", "ALT", scheduleFor([drumPattern("ALT", 1, [4])]));
+    h.session.setActivePattern(
+      "drums",
+      "ALT",
+      scheduleFor([drumPattern("ALT", 1, [4])]),
+    );
     await h.deliverUpTo(20);
     // Bass keeps firing at its own chain wrap (16 steps) regardless.
     expect(freqsAt(h, 1, 0).length).toBe(1);
@@ -185,7 +223,11 @@ describe("quantized live switching (IM-7)", () => {
   it("chain edits re-derive the schedule only at the next iteration boundary", async () => {
     const h = await makeHarness({ drums: scheduleFor([A1, B1]) });
     await h.deliverUpTo(5);
-    h.session.setActivePattern("drums", "ALT", scheduleFor([drumPattern("ALT", 1, [2])]));
+    h.session.setActivePattern(
+      "drums",
+      "ALT",
+      scheduleFor([drumPattern("ALT", 1, [2])]),
+    );
     // Structure edit while playing supersedes the pending switch.
     h.session.setLaneSchedule("drums", scheduleFor([A1, B1, A1]));
     expect(h.session.getPendingSwitch("drums")).toBeNull();
@@ -218,7 +260,11 @@ describe("quantized live switching (IM-7)", () => {
       }
     });
     await h.deliverUpTo(5);
-    h.session.setActivePattern("drums", "ALT", scheduleFor([drumPattern("ALT", 1, [4])]));
+    h.session.setActivePattern(
+      "drums",
+      "ALT",
+      scheduleFor([drumPattern("ALT", 1, [4])]),
+    );
     await h.deliverUpTo(16);
     expect(observed).toEqual(["ALT", null]); // requested, then applied
   });

@@ -21,10 +21,7 @@ describe("playheadX", () => {
     expect(playheadX(0, OPTS, STEP_W)).toBe(0);
     const stepDur = 0.125; // 120 bpm 16ths
     for (let s = 0; s < 16; s++) {
-      expect(playheadX(s * stepDur, OPTS, STEP_W)).toBeCloseTo(
-        s * STEP_W,
-        6,
-      );
+      expect(playheadX(s * stepDur, OPTS, STEP_W)).toBeCloseTo(s * STEP_W, 6);
     }
   });
 

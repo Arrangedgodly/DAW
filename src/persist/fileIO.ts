@@ -32,11 +32,7 @@ export const FILE_EXTENSION = ".bitbounce.json";
 // ---------------------------------------------------------------------------
 
 export type ImportFailureKind =
-  | "not-json"
-  | "corrupt"
-  | "future-version"
-  | "too-large"
-  | "io";
+  "not-json" | "corrupt" | "future-version" | "too-large" | "io";
 
 export interface ImportFailure {
   readonly ok: false;
@@ -76,7 +72,8 @@ export interface DownloadSeam {
 const defaultDownloadSeam: DownloadSeam = {
   createObjectURL: (blob) => URL.createObjectURL(blob),
   revokeObjectURL: (url) => URL.revokeObjectURL(url),
-  createElement: (tag) => document.createElement(tag as "a") as HTMLAnchorElement,
+  createElement: (tag) =>
+    document.createElement(tag as "a") as HTMLAnchorElement,
 };
 
 /** Strip path separators/control chars so the doc name can't travel paths. */
@@ -119,14 +116,23 @@ export function exportProjectFile(
   doc: ProjectDocument,
   seam: DownloadSeam = defaultDownloadSeam,
 ): string {
-  return downloadTextFile(`${safeFileStem(doc.name)}${FILE_EXTENSION}`, encode(doc), seam);
+  return downloadTextFile(
+    `${safeFileStem(doc.name)}${FILE_EXTENSION}`,
+    encode(doc),
+    seam,
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Import
 // ---------------------------------------------------------------------------
 
-function failure(kind: ImportFailureKind, message: string, suggestion: string, extra: Partial<ImportFailure> = {}): ImportFailure {
+function failure(
+  kind: ImportFailureKind,
+  message: string,
+  suggestion: string,
+  extra: Partial<ImportFailure> = {},
+): ImportFailure {
   return { ok: false, kind, message, suggestion, ...extra };
 }
 
@@ -182,7 +188,11 @@ export async function importProjectFile(
     doc = decode(text); // the ONE parse path: JSON.parse → migrate → validate
   } catch (error) {
     const version = peekVersion(text);
-    if (error instanceof MigrationError && version !== undefined && version > SCHEMA_VERSION) {
+    if (
+      error instanceof MigrationError &&
+      version !== undefined &&
+      version > SCHEMA_VERSION
+    ) {
       const fileVersion = version;
       return failure(
         "future-version",
@@ -224,9 +234,14 @@ export async function importProjectFile(
   }
 
   const newId = opts.newId ?? (() => crypto.randomUUID());
-  const imported: ProjectDocument = { ...doc, name: `${doc.name}${IMPORTED_SUFFIX}` };
+  const imported: ProjectDocument = {
+    ...doc,
+    name: `${doc.name}${IMPORTED_SUFFIX}`,
+  };
   try {
-    const record = await saveProject(db, newId(), imported, { now: opts.now?.() });
+    const record = await saveProject(db, newId(), imported, {
+      now: opts.now?.(),
+    });
     return { ok: true, record, doc: imported };
   } catch {
     return failure(

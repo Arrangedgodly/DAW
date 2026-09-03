@@ -147,7 +147,13 @@ describe("noteSeed", () => {
     expect(s1).toBe(noteSeed(1013, 5, 7));
     expect(s1).toBeGreaterThanOrEqual(1);
     expect(s1).toBeLessThanOrEqual(32767);
-    expect(new Set([noteSeed(1013, 5, 7), noteSeed(1013, 6, 7), noteSeed(1013, 5, 8)]).size).toBe(3);
+    expect(
+      new Set([
+        noteSeed(1013, 5, 7),
+        noteSeed(1013, 6, 7),
+        noteSeed(1013, 5, 8),
+      ]).size,
+    ).toBe(3);
   });
 });
 

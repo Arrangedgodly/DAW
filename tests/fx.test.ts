@@ -172,7 +172,11 @@ describe("computeTailSamples (IM-5 budget)", () => {
     );
     expect(samples).toBe(Math.ceil(6 * SR));
     expect(
-      computeTailSamples([[delay(4, 0.5)], [{ ...reverb(1), bypassed: true }]], 120, SR),
+      computeTailSamples(
+        [[delay(4, 0.5)], [{ ...reverb(1), bypassed: true }]],
+        120,
+        SR,
+      ),
     ).toBe(Math.ceil(3 * SR));
   });
 });

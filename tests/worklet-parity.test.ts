@@ -64,7 +64,10 @@ describe("worklet DSP parity with dsp.ts", () => {
     for (const duty of [0.125, 0.25, 0.5, 0.75]) {
       for (let i = 0; i < 2000; i++) {
         const phase = i / 2000;
-        expectClose(workletDsp.pulseValue(phase, duty), dsp.pulseValue(phase, duty));
+        expectClose(
+          workletDsp.pulseValue(phase, duty),
+          dsp.pulseValue(phase, duty),
+        );
         expectClose(
           workletDsp.pulseSample(phase, duty, 100 / 44100),
           dsp.pulseSample(phase, duty, 100 / 44100),

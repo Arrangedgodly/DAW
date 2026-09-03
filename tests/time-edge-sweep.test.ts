@@ -35,9 +35,12 @@ interface Row {
 }
 
 const ROWS: Row[] = [];
-for (const bpm of BPMS) for (const swing of SWINGS) for (const bars of BARS) ROWS.push({ bpm, swing, bars });
+for (const bpm of BPMS)
+  for (const swing of SWINGS)
+    for (const bars of BARS) ROWS.push({ bpm, swing, bars });
 
-const id = ({ bpm, swing, bars }: Row) => `${bpm} bpm / swing ${swing} / ${bars} bar(s)`;
+const id = ({ bpm, swing, bars }: Row) =>
+  `${bpm} bpm / swing ${swing} / ${bars} bar(s)`;
 
 describe("timing edge sweep (15 bpm x 5 swing x 3 bars = 225 combos)", () => {
   it("covers the full grid", () => {
@@ -69,8 +72,12 @@ describe("timing edge sweep (15 bpm x 5 swing x 3 bars = 225 combos)", () => {
 
       // 4. Exact loop boundary wraps to step 0 (and half a loop is well-formed).
       expect(stepIndexAtTime(loopLen, { bars, ...opts })).toBe(0);
-      expect(stepIndexAtTime(loopLen / 2, { bars, ...opts })).toBeGreaterThanOrEqual(0);
-      expect(stepIndexAtTime(loopLen / 2, { bars, ...opts })).toBeLessThan(steps);
+      expect(
+        stepIndexAtTime(loopLen / 2, { bars, ...opts }),
+      ).toBeGreaterThanOrEqual(0);
+      expect(stepIndexAtTime(loopLen / 2, { bars, ...opts })).toBeLessThan(
+        steps,
+      );
     });
   }
 
@@ -78,7 +85,9 @@ describe("timing edge sweep (15 bpm x 5 swing x 3 bars = 225 combos)", () => {
     for (const row of ROWS) {
       const { bpm, swing, bars } = row;
       for (let i = 0; i < totalSteps(bars); i += 2) {
-        expect(timeAtStep(i, { bpm, swing })).toBe(timeAtStep(i, { bpm, swing: 0 }));
+        expect(timeAtStep(i, { bpm, swing })).toBe(
+          timeAtStep(i, { bpm, swing: 0 }),
+        );
       }
     }
   });
@@ -87,7 +96,9 @@ describe("timing edge sweep (15 bpm x 5 swing x 3 bars = 225 combos)", () => {
     for (const bpm of BPMS) {
       for (const bars of BARS) {
         const steps = totalSteps(bars);
-        expect(timeAtStep(steps - 1, { bpm, swing: 1 })).toBe(loopLengthSeconds(bars, bpm));
+        expect(timeAtStep(steps - 1, { bpm, swing: 1 })).toBe(
+          loopLengthSeconds(bars, bpm),
+        );
       }
     }
   });

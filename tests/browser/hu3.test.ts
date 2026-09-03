@@ -32,7 +32,10 @@ async function freshDb(name: string) {
   return openRawProjectDb(name);
 }
 
-async function waitFor(predicate: () => boolean | Promise<boolean>, ms = 4000): Promise<void> {
+async function waitFor(
+  predicate: () => boolean | Promise<boolean>,
+  ms = 4000,
+): Promise<void> {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
     if (await predicate()) return;
@@ -41,7 +44,11 @@ async function waitFor(predicate: () => boolean | Promise<boolean>, ms = 4000): 
   throw new Error("condition never met within budget");
 }
 
-function mount(): { host: HTMLElement; toastHost: HTMLElement; cleanup: () => void } {
+function mount(): {
+  host: HTMLElement;
+  toastHost: HTMLElement;
+  cleanup: () => void;
+} {
   const host = document.createElement("div");
   document.body.append(host);
   const toastHost = document.createElement("div");
@@ -69,7 +76,9 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
 
     // An edit whose 800 ms debounce has NOT elapsed when the page hides.
     docStore.setState({ doc: { ...before, name: "pagehide draft" } });
-    await waitFor(async () => (await getProjectRecord(db, boot.projectId))?.dirty === true);
+    await waitFor(
+      async () => (await getProjectRecord(db, boot.projectId))?.dirty === true,
+    );
 
     // The REAL pagehide event on the REAL window (the exact listener the app
     // registers through windowImpl: window).
@@ -77,7 +86,11 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
 
     await waitFor(async () => {
       const row = await getProjectRecord(db, boot.projectId);
-      return row !== undefined && row.dirty === false && decode(row.json).name === "pagehide draft";
+      return (
+        row !== undefined &&
+        row.dirty === false &&
+        decode(row.json).name === "pagehide draft"
+      );
     });
 
     await getAutosaveController()?.stop();
@@ -89,13 +102,19 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
     const before = docStore.getState().doc;
     const ui = mount();
     try {
-      await saveProject(dirtyDb, "recent", { ...before, name: "crashed song" }, { dirty: true });
+      await saveProject(
+        dirtyDb,
+        "recent",
+        { ...before, name: "crashed song" },
+        { dirty: true },
+      );
       const result = await initPersistence({ db: dirtyDb });
       expect(result.restored).toBe(true);
       expect(docStore.getState().doc.name).toBe("crashed song"); // STILL loads
 
-      await waitFor(() =>
-        ui.toastHost.textContent?.includes("RECOVERED UNSAVED WORK") === true,
+      await waitFor(
+        () =>
+          ui.toastHost.textContent?.includes("RECOVERED UNSAVED WORK") === true,
       );
       expect(ui.toastHost.textContent).toContain("last change");
       await getAutosaveController()?.stop();
@@ -133,15 +152,22 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
       const btn = ui.host.querySelector<HTMLButtonElement>(".projects-btn")!;
       btn.click();
       await waitFor(() => ui.host.querySelector(".projects-item") !== null);
-      const items = [...ui.host.querySelectorAll<HTMLButtonElement>(".projects-item")];
-      const target = items.find((el) => el.textContent?.includes("workshop B"))!;
+      const items = [
+        ...ui.host.querySelectorAll<HTMLButtonElement>(".projects-item"),
+      ];
+      const target = items.find((el) =>
+        el.textContent?.includes("workshop B"),
+      )!;
       target.click();
 
       await waitFor(() => docStore.getState().doc.name === "workshop B");
 
       // Edit B; the flush must land in B's row, never A's.
       docStore.setState({
-        doc: { ...docStore.getState().doc, transport: { ...docStore.getState().doc.transport, bpm: 137 } },
+        doc: {
+          ...docStore.getState().doc,
+          transport: { ...docStore.getState().doc.transport, bpm: 137 },
+        },
       });
       await new Promise((r) => setTimeout(r, 1100));
       const rowA = await getProjectRecord(db, boot.projectId);

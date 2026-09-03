@@ -41,13 +41,17 @@ describe("PX-1 demo song — offline render metrics (real worklet + FX)", () => 
       expect(rendered.loopSamples).toBe(4 * 4 * ((SAMPLE_RATE * 60) / 112));
 
       // (a) Clean + non-clipping: finite everywhere, peak in (0.05, 0.95).
-      const peak = assertCleanAudio([left, right], "demo", { minPeak: 0.05, maxPeak: 0.95 });
+      const peak = assertCleanAudio([left, right], "demo", {
+        minPeak: 0.05,
+        maxPeak: 0.95,
+      });
       expect(peak).toBeGreaterThan(0.05);
       expect(peak).toBeLessThan(0.95);
       expect(findNonFinite(left) + findNonFinite(right)).toBe(0);
 
       const mono = new Float32Array(left.length);
-      for (let i = 0; i < left.length; i++) mono[i] = (left[i]! + right[i]!) / 2;
+      for (let i = 0; i < left.length; i++)
+        mono[i] = (left[i]! + right[i]!) / 2;
 
       // (b) Energy present in EVERY bar (each chain slot actually sounds).
       const barSamples = rendered.loopSamples / 4;

@@ -69,7 +69,8 @@ class RealWorkletContext implements AudioWorkletContextLike {
           return node.port.onmessage as unknown as MessagePortLike["onmessage"];
         },
         set onmessage(handler: MessagePortLike["onmessage"]) {
-          node.port.onmessage = handler as unknown as typeof node.port.onmessage;
+          node.port.onmessage =
+            handler as unknown as typeof node.port.onmessage;
         },
       },
       connect: (destination) => node.connect(destination),
@@ -264,7 +265,9 @@ export async function createVoiceEngine(
 }
 
 /** Wrap a real BaseAudioContext for createVoiceEngine. */
-export function workletContextFor(ctx: BaseAudioContext): AudioWorkletContextLike {
+export function workletContextFor(
+  ctx: BaseAudioContext,
+): AudioWorkletContextLike {
   return new RealWorkletContext(ctx);
 }
 

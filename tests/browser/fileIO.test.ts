@@ -29,7 +29,11 @@ async function freshDb(name: string) {
 }
 
 /** Render FileIO + the shared Toasts (HU-2 bus) standalone and get their DOM. */
-function mountFileIO(): { root: HTMLElement; input: HTMLInputElement; cleanup: () => void } {
+function mountFileIO(): {
+  root: HTMLElement;
+  input: HTMLInputElement;
+  cleanup: () => void;
+} {
   const host = document.createElement("div");
   document.body.append(host);
   const toastHost = document.createElement("div");
@@ -83,8 +87,13 @@ describe("project file import (real codec + IndexedDB + component)", () => {
     try {
       setInputFiles(ui.input, file);
 
-      await waitFor(() => docStore.getState().doc.name === "friend song (imported)");
-      expect(docStore.getState().doc).toEqual({ ...exported, name: "friend song (imported)" });
+      await waitFor(
+        () => docStore.getState().doc.name === "friend song (imported)",
+      );
+      expect(docStore.getState().doc).toEqual({
+        ...exported,
+        name: "friend song (imported)",
+      });
 
       // No error toast on success.
       expect(document.body.querySelector('[role="alert"] .toast')).toBeNull();
@@ -97,11 +106,18 @@ describe("project file import (real codec + IndexedDB + component)", () => {
       expect(importedRow!.id).not.toBe(boot.projectId);
 
       // Autosave retargeted: an edit after import flushes into the NEW row.
-      docStore.setState({ doc: { ...docStore.getState().doc, name: "friend song (imported)" } });
-      const edited = { ...docStore.getState().doc, transport: { ...docStore.getState().doc.transport, bpm: 140 } };
+      docStore.setState({
+        doc: { ...docStore.getState().doc, name: "friend song (imported)" },
+      });
+      const edited = {
+        ...docStore.getState().doc,
+        transport: { ...docStore.getState().doc.transport, bpm: 140 },
+      };
       docStore.setState({ doc: edited });
       await new Promise((r) => setTimeout(r, 1200)); // debounce (800ms) + idb
-      const row = (await db.allRecords()).find((r) => r.name.startsWith("friend song"));
+      const row = (await db.allRecords()).find((r) =>
+        r.name.startsWith("friend song"),
+      );
       expect(row).toBeDefined();
       expect(JSON.parse(row!.json).transport.bpm).toBe(140);
       expect(row!.dirty).toBe(false);
@@ -123,8 +139,13 @@ describe("project file import (real codec + IndexedDB + component)", () => {
     // AFTER boot (the corrupt import must not touch whatever is loaded).
     const before = docStore.getState().doc;
 
-    const bad = { ...createDefaultProject(), transport: { ...createDefaultProject().transport, bpm: 9999 } };
-    const file = new File([JSON.stringify(bad)], "bad.bitbounce.json", { type: "application/json" });
+    const bad = {
+      ...createDefaultProject(),
+      transport: { ...createDefaultProject().transport, bpm: 9999 },
+    };
+    const file = new File([JSON.stringify(bad)], "bad.bitbounce.json", {
+      type: "application/json",
+    });
 
     const ui = mountFileIO();
     try {
@@ -132,7 +153,9 @@ describe("project file import (real codec + IndexedDB + component)", () => {
 
       const toast = await (async () => {
         for (let i = 0; i < 40; i++) {
-          const el = document.body.querySelector<HTMLElement>('[role="alert"] .toast');
+          const el = document.body.querySelector<HTMLElement>(
+            '[role="alert"] .toast',
+          );
           if (el) return el;
           await new Promise((r) => setTimeout(r, 10));
         }
@@ -149,7 +172,9 @@ describe("project file import (real codec + IndexedDB + component)", () => {
       const dismiss = toast.querySelector<HTMLButtonElement>("button");
       expect(dismiss).not.toBeNull();
       dismiss!.click();
-      await waitFor(() => document.body.querySelector('[role="alert"] .toast') === null);
+      await waitFor(
+        () => document.body.querySelector('[role="alert"] .toast') === null,
+      );
       expect(document.body.querySelector('[role="alert"] .toast')).toBeNull();
     } finally {
       ui.cleanup();

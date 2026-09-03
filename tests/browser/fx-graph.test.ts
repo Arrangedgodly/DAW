@@ -19,12 +19,20 @@ import {
   type RampGainLike,
   createRealFxDeviceFactory,
 } from "../../src/audio/fx";
-import { getPreset, noteParamsFor, type VoiceNoteOnEvent } from "../../src/audio/presets";
+import {
+  getPreset,
+  noteParamsFor,
+  type VoiceNoteOnEvent,
+} from "../../src/audio/presets";
 import type { FxDevice } from "../../src/document/schema";
 
 const PRESET = getPreset("preset-lead-1")!;
 
-function note(time: number, midi: number, holdSeconds: number): VoiceNoteOnEvent {
+function note(
+  time: number,
+  midi: number,
+  holdSeconds: number,
+): VoiceNoteOnEvent {
   return noteParamsFor(PRESET, { time, midi, holdSeconds, seedSalt: 7 });
 }
 
@@ -76,7 +84,10 @@ async function renderWithChain(
     timing: () => ({ bpm, when: ctx.currentTime }),
   });
   if (device) chain.setChain([device]);
-  host.sendEvents(0, [...events].sort((a, b) => a.time - b.time));
+  host.sendEvents(
+    0,
+    [...events].sort((a, b) => a.time - b.time),
+  );
   // Let the worklet port messages deliver before rendering (TH-1 flake fix).
   await new Promise((r) => setTimeout(r, 25));
 
@@ -119,7 +130,7 @@ function toneEnergy(
 ): number {
   const a = Math.floor(fromSec * SAMPLE_RATE);
   const b = Math.min(mono.length, Math.ceil(toSec * SAMPLE_RATE));
-  const w = 2 * Math.PI * freq / SAMPLE_RATE;
+  const w = (2 * Math.PI * freq) / SAMPLE_RATE;
   let real = 0;
   let imag = 0;
   for (let i = a; i < b; i++) {
@@ -186,8 +197,10 @@ describe("FX device graph (real offline renders)", () => {
     );
     expect(findNonFinite(wet)).toBe(0);
     expect(peak(wet, 0.05, 0.45)).toBeGreaterThan(0.01);
-    const crestDry = peak(dry, 0.05, 0.45) / Math.max(1e-9, rms(dry, 0.05, 0.45));
-    const crestWet = peak(wet, 0.05, 0.45) / Math.max(1e-9, rms(wet, 0.05, 0.45));
+    const crestDry =
+      peak(dry, 0.05, 0.45) / Math.max(1e-9, rms(dry, 0.05, 0.45));
+    const crestWet =
+      peak(wet, 0.05, 0.45) / Math.max(1e-9, rms(wet, 0.05, 0.45));
     expect(crestWet).toBeLessThan(crestDry * 0.9); // compressed peaks
   });
 
@@ -195,7 +208,11 @@ describe("FX device graph (real offline renders)", () => {
     const events = [note(0.05, 72, 0.3)];
     const dry = await renderWithChain(null, events, 1.0);
     const wet = await renderWithChain(
-      { type: "bitcrusher", bypassed: false, params: { bits: 3, downsample: 24 } },
+      {
+        type: "bitcrusher",
+        bypassed: false,
+        params: { bits: 3, downsample: 24 },
+      },
       events,
       1.0,
     );
@@ -215,7 +232,11 @@ describe("FX device graph (real offline renders)", () => {
     const events = [note(0.05, 72, 0.1)];
     const dry = await renderWithChain(null, events, 2.2);
     const wet = await renderWithChain(
-      { type: "delay", bypassed: false, params: { timeSteps: 4, feedback: 0.5, mix: 0.6 } },
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 4, feedback: 0.5, mix: 0.6 },
+      },
       events,
       2.2,
     );
@@ -231,7 +252,11 @@ describe("FX device graph (real offline renders)", () => {
       expect(gapSec).toBeLessThan(0.56);
     }
     // Echoes decay (feedback < 1).
-    const lastRms = rms(wet, wetRegions[wetRegions.length - 1]![0] / SAMPLE_RATE, 2.2);
+    const lastRms = rms(
+      wet,
+      wetRegions[wetRegions.length - 1]![0] / SAMPLE_RATE,
+      2.2,
+    );
     const firstRms = rms(wet, 0.05, 0.3);
     expect(lastRms).toBeLessThan(firstRms);
   });
@@ -257,7 +282,11 @@ describe("FX device graph (real offline renders)", () => {
   it("full chain (drive → delay → reverb) renders non-silent, finite audio", async () => {
     const events = [note(0.05, 69, 0.2), note(0.55, 76, 0.2)];
     const mono = await renderWithChain(
-      { type: "delay", bypassed: false, params: { timeSteps: 4, feedback: 0.4, mix: 0.4 } },
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 4, feedback: 0.4, mix: 0.4 },
+      },
       events,
       3.0,
     );

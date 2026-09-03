@@ -45,7 +45,9 @@ function doc() {
   return docStore.getState().doc;
 }
 
-function pending(over: Partial<PendingSwitchSnapshot> = {}): PendingSwitchSnapshot {
+function pending(
+  over: Partial<PendingSwitchSnapshot> = {},
+): PendingSwitchSnapshot {
   return {
     lane: "drums",
     fromPatternId: "drums-1",
@@ -79,7 +81,11 @@ describe("rail tile derivation", () => {
     } as typeof base;
     const tiles = railTiles(withChain, "drums");
     expect(tiles.map((t) => t.slot)).toEqual([0, 1, 2]);
-    expect(tiles.map((t) => t.patternId)).toEqual(["drums-1", "drums-1", "drums-1"]);
+    expect(tiles.map((t) => t.patternId)).toEqual([
+      "drums-1",
+      "drums-1",
+      "drums-1",
+    ]);
     // Repeats are distinct slots — the second A can be the DROP.
     expect(tiles.map((t) => t.cue)).toEqual([null, "VERSE", "DROP"]);
     expect(tiles[0]).toMatchObject({ name: "A", bars: 1 });
@@ -160,7 +166,10 @@ describe("pending-state mapping from getPendingSwitch", () => {
       "DRUMS: switching to drums-2 at step 16",
     );
     expect(
-      pendingAnnouncement("DRUMS", pending({ mode: "iteration", appliesAtStep: 32 })),
+      pendingAnnouncement(
+        "DRUMS",
+        pending({ mode: "iteration", appliesAtStep: 32 }),
+      ),
     ).toBe("DRUMS: switching to drums-2 at step 32 (next chain pass)");
     expect(pendingAnnouncement("DRUMS", pending({ appliesAtStep: null }))).toBe(
       "DRUMS: switching to drums-2 when playback starts",
@@ -185,7 +194,12 @@ describe("cue label schema round-trip (document data)", () => {
     const withCues = {
       ...def,
       songChain: { ...def.songChain, drums: ["drums-1", "drums-1"] },
-      chainCues: { drums: ["INTRO", null], bass: [null], chords: [null], lead: [null] },
+      chainCues: {
+        drums: ["INTRO", null],
+        bass: [null],
+        chords: [null],
+        lead: [null],
+      },
     } as typeof def;
     const validated = validateProject(withCues);
     expect(validated.chainCues?.drums).toEqual(["INTRO", null]);
@@ -197,7 +211,12 @@ describe("cue label schema round-trip (document data)", () => {
     const def = createDefaultProject();
     const bad = {
       ...def,
-      chainCues: { drums: ["A", "B"], bass: [null], chords: [null], lead: [null] },
+      chainCues: {
+        drums: ["A", "B"],
+        bass: [null],
+        chords: [null],
+        lead: [null],
+      },
     } as typeof def;
     try {
       validateProject(bad);
@@ -213,7 +232,12 @@ describe("cue label schema round-trip (document data)", () => {
     const def = createDefaultProject();
     const long = {
       ...def,
-      chainCues: { drums: ["0123456789012"], bass: [null], chords: [null], lead: [null] },
+      chainCues: {
+        drums: ["0123456789012"],
+        bass: [null],
+        chords: [null],
+        lead: [null],
+      },
     } as typeof def;
     expect(() => validateProject(long)).toThrow();
     const blank = {
@@ -228,7 +252,10 @@ describe("store actions: patterns + chain + cues", () => {
   it("addPattern appends a pattern of the chosen bar count; appendChainSlot chains it", () => {
     const id = addPattern("bass", 2, "B");
     expect(doc().patterns.bass.map((p) => p.id)).toContain(id);
-    expect(doc().patterns.bass.find((p) => p.id === id)).toMatchObject({ bars: 2, name: "B" });
+    expect(doc().patterns.bass.find((p) => p.id === id)).toMatchObject({
+      bars: 2,
+      name: "B",
+    });
     expect(doc().songChain.bass).toEqual(["bass-1"]); // added, not yet chained
     appendChainSlot("bass", id);
     expect(doc().songChain.bass).toEqual(["bass-1", id]);
@@ -302,7 +329,10 @@ describe("store actions: patterns + chain + cues", () => {
   });
 });
 
-function setLaneChainForTest(lane: "drums" | "bass" | "lead", ids: string[]): void {
+function setLaneChainForTest(
+  lane: "drums" | "bass" | "lead",
+  ids: string[],
+): void {
   setLaneChain(lane, ids);
 }
 

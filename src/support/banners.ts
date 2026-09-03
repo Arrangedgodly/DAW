@@ -25,7 +25,10 @@ export interface BannerModel {
   readonly body: string;
 }
 
-export function bannerFor(report: SupportReport, userAgent: string): BannerModel | null {
+export function bannerFor(
+  report: SupportReport,
+  userAgent: string,
+): BannerModel | null {
   if (report.tier === "unsupported") {
     return {
       kind: "unsupported",

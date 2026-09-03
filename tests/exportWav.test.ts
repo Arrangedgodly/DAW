@@ -11,7 +11,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { exportWav, WAV_EXTENSION, expectedWavByteLength } from "../src/audio/exportWav";
+import {
+  exportWav,
+  WAV_EXTENSION,
+  expectedWavByteLength,
+} from "../src/audio/exportWav";
 import type { DownloadSeam } from "../src/persist/fileIO";
 import type { ProjectDocument } from "../src/document/schema";
 import { createDefaultProject } from "../src/document/schema";
@@ -30,7 +34,10 @@ function fakeLoop(loopSamples: number, overLong = 0): RenderedLoop {
   };
 }
 
-function captureSeam(): { seam: DownloadSeam; downloads: { name: string; blob: Blob }[] } {
+function captureSeam(): {
+  seam: DownloadSeam;
+  downloads: { name: string; blob: Blob }[];
+} {
   const downloads: { name: string; blob: Blob }[] = [];
   let n = 0;
   const seam: DownloadSeam = {
@@ -44,7 +51,9 @@ function captureSeam(): { seam: DownloadSeam; downloads: { name: string; blob: B
   return { seam, downloads };
 }
 
-async function lastDownloadBytes(cap: { downloads: { name: string; blob: Blob }[] }): Promise<Uint8Array> {
+async function lastDownloadBytes(cap: {
+  downloads: { name: string; blob: Blob }[];
+}): Promise<Uint8Array> {
   const blob = cap.downloads[cap.downloads.length - 1]!.blob;
   return new Uint8Array(await blob.arrayBuffer());
 }
@@ -76,7 +85,10 @@ describe("exportWav — trim + encode + download", () => {
 
   it("filename = path-sanitized stem + extension", async () => {
     const cap = captureSeam();
-    const doc = { ...createDefaultProject(), name: "../my song/\\x" } as ProjectDocument;
+    const doc = {
+      ...createDefaultProject(),
+      name: "../my song/\\x",
+    } as ProjectDocument;
     const result = await exportWav(doc, {
       render: () => Promise.resolve(fakeLoop(16)),
       seam: cap.seam,

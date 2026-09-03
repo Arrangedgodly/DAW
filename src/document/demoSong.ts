@@ -54,10 +54,15 @@ function drumRow(spec: string): boolean[] {
  * "1..." note-on, "2..." sustain marker, "." rest. One char per 16th step.
  * Returned rows carry the given scale degree.
  */
-function pitchedRow(degree: number, spec: string): { degree: number; steps: PitchedCell[] } {
+function pitchedRow(
+  degree: number,
+  spec: string,
+): { degree: number; steps: PitchedCell[] } {
   return {
     degree,
-    steps: [...spec].map((c) => (c === "1" ? 1 : c === "2" ? 2 : 0)) as PitchedCell[],
+    steps: [...spec].map((c) =>
+      c === "1" ? 1 : c === "2" ? 2 : 0,
+    ) as PitchedCell[],
   };
 }
 
@@ -73,9 +78,14 @@ function rowsByDegree(
   return rows;
 }
 
-function drumPattern(id: string, name: string, rows: Partial<Record<DrumPiece, string>>): DrumPattern {
+function drumPattern(
+  id: string,
+  name: string,
+  rows: Partial<Record<DrumPiece, string>>,
+): DrumPattern {
   const steps = {} as Record<DrumPiece, boolean[]>;
-  for (const piece of DRUM_PIECES) steps[piece] = drumRow(rows[piece] ?? "................");
+  for (const piece of DRUM_PIECES)
+    steps[piece] = drumRow(rows[piece] ?? "................");
   return { kind: "drums", id, name, bars: 1, steps };
 }
 
@@ -124,10 +134,26 @@ const DRUMS_D = drumPattern("drums-4", "D", {
 const BASS_ROOT = "1..1..1.1..1...."; // syncopated 6-hit root rhythm (steps 0,3,6,8,11)
 const APPROACH = "..............1.."; // step 14: a single stepwise lead-in note
 
-const BASS_A = pitchedPattern("bass-1", "A", rowsByDegree({ 0: BASS_ROOT, 4: APPROACH }, 6)); // C root; G→A♭
-const BASS_B = pitchedPattern("bass-2", "B", rowsByDegree({ 5: BASS_ROOT, 6: APPROACH }, 6)); // A♭ root; B♭→E♭
-const BASS_C = pitchedPattern("bass-3", "C", rowsByDegree({ 2: BASS_ROOT, 5: APPROACH }, 6)); // E♭ root; A♭→B♭
-const BASS_D = pitchedPattern("bass-4", "D", rowsByDegree({ 6: BASS_ROOT, 7: APPROACH }, 7)); // B♭ root; C→C
+const BASS_A = pitchedPattern(
+  "bass-1",
+  "A",
+  rowsByDegree({ 0: BASS_ROOT, 4: APPROACH }, 6),
+); // C root; G→A♭
+const BASS_B = pitchedPattern(
+  "bass-2",
+  "B",
+  rowsByDegree({ 5: BASS_ROOT, 6: APPROACH }, 6),
+); // A♭ root; B♭→E♭
+const BASS_C = pitchedPattern(
+  "bass-3",
+  "C",
+  rowsByDegree({ 2: BASS_ROOT, 5: APPROACH }, 6),
+); // E♭ root; A♭→B♭
+const BASS_D = pitchedPattern(
+  "bass-4",
+  "D",
+  rowsByDegree({ 6: BASS_ROOT, 7: APPROACH }, 7),
+); // B♭ root; C→C
 
 // ---------------------------------------------------------------------------
 // Chords — one diatonic triad per bar (the lane stacks [deg, deg+2, deg+4]),
@@ -136,10 +162,26 @@ const BASS_D = pitchedPattern("bass-4", "D", rowsByDegree({ 6: BASS_ROOT, 7: APP
 
 const CHORD_PAD = "1222222222......"; // note-on + 9 sustains ≈ 15/16 of a bar
 
-const CHORDS_A = pitchedPattern("chords-1", "A", rowsByDegree({ 0: CHORD_PAD }, 6)); // i   C minor
-const CHORDS_B = pitchedPattern("chords-2", "B", rowsByDegree({ 5: CHORD_PAD }, 6)); // VI  A♭ major
-const CHORDS_C = pitchedPattern("chords-3", "C", rowsByDegree({ 2: CHORD_PAD }, 6)); // III E♭ major
-const CHORDS_D = pitchedPattern("chords-4", "D", rowsByDegree({ 6: CHORD_PAD }, 6)); // VII B♭ major
+const CHORDS_A = pitchedPattern(
+  "chords-1",
+  "A",
+  rowsByDegree({ 0: CHORD_PAD }, 6),
+); // i   C minor
+const CHORDS_B = pitchedPattern(
+  "chords-2",
+  "B",
+  rowsByDegree({ 5: CHORD_PAD }, 6),
+); // VI  A♭ major
+const CHORDS_C = pitchedPattern(
+  "chords-3",
+  "C",
+  rowsByDegree({ 2: CHORD_PAD }, 6),
+); // III E♭ major
+const CHORDS_D = pitchedPattern(
+  "chords-4",
+  "D",
+  rowsByDegree({ 6: CHORD_PAD }, 6),
+); // VII B♭ major
 
 // ---------------------------------------------------------------------------
 // Lead — melody in C minor around C5 (degree 7 at octave base 4). Rests and
@@ -210,14 +252,23 @@ export function createDemoProject(): ProjectDocument {
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,
     lanes: [
-      { id: "drums", kitId: "kit-soft", gate: { unit: "steps", value: 1 }, fxChain: [] },
+      {
+        id: "drums",
+        kitId: "kit-soft",
+        gate: { unit: "steps", value: 1 },
+        fxChain: [],
+      },
       {
         id: "bass",
         presetId: "preset-bass-5",
         gate: { unit: "steps", value: 1 },
         fxChain: [
           // Round the triangle off further + keep the sub tight.
-          { type: "filter", bypassed: false, params: { kind: "lowpass", cutoffHz: 500, q: 0.7 } },
+          {
+            type: "filter",
+            bypassed: false,
+            params: { kind: "lowpass", cutoffHz: 500, q: 0.7 },
+          },
           { type: "drive", bypassed: false, params: { amount: 0.2 } },
         ],
       },
@@ -228,7 +279,11 @@ export function createDemoProject(): ProjectDocument {
         fxChain: [
           // Soft-focus the pad (lowpass) + a wet reverb crossfade that also
           // trims the dry level — the demo's gain staging lives in the doc.
-          { type: "filter", bypassed: false, params: { kind: "lowpass", cutoffHz: 900, q: 0.7 } },
+          {
+            type: "filter",
+            bypassed: false,
+            params: { kind: "lowpass", cutoffHz: 900, q: 0.7 },
+          },
           { type: "reverb", bypassed: false, params: { size: 0.55, mix: 0.4 } },
         ],
       },
@@ -237,7 +292,11 @@ export function createDemoProject(): ProjectDocument {
         presetId: "preset-lead-3",
         gate: { unit: "steps", value: 2 },
         fxChain: [
-          { type: "delay", bypassed: false, params: { timeSteps: 3, feedback: 0.35, mix: 0.28 } },
+          {
+            type: "delay",
+            bypassed: false,
+            params: { timeSteps: 3, feedback: 0.35, mix: 0.28 },
+          },
           { type: "reverb", bypassed: false, params: { size: 0.35, mix: 0.3 } },
         ],
       },

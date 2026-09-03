@@ -11,11 +11,11 @@ The user-facing guarantee is formalized (user-approved 2026-09-02) as three
 enforcement layers, because real-time audio can never be asserted against a
 wall clock:
 
-| Layer | Budget | Where enforced |
-|---|---|---|
-| 1. Unit (exact) | scheduled `when` equals `timeAtStep(step)` exactly | node Vitest (`tests/*.test.ts`): time math, scheduler with fake clock, per-step delivery |
+| Layer             | Budget                                                                                                 | Where enforced                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Unit (exact)   | scheduled `when` equals `timeAtStep(step)` exactly                                                     | node Vitest (`tests/*.test.ts`): time math, scheduler with fake clock, per-step delivery                                                                |
 | 2. Offline render | onset sample within ONE render quantum (128 samples ≈ 2.9 ms @ 44.1 kHz) of `timeAtStep(step) × 44100` | browser Vitest (`tests/browser/scheduler-budget.test.ts`): real worklet via `addModule` on OfflineAudioContext, onsets found by sample-energy detection |
-| 3. E2E smoke | ≥90% of onsets within ±10 ms of the audio-clock prediction | Playwright e2e (lands with HW-4) |
+| 3. E2E smoke      | ≥90% of onsets within ±10 ms of the audio-clock prediction                                             | Playwright e2e (lands with HW-4)                                                                                                                        |
 
 Layer 2 also discharges the IM-3 caveat: it verifies the REAL
 `AudioWorkletProcessor.process()` loop, not the node-side DSP twin.
@@ -42,7 +42,7 @@ Layer 2 also discharges the IM-3 caveat: it verifies the REAL
 
 - Enforced from TH-2 onward as a CI gate on the build artifact:
   `npm run check:bundle` (scripts/check-bundle.mjs) runs after `npm run
-  build` in CI, measures initial-load JS (entry chunk + every chunk it
+build` in CI, measures initial-load JS (entry chunk + every chunk it
   EAGERLY statically imports, gz -9) plus all woff2 bytes, prints a
   per-category breakdown (js / fonts / worklet), and exits non-zero over
   either budget (JS ≤ 300 KB gz, fonts ≤ 50 KB).

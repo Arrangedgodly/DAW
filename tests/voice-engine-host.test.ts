@@ -139,7 +139,9 @@ describe("createVoiceEngine host", () => {
   it("rejects unsorted batches and out-of-range lanes", async () => {
     const { ctx } = fakeContext();
     const host = await createVoiceEngine(ctx, 2, { moduleUrl: "u" });
-    expect(() => host.sendEvents(0, [noteEvent(2), noteEvent(1)])).toThrow(/sorted/);
+    expect(() => host.sendEvents(0, [noteEvent(2), noteEvent(1)])).toThrow(
+      /sorted/,
+    );
     expect(() => host.sendEvents(9, [noteEvent(1)])).toThrow(/range/);
     expect(() => host.sendEvents(0, [])).not.toThrow(); // no-op, nothing posted
   });
