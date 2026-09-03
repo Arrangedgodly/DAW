@@ -67,6 +67,7 @@ import {
   requestLaneFocus,
   selectQuadrantFromPointer,
 } from "../state/gridFocus";
+import { closeFxConsole, fxConsoleLane } from "../state/fxConsole";
 import { noteEditAt, type Span } from "../interaction/drag";
 import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
@@ -264,6 +265,15 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
             },
           }
         : {}),
+      // Refinement-1 (critique P1-1): Escape on a covered grid closes the
+      // FX console instead of popping to the region head — the console is
+      // the innermost open surface (keyboard.md v2 Escape order). Focus
+      // stays on the cell; the grid is revealed, not left.
+      onEscapeCovered: () => {
+        if (fxConsoleLane() !== lane) return false;
+        closeFxConsole();
+        return true;
+      },
       onToggle: (row, step) => {
         selectLane(lane); // selection follows the latest grid interaction
         if (lane === "drums") {

@@ -685,6 +685,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "bass preset survived reload",
         );
         // Reopen the strip (same real click as stage 4) and count modules.
+        // Refinement-1 law: the FX entry is live only in the SELECTED
+        // quadrant, and post-reload selection boots to drums — select bass
+        // the pointer way first (any click on a view-only floor selects it;
+        // the lane label is side-effect-free).
+        ($('.lane-floor[data-lane="bass"] .lane-name') as HTMLElement).click();
         (
           $('.lane-floor[data-lane="bass"] .head-fx') as HTMLButtonElement
         ).click();

@@ -246,7 +246,14 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       }
 
       // --- TOGGLE FX (open a lane's strip, add a device, bypass it) ---------
-      appDoc.querySelector<HTMLButtonElement>(".head-fx")!.click();
+      // Refinement-1 law: only the SELECTED quadrant's FX entry is live
+      // (the 24-cell walk above may have moved selection) — click the
+      // visible one instead of the first `.head-fx` in document order.
+      appDoc
+        .querySelector<HTMLButtonElement>(
+          '.lane-floor[data-editing="true"] .head-fx',
+        )!
+        .click();
       const addBtn = await (async () => {
         for (let i = 0; i < 40; i++) {
           const el = appDoc.querySelector<HTMLButtonElement>(".fx-add-btn");
@@ -341,13 +348,16 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
         try {
           const u = new URL(target, win.location.href);
           return (
-            u.origin === win.location.origin && u.pathname.startsWith("/assets/")
+            u.origin === win.location.origin &&
+            u.pathname.startsWith("/assets/")
           );
         } catch {
           return false;
         }
       };
-      const thirdParty = monitor.calls.filter((c) => !sameOriginAllowed(c.target));
+      const thirdParty = monitor.calls.filter(
+        (c) => !sameOriginAllowed(c.target),
+      );
       expect(
         thirdParty,
         `third-party network API calls: ${JSON.stringify(thirdParty)}`,
@@ -408,8 +418,10 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       // full CSP through the iframe's own fetch/AudioContext.
       const oggUrl = oggKeys[0].replace("/dist/", "/");
       const res = await win.fetch(oggUrl);
-      expect(res.ok, `same-origin content fetch ${oggUrl} blocked by CSP?`)
-        .toBe(true);
+      expect(
+        res.ok,
+        `same-origin content fetch ${oggUrl} blocked by CSP?`,
+      ).toBe(true);
       const bytes = await res.arrayBuffer();
       expect(bytes.byteLength).toBeGreaterThan(1000);
       const probeCtx = new win.AudioContext();

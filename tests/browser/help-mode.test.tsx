@@ -59,9 +59,7 @@ import {
   docStore,
   loadDocument,
 } from "../../src/state/store";
-import {
-  getAutosaveController,
-} from "../../src/persist/boot";
+import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { decode, encode } from "../../src/document/codec";
 import { createDemoProject } from "../../src/document/demoSong";
@@ -352,6 +350,19 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
           2000,
           "add menu closes",
         );
+        // Refinement-1 (deliberate spec extension, keyboard.md v2 ledger):
+        // with the mode off and the menu closed, the NEXT Escape closes the
+        // FX CONSOLE itself — the full order on one surface: help mode →
+        // add menu → console. Focus rested inside the console (+ ADD FX),
+        // so closing lands it on the strip's FX entry (the owner control).
+        expect(host.querySelector(".lane-fx-wrap")).toBeTruthy();
+        keyAtActive("Escape");
+        await waitFor(
+          () => host.querySelector(".lane-fx-wrap") === null,
+          2000,
+          "third Escape closes the FX console",
+        );
+        expect(document.activeElement).toBe(fxBtn);
 
         // --- 7. HOVER-driven update (pointerover) ----------------------
         setHelpMode(true);
@@ -394,9 +405,9 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         selectLane("bass");
         await waitFor(
           () =>
-            host.querySelector(
-              '.lane-floor[data-lane="bass"] [role="grid"]',
-            )?.getAttribute("aria-label") === "BASS grid · EDITING",
+            host
+              .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
+              ?.getAttribute("aria-label") === "BASS grid · EDITING",
           2000,
           "bass quadrant editable",
         );
@@ -435,7 +446,9 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         const pattern = docStore.getState().doc.patterns.bass[0];
         expect(pattern?.kind).toBe("pitched");
         const notes =
-          pattern?.kind === "pitched" ? pattern.notes : ([] as PitchedPattern["notes"]);
+          pattern?.kind === "pitched"
+            ? pattern.notes
+            : ([] as PitchedPattern["notes"]);
         expect(notes).toEqual([{ degree: 0, start: 4, length: 3 }]);
         // The mode STAYED off (the toggle did not bounce) and no preview
         // is stuck after the commit.
@@ -579,9 +592,9 @@ describe("HP-1 gate finding — drums sync is codec key-order independent", () =
         selectLane("drums");
         await waitFor(
           () =>
-            host.querySelector(
-              '.lane-floor[data-lane="drums"] [role="grid"]',
-            )?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+            host
+              .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
+              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
           2000,
           "drums quadrant editable",
         );
@@ -614,7 +627,8 @@ describe("HP-1 gate finding — drums sync is codec key-order independent", () =
   );
 });
 
-describe("HP-1 help registry — anti-rot invariants", () => {  it("every entry has non-empty id/title/text", () => {
+describe("HP-1 help registry — anti-rot invariants", () => {
+  it("every entry has non-empty id/title/text", () => {
     const ids = helpEntryIds();
     expect(ids.length).toBeGreaterThan(30); // every surface registered
     for (const id of ids) {

@@ -14,30 +14,99 @@
  * selected quadrant (popover corner language: 6px radius, offset+blur
  * shadow) — opening a strip never grows the page (one-page law). It scrolls
  * internally when modules exceed the quadrant's height.
+ *
+ * Refinement-1 (critique P1-1 — the pointer-trap fix): the chassis starts
+ * BELOW the whole control strip (compact row + edit row), so the FX toggle,
+ * scale chip and GATE stay clickable while the console is open; LaneHeader
+ * pins the exact top inline (measured from the strip's bottom edge) and the
+ * value below is the measured fallback (strip bottom 49px + 4px gap at the
+ * supported viewports). The chassis itself is a visible boundary — opaque
+ * ground + 1px 25%-ink border, the popover vocabulary — so even the EMPTY
+ * console reads as an open surface (it used to be chassis-on-chassis
+ * invisibility), and its title strip carries the CLOSE affordance on the
+ * chassis, never under it.
  */
 .lane-fx-wrap {
   position: absolute;
-  top: 32px; /* below the compact strip row */
+  top: 53px; /* below the whole control strip (fallback — ref pins measured) */
   left: var(--space-3);
   right: var(--space-3);
   bottom: var(--space-2);
   z-index: 30;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
     transparent;
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   border-radius: 6px;
+  background: var(--color-ground);
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+/* Console title strip: the chassis's silkscreened name plate. Sticky so the
+ * CLOSE affordance never scrolls away. The lane-hue LED is decoration over
+ * the text identity (lane name in the title — never color alone). */
+.lane-fx-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-ground);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.lane-fx-title-led {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--lane-hue);
+}
+
+.lane-fx-title-name {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+/* CLOSE: control-grade button (the .fx-mod-btn language — 3px radius,
+ * 7%-ink fill, 18%-ink border, 20px tall). */
+.lane-fx-close {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  height: 20px;
+  padding: 0 var(--space-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lane-fx-close:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.lane-fx-close:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
 }
 
 .fx-strip {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--lane-hue) 22%, var(--color-ground));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--color-ink) 3%, var(--color-ground));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .fx-strip-modules {

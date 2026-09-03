@@ -68,6 +68,15 @@ const FLASH_MS = 180; // D9 one-shot cap
  */
 registerHelp([
   {
+    // Refinement-1: the console's own CLOSE affordance (title strip). Lives
+    // in this registry block with the other fx.* ids even though the button
+    // itself is stamped by LaneHeader (the console chassis) — one owner per
+    // FX concept.
+    id: "fx.close",
+    title: "FX CONSOLE CLOSE",
+    text: "Shuts this lane's FX console and gives the grid back — the rack itself is untouched, so it reopens exactly as you left it. Escape works from anywhere, and the strip's FX button toggles it too.",
+  },
+  {
     id: "fx.add",
     title: "+ ADD FX",
     text: "Adds an effect device to this lane's rack — three at most. Order matters: each device feeds the next.",
@@ -275,13 +284,13 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
             >
               <For each={FX_DEVICE_TYPES}>
                 {(type) => (
-              <button
-                type="button"
-                role="menuitem"
-                class="fx-add-item"
-                data-help={`fx.device.${type}`}
-                onClick={() => handleAdd(type)}
-              >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="fx-add-item"
+                    data-help={`fx.device.${type}`}
+                    onClick={() => handleAdd(type)}
+                  >
                     {FX_DEVICE_SPECS[type].label}
                   </button>
                 )}

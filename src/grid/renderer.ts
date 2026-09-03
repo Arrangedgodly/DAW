@@ -149,6 +149,14 @@ export interface DomGridRendererOptions {
    */
   readonly onEscape?: () => void;
   /**
+   * Refinement-1 (critique P1-1): consulted FIRST on Escape — returns true
+   * when an overlay covering this grid (the FX console) consumes the
+   * keystroke. The owner closes the overlay; the region-head pop stands
+   * down for that Escape (keyboard.md v2: pop applies only once the
+   * console is closed — one consumer per keystroke).
+   */
+  readonly onEscapeCovered?: () => boolean;
+  /**
    * PX-3 (drums only): mount a per-row fill control into the row's dedicated
    * rail slot. Called once per row during build; the owner renders its own
    * framework UI into `el` and owns that subtree's lifecycle.
@@ -646,6 +654,14 @@ export class DomGridRenderer implements GridRenderer {
     }
 
     if (e.key === "Escape") {
+      // Refinement-1: an overlay covering this grid (the FX console) owns
+      // the Escape first — close it, skip the region-head pop this
+      // keystroke, and stop the page-level consumer from double-handling.
+      if (this.opts.onEscapeCovered?.()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       // Pop to the region head: the lane header's first control.
       e.preventDefault();
       const head = this.opts.container

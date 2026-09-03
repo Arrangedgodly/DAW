@@ -46,6 +46,13 @@ import {
 import { laneScaleChipLabel, announceScale } from "../state/scaleChip";
 import { announceStage } from "../state/selection";
 import { laneFxChain } from "../state/fxStrip";
+import {
+  closeFxConsole,
+  fxConsoleLane,
+  setFxConsoleLane,
+} from "../state/fxConsole";
+import { helpMode } from "../state/helpMode";
+import { helpOpen } from "../state/helpOverlay";
 import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
 import { activeLane } from "../state/selection";
@@ -150,7 +157,11 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [mute, setMute] = createSignal(initial.mute);
   const [solo, setSolo] = createSignal(initial.solo);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
-  const [fxOpen, setFxOpen] = createSignal(false);
+  // Refinement-1 (critique P1-1): the FX console open-state is PAGE-level
+  // (state/fxConsole.ts) so page-level Escape can close it. Only the
+  // selected quadrant can open it — the focus law below still closes it the
+  // instant this quadrant goes view-only.
+  const fxOpen = () => fxConsoleLane() === props.lane;
   const [fxCount, setFxCount] = createSignal(
     laneFxChain(docStore.getState().doc, props.lane).length,
   );
@@ -161,6 +172,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   let stripEl: HTMLDivElement | undefined;
   let editRowEl: HTMLDivElement | undefined;
   let fxFocusHost: HTMLDivElement | undefined;
+  let fxBtn: HTMLButtonElement | undefined;
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -193,12 +205,42 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       const insideHidden =
         (editRowEl && el && editRowEl.contains(el) === true) ||
         (fxFocusHost && el && fxFocusHost.contains(el) === true);
-      setFxOpen(false);
+      if (fxConsoleLane() === props.lane) closeFxConsole();
       setPopoverOpen(false);
       if (insideHidden) {
         stripEl.querySelector<HTMLElement>("button, input")?.focus();
       }
     }
+  });
+
+  // Refinement-1 (critique P1-1): PAGE-LEVEL ESCAPE closes the console —
+  // the pointer user's "how do I get my grid back" exit. Ordering law
+  // (keyboard.md v2): the KEYS modal and help mode win FIRST (their
+  // capture-phase handlers consume the keystroke before this bubble
+  // listener; the guards below make the law hold even for window-targeted
+  // dispatches), inline edits/popovers/menus cancel first (they all
+  // stopPropagation — the add menu's second-Escape contract in
+  // help-mode.test), and the region-head pops apply only once the console
+  // is closed. Focus stays where it was (help-mode precedent — nothing was
+  // trapped) UNLESS it rested inside the console, where closing would
+  // strand it on <body>: then it lands on the strip's FX entry, the
+  // control that owns the console.
+  createEffect(() => {
+    if (!fxOpen()) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (helpMode() || helpOpen()) return; // cancel-first surfaces win
+      if (fxConsoleLane() !== props.lane) return; // closed mid-dispatch
+      e.preventDefault();
+      const inside =
+        fxFocusHost !== undefined &&
+        document.activeElement !== null &&
+        fxFocusHost.contains(document.activeElement);
+      closeFxConsole();
+      if (inside) fxBtn?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    onCleanup(() => window.removeEventListener("keydown", onKey));
   });
 
   const store = { setProjectScale, setLaneScaleOverride };
@@ -468,11 +510,22 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           type="button"
           class="head-fx"
           classList={{ "is-open": fxOpen() }}
+          ref={(el) => {
+            fxBtn = el;
+          }}
           data-help={`lane.${props.lane}.fx`}
           aria-expanded={fxOpen()}
           aria-controls={`fx-strip-${props.lane}`}
           aria-label={`FX chain for ${LANE_NAMES[props.lane]}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}
-          onClick={() => setFxOpen(!fxOpen())}
+          onClick={() => {
+            // Only the SELECTED quadrant's entry is live (the LY-1 focus
+            // law: a console never rests on a view-only floor). The guard
+            // matters now that the open-state is page-level — without it a
+            // synthetic click on a hidden edit row could flash a console
+            // open over a view-only quadrant before the focus law closed it.
+            if (!editable()) return;
+            setFxConsoleLane(fxOpen() ? null : props.lane);
+          }}
         >
           FX
           <Show when={fxCount() > 0}>
@@ -486,16 +539,54 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
 
       {/* FX console overlay: only the selected quadrant can open it (the
           focus law above closes it the instant the quadrant goes view-only);
-          the overlay chassis floats over the quadrant's grid (one-page law —
-          opening a strip never grows the page), scrolling internally. */}
+          the overlay chassis floats over the quadrant's GRID (one-page law —
+          opening a strip never grows the page), scrolling internally.
+
+          Refinement-1 (critique P1-1 — the pointer-trap fix): the chassis
+          starts BELOW the whole control strip (measured top pinned inline;
+          the CSS value is the measured fallback), so the strip's edit row —
+          FX toggle, scale chip, GATE — stays clickable while the console is
+          open. The title strip gives the chassis a visible boundary (the
+          empty console used to be invisible: chassis-on-chassis) and carries
+          the CLOSE affordance on the chassis itself — never under it. */}
       <Show when={fxOpen()}>
         <div
           id={`fx-strip-${props.lane}`}
           class="lane-fx-wrap"
           ref={(el) => {
             fxFocusHost = el;
+            // Pin the chassis top to the strip's real bottom edge (the
+            // renderer-pinned-geometry precedent — CSS holds the fallback).
+            // The strip cannot wrap into a second line in the supported
+            // viewport range, but measuring keeps every viewport honest.
+            const floor = el.closest(".lane-floor");
+            if (floor && stripEl) {
+              const below =
+                stripEl.getBoundingClientRect().bottom -
+                floor.getBoundingClientRect().top +
+                4;
+              el.style.top = `${Math.max(0, below)}px`;
+            }
           }}
         >
+          <div class="lane-fx-title">
+            <span class="lane-fx-title-led" aria-hidden="true" />
+            <span class="lane-fx-title-name" aria-hidden="true">
+              {LANE_NAMES[props.lane]} FX
+            </span>
+            <button
+              type="button"
+              class="lane-fx-close"
+              data-help="fx.close"
+              aria-label={`Close ${LANE_NAMES[props.lane]} FX console`}
+              onClick={() => {
+                closeFxConsole();
+                fxBtn?.focus();
+              }}
+            >
+              CLOSE
+            </button>
+          </div>
           <FxStrip lane={props.lane} />
         </div>
       </Show>

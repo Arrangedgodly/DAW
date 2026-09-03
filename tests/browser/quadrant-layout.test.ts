@@ -352,6 +352,108 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(status.hasAttribute("aria-hidden")).toBe(false);
         expect(status.getAttribute("aria-label")).toBeTruthy();
 
+        // --- 9b. FX CONSOLE AFFORDANCE (refinement-1, critique P1-1) ------
+        // The pointer trap, proven gone ON THE BUILT APP: the console
+        // chassis used to start at top:32px over the strip's edit row, so
+        // its own FX toggle + the scale chip + GATE were pointer-dead and
+        // elementFromPoint at their centers returned `.fx-strip`. Now: the
+        // page still fits with the console open, the chassis starts below
+        // the WHOLE strip, the five centers resolve to their controls, the
+        // EMPTY console paints a visible boundary (demo drums chain is
+        // empty), and Escape / CLOSE close it. Trusted-pointer twins (real
+        // clicks) live in fx-console-trusted.test.tsx.
+        const fxBTN = $<HTMLButtonElement>(
+          '.lane-floor[data-lane="drums"] .head-fx',
+        );
+        fxBTN.click();
+        await poll(
+          () => !!idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "fx console opens",
+        );
+        expect(
+          pageFits(),
+          "page must still fit with the FX console open (overlay never grows the page)",
+        ).toBe(true);
+        const fxWrap = $(".lane-fx-wrap");
+        const stripRect = floor("drums")
+          .querySelector(".lane-head-strip")!
+          .getBoundingClientRect();
+        expect(fxWrap.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+          stripRect.bottom - 0.5,
+        );
+        // Boundary + title chrome paint even with an empty chain (the
+        // invisible empty-state console defect).
+        const fxWin = idoc().defaultView!;
+        const fxStyle = fxWin.getComputedStyle(fxWrap);
+        expect(
+          fxStyle.backgroundColor,
+          "empty console chassis paints (was chassis-on-chassis)",
+        ).not.toBe("rgba(0, 0, 0, 0)");
+        expect(
+          Number.parseFloat(fxStyle.borderTopWidth),
+        ).toBeGreaterThanOrEqual(1);
+        expect($(".lane-fx-title-name").textContent?.trim()).toBe("DRUMS FX");
+        // The five formerly-occluded controls own their centers.
+        const selfHit = (el: Element): boolean => {
+          const r = el.getBoundingClientRect();
+          const hit = idoc().elementFromPoint(
+            r.left + r.width / 2,
+            r.top + r.height / 2,
+          );
+          return hit === el || el.contains(hit);
+        };
+        for (const sel of [
+          ".head-fx",
+          ".scale-chip",
+          'button[aria-label="Shorter gate for DRUMS"]',
+          'button[aria-label="Longer gate for DRUMS"]',
+          '[aria-label="DRUMS gate length"] .head-ctl-label',
+        ]) {
+          const el = floor("drums").querySelector(sel)!;
+          expect(selfHit(el), `${sel} must own its center`).toBe(true);
+        }
+        // Page-level Escape (focus outside the console): closes, focus
+        // stays exactly where it was (help-mode precedent — no trap).
+        const beforeEsc = active();
+        key(idoc().body, "Escape");
+        await poll(
+          () => !idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "page-level Escape closes the console",
+        );
+        expect(active()).toBe(beforeEsc);
+        // Covered-grid Escape: console closes INSTEAD of the region-head
+        // pop — focus stays on the cell (one consumer per keystroke).
+        fxBTN.click();
+        await poll(
+          () => !!idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "reopen",
+        );
+        const drumCell = floor("drums").querySelector<HTMLElement>(".cell")!;
+        drumCell.focus();
+        key(drumCell, "Escape");
+        await poll(
+          () => !idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "covered-grid Escape closes the console",
+        );
+        expect(active()).toBe(drumCell);
+        // The CLOSE affordance (title strip, outside the occluded zone).
+        fxBTN.click();
+        await poll(
+          () => !!idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "reopen for CLOSE",
+        );
+        $(".lane-fx-close").click();
+        await poll(
+          () => !idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "CLOSE button closes the console",
+        );
+
         // --- 10. One-page law under the Hulk extreme (4-bar pattern) -------
         const add4B = $<HTMLButtonElement>(
           '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',

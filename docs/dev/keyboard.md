@@ -58,7 +58,10 @@ arrows walk _inside_ a region:
   and inline edits, Escape cancels first (existing DES-3/DES-6 behavior).
   **While help mode is ON, Escape first exits help mode** (cancel-first,
   like popovers); the region-head pop applies only when it is already off
-  [v2 · live since HP-1].
+  [v2 · live since HP-1]. **While an FX console is open, page-level Escape
+  closes it** — after the KEYS modal, help mode, and any open inline edit /
+  popover / menu (each of those consumes its own keystroke first), and
+  before the region-head pops [v2 · live since refinement-1].
 - Focus rings follow D9: `:focus-visible` outlines in the lane hue over the
   ground, never glow-only.
 
@@ -275,6 +278,37 @@ FOCUS A CONTROL TO HEAR WHAT IT DOES` / `INFO MODE OFF`; each focused
 - Zero per-frame cost while OFF (Thor, TH-4 c): listeners attach only while
   the mode is on.
 
+## FX console (open overlay) [v2 · live since refinement-1]
+
+The per-lane FX console overlay (DES-5/LY-1) is a NON-MODAL surface: every
+other region stays reachable while it is open. Refinement-1 (critique P1-1,
+the pointer-trap fix) added the exits it lacked — the console used to be
+closable only by clicking another quadrant:
+
+| Key / control                | Action                                                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Escape (anywhere)            | closes the console (see the Escape order below) — focus stays where it was                                                  |
+| Escape (on a covered grid)   | closes the console INSTEAD of popping to the region head — focus stays on the cell; the pop applies on the NEXT Escape        |
+| console CLOSE button         | pointer twin (title strip, on the chassis — never under it); focus lands on the strip's FX entry, the control that owns it   |
+| strip FX entry (Tab + Enter) | toggle (unchanged v0 path; un-occluded again — the chassis starts below the whole control strip)                             |
+
+- **Escape order on this surface** (one consumer per keystroke): KEYS modal
+  → help mode (cancel-first, HP-1) → inline edits / popovers / menus (the
+  add menu's own Escape, the scale popover, the projects panel — each
+  consumes via stopPropagation) → **the FX console closes** → region-head
+  pops. Pinned end-to-end by help-mode.test.tsx §6 (mode → menu → console
+  on one surface) and fx-console-trusted.test.tsx.
+- **Focus law on close.** Focus never moves unless closing would strand it:
+  it stays put when Escape fires from outside the console; it lands on the
+  strip's FX entry when focus rested INSIDE the console (CLOSE button or
+  Escape from a console control); it stays on the grid cell when the
+  covered-grid Escape closes the console (the grid is revealed, not left).
+- The LY-1 quadrant law is unchanged: the console closes automatically the
+  instant its quadrant goes view-only (LaneHeader's focus law), and only
+  the selected quadrant can open it.
+- State is page-level (`src/state/fxConsole.ts`) — an ephemeral signal,
+  never document, never undo history.
+
 ## Deliberate exclusions (never hijacked) — unchanged v0
 
 These browser / screen-reader keys are NEVER intercepted anywhere:
@@ -336,6 +370,9 @@ they ship — this table is the gate LY-1/IN-2/IN-3/HP-1 are reviewed against.
   `resizeNote`, snap 0.25, coalescing `note:<lane>:<pattern>` — SC-2)
 - Pointer gesture framework: `src/interaction/drag.ts` (IN-2/IN-3; commit-on-
   release law, preview = zero store writes)
+- FX console open-state (page-level, refinement-1): `src/state/fxConsole.ts`
+  (Escape/Close/toggle funnel; LaneHeader owns the handlers, LaneGrid wires
+  the covered-grid Escape consult on the renderer)
 - Help mode: `src/state/helpMode.ts` + `src/help/registry.ts` +
   `src/components/InfoView.tsx` (HP-1)
 - Global shortcuts + help overlay: `src/components/KeyboardShortcuts.tsx`,
@@ -378,6 +415,28 @@ by the owning task):
    range-select + Enter/Space CUE ALL + plain ↑/↓ row roving
    (**landed by IN-3**); global `i` help-mode toggle +
    Escape-exits-help-first (**landed by HP-1**).
+4. **Page-level Escape closes the FX console** (refinement-1 — critique
+   P1-1, the pointer-trap fix; additive, no binding replaced): while a
+   lane's FX console overlay is open, Escape closes it from anywhere,
+   slotted after the KEYS modal / help mode / inner popovers+menus and
+   before the region-head pops; on a covered grid the console close
+   REPLACES the pop for that keystroke (one consumer per Escape). The
+   pointer twins landed with it: the console's CLOSE button (title strip,
+   outside the occluded zone) and the strip's FX toggle — both reachable
+   now that the chassis starts below the whole control strip. **LANDED by
+   refinement-1** (gates: tests/browser/fx-console-trusted.test.tsx — real
+   clicks on the five formerly-occluded controls; quadrant-layout.test.ts
+   §9b — built-app geometry/one-page/elementFromPoint; help-mode.test.tsx
+   §6 extended — the mode → menu → console order). No journey STEP changed
+   (DA-1/DA-3/e2e leave the console open across their FX stages exactly as
+   before); the new assertions are additive. Two NON-journey gates were
+   deliberately updated with it (they had been exploiting a latent bug:
+   a synthetic click on a view-only quadrant's display:none FX entry used
+   to open a console over that floor — now guarded by the "only the
+   selected quadrant's entry is live" law): zero-network.test.ts clicks
+   `[data-editing="true"] .head-fx`, and e2e-happy-path.test.ts selects
+   bass (side-effect-free lane-label click) before its post-reload FX
+   reopen.
 4. Everything else in the v0 map — one-Tab-stop regions, no-wrap, text-entry
    guards, body-level Space transport, Shift+Enter audition, Home/End, beat
    jump, `n`/`d`/`r`, rail-local keys, undo guards, the exclusion list —
