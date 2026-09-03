@@ -22,7 +22,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "../../src/document/schema";
 import { createDemoProject } from "../../src/document/demoSong";
-import type { ProjectDocument, PitchedCell } from "../../src/document/schema";
+import type { ProjectDocument } from "../../src/document/schema";
 import {
   renderProjectToBuffer,
   EXPORT_SAMPLE_RATE,
@@ -36,7 +36,10 @@ function projectPlain(): ProjectDocument {
   drums.steps.kick = [true, ...new Array(15).fill(false)];
   for (const s of [4, 8, 12]) drums.steps.kick[s] = true;
   const lead = doc.patterns.lead[0];
-  lead.rows[3].steps[0] = 1;
+  // SC-1 v2: `rows[3].steps[0] = 1` → a lone note-on under the default lead
+  // gate (2 steps). Same content, same audio.
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [{ degree: 3, start: 0, length: 2 }];
   return doc;
 }
 
@@ -45,11 +48,12 @@ function projectSwing(): ProjectDocument {
   const doc = projectPlain();
   const lead = doc.patterns.lead[0];
   // Also place notes on odd steps so swing actually moves content.
-  const wide = new Array(16).fill(0);
-  wide[0] = 1;
-  wide[3] = 1;
-  wide[9] = 1;
-  lead.rows[3].steps = wide as PitchedCell[];
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [
+    { degree: 3, start: 0, length: 2 },
+    { degree: 3, start: 3, length: 2 },
+    { degree: 3, start: 9, length: 2 },
+  ];
   doc.transport = { ...doc.transport, swing: 0.5 };
   return doc;
 }

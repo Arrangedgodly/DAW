@@ -36,15 +36,15 @@ const scalePitchClasses = new Set(
   scale.intervals.map((i) => (i + scale.root) % 12),
 );
 
-/** Active (note-on) steps of a pitched row, by degree. */
+/** Note-on steps of a pitched pattern, by degree (v2 notes). */
 function noteOns(p: PitchedPattern): Map<number, number[]> {
   const out = new Map<number, number[]>();
-  for (const row of p.rows) {
-    const steps = row.steps
-      .map((c, i) => (c === 1 ? i : -1))
-      .filter((i) => i >= 0);
-    if (steps.length) out.set(row.degree, steps);
+  for (const note of p.notes) {
+    const list = out.get(note.degree) ?? [];
+    list.push(note.start);
+    out.set(note.degree, list);
   }
+  for (const list of out.values()) list.sort((a, b) => a - b);
   return out;
 }
 
@@ -100,10 +100,12 @@ describe("PX-1 structural musicality", () => {
         const pc = degreeToMidi(scale, degree + off, 3) % 12;
         expect(scalePitchClasses.has(pc)).toBe(true);
       }
-      // Long pad: note-on at the downbeat with sustain markers.
-      expect(on.get(degree)![0]).toBe(0);
-      const row = pattern.rows.find((r) => r.degree === degree)!;
-      expect(row.steps[1]).toBe(2);
+      // Long pad: one note at the downbeat, sustained ≈ the whole bar
+      // (v1: note-on + 9 sustain markers; v2: gate 6 + 9 = length 15).
+      expect(on.get(degree)!).toEqual([0]);
+      const pad = pattern.notes.find((n) => n.degree === degree)!;
+      expect(pad.start).toBe(0);
+      expect(pad.length).toBe(15);
     });
   });
 
@@ -142,7 +144,7 @@ describe("PX-1 structural musicality", () => {
     expect(offBeatNotes).toBeGreaterThanOrEqual(4); // syncopation present
     // Rests: the very first melody bar opens on a rest (step 0 silent).
     const firstBar = doc.patterns.lead[0] as PitchedPattern;
-    expect(firstBar.rows.every((r) => r.steps[0] === 0)).toBe(true);
+    expect(firstBar.notes.every((n) => n.start !== 0)).toBe(true);
     // Stepwise + triad motion: consecutive attacks move mostly by 1–2 scale
     // degrees; a diatonic triad outline (≤4, e.g. the DROP's F5+B♭5 double
     // stop) is the allowed leap, nothing wider.
@@ -232,7 +234,7 @@ describe("PX-1 boot contract", () => {
 describe("PX-1 golden: canonical demo bytes", () => {
   it("matches the manifest SHA-256 + byteLength (deterministic factory)", () => {
     expectGolden(
-      "codec/demo-project-canonical-v1",
+      "codec/demo-project-canonical-v2",
       new TextEncoder().encode(encode(doc)),
     );
   });

@@ -6,10 +6,13 @@ import {
   encode,
 } from "../src/document/codec";
 import {
+  SCHEMA_VERSION,
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
 import { ProjectValidationError } from "../src/document/validate";
+import { MigrationError } from "../src/document/migrate";
+import { v1DefaultProjectText } from "./v1Project";
 
 describe("encode/decode round-trip", () => {
   it("default project survives encode → decode unchanged", () => {
@@ -45,10 +48,20 @@ describe("encode/decode round-trip", () => {
     expect(() => decode(JSON.stringify({ hello: "world" }))).toThrow(
       /schema version/,
     );
-    // Has a version but wrong body → strict validation refuses.
-    expect(() => decode(JSON.stringify({ version: 1 }))).toThrow(
+    // Current version but wrong body → strict validation refuses.
+    expect(() => decode(JSON.stringify({ version: 2 }))).toThrow(
       ProjectValidationError,
     );
+    // v1 body without v1 pattern shape → typed migration refusal.
+    expect(() => decode(JSON.stringify({ version: 1 }))).toThrow(
+      MigrationError,
+    );
+  });
+
+  it("SC-1: decode migrates v1 bytes to the current schema", () => {
+    const migrated = decode(v1DefaultProjectText());
+    expect(migrated.version).toBe(SCHEMA_VERSION);
+    expect(migrated).toEqual(createDefaultProject());
   });
 });
 

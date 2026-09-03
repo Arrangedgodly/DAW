@@ -24,9 +24,13 @@ import { render } from "solid-js/web";
 import {
   DRUM_PIECES,
   type DrumPiece,
+  type DrumPattern,
   type LaneId,
   PITCH_CLASS_NAMES,
   type Pattern,
+  type PitchedPatternView,
+  pitchedPatternView,
+  resolveGateSteps,
 } from "../document/schema";
 import { effectiveScale, modeSize } from "../document/scales";
 import { getSession } from "../engine/session";
@@ -64,14 +68,31 @@ function pitchedLabels(
   const doc = docStore.getState().doc;
   const scale = effectiveScale(doc, lane);
   const size = modeSize(scale.mode);
-  const degrees =
-    pattern.kind === "pitched" ? pattern.rows.map((r) => r.degree) : [];
+  const degrees = pattern.kind === "pitched" ? [...pattern.rowDegrees] : [];
   const labels = degrees.map((degree) => {
     const pc = (scale.root + scale.intervals[degree % size]) % 12;
     const octave = Math.floor(degree / size);
     return PITCH_CLASS_NAMES[pc] + (octave > 0 ? "′" : "");
   });
   return { labels, degrees };
+}
+
+/**
+ * What the renderer syncs: drums patterns pass through; pitched patterns are
+ * projected onto the v1 cell view (SC-1 bridge — the renderer still consumes
+ * exactly the model v0 rendered; SC-2/IN-2 move it to notes + spans).
+ */
+function syncPatternFor(
+  lane: LaneId,
+  pattern: Pattern,
+): DrumPattern | PitchedPatternView {
+  if (pattern.kind !== "pitched") return pattern; // drums pass through
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane);
+  // Fixed-lane documents always carry the lane config; 1 step is the inert
+  // fallback if one is ever missing.
+  const gateSteps = conf ? resolveGateSteps(conf.gate, doc.transport.bpm) : 1;
+  return pitchedPatternView(pattern, gateSteps);
 }
 
 /**
@@ -178,7 +199,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     rendererRef = renderer;
-    renderer.sync(pattern);
+    renderer.sync(syncPatternFor(lane, pattern));
 
     // DA-1 cross-lane focus: consume requests addressed to THIS lane and
     // move DOM focus + roving tabindex to the carried cell (clamped by the
@@ -189,9 +210,17 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     const unsubscribe = docStore.subscribe((state, prev) => {
-      if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;
+      // Re-sync on pattern content OR lane-config/transport identity: the
+      // v2 pitched view derives sustain markers from the lane gate at the
+      // current BPM (SC-1), so a gate or BPM change re-derives the cells.
+      if (
+        state.doc.patterns[lane] === prev.doc.patterns[lane] &&
+        state.doc.lanes === prev.doc.lanes &&
+        state.doc.transport === prev.doc.transport
+      )
+        return;
       const next = state.doc.patterns[lane].find((p) => p.id === pattern.id);
-      if (next) renderer.sync(next);
+      if (next) renderer.sync(syncPatternFor(lane, next));
     });
 
     onCleanup(() => {

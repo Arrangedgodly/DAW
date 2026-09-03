@@ -18,8 +18,9 @@ import {
   DRUM_PIECES,
   type LaneGate,
   type Pattern,
-  type PitchedCell,
   type PitchedPattern,
+  pitchedPatternView,
+  resolveGateSteps,
 } from "../document/schema";
 import { type EffectiveScale, degreeToMidi } from "../document/scales";
 
@@ -83,10 +84,16 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
     const octaveBase = p.pitchRange?.octaveBase ?? 4;
     const stack = input.stackChord === true;
     const degrees = stack ? [0, 2, 4] : [0];
-    for (const row of (pattern as PitchedPattern).rows) {
+    // SC-1 compatibility view: v2 notes project back onto the v1 cell model,
+    // so this sustain-walk law (and its exact gate + sustain duration) is
+    // unchanged from v0 for every migrated document. SC-2 replaces this with
+    // direct note-length consumption.
+    const gateSteps = resolveGateSteps(gate, groove.bpm);
+    for (const row of pitchedPatternView(pattern as PitchedPattern, gateSteps)
+      .rows) {
       const steps = row.steps;
       for (let step = 0; step < steps.length; step++) {
-        const cell: PitchedCell = steps[step];
+        const cell = steps[step];
         if (cell !== 1) continue;
         // gate + one extra step per following sustain marker (cell 2)
         let sustain = 0;

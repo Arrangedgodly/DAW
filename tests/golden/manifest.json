@@ -5,11 +5,6 @@
     "regeneratedVia": "npm run goldens:update (UPDATE_GOLDENS=1 vitest run tests/golden && UPDATE_GOLDENS=1 vitest run --project browser tests/browser/render-fingerprint.test.ts)"
   },
   "goldens": {
-    "codec/default-project-canonical-v1": {
-      "note": "Canonical JSON codec bytes of createDefaultProject() (HW-1). Pins the .bitbounce save format: field order, key naming, no-whitespace canonicalization. Pure TS, byte-stable everywhere; mismatch = hard failure.",
-      "sha256": "c560f43a13b5dc8aef8d0e76088632f510f128d96539292abcc0debcbd45abba",
-      "byteLength": 2694
-    },
     "render/reference-loop-fp-v1": {
       "note": "SHA-256 of the raw Float32 channel bytes of the full-FX reference project offline render (HW-2 canary). ENVIRONMENT-PINNED (Chromium SIMD/libm): mismatch is a console DRIFT warning, never a CI failure. Guards unintended engine/DSP/dependency drift under the same pinned browser.",
       "sha256": "e87ae0ab727cb10b8d20921f7aba8d3db4d106cd8502578d9d7fe0dca40667f9",
@@ -44,10 +39,30 @@
         "loopSamples": 88200
       }
     },
-    "codec/demo-project-canonical-v1": {
-      "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure.",
-      "sha256": "4ac66770827e9445eda9b7f91ef379844ed080961adc9eab83d1cf91206c9603",
-      "byteLength": 11335
+    "codec/default-project-canonical-v2": {
+      "note": "Canonical JSON codec bytes of createDefaultProject() (HW-1). Pins the .bitbounce save format: field order, key naming, no-whitespace canonicalization. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: regenerated for schema v2 (pitched patterns = rowDegrees + notes; version 2).",
+      "sha256": "93139e556a13e39d3a2747c0a89e6af12d84bb0de7822fb891d059058f40ad14",
+      "byteLength": 1632
+    },
+    "codec/demo-project-canonical-v2": {
+      "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: regenerated for schema v2 notes (same composition; lengths = the migration law).",
+      "sha256": "76367d53a382f5e9cf24e87f86f9217363b108ab93cb7ee7445b508cde17abef",
+      "byteLength": 6887
+    },
+    "migrate/v1-default-to-v2": {
+      "note": "SC-1 migration fixture: canonical v2 bytes of decode(v1 default-project bytes). The v1 text is the v1 cell-row shape; migrating it must equal the shipped v2 default exactly. Pins the migration law; mismatch = hard failure.",
+      "sha256": "93139e556a13e39d3a2747c0a89e6af12d84bb0de7822fb891d059058f40ad14",
+      "byteLength": 1632
+    },
+    "migrate/v1-demo-to-v2": {
+      "note": "SC-1 migration fixture: canonical v2 bytes of decode(v1 WELCOME SONG bytes). The demo is the only sustain-marker-heavy shipped project — its 6-step-gate chord pads must migrate to 15-step notes. Pins the duration-preserving law; mismatch = hard failure.",
+      "sha256": "76367d53a382f5e9cf24e87f86f9217363b108ab93cb7ee7445b508cde17abef",
+      "byteLength": 6887
+    },
+    "migrate/v1-sustain-heavy-to-v2": {
+      "note": "SC-1 migration fixture: canonical v2 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps). Pins the quantization corner; mismatch = hard failure.",
+      "sha256": "dfd3123147108d5d0ac8115d9f7fd780f45f7cf05028b6460a88b55614d8fd5e",
+      "byteLength": 1907
     }
   }
 }

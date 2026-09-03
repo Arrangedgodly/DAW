@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { decode, encode } from "../src/document/codec";
 import {
+  SCHEMA_VERSION,
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
@@ -51,7 +52,7 @@ describe("projectStore envelope (fake idb)", () => {
     const record = await saveProject(db, "p1", doc, { now: 1000 });
     expect(record.id).toBe("p1");
     expect(record.name).toBe("round trip");
-    expect(record.schemaVersion).toBe(1);
+    expect(record.schemaVersion).toBe(SCHEMA_VERSION);
     expect(record.updatedAt).toBe(1000);
     expect(record.dirty).toBe(false);
     expect(record.json).toBe(encode(doc)); // canonical bytes, one format

@@ -58,6 +58,20 @@ CI never regenerates (the env var is never set there). Human `note` fields
 and `kind` survive regeneration — only `sha256`/`byteLength`/`renderEnv`
 refresh. If you add a NEW golden, add its note in the same commit.
 
+## Regeneration history
+
+- **2026-09-02 — SC-1 (schema v2 note model).** Deliberate format change:
+  pitched patterns moved from v1 cell rows to v2 `{rowDegrees, notes}` with
+  `SCHEMA_VERSION` 2, so `codec/default-project-canonical-v2` (renamed from
+  `-v1`) and `codec/demo-project-canonical-v2` were regenerated via
+  `npm run goldens:update`. Three NEW hard goldens pin the v1→v2 migration
+  itself: `migrate/v1-default-to-v2`, `migrate/v1-demo-to-v2`,
+  `migrate/v1-sustain-heavy-to-v2` (the migration fixtures must exist before
+  any UI depends on v2). NOT regenerated, deliberately: `midi/reference-
+  project-v1` and the render/export fingerprints — the v2 compat view
+  reproduces v0 cell semantics exactly, so export/render bytes are unchanged
+  (verified: zero DRIFT warnings, MIDI golden hash untouched).
+
 ## Review discipline
 
 A PR that changes `tests/golden/manifest.json` MUST explain every changed

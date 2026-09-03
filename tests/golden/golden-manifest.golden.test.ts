@@ -22,6 +22,12 @@ import { createDemoProject } from "../../src/document/demoSong";
 import { encodeWav16 } from "../../src/audio/wav";
 import { encodeMidi } from "../../src/audio/exportMidi";
 import { referenceMidiProject } from "../midiReference";
+import {
+  sustainHeavyV1ProjectText,
+  v1DefaultProjectText,
+  v1DemoProjectText,
+} from "../v1Project";
+import { decode } from "../../src/document/codec";
 import { expectGolden, __forTests_setManifestPath } from "./golden";
 import {
   RENDER_FP_GOLDEN_NAME,
@@ -47,10 +53,18 @@ const manifest = JSON.parse(
 /** The real bytes each HARD golden pins (same producers as the golden tests). */
 function realBytesFor(name: string): Uint8Array {
   switch (name) {
-    case "codec/default-project-canonical-v1":
+    case "codec/default-project-canonical-v2":
       return new TextEncoder().encode(encode(createDefaultProject()));
-    case "codec/demo-project-canonical-v1":
+    case "codec/demo-project-canonical-v2":
       return new TextEncoder().encode(encode(createDemoProject()));
+    case "migrate/v1-default-to-v2":
+      return new TextEncoder().encode(encode(decode(v1DefaultProjectText())));
+    case "migrate/v1-demo-to-v2":
+      return new TextEncoder().encode(encode(decode(v1DemoProjectText())));
+    case "migrate/v1-sustain-heavy-to-v2":
+      return new TextEncoder().encode(
+        encode(decode(sustainHeavyV1ProjectText())),
+      );
     case "wav/encoder-stereo-2frame-v1":
       return encodeWav16(
         [new Float32Array([0, 0.5]), new Float32Array([-1, 1])],

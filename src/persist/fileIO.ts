@@ -216,12 +216,17 @@ export async function importProjectFile(
         { issues: error.issues.slice(0, 3) },
       );
     }
-    // MigrationError without a usable version (e.g. `version: "one"`) — the
-    // file claims to be a project but its version stamp is unreadable.
+    // MigrationError: either the version stamp itself is unreadable (e.g.
+    // `version: "one"`) or — SC-1 — an older file's CONTENT could not be
+    // migrated faithfully (e.g. invalid v1 pitched cells). Both are typed
+    // corrupt results; the message says which.
     if (error instanceof MigrationError) {
+      const content = /^migrate /.test(error.message);
       return failure(
         "corrupt",
-        "Project file has an unreadable schema version.",
+        content
+          ? "Project file is from an older version and could not be migrated cleanly."
+          : "Project file has an unreadable schema version.",
         "Re-export the project from the app it came from, then try again.",
         { issues: [error.message] },
       );

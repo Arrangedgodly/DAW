@@ -194,7 +194,8 @@ describe("quantized live switching (IM-7)", () => {
       id: "bass-A",
       name: "A",
       bars: 1,
-      rows: [{ degree: 0, steps: [1, ...new Array(15).fill(0)] }],
+      rowDegrees: [0],
+      notes: [{ degree: 0, start: 0, length: 1 }], // v0: lone note-on, gate 1
     };
     const bassSchedule = compileLaneSchedule({
       chain: [bassA],

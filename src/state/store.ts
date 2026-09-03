@@ -31,12 +31,14 @@ import {
   MAX_FX_PER_LANE,
   type Pattern,
   type PatternBars,
-  type PitchedCell,
   type PitchedPattern,
   type ProjectDocument,
   type ScaleConfig,
   type Transport,
   createDefaultProject,
+  pitchedCellAt,
+  resolveGateSteps,
+  togglePitchedNote,
 } from "../document/schema";
 import { validateProject } from "../document/validate";
 import { euclid } from "../audio/euclid";
@@ -73,15 +75,9 @@ function expandDefaultGrids(doc: ProjectDocument): ProjectDocument {
     const patterns = doc.patterns[lane].map((p) => {
       const pitched = p as PitchedPattern;
       if (pitched.kind !== "pitched") return p;
-      const wanted = degrees(count);
-      const rows = wanted.map(
-        (degree) =>
-          pitched.rows.find((r) => r.degree === degree) ?? {
-            degree,
-            steps: new Array(16 * pitched.bars).fill(0) as PitchedCell[],
-          },
-      );
-      return { ...pitched, rows };
+      // v2 (SC-1): the row manifest replaces wholesale exactly as the v0 row
+      // arrays did — notes (content) are untouched.
+      return { ...pitched, rowDegrees: degrees(count) };
     });
     return patterns;
   };
@@ -189,23 +185,34 @@ function withDrumStep(
   return { ...doc, patterns: { ...doc.patterns, drums: patterns } };
 }
 
-/** Immutably rewrite one pitched cell. */
-function withPitchedCell(
+/**
+ * Resolve a lane's gate into note steps at the CURRENT document BPM (the
+ * single-click default length — the SC-1 law shared with the migration).
+ */
+function laneGateSteps(doc: ProjectDocument, lane: LaneId): number {
+  const conf = doc.lanes.find((l) => l.id === lane);
+  if (!conf) return 1;
+  return resolveGateSteps(conf.gate, doc.transport.bpm);
+}
+
+/**
+ * Immutably flip one pitched cell in EVERY pattern of the lane (v0 wrote the
+ * same cell across all patterns; v2 applies the same law per pattern through
+ * the pure note toggle — see schema.ts `togglePitchedNote`). Patterns whose
+ * row manifest lacks the degree are untouched, exactly as v0 skipped rows
+ * that did not exist.
+ */
+function withPitchedCellToggled(
   doc: ProjectDocument,
   lane: Exclude<LaneId, "drums">,
   degree: number,
   step: number,
-  value: PitchedCell,
 ): ProjectDocument {
+  const gateSteps = laneGateSteps(doc, lane);
   const patterns = doc.patterns[lane].map((p) => {
     if (p.kind !== "pitched") return p;
-    const rows = p.rows.map((row) => {
-      if (row.degree !== degree) return row;
-      const steps = [...row.steps];
-      steps[step] = value;
-      return { ...row, steps };
-    });
-    return { ...p, rows };
+    if (!p.rowDegrees.includes(degree)) return p;
+    return togglePitchedNote(p, gateSteps, degree, step).pattern;
   });
   return { ...doc, patterns: { ...doc.patterns, [lane]: patterns } };
 }
@@ -232,17 +239,22 @@ export function togglePitchedCell(
   step: number,
 ): ToggleResult {
   const doc = docStore.getState().doc;
-  const row = doc.patterns[lane]
+  const gateSteps = laneGateSteps(doc, lane);
+  // v0 read: the cell of the FIRST pattern whose manifest carries the degree.
+  const firstWithDegree = doc.patterns[lane]
     .filter((p): p is PitchedPattern => p.kind === "pitched")
-    .flatMap((p) => p.rows)
-    .find((r) => r.degree === degree);
-  const current: PitchedCell = row ? (row.steps[step] ?? 0) : 0;
-  const next: PitchedCell = current === 0 ? 1 : 0;
-  commit(
-    withPitchedCell(docStore.getState().doc, lane, degree, step, next),
-    "toggle",
-  );
-  return { turnedOn: next === 1 };
+    .find((p) => p.rowDegrees.includes(degree));
+  const current = firstWithDegree
+    ? pitchedCellAt(firstWithDegree, gateSteps, degree, step)
+    : 0;
+  const turnedOn = current === 0;
+  if (firstWithDegree) {
+    commit(
+      withPitchedCellToggled(docStore.getState().doc, lane, degree, step),
+      "toggle",
+    );
+  }
+  return { turnedOn };
 }
 
 /**
@@ -490,13 +502,11 @@ export function addPattern(
           id,
           name,
           bars,
-          rows: Array.from(
+          rowDegrees: Array.from(
             { length: pitchedRowCount(lane, doc) },
-            (_, degree) => ({
-              degree,
-              steps: new Array(16 * bars).fill(0) as PitchedCell[],
-            }),
+            (_, degree) => degree,
           ),
+          notes: [],
         };
   commit({
     ...doc,

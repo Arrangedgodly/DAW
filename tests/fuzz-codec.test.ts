@@ -23,7 +23,7 @@ import {
   encode,
   scanJsonDepth,
 } from "../src/document/codec";
-import { createDefaultProject } from "../src/document/schema";
+import { SCHEMA_VERSION, createDefaultProject } from "../src/document/schema";
 import { referenceMidiProject } from "./midiReference";
 import { FUZZ_SEED, runFuzz, seedCorpus } from "./fuzz-harness";
 
@@ -75,7 +75,7 @@ describe("CA-2 DoS guards", () => {
   it("accepts nesting at the cap (guard is a cap, not a ban)", () => {
     // Exactly-at-cap valid JSON under the schema's real depth (~6) is normal;
     // at-cap deep JSON still parses fine (it then fails validation as corrupt).
-    const deep = `{"version":1,"x":${'{"a":'.repeat(DECODE_MAX_DEPTH - 2)}1${"}".repeat(DECODE_MAX_DEPTH - 2)}}`;
+    const deep = `{"version":${SCHEMA_VERSION},"x":${'{"a":'.repeat(DECODE_MAX_DEPTH - 2)}1${"}".repeat(DECODE_MAX_DEPTH - 2)}}`;
     expect(() => decode(deep)).toThrowError(/Invalid project document/); // typed validation error, not a depth crash
   });
 

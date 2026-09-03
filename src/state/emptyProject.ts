@@ -19,9 +19,9 @@ export function isProjectEmpty(doc: ProjectDocument): boolean {
   for (const lane of ["bass", "chords", "lead"] as const) {
     for (const pattern of doc.patterns[lane]) {
       if (pattern.kind !== "pitched") continue;
-      for (const row of pattern.rows) {
-        if (row.steps.some((cell) => cell !== 0)) return false;
-      }
+      // v2 (SC-1): emptiness = no notes anywhere (an empty pattern may still
+      // carry its row-degree manifest — that is grid shape, not content).
+      if (pattern.notes.length > 0) return false;
     }
   }
   return true;

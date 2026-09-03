@@ -59,6 +59,8 @@ import {
   type LaneId,
   type Pattern,
   type ProjectDocument,
+  pitchedPatternView,
+  resolveGateSteps,
 } from "../document/schema";
 import { effectiveScale, degreeToMidi } from "../document/scales";
 import { getPreset } from "./presets";
@@ -257,7 +259,11 @@ export function buildPitchedNotes(
       cursor += pattern.bars * 16 * TICKS_PER_STEP;
       continue;
     }
-    for (const row of pattern.rows) {
+    // SC-1 compatibility view (see compile.ts): v2 notes → the v1 cell model,
+    // same sustain-walk law as v0 — exported bytes are unchanged by the schema
+    // bump. SC-2 moves durations to note lengths natively.
+    const gateSteps = resolveGateSteps(gate, bpm);
+    for (const row of pitchedPatternView(pattern, gateSteps).rows) {
       const steps = row.steps;
       for (let step = 0; step < steps.length; step++) {
         if (steps[step] !== 1) continue;

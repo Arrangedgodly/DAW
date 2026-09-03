@@ -18,6 +18,8 @@ import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
 import App from "../../src/App";
 import { currentPatternFor } from "../../src/state/selection";
+import { docStore } from "../../src/state/store";
+import { pitchedCellAt, resolveGateSteps } from "../../src/document/schema";
 
 function activePatternOf(lane: "drums" | "lead") {
   const p = currentPatternFor(lane);
@@ -163,24 +165,30 @@ describe("DA-1 keyboard journey (real app)", () => {
       const leadPattern = activePatternOf("lead");
       if (leadPattern.kind !== "pitched")
         throw new Error("expected pitched lead pattern");
-      const leadBefore = leadPattern.rows[leadRow]!.steps[leadStep] !== 0;
+      // SC-1 v2: observe the toggle through the v1 cell view (row index maps
+      // to the pattern's rowDegrees manifest, exactly like the rendered grid).
+      const doc = docStore.getState().doc;
+      const gateSteps = resolveGateSteps(
+        doc.lanes.find((l) => l.id === "lead")!.gate,
+        doc.transport.bpm,
+      );
+      const cellBefore = (p: typeof leadPattern): boolean => {
+        if (p.kind !== "pitched") throw new Error("expected pitched");
+        const degree = p.rowDegrees[leadRow]!;
+        return pitchedCellAt(p, gateSteps, degree, leadStep) !== 0;
+      };
+      const leadBefore = cellBefore(leadPattern);
       key(leadCell, "Enter");
       await waitFor(() => {
         const p = activePatternOf("lead");
-        return (
-          p.kind === "pitched" &&
-          (p.rows[leadRow]!.steps[leadStep] !== 0) === !leadBefore
-        );
+        return p.kind === "pitched" && cellBefore(p) === !leadBefore;
       });
 
       // UNDO (Ctrl+Z): both toggles coalesced into one gesture → both revert.
       key(document.activeElement!, "z", { ctrlKey: true });
       await waitFor(() => {
         const lead = activePatternOf("lead");
-        return (
-          lead.kind === "pitched" &&
-          (lead.rows[leadRow]!.steps[leadStep] !== 0) === leadBefore
-        );
+        return lead.kind === "pitched" && cellBefore(lead) === leadBefore;
       });
       expect(activeDrumsSteps("snare")[4]).toBe(snareBefore);
 

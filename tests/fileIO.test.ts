@@ -10,9 +10,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { decode, encode } from "../src/document/codec";
 import {
+  SCHEMA_VERSION,
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
+import { v1DefaultProjectText } from "./v1Project";
 import { createMemoryProjectDb } from "../src/persist/db";
 import { saveProject } from "../src/persist/projectStore";
 import {
@@ -144,9 +146,45 @@ describe("importProjectFile — error taxonomy (no exceptions cross the API)", (
     if (result.ok) return;
     expect(result.kind).toBe("future-version");
     expect(result.fileVersion).toBe(99);
-    expect(result.appVersion).toBe(1);
+    expect(result.appVersion).toBe(SCHEMA_VERSION);
     expect(result.message).toContain("v99");
-    expect(result.message).toContain("v1");
+    expect(result.message).toContain(`v${SCHEMA_VERSION}`);
+  });
+
+  it("SC-1: unmigratable v1 file → typed corrupt result, nothing persisted", async () => {
+    // A v1 doc whose pitched cells are outside {0,1,2} was invalid in v1 and
+    // must not be laundered into a valid v2 document: the typed import result
+    // reports it and NO row is written (project untouched).
+    const base = JSON.parse(JSON.stringify(sampleDoc())) as Record<
+      string,
+      unknown
+    >;
+    base["version"] = 1;
+    const patterns = base["patterns"] as Record<string, unknown>;
+    const bass = (patterns["bass"] as Record<string, unknown>[])[0]!;
+    bass["rows"] = [{ degree: 0, steps: [7, ...Array(15).fill(0)] }];
+    const db = createMemoryProjectDb();
+    const result = await importProjectFile(jsonFile(JSON.stringify(base)), db);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.kind).toBe("corrupt");
+    expect(result.message).toMatch(/could not be migrated/);
+    expect(result.issues?.[0]).toMatch(/v1→v2/);
+    const rows = await db.allRecords();
+    expect(rows).toEqual([]);
+  });
+
+  it("SC-1: a real v1 project file imports cleanly through the migration", async () => {
+    const v1Text = v1DefaultProjectText();
+    const db = createMemoryProjectDb();
+    const result = await importProjectFile(jsonFile(v1Text), db);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Import stamps a fresh name suffix; the CONTENT is the migrated default.
+    expect(result.doc.name).toBe("Untitled (imported)");
+    expect(encode(result.doc)).toBe(
+      encode({ ...createDefaultProject(), name: "Untitled (imported)" }),
+    );
   });
 
   it("too-large: rejects >10 MB before reading any text", async () => {

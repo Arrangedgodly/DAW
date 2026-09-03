@@ -12,7 +12,11 @@ import { describe, expect, it } from "vitest";
 import { compileLaneEvents } from "../../src/audio/compile";
 import { getDrumKit, getPreset } from "../../src/audio/presets";
 import { toEffectiveScale } from "../../src/document/scales";
-import type { DrumPattern, PitchedPattern } from "../../src/document/schema";
+import type {
+  DrumPattern,
+  Note,
+  PitchedPattern,
+} from "../../src/document/schema";
 import { SAMPLE_RATE, findNonFinite, renderOffline } from "./helpers";
 
 const GROOVE = { bpm: 120, swing: 0 };
@@ -37,6 +41,15 @@ function fullDrums(): DrumPattern {
   };
 }
 
+/** Every step a note-on (the v0 shape was 32 consecutive 1 cells). */
+function everyStepNotes(degrees: number[], gate: number): Note[] {
+  const notes: Note[] = [];
+  for (const degree of degrees)
+    for (let start = 0; start < 32; start++)
+      notes.push({ degree, start, length: gate });
+  return notes;
+}
+
 /** Chord lane: stackChord triples every event → 3 voices per note. */
 function chordPattern(): PitchedPattern {
   return {
@@ -44,10 +57,8 @@ function chordPattern(): PitchedPattern {
     id: "load-chords",
     name: "chords",
     bars: 2,
-    rows: [
-      { degree: 0, steps: new Array(32).fill(1) },
-      { degree: 4, steps: new Array(32).fill(1) },
-    ],
+    rowDegrees: [0, 4],
+    notes: everyStepNotes([0, 4], 4),
   };
 }
 
@@ -68,7 +79,8 @@ describe("voice load (16 simultaneous voices + metronome, offline)", () => {
         id: "load-bass",
         name: "bass",
         bars: 2,
-        rows: [{ degree: 0, steps: new Array(32).fill(1) }],
+        rowDegrees: [0],
+        notes: everyStepNotes([0], 4),
       },
       preset: getPreset("preset-bass-1")!,
       gate,
@@ -89,7 +101,8 @@ describe("voice load (16 simultaneous voices + metronome, offline)", () => {
         id: "load-lead",
         name: "lead",
         bars: 2,
-        rows: [{ degree: 7, steps: new Array(32).fill(1) }],
+        rowDegrees: [7],
+        notes: everyStepNotes([7], 4),
       },
       preset: getPreset("preset-lead-1")!,
       gate,

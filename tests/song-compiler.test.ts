@@ -191,12 +191,14 @@ describe("compileSong", () => {
 
   it("pitched lanes compile chord stacking through the chain", () => {
     const doc = createDefaultProject();
-    // Two note-ons in the default chords pattern (degrees 0 and 3).
-    const chordRows = (
-      doc.patterns.chords[0] as { rows: { degree: number; steps: number[] }[] }
-    ).rows;
-    chordRows[0].steps[0] = 1;
-    chordRows[3].steps[8] = 1;
+    // Two notes in the default chords pattern (degrees 0 and 3) at the
+    // chords-gate default length (4 steps — the v0 lone note-on shape).
+    const chords = doc.patterns.chords[0];
+    if (chords.kind !== "pitched") throw new Error("expected pitched");
+    chords.notes = [
+      { degree: 0, start: 0, length: 4 },
+      { degree: 3, start: 8, length: 4 },
+    ];
     const songs = compileSong(doc, { bpm: 120, swing: 0 });
     // Chords stack triads: 2 note-ons → 6 events across the chain.
     const events = [...songs.chords.byStep.values()].flat();

@@ -156,8 +156,8 @@ describe("pattern primitives + song chain", () => {
     const leadId = addPattern("lead", 1);
     const lead = doc().patterns.lead.find((p) => p.id === leadId)!;
     if (lead.kind !== "pitched") throw new Error("kind");
-    expect(lead.rows).toHaveLength(14); // minor: 7 × 2 octaves
-    expect(lead.rows.every((r) => r.steps.every((c) => c === 0))).toBe(true);
+    expect(lead.rowDegrees).toHaveLength(14); // minor: 7 × 2 octaves
+    expect(lead.notes).toEqual([]);
   });
 
   it("duplicatePattern deep-copies content under a fresh id", () => {
@@ -169,9 +169,10 @@ describe("pattern primitives + song chain", () => {
     expect(copy.id).not.toBe(original.id);
     if (copy.kind !== "pitched" || original.kind !== "pitched")
       throw new Error("kind");
-    expect(copy.rows[0].steps[0]).toBe(1);
-    copy.rows[0].steps[0] = 0; // mutate the copy…
-    expect(original.rows[0].steps[0]).toBe(1); // …original untouched (deep)
+    expect(copy.notes).toEqual(original.notes);
+    expect(copy.notes[0]).not.toBe(original.notes[0]); // deep, not shared
+    copy.notes = []; // mutate the copy…
+    expect(original.notes.length).toBe(1); // …original untouched (deep)
   });
 
   it("renamePattern renames only the target", () => {

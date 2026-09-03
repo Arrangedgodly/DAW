@@ -134,7 +134,8 @@ describe("empty-project predicate", () => {
       JSON.stringify(createDefaultProject()),
     );
     const lead = withNote.patterns.lead[0]!;
-    if (lead.kind === "pitched") lead.rows[0]!.steps[0] = 1;
+    if (lead.kind === "pitched")
+      lead.notes = [{ degree: 0, start: 0, length: 1 }];
     expect(isProjectEmpty(withNote)).toBe(false);
   });
 });

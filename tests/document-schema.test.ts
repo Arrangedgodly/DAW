@@ -64,7 +64,7 @@ const TRANSFORMS: ReadonlyArray<
       });
     },
   ],
-  ["wrong schema version literal", (d) => (d["version"] = 2)],
+  ["wrong schema version literal", (d) => (d["version"] = 3)],
   [
     "unknown mode name",
     (d) => ((d["scale"] as Record<string, unknown>)["mode"] = "aeolian-exotic"),
@@ -88,8 +88,76 @@ const TRANSFORMS: ReadonlyArray<
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
       patterns["drums"] = [
-        { kind: "pitched", id: "x", name: "x", bars: 1, rows: [] },
+        {
+          kind: "pitched",
+          id: "x",
+          name: "x",
+          bars: 1,
+          rowDegrees: [],
+          notes: [],
+        },
       ];
+    },
+  ],
+  [
+    "v2 note: start outside the pattern (16 steps)",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({ degree: 0, start: 16, length: 1 });
+    },
+  ],
+  [
+    "v2 note: length off the quarter-step grid",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({ degree: 0, start: 3, length: 1.3 });
+    },
+  ],
+  [
+    "v2 note: length above the cap",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({ degree: 0, start: 0, length: 200 });
+    },
+  ],
+  [
+    "v2 note: degree out of range",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({ degree: 24, start: 0, length: 1 });
+    },
+  ],
+  [
+    "v2 note: extra key",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({
+        degree: 0,
+        start: 0,
+        length: 1,
+        velocity: 127,
+      });
+    },
+  ],
+  [
+    "v2 pattern: legacy v1 rows key",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      bass["rows"] = [];
+    },
+  ],
+  [
+    "v2 pattern: rowDegrees out of range",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      bass["rowDegrees"] = [0, 99];
     },
   ],
   [
@@ -128,18 +196,11 @@ const TRANSFORMS: ReadonlyArray<
     },
   ],
   [
-    "pitched cell out of enum",
+    "v2 note: start negative",
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
       const bass = (patterns["bass"] as Record<string, unknown>[])[0];
-      (
-        (
-          (bass["rows"] as Record<string, unknown>[])[0] as Record<
-            string,
-            unknown
-          >
-        )["steps"] as unknown[]
-      )[0] = 5;
+      (bass["notes"] as unknown[]).push({ degree: 0, start: -1, length: 1 });
     },
   ],
   [
@@ -235,15 +296,14 @@ describe("validateProject (strict)", () => {
 });
 
 describe("normalizeProject", () => {
-  it("pads short step arrays and truncates long ones", () => {
+  it("pads short drum step arrays and truncates long ones (v2 pitched has no arrays to repair)", () => {
     const doc = clone(createDefaultProject()) as unknown as ProjectDocument;
     const drums = doc.patterns.drums[0] as { steps: Record<string, boolean[]> };
     drums.steps.kick = [true]; // 1 step instead of 16
     drums.steps.snare = new Array(20).fill(true); // 20 instead of 16
-    const bass = doc.patterns.bass[0] as {
-      rows: { degree: number; steps: number[] }[];
-    };
-    bass.rows[0].steps = [1]; // short pitched row
+    const bass = doc.patterns.bass[0];
+    if (bass.kind !== "pitched") throw new Error("expected pitched");
+    bass.notes = [{ degree: 0, start: 2, length: 4.5 }];
     const out = normalizeProject(doc);
     const drumsOut = out.patterns.drums[0];
     expect(drumsOut.kind === "drums" && drumsOut.steps.kick).toHaveLength(16);
@@ -251,9 +311,9 @@ describe("normalizeProject", () => {
     expect(drumsOut.kind === "drums" && drumsOut.steps.kick[15]).toBe(false);
     expect(drumsOut.kind === "drums" && drumsOut.steps.snare).toHaveLength(16);
     const bassOut = out.patterns.bass[0];
-    expect(bassOut.kind === "pitched" && bassOut.rows[0].steps).toHaveLength(
-      16,
-    );
+    if (bassOut.kind !== "pitched") throw new Error("expected pitched");
+    expect(bassOut.notes).toEqual([{ degree: 0, start: 2, length: 4.5 }]);
+    expect(bassOut).toBe(bass); // pitched normalize is identity-preserving
   });
 
   it("adds missing drum pieces as silent rows", () => {

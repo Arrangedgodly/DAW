@@ -12,6 +12,7 @@ import {
   togglePitchedCell,
   undo,
 } from "../src/state/store";
+import { pitchedCellAt, resolveGateSteps } from "../src/document/schema";
 
 function doc() {
   return docStore.getState().doc;
@@ -55,28 +56,40 @@ describe("doc store toggles", () => {
     expect(on.turnedOn).toBe(true);
     const pattern = doc().patterns.bass[0];
     expect(pattern.kind).toBe("pitched");
-    const row = pattern.rows.find((r) => r.degree === 3);
-    expect(row?.steps[5]).toBe(1);
+    if (pattern.kind !== "pitched") return;
+    // v2 (SC-1): a single click places a note of the lane-gate default
+    // length (bass default gate = 2 steps) — "1" in the v1 cell view.
+    const gateSteps = resolveGateSteps(
+      doc().lanes.find((l) => l.id === "bass")!.gate,
+      doc().transport.bpm,
+    );
+    expect(pitchedCellAt(pattern, gateSteps, 3, 5)).toBe(1);
+    expect(pattern.notes).toContainEqual({
+      degree: 3,
+      start: 5,
+      length: gateSteps,
+    });
 
     const off = togglePitchedCell("bass", 3, 5);
     expect(off.turnedOn).toBe(false);
     const after = doc().patterns.bass[0];
     expect(after.kind).toBe("pitched");
-    expect(after.rows.find((r) => r.degree === 3)?.steps[5]).toBe(0);
+    if (after.kind !== "pitched") return;
+    expect(pitchedCellAt(after, gateSteps, 3, 5)).toBe(0);
+    expect(after.notes).toEqual([]);
   });
 
   it("pitched rows cover two octaves (grid expansion)", () => {
     const pattern = doc().patterns.bass[0];
     expect(pattern.kind).toBe("pitched");
     if (pattern.kind !== "pitched") return;
-    expect(pattern.rows.length).toBe(14); // minor: 7 × 2 octaves
-    expect(pattern.rows.map((r) => r.degree)).toEqual([
+    expect(pattern.rowDegrees).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     ]);
     const chords = doc().patterns.chords[0];
     expect(chords.kind).toBe("pitched");
     if (chords.kind === "pitched") {
-      expect(chords.rows.length).toBe(7);
+      expect(chords.rowDegrees).toHaveLength(7);
     }
   });
 
@@ -121,7 +134,9 @@ describe("undo/redo", () => {
     expect(doc().patterns.drums[0].steps.hat[3]).toBe(false);
     const bass = doc().patterns.bass[0];
     if (bass.kind === "pitched") {
-      expect(bass.rows.find((r) => r.degree === 2)?.steps[1]).toBe(0);
+      expect(bass.notes.some((n) => n.degree === 2 && n.start === 1)).toBe(
+        false,
+      );
     }
     expect(canUndo()).toBe(false);
   });

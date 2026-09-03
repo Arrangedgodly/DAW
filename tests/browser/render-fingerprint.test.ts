@@ -49,7 +49,10 @@ function referenceProject(): ProjectDocument {
   drums.steps.kick = [true, ...new Array(15).fill(false)];
   for (const s of [4, 8, 12]) drums.steps.kick[s] = true;
   const lead = doc.patterns.lead[0];
-  lead.rows[3].steps[0] = 1;
+  // SC-1 v2: the v0 shape was `lead.rows[3].steps[0] = 1` — a lone note-on
+  // under the default lead gate (2 steps). Same content, same audio.
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [{ degree: 3, start: 0, length: 2 }];
   doc.lanes.find((l) => l.id === "drums")!.fxChain = [
     { type: "drive", bypassed: false, params: { amount: 0.35 } },
     { type: "bitcrusher", bypassed: false, params: { bits: 8, downsample: 2 } },

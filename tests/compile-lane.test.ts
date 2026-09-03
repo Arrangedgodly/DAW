@@ -3,24 +3,40 @@ import { compileLaneEvents } from "../src/audio/compile";
 import { getDrumKit, getPreset } from "../src/audio/presets";
 import { timeAtStep, secondsPerStep } from "../src/audio/time";
 import { toEffectiveScale } from "../src/document/scales";
-import type { DrumPattern, PitchedPattern } from "../src/document/schema";
+import type {
+  DrumPattern,
+  LaneGate,
+  PitchedPattern,
+  PitchedRow,
+} from "../src/document/schema";
+import { notesFromRowCells, resolveGateSteps } from "../src/document/schema";
 
 const groove = { bpm: 120, swing: 0 };
 const swung = { bpm: 130, swing: 0.4 };
 const scale = toEffectiveScale({ root: 0, mode: "minor" });
 
+/**
+ * Author pitched patterns in the readable v1 cell strings and convert through
+ * the SC-1 migration law, exactly like a migrated document would (gate +
+ * groove must match the compile call so the derived sustain counts agree).
+ */
 function pitchedPattern(
   rows: { degree: number; steps: number[] }[],
+  gate: LaneGate,
+  grooveOpts: { bpm: number },
 ): PitchedPattern {
+  const pitchedRows = rows as PitchedRow[];
   return {
     kind: "pitched",
     id: "p",
     name: "P",
     bars: 1,
-    rows: rows.map((r) => ({
-      degree: r.degree,
-      steps: r.steps as PitchedPattern["rows"][number]["steps"],
-    })),
+    rowDegrees: pitchedRows.map((r) => r.degree),
+    notes: notesFromRowCells(
+      pitchedRows,
+      resolveGateSteps(gate, grooveOpts.bpm),
+      16,
+    ),
   };
 }
 
@@ -28,9 +44,11 @@ describe("compileLaneEvents — pitched", () => {
   const preset = getPreset("preset-bass-1")!;
 
   it("event times are exactly the timeAtStep values (swing included)", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1] },
-    ]);
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1] }],
+      { unit: "steps", value: 2 },
+      swung,
+    );
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -46,9 +64,11 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("gate in steps → holdSeconds = gate * secondsPerStep", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, ...Array(15).fill(0)] },
-    ]);
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, ...Array(15).fill(0)] }],
+      { unit: "steps", value: 2 },
+      groove,
+    );
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -60,9 +80,13 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("gate in seconds is passed through", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, ...Array(15).fill(0)] },
-    ]);
+    // A lone note-on under a seconds gate migrates to the quantized gate
+    // length; the engine's raw-gate hold still comes from the LaneGate.
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, ...Array(15).fill(0)] }],
+      { unit: "seconds", value: 0.31 },
+      groove,
+    );
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -74,10 +98,12 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("sustain markers (cell 2) extend the hold by one step each", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, 2, 2, 0, ...Array(12).fill(0)] },
-    ]);
     const gate = { unit: "steps" as const, value: 1 };
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, 2, 2, 0, ...Array(12).fill(0)] }],
+      gate,
+      groove,
+    );
     const events = compileLaneEvents({ pattern, preset, gate, groove, scale });
     expect(events.length).toBe(1);
     expect(events[0].holdSeconds).toBeCloseTo(
@@ -87,9 +113,11 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("frequency comes from degreeToMidi at the preset octave", () => {
-    const pattern = pitchedPattern([
-      { degree: 7, steps: [1, ...Array(15).fill(0)] },
-    ]);
+    const pattern = pitchedPattern(
+      [{ degree: 7, steps: [1, ...Array(15).fill(0)] }],
+      { unit: "steps", value: 1 },
+      groove,
+    );
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -102,9 +130,11 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("chord stacking emits degree, +2, +4 at the same time", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, ...Array(15).fill(0)] },
-    ]);
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, ...Array(15).fill(0)] }],
+      { unit: "steps", value: 4 },
+      groove,
+    );
     const events = compileLaneEvents({
       pattern,
       preset,
@@ -119,9 +149,11 @@ describe("compileLaneEvents — pitched", () => {
   });
 
   it("throws when a pitched pattern has no scale", () => {
-    const pattern = pitchedPattern([
-      { degree: 0, steps: [1, ...Array(15).fill(0)] },
-    ]);
+    const pattern = pitchedPattern(
+      [{ degree: 0, steps: [1, ...Array(15).fill(0)] }],
+      { unit: "steps", value: 1 },
+      groove,
+    );
     expect(() =>
       compileLaneEvents({
         pattern,

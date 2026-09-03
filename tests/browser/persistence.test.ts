@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { decode } from "../../src/document/codec";
+import { SCHEMA_VERSION } from "../../src/document/schema";
 import { docStore } from "../../src/state/store";
 import { startAutosave } from "../../src/persist/autosave";
 import { openRawProjectDb } from "../../src/persist/db";
@@ -55,7 +56,7 @@ describe("IndexedDB persistence (real browser database)", () => {
     const db1 = await freshDb("bitbounce-test-roundtrip");
     const doc = docStore.getState().doc;
     const record = await saveProject(db1, "p1", doc, { now: 1234 });
-    expect(record.schemaVersion).toBe(1);
+    expect(record.schemaVersion).toBe(SCHEMA_VERSION);
     expect(record.dirty).toBe(false);
 
     // Reload-context equivalent: a brand-new connection to the same database

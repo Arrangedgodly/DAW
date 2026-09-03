@@ -7,7 +7,7 @@ import { encode } from "../../src/document/codec";
 import { createDefaultProject } from "../../src/document/schema";
 import { expectGolden } from "./golden";
 
-const GOLDEN_NAME = "codec/default-project-canonical-v1";
+const GOLDEN_NAME = "codec/default-project-canonical-v2";
 
 function canonicalDefaultProjectBytes(): Uint8Array {
   return new TextEncoder().encode(encode(createDefaultProject()));

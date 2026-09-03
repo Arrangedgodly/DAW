@@ -15,7 +15,11 @@
  * glow a static on-state.
  */
 
-import type { DrumPattern, LaneId, PitchedPattern } from "../document/schema";
+import type {
+  DrumPattern,
+  LaneId,
+  PitchedPatternView,
+} from "../document/schema";
 import {
   type PlayheadOptions,
   playheadX,
@@ -93,7 +97,7 @@ export interface GridRenderer {
   /** Recompute cached geometry (after resize / font load). */
   layout(): void;
   /** Push document pattern state (class toggles only). */
-  sync(pattern: DrumPattern | PitchedPattern): void;
+  sync(pattern: DrumPattern | PitchedPatternView): void;
   /**
    * PX-3: paint a Euclidean PREVIEW overlay onto one row (dashed lane-hue
    * outline; never touches the committed on-state). Null clears the preview.
@@ -263,7 +267,7 @@ export class DomGridRenderer implements GridRenderer {
     this.lastQuantized = null;
   }
 
-  sync(pattern: DrumPattern | PitchedPattern): void {
+  sync(pattern: DrumPattern | PitchedPatternView): void {
     if (pattern.kind === "drums") {
       const pieces = Object.keys(pattern.steps);
       for (let row = 0; row < this.cells.length; row++) {

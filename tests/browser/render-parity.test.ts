@@ -25,7 +25,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "../../src/document/schema";
-import type { ProjectDocument, PitchedCell } from "../../src/document/schema";
+import type { ProjectDocument } from "../../src/document/schema";
 import {
   renderProjectToBuffer,
   expandLaneEventsForLoop,
@@ -51,7 +51,10 @@ function projectWithContent(): ProjectDocument {
   drums.steps.kick = [true, ...new Array(15).fill(false)];
   for (const s of [4, 8, 12]) drums.steps.kick[s] = true;
   const lead = doc.patterns.lead[0];
-  lead.rows[3].steps[0] = 1;
+  // SC-1 v2: `rows[3].steps[0] = 1` → a lone note-on under the default lead
+  // gate (2 steps). Same content, same audio.
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [{ degree: 3, start: 0, length: 2 }];
   return doc;
 }
 
@@ -79,9 +82,8 @@ function projectTwoIterations(withFx: boolean): ProjectDocument {
   const doc = withFx ? projectWithFx() : projectWithContent();
   const lead = doc.patterns.lead[0];
   lead.bars = 2;
-  const wide = new Array(32).fill(0);
-  wide[0] = 1;
-  lead.rows[3].steps = wide as PitchedCell[];
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [{ degree: 3, start: 0, length: 2 }];
   doc.transport = { ...doc.transport, loopBars: 2 };
   return doc;
 }

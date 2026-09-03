@@ -10,8 +10,18 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { contentHash, decode, encode } from "../src/document/codec";
-import { DRUM_PIECES, LANE_IDS, type FxDevice } from "../src/document/schema";
+import {
+  canonicalize,
+  contentHash,
+  decode,
+  encode,
+} from "../src/document/codec";
+import {
+  DRUM_PIECES,
+  LANE_IDS,
+  type FxDevice,
+  type Note,
+} from "../src/document/schema";
 import type { ProjectDocument } from "../src/document/schema";
 import { createDefaultProject } from "../src/document/schema";
 import { MODE_NAMES } from "../src/document/scales";
@@ -117,7 +127,8 @@ function generateProject(rng: Rng): ProjectDocument {
         ? { unit: "steps", value: pick(rng, [0.25, 0.5, 1, 2, 4, 8]) }
         : { unit: "seconds", value: quantize(rng() * 4, 100) };
   }
-  // Flip pattern cells in place (lengths stay canonical: 16 x bars).
+  // Randomize pattern content (SC-1 v2): drums flip steps; pitched patterns
+  // get random on-grid notes across their row manifests.
   for (const laneId of LANE_IDS) {
     for (const pattern of doc.patterns[laneId]) {
       const len = pattern.bars * 16;
@@ -127,10 +138,19 @@ function generateProject(rng: Rng): ProjectDocument {
             if (rng() < 0.3) pattern.steps[piece][i] = !pattern.steps[piece][i];
         }
       } else {
-        for (const row of pattern.rows) {
-          for (let i = 0; i < len; i++)
-            if (rng() < 0.2) row.steps[i] = pick(rng, [0, 1, 2]);
+        const notes: Note[] = [];
+        for (const degree of pattern.rowDegrees) {
+          for (let i = 0; i < len; i++) {
+            if (rng() >= 0.2) continue;
+            notes.push({
+              degree,
+              start: i,
+              length: pick(rng, [0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8]),
+            });
+          }
         }
+        notes.sort((a, b) => a.degree - b.degree || a.start - b.start);
+        pattern.notes = notes;
       }
     }
   }
@@ -195,4 +215,62 @@ describe("generator sanity", () => {
     const hashes = new Set(CASES.map((doc) => contentHash(doc)));
     expect(hashes.size).toBeGreaterThan(N_PROJECTS / 2);
   });
+});
+
+// ---------------------------------------------------------------------------
+// SC-1: v1 → v2 migration properties (random v1 cell docs decode cleanly)
+// ---------------------------------------------------------------------------
+
+describe("property: v1 documents decode through the migration (SC-1)", () => {
+  for (let i = 0; i < N_PROJECTS; i++) {
+    it(`case ${i}: random v1 cell docs migrate, validate, and stay stable`, () => {
+      const rng = mulberry32(0x5c1_0000 + i);
+      const doc = generateProject(rng);
+      // Rebuild every pitched pattern as a RANDOM v1 cell pattern (note-ons,
+      // sustain runs, orphans — exactly the v0 generator's cell flips).
+      const v1 = JSON.parse(JSON.stringify(doc)) as Record<string, unknown>;
+      v1["version"] = 1;
+      const patterns = v1["patterns"] as Record<string, unknown>;
+      for (const lane of ["bass", "chords", "lead"] as const) {
+        patterns[lane] = (patterns[lane] as Record<string, unknown>[]).map(
+          (p) => {
+            const bars = p["bars"] as number;
+            const degrees = (p["rowDegrees"] as number[]) ?? [
+              0, 1, 2, 3, 4, 5, 6,
+            ];
+            const rows = degrees.map((degree) => ({
+              degree,
+              steps: Array.from({ length: 16 * bars }, () => {
+                const roll = rng();
+                return roll < 0.12 ? 1 : roll < 0.22 ? 2 : 0;
+              }),
+            }));
+            return { ...p, rows };
+          },
+        );
+      }
+      const text = canonicalize(v1);
+      const migrated = decode(text);
+      expect(migrated.version).toBe(2);
+      // Every v1 note-on became exactly one note.
+      for (const lane of ["bass", "chords", "lead"] as const) {
+        const v1Patterns = patterns[lane] as Record<string, unknown>[];
+        const allNoteOns = v1Patterns.reduce(
+          (n, p) =>
+            n +
+            (p["rows"] as { steps: number[] }[])
+              .flatMap((r) => r.steps)
+              .filter((c) => c === 1).length,
+          0,
+        );
+        const migratedNotes = migrated.patterns[lane].reduce(
+          (n, p) => n + (p.kind === "pitched" ? p.notes.length : 0),
+          0,
+        );
+        expect(migratedNotes, lane).toBe(allNoteOns);
+      }
+      // Canonical stability through the migrated form.
+      expect(decode(encode(migrated))).toEqual(migrated);
+    });
+  }
 });

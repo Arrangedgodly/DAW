@@ -9,9 +9,10 @@
  * what v1 knows.
  *
  * Post-parse, a semantic pass checks cross-field invariants (lane order/kind vs
- * patterns, song-chain references, step-array lengths, mode names) and a
- * normalize step repairs safely-repairable length drift (pad/truncate to
- * 16 × bars) so downstream code can assume well-formed grids.
+ * patterns, song-chain references, drum step-array lengths, v2 note bounds +
+ * length grid, mode names) and a normalize step repairs safely-repairable
+ * DRUM length drift (pad/truncate to 16 × bars) so downstream code can assume
+ * well-formed grids. Pitched (v2) notes are strict: no repair path.
  */
 
 import { isValiError } from "valibot";
@@ -19,12 +20,11 @@ import * as v from "valibot";
 import {
   DRUM_PIECES,
   LANE_IDS,
+  NOTE_LENGTH_GRANULARITY,
   ProjectDocumentSchema,
   type DrumPattern,
   type LaneId,
   type Pattern,
-  type PitchedCell,
-  type PitchedPattern,
   type ProjectDocument,
 } from "./schema";
 import { isModeName } from "./scales";
@@ -179,6 +179,25 @@ function semanticIssues(doc: ProjectDocument): string[] {
         issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
     });
 
+    // SC-1 (v2) note-model invariants valibot shape alone can't express:
+    // a note must start inside its pattern and sit on the length grid.
+    if (laneId !== "drums") {
+      patterns.forEach((p, i) => {
+        if (p.kind !== "pitched") return;
+        const width = p.bars * STEPS_PER_BAR;
+        p.notes.forEach((note, j) => {
+          if (note.start >= width)
+            issues.push(
+              `patterns.${laneId}.${i}.notes.${j}.start: ${note.start} is outside the pattern (${width} steps)`,
+            );
+          if (!Number.isInteger(note.length / NOTE_LENGTH_GRANULARITY))
+            issues.push(
+              `patterns.${laneId}.${i}.notes.${j}.length: ${note.length} is off the ${NOTE_LENGTH_GRANULARITY}-step grid`,
+            );
+        });
+      });
+    }
+
     // DES-6 cue labels are positional: one entry per chain slot (parallel array).
     const cues = doc.chainCues?.[laneId];
     if (cues && cues.length !== doc.songChain[laneId].length) {
@@ -219,23 +238,11 @@ function normalizeDrumPattern(p: DrumPattern): DrumPattern {
   return changed ? { ...p, steps } : p;
 }
 
-function normalizePitchedPattern(p: PitchedPattern): PitchedPattern {
-  let changed = false;
-  const rows = p.rows.map((row) => {
-    if (row.steps.length === p.bars * STEPS_PER_BAR) return row;
-    changed = true;
-    return {
-      ...row,
-      steps: fitSteps(row.steps, p.bars, 0 satisfies PitchedCell),
-    };
-  });
-  return changed ? { ...p, rows } : p;
-}
-
 function normalizePattern(p: Pattern): Pattern {
-  return p.kind === "drums"
-    ? normalizeDrumPattern(p)
-    : normalizePitchedPattern(p);
+  // Drums: repair step-array lengths (pad with off / truncate). Pitched (v2):
+  // nothing to repair — notes carry no array lengths, and out-of-pattern
+  // starts / off-grid lengths are REJECTED above (strictness stance).
+  return p.kind === "drums" ? normalizeDrumPattern(p) : p;
 }
 
 /**

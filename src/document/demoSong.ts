@@ -35,7 +35,11 @@ import {
   type DrumPiece,
   type PitchedCell,
   type PitchedPattern,
+  type PitchedRow,
   type ProjectDocument,
+  notesFromRowCells,
+  type LaneGate,
+  resolveGateSteps,
 } from "./schema";
 
 // ---------------------------------------------------------------------------
@@ -54,10 +58,7 @@ function drumRow(spec: string): boolean[] {
  * "1..." note-on, "2..." sustain marker, "." rest. One char per 16th step.
  * Returned rows carry the given scale degree.
  */
-function pitchedRow(
-  degree: number,
-  spec: string,
-): { degree: number; steps: PitchedCell[] } {
+function pitchedRow(degree: number, spec: string): PitchedRow {
   return {
     degree,
     steps: [...spec].map((c) =>
@@ -70,8 +71,8 @@ function pitchedRow(
 function rowsByDegree(
   specs: Readonly<Record<number, string>>,
   maxDegree: number,
-): { degree: number; steps: PitchedCell[] }[] {
-  const rows: { degree: number; steps: PitchedCell[] }[] = [];
+): PitchedRow[] {
+  const rows: PitchedRow[] = [];
   for (let degree = 0; degree <= maxDegree; degree++) {
     rows.push(pitchedRow(degree, specs[degree] ?? EMPTY));
   }
@@ -92,9 +93,21 @@ function drumPattern(
 function pitchedPattern(
   id: string,
   name: string,
-  rows: readonly { degree: number; steps: PitchedCell[] }[],
+  gate: LaneGate,
+  rows: readonly PitchedRow[],
 ): PitchedPattern {
-  return { kind: "pitched", id, name, bars: 1, rows };
+  // v2 (SC-1): patterns are authored in the readable v1 cell strings, then
+  // converted through the SAME law the migration uses — the demo's v2 bytes
+  // are exactly what migrating the v1 demo produces (asserted in tests).
+  // All demo gates are steps-unit, so the conversion is BPM-independent.
+  return {
+    kind: "pitched",
+    id,
+    name,
+    bars: 1,
+    rowDegrees: rows.map((row) => row.degree),
+    notes: notesFromRowCells(rows, resolveGateSteps(gate, 112), 16),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -137,21 +150,25 @@ const APPROACH = "..............1.."; // step 14: a single stepwise lead-in note
 const BASS_A = pitchedPattern(
   "bass-1",
   "A",
+  { unit: "steps", value: 1 },
   rowsByDegree({ 0: BASS_ROOT, 4: APPROACH }, 6),
 ); // C root; G→A♭
 const BASS_B = pitchedPattern(
   "bass-2",
   "B",
+  { unit: "steps", value: 1 },
   rowsByDegree({ 5: BASS_ROOT, 6: APPROACH }, 6),
 ); // A♭ root; B♭→E♭
 const BASS_C = pitchedPattern(
   "bass-3",
   "C",
+  { unit: "steps", value: 1 },
   rowsByDegree({ 2: BASS_ROOT, 5: APPROACH }, 6),
 ); // E♭ root; A♭→B♭
 const BASS_D = pitchedPattern(
   "bass-4",
   "D",
+  { unit: "steps", value: 1 },
   rowsByDegree({ 6: BASS_ROOT, 7: APPROACH }, 7),
 ); // B♭ root; C→C
 
@@ -165,21 +182,25 @@ const CHORD_PAD = "1222222222......"; // note-on + 9 sustains ≈ 15/16 of a bar
 const CHORDS_A = pitchedPattern(
   "chords-1",
   "A",
+  { unit: "steps", value: 6 },
   rowsByDegree({ 0: CHORD_PAD }, 6),
 ); // i   C minor
 const CHORDS_B = pitchedPattern(
   "chords-2",
   "B",
+  { unit: "steps", value: 6 },
   rowsByDegree({ 5: CHORD_PAD }, 6),
 ); // VI  A♭ major
 const CHORDS_C = pitchedPattern(
   "chords-3",
   "C",
+  { unit: "steps", value: 6 },
   rowsByDegree({ 2: CHORD_PAD }, 6),
 ); // III E♭ major
 const CHORDS_D = pitchedPattern(
   "chords-4",
   "D",
+  { unit: "steps", value: 6 },
   rowsByDegree({ 6: CHORD_PAD }, 6),
 ); // VII B♭ major
 
@@ -192,6 +213,7 @@ const CHORDS_D = pitchedPattern(
 const LEAD_A = pitchedPattern(
   "lead-1",
   "A",
+  { unit: "steps", value: 2 },
   rowsByDegree(
     {
       7: "....1.........2..", // C5 — opens on a REST, syncopated entry
@@ -204,6 +226,7 @@ const LEAD_A = pitchedPattern(
 const LEAD_B = pitchedPattern(
   "lead-2",
   "B",
+  { unit: "steps", value: 2 },
   rowsByDegree(
     {
       12: "...1..1....1.....", // A♭5 over the VI chord (off-beat)
@@ -216,6 +239,7 @@ const LEAD_B = pitchedPattern(
 const LEAD_C = pitchedPattern(
   "lead-3",
   "C",
+  { unit: "steps", value: 2 },
   rowsByDegree(
     {
       9: "1..2.....1.......", // E♭5 over the III chord
@@ -228,6 +252,7 @@ const LEAD_C = pitchedPattern(
 const LEAD_D = pitchedPattern(
   "lead-4",
   "D",
+  { unit: "steps", value: 2 },
   rowsByDegree(
     {
       14: "1..1........1....", // B♭5 — the DROP peak

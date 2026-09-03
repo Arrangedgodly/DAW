@@ -69,20 +69,17 @@ function pitchedPattern(
   id: string,
   degree: number,
   on: (step: number) => boolean,
+  gateSteps: number,
 ): PitchedPattern {
   return {
     kind: "pitched",
     id,
     name: id,
     bars: BARS,
-    rows: [
-      {
-        degree,
-        steps: Array.from({ length: STEPS }, (_, i) =>
-          on(i) ? (1 as const) : (0 as const),
-        ),
-      },
-    ],
+    rowDegrees: [degree],
+    notes: Array.from({ length: STEPS }, (_, i) => i)
+      .filter(on)
+      .map((start) => ({ degree, start, length: gateSteps })),
   };
 }
 
@@ -110,7 +107,7 @@ describe("scheduler onset budget (offline, real worklet)", () => {
     {
       name: "bass (note on every 16th)",
       events: compileLaneEvents({
-        pattern: pitchedPattern("perf-bass", 0, () => true),
+        pattern: pitchedPattern("perf-bass", 0, () => true, 0.25),
         preset: getPreset("preset-bass-1")!,
         gate: SHORT_GATE,
         groove: GROOVE,
@@ -121,7 +118,7 @@ describe("scheduler onset budget (offline, real worklet)", () => {
     {
       name: "chords (note on every 8th)",
       events: compileLaneEvents({
-        pattern: pitchedPattern("perf-chords", 3, (s) => s % 2 === 0),
+        pattern: pitchedPattern("perf-chords", 3, (s) => s % 2 === 0, 0.25),
         // Percussive chord voice: onset detection needs discrete notes
         // (pad-style presets like preset-chords-1 blur across gaps by design).
         preset: getPreset("preset-chords-4")!,
@@ -136,7 +133,7 @@ describe("scheduler onset budget (offline, real worklet)", () => {
     {
       name: "lead (note on every 16th)",
       events: compileLaneEvents({
-        pattern: pitchedPattern("perf-lead", 7, () => true),
+        pattern: pitchedPattern("perf-lead", 7, () => true, 0.25),
         preset: getPreset("preset-lead-1")!,
         gate: SHORT_GATE,
         groove: GROOVE,
@@ -210,7 +207,12 @@ describe("scheduler onset budget — swing sweep (HW-2, D8 layer-2 completeness)
       });
       // Odd steps only = pure dotted-position line under swing.
       const dottedLead = compileLaneEvents({
-        pattern: pitchedPattern("perf-lead-dotted", 7, (s) => s % 2 === 1),
+        pattern: pitchedPattern(
+          "perf-lead-dotted",
+          7,
+          (s) => s % 2 === 1,
+          0.25,
+        ),
         preset: getPreset("preset-lead-1")!,
         gate: SHORT_GATE,
         groove,

@@ -43,6 +43,7 @@ import {
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
+import { sustainHeavyV1ProjectText, v1DefaultProjectText } from "./v1Project";
 import { importProjectFile } from "../src/persist/fileIO";
 import { createMemoryProjectDb } from "../src/persist/db";
 
@@ -73,11 +74,10 @@ function wavLineageProject(): ProjectDocument {
   drums.steps.kick = Array.from({ length: 16 }, (_, i) => i % 4 === 0);
   drums.steps.snare = Array.from({ length: 16 }, (_, i) => i === 4 || i === 12);
   const lead = doc.patterns.lead[0];
-  const steps = new Array(16).fill(0);
-  steps[8] = 1;
-  lead.rows = lead.rows.map((row, idx) =>
-    idx === 3 ? { degree: 3, steps } : row,
-  );
+  // SC-1 v2: the v0 shape was a lone note-on (cell 1) at degree 3, step 8
+  // under the default lead gate (2 steps). Same content.
+  if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+  lead.notes = [{ degree: 3, start: 8, length: 2 }];
   return doc;
 }
 
@@ -99,11 +99,16 @@ function keyShuffled(value: unknown): string {
 
 export function seedCorpus(midiProject: () => ProjectDocument): string[] {
   return [
-    encode(createDefaultProject()), // golden codec bytes (tests/golden)
+    encode(createDefaultProject()), // golden codec bytes (tests/golden, v2)
     JSON.stringify(createDefaultProject(), null, 2), // pretty-printed neighbor
     encode(midiProject()), // golden MIDI reference project (tests/midiReference)
     encode(wavLineageProject()), // golden WAV render lineage project
     keyShuffled(midiProject()), // same doc, shuffled key order
+    // SC-1: v1 documents now migrate inside the parse surface — seed real v1
+    // bytes (default + the sustain-heavy neighbor incl. a seconds gate) so
+    // mutations exercise the v1→v2 path, not just the v2 shape.
+    v1DefaultProjectText(),
+    sustainHeavyV1ProjectText(),
   ];
 }
 
@@ -133,6 +138,12 @@ const KEY_POOL = [
   "version",
   "schemaVersion",
   "patterns",
+  // SC-1 v2 note-model keys (mutations must hit the new shape too).
+  "notes",
+  "rowDegrees",
+  "start",
+  "length",
+  "degree",
   "nope",
 ];
 

@@ -9,8 +9,19 @@
 import {
   createDefaultProject,
   type ProjectDocument,
-  type PitchedCell,
+  type Note,
+  type PitchedPattern,
 } from "../src/document/schema";
+
+function withNotes(
+  doc: ProjectDocument,
+  lane: "bass" | "chords" | "lead",
+  notes: readonly Note[],
+): void {
+  doc.patterns[lane] = doc.patterns[lane].map((p) =>
+    p.kind === "pitched" ? ({ ...p, notes } satisfies PitchedPattern) : p,
+  );
+}
 
 export function referenceMidiProject(): ProjectDocument {
   const doc = createDefaultProject();
@@ -22,24 +33,17 @@ export function referenceMidiProject(): ProjectDocument {
   drums.steps.hat = Array.from({ length: 16 }, (_, i) => i % 2 === 0);
 
   // Bass (default C minor, octave base 2 → degree 0 = C2 = MIDI 36):
-  // degree 0 on step 0 with a sustain marker on step 1.
-  const bass = doc.patterns.bass[0];
-  const bassSteps = new Array(16).fill(0) as PitchedCell[];
-  bassSteps[0] = 1;
-  bassSteps[1] = 2;
-  bass.rows[0].steps = bassSteps;
+  // degree 0 on step 0, three steps long — the v1 shape was a note-on with a
+  // sustain marker (gate 2 + 1 sustain = length 3, the migration law).
+  withNotes(doc, "bass", [{ degree: 0, start: 0, length: 3 }]);
 
-  // Chords: degree 0 triad on the downbeat (stacks [0, 2, 4] → C2/Eb2/G2).
-  const chords = doc.patterns.chords[0];
-  const chordSteps = new Array(16).fill(0) as PitchedCell[];
-  chordSteps[0] = 1;
-  chords.rows[0].steps = chordSteps;
+  // Chords: degree 0 triad on the downbeat (stacks [0, 2, 4] → C2/Eb2/G2),
+  // one gate long (default chords gate = 4 steps).
+  withNotes(doc, "chords", [{ degree: 0, start: 0, length: 4 }]);
 
-  // Lead (octave base 4 → degree 3 of C minor = F4 = MIDI 65) on step 8.
-  const lead = doc.patterns.lead[0];
-  const leadSteps = new Array(16).fill(0) as PitchedCell[];
-  leadSteps[8] = 1;
-  lead.rows[3].steps = leadSteps;
+  // Lead (octave base 4 → degree 3 of C minor = F4 = MIDI 65) on step 8,
+  // one lead gate long (default lead gate = 2 steps).
+  withNotes(doc, "lead", [{ degree: 3, start: 8, length: 2 }]);
 
   // Section cues: VERSE at slot 0 (drums), DROP at slot 0 of the lead chain
   // (distinct labels — both at tick 0, both must survive as markers).

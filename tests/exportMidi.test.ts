@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 import { parseMidi, writeMidi } from "midi-file";
 import {
   createDefaultProject,
-  type PitchedCell,
   type ProjectDocument,
 } from "../src/document/schema";
 import {
@@ -266,10 +265,11 @@ describe("hand-computed bytes through writeMidi", () => {
     const doc = createDefaultProject();
     // ONE kick on step 0; everything else silent.
     doc.patterns.drums[0].steps.kick = [true, ...new Array(15).fill(false)];
-    // One lead note on step 0, degree 0 (C minor, octave base 4 → C4 = 60).
-    const leadSteps = new Array(16).fill(0) as PitchedCell[];
-    leadSteps[0] = 1;
-    doc.patterns.lead[0].rows[0].steps = leadSteps;
+    // One lead note on step 0, degree 0 (C minor, octave base 4 → C4 = 60):
+    // lone note-on under the default lead gate (2 steps) — v2 note shape.
+    const lead = doc.patterns.lead[0];
+    if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+    lead.notes = [{ degree: 0, start: 0, length: 2 }];
     doc.chainCues = {
       drums: ["A"],
       bass: [null],
