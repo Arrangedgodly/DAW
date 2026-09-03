@@ -269,4 +269,72 @@ describe("quantized live switching (IM-7)", () => {
     await h.deliverUpTo(16);
     expect(observed).toEqual(["ALT", null]); // requested, then applied
   });
+
+  // IN-3 (multi-clip cueing): the rail's one-gesture commit fires ONE
+  // requestPatternSwitch per touched lane in the same tick. Laws:
+  // (a) each lane lands exactly at ITS own next boundary — the simultaneous
+  //     requests never interact; (b) a second request on the same lane
+  //     supersedes (identical semantics to clicking each tile individually).
+  it("multi-lane one-gesture commits land independently, exactly at their boundaries", async () => {
+    const h = await makeHarness({
+      drums: scheduleFor([A1, B1]), // boundaries at 16, 32 (chain wrap)
+      bass: scheduleFor([A1, B1, A1]), // boundaries at 16, 32, 48
+    });
+    await h.deliverUpTo(5);
+    // One gesture, two lanes (the rail funnel order: top→bottom).
+    h.session.setActivePattern(
+      "drums",
+      "D-ALT",
+      scheduleFor([drumPattern("D-ALT", 1, [4])]),
+    );
+    h.session.setActivePattern(
+      "bass",
+      "B-ALT",
+      scheduleFor([drumPattern("B-ALT", 1, [6])]),
+    );
+    const drumsPending = h.session.getPendingSwitch("drums")!;
+    const bassPending = h.session.getPendingSwitch("bass")!;
+    expect(drumsPending.toPatternId).toBe("D-ALT");
+    expect(drumsPending.appliesAtStep).toBe(16);
+    expect(bassPending.toPatternId).toBe("B-ALT");
+    expect(bassPending.appliesAtStep).toBe(16); // bass's own next boundary
+    // Both still pending just before the boundary; both applied EXACTLY at 16.
+    await h.deliverUpTo(15);
+    expect(h.session.getPendingSwitch("drums")).not.toBeNull();
+    expect(h.session.getPendingSwitch("bass")).not.toBeNull();
+    await h.deliverUpTo(16);
+    expect(h.session.getPendingSwitch("drums")).toBeNull();
+    expect(h.session.getPendingSwitch("bass")).toBeNull();
+    await h.deliverUpTo(20);
+    await h.deliverUpTo(22);
+    expect(freqsAt(h, 0, 20).length).toBe(1); // D-ALT kick at 16+4
+    expect(freqsAt(h, 1, 22).length).toBe(1); // B-ALT kick at 16+6
+    expect(h.session.getActivePattern("drums")).toBe("D-ALT");
+    expect(h.session.getActivePattern("bass")).toBe("B-ALT");
+    // Chords/lead were never touched by the gesture: no pending, no switches.
+    expect(h.session.getPendingSwitch("chords")).toBeNull();
+    expect(h.session.getPendingSwitch("lead")).toBeNull();
+  });
+
+  it("same-lane double request (sweep re-entry / individual clicks) supersedes", async () => {
+    const h = await makeHarness({ drums: scheduleFor([A1, B1]) });
+    await h.deliverUpTo(5);
+    h.session.setActivePattern(
+      "drums",
+      "ALT-1",
+      scheduleFor([drumPattern("ALT-1", 1, [4])]),
+    );
+    h.session.setActivePattern(
+      "drums",
+      "ALT-2",
+      scheduleFor([drumPattern("ALT-2", 1, [5])]),
+    );
+    const pending = h.session.getPendingSwitch("drums")!;
+    expect(pending.toPatternId).toBe("ALT-2"); // the LAST request owns the lane
+    await h.deliverUpTo(16);
+    await h.deliverUpTo(21);
+    expect(h.session.getActivePattern("drums")).toBe("ALT-2");
+    expect(freqsAt(h, 0, 21).length).toBe(1); // ALT-2 kick at 16+5
+    expect(freqsAt(h, 0, 20).length).toBe(0); // ALT-1 never landed
+  });
 });

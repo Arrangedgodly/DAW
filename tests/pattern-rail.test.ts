@@ -24,12 +24,26 @@ import {
 import {
   clampCue,
   clampSlot,
+  clampSlotTo,
   patternPool,
   pendingAnnouncement,
+  queuedLanesAnnouncement,
   railTiles,
+  RAIL_ROWS,
+  rangeCommitSlot,
+  rangeExtend,
+  rangeIncludes,
+  rangeRows,
   structurePendingAnnouncement,
   tileState,
 } from "../src/state/patternRail";
+import {
+  cueSweepBegin,
+  cueSweepCommit,
+  cueSweepMove,
+  cueSweepMoved,
+} from "../src/interaction/drag";
+import type { LaneId } from "../src/document/schema";
 import type { PendingSwitchSnapshot } from "../src/engine/session";
 import {
   activeLane,
@@ -375,5 +389,178 @@ describe("keyboard helpers", () => {
   it("clampCue collapses whitespace and caps length", () => {
     expect(clampCue("  verse   two ", 12)).toBe("verse two");
     expect(clampCue("0123456789012", 12)).toBe("012345678901");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// IN-3 multi-clip cueing (keyboard.md v2 §"Rail multi-clip cue selection")
+// ---------------------------------------------------------------------------
+
+/** Four-slot rows on drums/chords/lead, TWO on bass (carry-clamp coverage). */
+const lengths = (): Record<LaneId, number> => ({
+  drums: 4,
+  bass: 2,
+  chords: 4,
+  lead: 4,
+});
+
+describe("IN-3 range selection (Shift+arrows) — pure geometry", () => {
+  it("clampSlotTo clamps into the row, never wraps (empty rows pin to 0)", () => {
+    expect(clampSlotTo(4, 7)).toBe(3);
+    expect(clampSlotTo(4, -1)).toBe(0);
+    expect(clampSlotTo(2, 3)).toBe(1);
+    expect(clampSlotTo(0, 2)).toBe(0);
+  });
+
+  it("extends along the row from the shift anchor; the anchor stays put", () => {
+    const first = rangeExtend(null, { lane: "drums", slot: 0 }, "ArrowRight", lengths());
+    expect(first).toEqual({
+      anchor: { lane: "drums", slot: 0 },
+      focus: { lane: "drums", slot: 1 },
+    });
+    const second = rangeExtend(first, first.focus, "ArrowRight", lengths());
+    expect(second.anchor).toEqual({ lane: "drums", slot: 0 });
+    expect(second.focus).toEqual({ lane: "drums", slot: 2 });
+    // Extending LEFT from the anchor still moves the focus edge (a range can
+    // shrink past the anchor — the anchor marks where the shift BEGAN).
+    const left = rangeExtend(second, second.focus, "ArrowLeft", lengths());
+    expect(left.anchor).toEqual({ lane: "drums", slot: 0 });
+    expect(left.focus).toEqual({ lane: "drums", slot: 1 });
+  });
+
+  it("never wraps: clamps at the row's first/last slot and top/bottom row", () => {
+    const atZero = rangeExtend(
+      null,
+      { lane: "drums", slot: 0 },
+      "ArrowLeft",
+      lengths(),
+    );
+    expect(atZero.focus).toEqual({ lane: "drums", slot: 0 });
+    const atLast = rangeExtend(
+      null,
+      { lane: "drums", slot: 3 },
+      "ArrowRight",
+      lengths(),
+    );
+    expect(atLast.focus).toEqual({ lane: "drums", slot: 3 });
+    const topRow = rangeExtend(
+      null,
+      { lane: "drums", slot: 2 },
+      "ArrowUp",
+      lengths(),
+    );
+    expect(topRow.focus).toEqual({ lane: "drums", slot: 2 }); // stays
+    const bottomRow = rangeExtend(
+      null,
+      { lane: "lead", slot: 1 },
+      "ArrowDown",
+      lengths(),
+    );
+    expect(bottomRow.focus).toEqual({ lane: "lead", slot: 1 }); // stays
+  });
+
+  it("Shift+↑/↓ carries the slot into the adjacent row, clamped to its length", () => {
+    const down = rangeExtend(
+      null,
+      { lane: "drums", slot: 3 },
+      "ArrowDown",
+      lengths(),
+    );
+    expect(down.focus).toEqual({ lane: "bass", slot: 1 }); // carried, clamped to 2
+    const downAgain = rangeExtend(down, down.focus, "ArrowDown", lengths());
+    expect(downAgain.focus).toEqual({ lane: "chords", slot: 1 }); // stays clamped
+    const up = rangeExtend(downAgain, downAgain.focus, "ArrowUp", lengths());
+    expect(up.focus).toEqual({ lane: "bass", slot: 1 }); // carried back
+  });
+
+  it("rangeRows lists touched rows top→bottom regardless of drag direction", () => {
+    const upward = {
+      anchor: { lane: "chords", slot: 2 } as const,
+      focus: { lane: "drums", slot: 1 } as const,
+    };
+    expect(rangeRows(upward)).toEqual(["drums", "bass", "chords"]);
+    const downward = {
+      anchor: { lane: "drums", slot: 0 } as const,
+      focus: { lane: "bass", slot: 1 } as const,
+    };
+    expect(rangeRows(downward)).toEqual(["drums", "bass"]);
+  });
+
+  it("rangeCommitSlot = the focus-edge column, clamped to each row's length", () => {
+    const range = {
+      anchor: { lane: "drums", slot: 0 } as const,
+      focus: { lane: "bass", slot: 3 } as const, // bass only has 2 slots
+    };
+    expect(rangeCommitSlot(range, 4)).toBe(3); // drums: fits
+    expect(rangeCommitSlot(range, 2)).toBe(1); // bass: clamped
+  });
+
+  it("rangeIncludes marks the 2D anchor↔focus box", () => {
+    const range = {
+      anchor: { lane: "drums", slot: 1 } as const,
+      focus: { lane: "bass", slot: 3 } as const,
+    };
+    expect(rangeIncludes(range, "drums", 1)).toBe(true);
+    expect(rangeIncludes(range, "drums", 3)).toBe(true);
+    expect(rangeIncludes(range, "drums", 0)).toBe(false);
+    expect(rangeIncludes(range, "bass", 1)).toBe(true); // clamped row still marks 1..2 tiles
+    expect(rangeIncludes(range, "chords", 2)).toBe(false); // row not touched
+    expect(rangeIncludes(range, "lead", 2)).toBe(false);
+  });
+
+  it("the E5 summary line is exact (both paths announce the same text)", () => {
+    expect(queuedLanesAnnouncement(1)).toBe("QUEUED 1 LANES");
+    expect(queuedLanesAnnouncement(3)).toBe("QUEUED 3 LANES");
+  });
+});
+
+describe("IN-3 cue sweep (pointer gesture) — pure reducers", () => {
+  it("begins at the pressed tile; same-tile moves are no-ops (same ref)", () => {
+    const sweep = cueSweepBegin("drums", 1);
+    expect(sweep.origin).toEqual({ lane: "drums", slot: 1 });
+    expect(cueSweepMove(sweep, "drums", 1)).toBe(sweep); // ref equality
+    expect(cueSweepMove(sweep, null, -1)).toBe(sweep); // off-tile
+    expect(cueSweepMoved(sweep)).toBe(false); // unmoved = the click law
+  });
+
+  it("tracks every touched tile; per lane the LAST touch wins", () => {
+    let sweep = cueSweepBegin("drums", 0);
+    sweep = cueSweepMove(sweep, "drums", 1);
+    sweep = cueSweepMove(sweep, "drums", 2);
+    sweep = cueSweepMove(sweep, "bass", 0);
+    sweep = cueSweepMove(sweep, "bass", 1);
+    sweep = cueSweepMove(sweep, "drums", 1); // BACK into drums: 1 supersedes 2
+    expect([...sweep.touched].sort()).toEqual([
+      "bass:0",
+      "bass:1",
+      "drums:0",
+      "drums:1",
+      "drums:2",
+    ]);
+    expect(sweep.lastByLane.get("drums")).toBe(1);
+    expect(sweep.lastByLane.get("bass")).toBe(1);
+    expect(cueSweepMoved(sweep)).toBe(true);
+  });
+
+  it("commit = one cue target per touched lane, rows top→bottom", () => {
+    let sweep = cueSweepBegin("lead", 3);
+    sweep = cueSweepMove(sweep, "chords", 0);
+    sweep = cueSweepMove(sweep, "drums", 2);
+    sweep = cueSweepMove(sweep, "chords", 3); // chords last touch = 3
+    expect(cueSweepCommit(sweep, RAIL_ROWS)).toEqual([
+      { lane: "drums", slot: 2 },
+      { lane: "chords", slot: 3 },
+      { lane: "lead", slot: 3 },
+    ]);
+  });
+
+  it("the committed state equals clicking each touched tile in sweep order", () => {
+    // drums 0→1→2 then back to 1: individual clicks would leave pending=1
+    // (the second click on 1 supersedes the 2 switch — IM-7 law).
+    let sweep = cueSweepBegin("drums", 0);
+    sweep = cueSweepMove(sweep, "drums", 1);
+    sweep = cueSweepMove(sweep, "drums", 2);
+    sweep = cueSweepMove(sweep, "drums", 1);
+    expect(cueSweepCommit(sweep, RAIL_ROWS)).toEqual([{ lane: "drums", slot: 1 }]);
   });
 });

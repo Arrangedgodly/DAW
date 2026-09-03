@@ -18,11 +18,15 @@ tests/browser/quadrant-layout.test.ts + the updated DA-1/DA-3 journeys).
 Sections marked **[v2 · live since IN-2]** are IMPLEMENTED and gated (IN-2
 landed drag-create/edge-drag/drums-paint + the keyboard note law — asserted
 in tests/browser/drag-notes.test.tsx + the unit gate
-tests/note-interaction.test.ts). Sections marked **[v2 → IN-3]**,
-**[v2 → HP-1]** remain the forward contract the named task must implement
-and test (its DoD); everything else is live law today. v0 sections that v2
-supersedes say so inline and the deliberate v0-journey changes are recorded
-in the ledger at the bottom (regression rule: journey updates only
+tests/note-interaction.test.ts). Sections marked **[v2 · live since IN-3]**
+are IMPLEMENTED and gated (IN-3 landed the rail multi-clip range + CUE ALL
+and the pointer cue sweep through the same funnel — asserted in
+tests/browser/drag-cue.test.tsx + the unit gates tests/pattern-rail.test.ts
+and tests/quantized-switch.test.ts). Sections marked **[v2 → HP-1]** remain
+the forward contract the named task must implement and test (its DoD);
+everything else is live law today. v0 sections that v2 supersedes say so
+inline and the deliberate v0-journey changes are recorded in the ledger at
+the bottom (regression rule: journey updates only
 alongside deliberate UX changes).
 
 ## Focus model — regions and tab stops
@@ -35,7 +39,7 @@ arrows walk _inside_ a region:
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------- |
 | Booth (transport)                 | native controls (documented linear strip)                                                                                                                                   | native (ranges, steppers are buttons)                                                   | v0                                      |
 | Booth INFO "?" toggle (help mode) | native button                                                                                                                                                               | native                                                                                  | v2 → HP-1                               |
-| Pattern rail — tiles, per lane    | 1 (focused tile)                                                                                                                                                            | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 → IN-3] | v0 + v2                                 |
+| Pattern rail — tiles, per lane    | 1 (focused tile)                                                                                                                                                            | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 · live since IN-3] | v0 + v2                                 |
 | Pattern rail — tools, per lane    | native buttons                                                                                                                                                              | native                                                                                  | v0                                      |
 | Quadrant control strip, per lane  | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 · live since LY-1] | native                                                                                  | v2 → LY-1                               |
 | Lane grid, **selected quadrant**  | 1 (focused cell)                                                                                                                                                            | the grid map below                                                                      | v0                                      |
@@ -165,14 +169,17 @@ steps`; spanned: `note continues`; empty: v0 name. Resize steps announce
   gate-stepper value-announce pattern). Placement/removal are carried by the
   focused cell's own name change + audition.
 
-## Rail multi-clip cue selection [v2 → IN-3]
+## Rail multi-clip cue selection [v2 · live since IN-3]
 
 v0 rail law unchanged: ←/→ rove tiles, Enter/Space trigger a quantized
 switch on the focused tile, Delete/Backspace removes the slot, F2 renames,
 `l` edits the cue, `+` appends. The multi-clip drag (one gesture across N
 clips queues exactly those N, identical pending/quantized semantics as
 clicking individually — one queued switch per touched lane) gets this
-keyboard path:
+keyboard path (LIVE: the pointer sweep and this range commit share one
+funnel; plain ↑/↓ rove between lane rows at the carried slot; an unmoved
+pointer press keeps the native click law — the rail captures only once a
+sweep extends):
 
 | Key                 | Action                                                                                                                                                                                          |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -362,7 +369,8 @@ by the owning task):
    stage.
 3. **New bindings** (additive, none replaces a v0 binding): grid `+`/`-`/
    Shift+`+`/`-`/Delete-removes-note (**landed by IN-2**); rail Shift+arrows
-   range-select (IN-3); global `i` help-mode toggle +
+   range-select + Enter/Space CUE ALL + plain ↑/↓ row roving
+   (**landed by IN-3**); global `i` help-mode toggle +
    Escape-exits-help-first (HP-1).
 4. Everything else in the v0 map — one-Tab-stop regions, no-wrap, text-entry
    guards, body-level Space transport, Shift+Enter audition, Home/End, beat

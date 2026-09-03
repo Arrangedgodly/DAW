@@ -66,6 +66,7 @@ never in the shipped bundle).
 | Errors / info / success        | toasts `role=alert` / `role=status`                                                                                                                                                                                  | VERIFIED                                                                                                                                                                                                                    |
 | Preset/gate/fill value changes | local `aria-live=polite` value spans                                                                                                                                                                                 | VERIFIED                                                                                                                                                                                                                    |
 | Note-length resize (IN-2)      | per-grid local `aria-live=polite` span (`LENGTH <len> ST`), fired from BOTH the keyboard `+`/`-` path and the pointer edge-drag commit (E4/E5 parity; no aria-label on the live span — the DA-2 prohibited-attr law) | VERIFIED (drag-notes journey)                                                                                                                                                                                               |
+| Multi-clip cue commit (IN-3)  | rail-level `role=status` summary (`QUEUED <n> LANES`), fired from BOTH the pointer sweep and the Shift+arrows range + Enter path through one commit funnel (E5); the per-lane pending announcements above ride the same engine events for both paths | VERIFIED (drag-cue journey, texts asserted EQUAL between paths) |
 
 ## 4. Motion audit (prefers-reduced-motion)
 
@@ -150,8 +151,13 @@ carry + clamp, name flips). **E4 LANDED by IN-2, plus E5's IN-2 half**
 `note starts, <len> steps` / `note continues`; keyboard place → resize ±1
 and ±0.25 with clamps at 0.25/128 → remove, per-step announced value/name
 text; the pointer edge-drag commit announces the SAME `LENGTH <len> ST`
-text as the keyboard path). E5's multi-clip half awaits IN-3; E6 awaits
-HP-1.
+text as the keyboard path). **E5 LANDED IN FULL — the multi-clip half by
+IN-3** (asserted in `tests/browser/drag-cue.test.tsx`: the pointer cue
+sweep and the Shift+arrows range + Enter CUE ALL path each run the gesture
+on the real app; the per-lane `role=status` pending texts + the
+`QUEUED <n> LANES` rail summary are captured per path and asserted EQUAL;
+trusted-pointer parity in `tests/browser/drag-cue-trusted.test.tsx`).
+E6 awaits HP-1.
 
 | #   | Extension (semantics required)                                                                                                                                                                                                                                                                                                                                                             | Owning task | Gate assertion when it lands                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

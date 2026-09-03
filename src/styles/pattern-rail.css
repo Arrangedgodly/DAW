@@ -179,6 +179,39 @@
   color: var(--color-ink);
 }
 
+/* ---- IN-3 multi-clip cueing: sweep preview (pointer gesture) + range
+ * selection (keyboard). Decoration DURING the gesture — the commit
+ * announces (E5: per-lane pending texts + the QUEUED summary; the drag
+ * preview never changes aria mid-gesture, the grid data-preview precedent).
+ * Range membership IS a persistent state, so it carries text too: the
+ * `in cue range` aria-label suffix (D9, never color alone). Static styling
+ * only (token law 4). ---- */
+
+/* Swept = touched by the gesture; target = the tile that WILL cue (each
+ * lane's last-touched). Lane-hue border + fill, full-ink bars (the DA-3
+ * state-tile law: dim bars over tinted fills measured below AA). */
+.rail-tile[data-cue-preview="swept"] {
+  border-color: var(--lane-hue);
+  border-style: dashed;
+}
+
+.rail-tile[data-cue-preview="target"] {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 22%, var(--color-ground));
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--lane-hue) 70%, var(--color-ground));
+}
+
+.rail-tile[data-in-range="true"] {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+}
+
+.rail-tile[data-in-range="true"] .rail-tile-bars,
+.rail-tile[data-cue-preview] .rail-tile-bars {
+  color: var(--color-ink);
+}
+
 .rail-append {
   font: var(--text-value);
   color: var(--color-ink);

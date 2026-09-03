@@ -1,8 +1,10 @@
 /**
- * IN-2 pointer-gesture + keyboard note-edit logic — PURE (no DOM), the
- * src/grid/keynav.ts precedent: the renderer wires DOM pointer/keyboard
- * events onto these reducers, LaneGrid commits through the SC-2 store note
- * actions. Everything here is unit-testable without a browser.
+ * IN-2 pointer-gesture + keyboard note-edit logic, and the IN-3 rail cue
+ * sweep — PURE (no DOM), the src/grid/keynav.ts precedent: the renderer
+ * wires DOM pointer/keyboard events onto these reducers, LaneGrid commits
+ * through the SC-2 store note actions, PatternRail commits through the
+ * requestPatternSwitch funnel. Everything here is unit-testable without a
+ * browser.
  *
  * Laws implemented (docs/dev/keyboard.md v2 §"Note editing on the v2 note
  * model"; a11y §7 E4/E5):
@@ -22,6 +24,8 @@
  * the commit happens once, on release.
  */
 
+import type { LaneId } from "../document/schema";
+import type { RailCell } from "../state/patternRail";
 import {
   MAX_NOTE_LENGTH,
   MIN_NOTE_LENGTH,
@@ -209,4 +213,82 @@ export function paintDragRange(drag: PaintDrag): {
     from: Math.min(drag.anchor, drag.to),
     to: Math.max(drag.anchor, drag.to),
   };
+}
+
+// ---------------------------------------------------------------------------
+// IN-3 multi-clip cue sweep (pure reducers; PatternRail feeds tile addresses)
+// ---------------------------------------------------------------------------
+
+/**
+ * A FREEFORM cue sweep across rail tiles (the recorded gesture-geometry
+ * decision: press a tile, sweep across sibling tiles and/or into other
+ * lanes' rows — no lasso, no rect snap). Commit law: every TOUCHED lane
+ * cues its LAST-touched tile — the exact state clicking each touched tile
+ * in sweep order would leave (IM-7 same-lane supersede included), so the
+ * gesture's pending/quantized semantics are identical to individual clicks.
+ * Like every drag reducer: pointermove NEVER writes the store or the
+ * engine — previews are renderer-local; the commit happens once, on release.
+ */
+export interface CueSweep {
+  /** Where the pointer went down (the gesture's first touched tile). */
+  readonly origin: RailCell;
+  /** Every touched tile, "lane:slot" keys (the preview set). */
+  readonly touched: ReadonlySet<string>;
+  /** Per touched lane row, the LAST slot the sweep touched (the cue target). */
+  readonly lastByLane: ReadonlyMap<LaneId, number>;
+}
+
+const cellKey = (lane: LaneId, slot: number): string => `${lane}:${slot}`;
+
+export function cueSweepBegin(lane: LaneId, slot: number): CueSweep {
+  return {
+    origin: { lane, slot },
+    touched: new Set([cellKey(lane, slot)]),
+    lastByLane: new Map([[lane, slot]]),
+  };
+}
+
+/**
+ * Track the pointer over a tile. `lane === null` = off-tile (row gaps, the
+ * tools, outside the rail): the sweep state is unchanged. Returns the SAME
+ * object when nothing changed (the renderer's no-rerender guard).
+ */
+export function cueSweepMove(
+  sweep: CueSweep,
+  lane: LaneId | null,
+  slot: number,
+): CueSweep {
+  if (lane === null) return sweep;
+  if (sweep.lastByLane.get(lane) === slot && sweep.touched.has(cellKey(lane, slot)))
+    return sweep;
+  const touched = new Set(sweep.touched);
+  touched.add(cellKey(lane, slot));
+  const lastByLane = new Map(sweep.lastByLane);
+  lastByLane.set(lane, slot);
+  return { ...sweep, touched, lastByLane };
+}
+
+/**
+ * True once the pointer reached any tile other than the pressed one — the
+ * drag/click disambiguation. Unmoved presses fall back to the native click
+ * law (v0 single-tile cue, dblclick edits untouched).
+ */
+export function cueSweepMoved(sweep: CueSweep): boolean {
+  return sweep.touched.size > 1;
+}
+
+/**
+ * The commit: one cue target per touched lane, rows top→bottom; per lane
+ * the LAST-touched tile. `rows` is the rail's lane order (drums → lead).
+ */
+export function cueSweepCommit(
+  sweep: CueSweep,
+  rows: readonly LaneId[],
+): RailCell[] {
+  const targets: RailCell[] = [];
+  for (const lane of rows) {
+    const slot = sweep.lastByLane.get(lane);
+    if (slot !== undefined) targets.push({ lane, slot });
+  }
+  return targets;
 }

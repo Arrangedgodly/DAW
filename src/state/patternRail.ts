@@ -1,5 +1,5 @@
 /**
- * Pattern-rail logic (DES-6, pure — no DOM, no store import).
+ * Pattern-rail logic (DES-6 + IN-3, pure — no DOM, no store import).
  *
  * The rail is the song arrangement surface: per lane, one row of TILES —
  * chain INSTANCES (slot index → pattern), not the pattern library — plus the
@@ -7,6 +7,10 @@
  * every tile can carry a text label ("VERSE", "DROP") that reads as a section
  * cue, text-equivalent (never color-only). Pending quantized switches map
  * from the engine's getPendingSwitch snapshot onto tile state.
+ *
+ * IN-3 adds the multi-clip cue range math (keyboard.md v2): Shift+arrow
+ * range selection between an anchor and a focus cell, carried + clamped
+ * across lane rows, committed per touched row at the focus-edge column.
  *
  * Everything here is testable without a browser (scaleChip.ts pattern).
  */
@@ -123,4 +127,105 @@ export function clampSlot(count: number, slot: number, delta: number): number {
 /** Cue input clamp for the edit field (schema authority: CUE_MAX_CHARS). */
 export function clampCue(text: string, maxChars: number): string {
   return text.replace(/\s+/g, " ").trim().slice(0, maxChars);
+}
+
+// ---------------------------------------------------------------------------
+// IN-3 multi-clip cue range (keyboard.md v2 §"Rail multi-clip cue selection")
+// ---------------------------------------------------------------------------
+
+/** The rail's lane rows in visual order, top→bottom. */
+export const RAIL_ROWS: readonly LaneId[] = ["drums", "bass", "chords", "lead"];
+
+/** One rail tile address: lane row + chain slot. */
+export interface RailCell {
+  readonly lane: LaneId;
+  readonly slot: number;
+}
+
+/** An active multi-clip selection between an anchor and a focus cell. */
+export interface RailRange {
+  readonly anchor: RailCell;
+  readonly focus: RailCell;
+}
+
+export type RailRangeKey =
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "ArrowUp"
+  | "ArrowDown";
+
+/** Clamp a slot into a row of `length` tiles (carry-clamp law; no wrap). */
+export function clampSlotTo(length: number, slot: number): number {
+  return Math.min(Math.max(slot, 0), Math.max(0, length - 1));
+}
+
+/**
+ * Shift+arrow range extension from the focused tile: the anchor is where
+ * the shift began; the FOCUS edge moves, clamped — along the row for ←/→,
+ * carried to the adjacent row (clamped to that row's length) for ↑/↓.
+ * Never wraps: Shift+↑ at the top row stays (the focus cell is unchanged).
+ */
+export function rangeExtend(
+  range: RailRange | null,
+  focused: RailCell,
+  key: RailRangeKey,
+  rowLengths: Record<LaneId, number>,
+): RailRange {
+  const anchor = range?.anchor ?? focused;
+  let lane = focused.lane;
+  let slot = focused.slot;
+  if (key === "ArrowLeft") {
+    slot = clampSlotTo(rowLengths[lane], slot - 1);
+  } else if (key === "ArrowRight") {
+    slot = clampSlotTo(rowLengths[lane], slot + 1);
+  } else {
+    const index = RAIL_ROWS.indexOf(focused.lane);
+    const next = key === "ArrowUp" ? index - 1 : index + 1;
+    if (next >= 0 && next < RAIL_ROWS.length) {
+      lane = RAIL_ROWS[next];
+      slot = clampSlotTo(rowLengths[lane], slot); // carried, clamped
+    }
+  }
+  return { anchor, focus: { lane, slot } };
+}
+
+/** The lane rows the range touches, top→bottom (RAIL_ROWS order). */
+export function rangeRows(range: RailRange): LaneId[] {
+  const a = RAIL_ROWS.indexOf(range.anchor.lane);
+  const f = RAIL_ROWS.indexOf(range.focus.lane);
+  return RAIL_ROWS.slice(Math.min(a, f), Math.max(a, f) + 1) as LaneId[];
+}
+
+/**
+ * The CUE ALL commit target for one touched row: the FOCUS-edge column,
+ * clamped to that row's length (keyboard.md v2 — identical funnel + effect
+ * class as the pointer sweep's per-lane last-touched tile).
+ */
+export function rangeCommitSlot(range: RailRange, rowLength: number): number {
+  return clampSlotTo(rowLength, range.focus.slot);
+}
+
+/** Whether one tile renders inside the active range (2D anchor↔focus box). */
+export function rangeIncludes(
+  range: RailRange,
+  lane: LaneId,
+  slot: number,
+): boolean {
+  const r = RAIL_ROWS.indexOf(lane);
+  const a = RAIL_ROWS.indexOf(range.anchor.lane);
+  const f = RAIL_ROWS.indexOf(range.focus.lane);
+  if (r < 0 || r < Math.min(a, f) || r > Math.max(a, f)) return false;
+  return (
+    slot >= Math.min(range.anchor.slot, range.focus.slot) &&
+    slot <= Math.max(range.anchor.slot, range.focus.slot)
+  );
+}
+
+/**
+ * E5 (a11y §7): the one rail summary line both paths announce IDENTICALLY —
+ * `QUEUED <n> LANES` for the lanes whose switch the multi-clip commit
+ * requested. No announcement may depend on pointer-only events.
+ */
+export function queuedLanesAnnouncement(count: number): string {
+  return `QUEUED ${count} LANES`;
 }
