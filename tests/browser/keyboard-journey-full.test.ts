@@ -370,7 +370,28 @@ describe("DA-3 full keyboard journey (built app)", () => {
         await poll(() => !idoc().querySelector(".projects-pop"), T.ui, "popover escape");
         expect(active()?.classList.contains("projects-btn")).toBe(true);
       } finally {
+        // Teardown (DA-3 fix): the journey ends on a NEW empty project that
+        // autosaved into the shared-origin IndexedDB. Left behind, it makes
+        // any LATER same-origin boot (e.g. the DA-2 axe gate, which mounts
+        // the app in the outer page) restore the EMPTY project and render
+        // the empty-state hint under test. Remove the iframe FIRST (closing
+        // its open DB connections — deleting under a live connection only
+        // blocks), then wipe via the outer same-origin window, the same
+        // deterministic wipe as the start, so no journey state leaks across
+        // test files.
         iframe.remove();
+        // Deleting under a still-live connection blocks; retry briefly until
+        // the removed iframe's connections are gone and the delete lands.
+        for (let attempt = 0; ; attempt++) {
+          const deleted = await new Promise<boolean>((resolve) => {
+            const req = indexedDB.deleteDatabase("bitbounce");
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(true);
+            req.onblocked = () => resolve(false);
+          });
+          if (deleted || attempt >= 20) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
       }
     },
     240_000,

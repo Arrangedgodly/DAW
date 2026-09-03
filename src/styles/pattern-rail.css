@@ -124,6 +124,16 @@
   color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
 }
 
+/* DA-3 fix: the 55% dim mix (5.70:1 on plain ground tiles) drops to
+ * 3.12–4.14:1 on the lane-hue-tinted fills of state tiles (selected 28%,
+ * active 18%, pending hatch) — the bar count is info-critical, so state
+ * tiles carry it at full ink (≥8.5:1 measured on every lane hue). */
+.rail-tile[data-state="selected"] .rail-tile-bars,
+.rail-tile[data-state="active"] .rail-tile-bars,
+.rail-tile[data-state="pending"] .rail-tile-bars {
+  color: var(--color-ink);
+}
+
 /* State coding: border + fill carry it; the diamond flag is the shape mark. */
 .rail-tile[data-state="active"] {
   border-color: var(--lane-hue);

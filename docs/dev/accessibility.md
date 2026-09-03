@@ -87,9 +87,10 @@ Ink-mix notation: `ink@X%` = `color-mix(ink X%, ground)`.
 |---|---|---|---|
 | ink on ground (all primary text: buttons, values, labels, readouts) | 17.49:1 | PASS | — |
 | ink@78% row labels | 10.69:1 | PASS | — |
-| ink@62% head-ctl-labels, projects-when, stage-hint (FIXED from 45%) | 7.00:1 | PASS | FIXED (hint was 4.15:1) |
+| ink@62% head-ctl-labels, projects-when, stage-hint (FIXED from 45%) | 7.00:1 | PASS | FIXED (hint was 4.15:1). DA-3 note: the DA-2 axe gate's page never loaded the token sheet, so it measured this pair against a white page (1.07:1 false negative elsewhere). The gate now imports `base.css`, so contrast pairs are computed from the real rendered palette; measured 6.98:1 |
 | ink@60% booth labels, lane count | 6.61:1 | PASS | — |
 | ink@55% dim-legends: fx-empty/cap, rail tile bars/cue-dash (FIXED from 30%), fill tag | 5.70:1 | PASS | FIXED (cue dash was 2.46:1) |
+| rail tile bars on STATE tiles (selected/active/pending lane-hue fills) — full ink (FIXED in DA-3 from ink@55%) | 8.5–12.7:1 | PASS | FIXED (ink@55% over the 18–28% lane-hue fills measured 3.12–4.14:1) |
 | ink@55% bypassed fx module name (FIXED from 45%) + param labels (FIXED from 40%) | 5.70:1 | PASS | FIXED (were 4.15 / 3.51) |
 | Disabled buttons: fx-mod-btn (0.35→0.55), rail-tool / fill-apply SET (0.4→0.55) | 5.70:1 | PASS | FIXED (were 2.94–3.51; WCAG exempts disabled, we pass anyway) |
 | ink-on-fill on full lane fills (on-cells, rail/booth active states) | 5.17–10.91:1 | PASS | — |

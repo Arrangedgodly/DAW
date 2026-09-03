@@ -16,6 +16,13 @@ import { render } from "solid-js/web";
 import axe from "axe-core";
 import App from "../../src/App";
 import { closeHelp, openHelp } from "../../src/state/helpOverlay";
+// DA-3 fix: App imports app.css/grid.css but NOT the token sheet (that is
+// main.tsx's job in the real bundle). Without tokens every var(--color-*)
+// background resolves to nothing, axe falls back to a white page, and light
+// ink text (e.g. the empty-project .stage-hint) is measured against white
+// and falsely flagged. Load the token base so contrast pairs are computed
+// from the REAL rendered palette, exactly as deployed.
+import "../../src/styles/base.css";
 
 /** Moderates accepted as deliberate for this UI (see docs/dev/accessibility.md). */
 const ACCEPTED_MODERATES = new Set<string>([
