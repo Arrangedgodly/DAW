@@ -1,9 +1,12 @@
 /*
- * Pattern rail (DES-6) — the song arrangement surface under the booth.
- * Arcade Stage Floor vocabulary: silkscreen labels, lane hue codes state on
- * border + fill only (ink law: info-critical text stays warm white on the
- * ground; near-black ink on fills). Pending is coded by fill + border + a
- * shape mark (diamond flag) + text in the aria-label — never color alone.
+ * Pattern rail (DES-6, LY-1 compact) — the song arrangement surface under
+ * the booth. Arcade Stage Floor vocabulary: silkscreen labels, lane hue codes
+ * state on border + fill only (ink law: info-critical text stays warm white
+ * on the ground; near-black ink on fills). Pending is coded by fill + border
+ * + a shape mark (diamond flag) + text in the aria-label — never color alone.
+ *
+ * LY-1 one-page law: the rail compacts to single-line rows (cue inline with
+ * pattern name + bars) so booth + rail + all four quadrants fit 1440×900.
  */
 
 .rail {
@@ -11,7 +14,7 @@
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-5) 0;
+  padding: var(--space-3) var(--space-5) 0;
   border-top: 1px solid
     color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
@@ -20,7 +23,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .rail-title {
@@ -37,7 +40,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
@@ -55,7 +58,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-2) 0;
+  padding: var(--space-1) 0;
   flex-wrap: wrap;
 }
 
@@ -89,18 +92,18 @@
 
 .rail-tile {
   position: relative;
-  display: grid;
-  grid-template-columns: auto auto;
+  display: flex;
   align-items: baseline;
-  column-gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  min-width: 64px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  min-width: 48px;
   border-radius: 3px;
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
   background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
   cursor: pointer;
   font: var(--text-value);
+  white-space: nowrap;
 }
 
 .rail-tile:hover {
@@ -112,13 +115,11 @@
   outline-offset: 1px;
 }
 
-/* Cue label spans the tile's full first row (the named section state). */
+/* Cue label rides inline first (the named section state, single-line row). */
 .rail-tile-cue {
-  grid-column: 1 / -1;
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   color: var(--color-ink);
-  white-space: nowrap;
 }
 
 /* Empty-cue dash = placeholder text; DA-2 raised from 30% (2.46:1) to 55%
@@ -185,7 +186,7 @@
   border: 1px dashed
     color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
   border-radius: 3px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
@@ -206,7 +207,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
   border-radius: 3px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
 }
 
 .rail-tools {
@@ -224,7 +225,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
   border-radius: 3px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
@@ -250,8 +251,11 @@
 }
 
 /* ---- FOCUS view: collapse-to-pattern. Rail slims to the active tiles (the
- * arrangement stays reachable one click away); grids enlarge. Selection is
- * untouched — expanding returns the exact editing place. ---- */
+ * arrangement stays reachable one click away); the SHORT grids enlarge.
+ * Selection is untouched — expanding returns the exact editing place.
+ * LY-1: the 1.25× raise applies to the short-row quadrants only (drums 5
+ * rows, chords 7); the 14-row bass/lead quadrants already fill their cards —
+ * zooming them would break the one-page law. ---- */
 
 .rail[data-view="focus"]
   .rail-tile:not([data-state="active"]):not([data-state="pending"]):not(
@@ -262,6 +266,7 @@
   display: none;
 }
 
-.stage-floors[data-view="focus"] .lane-grid {
+.stage-floors[data-view="focus"] .lane-floor[data-lane="drums"] .lane-grid,
+.stage-floors[data-view="focus"] .lane-floor[data-lane="chords"] .lane-grid {
   zoom: 1.25;
 }

@@ -11,10 +11,13 @@ drag can produce is announced identically when driven by keyboard
 (drag-equivalent announcements, docs/dev/accessibility.md §7).
 
 **Version status.** v2 extends the shipped v0 map (DA-1/DA-3) for the
-iteration-2 quadrant layout and note model. Sections marked **[v2 → LY-1]**,
-**[v2 → IN-2]**, **[v2 → IN-3]**, **[v2 → HP-1]** are the forward contract
-the named task must implement and test (its DoD); everything else is live
-law today. v0 sections that v2 supersedes say so inline and the one
+iteration-2 quadrant layout and note model. Sections marked
+**[v2 · live since LY-1]** are IMPLEMENTED and gated (LY-1 landed the
+quadrant selector, strips, announcements, and focus-carry law — asserted in
+tests/browser/quadrant-layout.test.ts + the updated DA-1/DA-3 journeys).
+Sections marked **[v2 → IN-2]**, **[v2 → IN-3]**, **[v2 → HP-1]** remain the
+forward contract the named task must implement and test (its DoD); everything
+else is live law today. v0 sections that v2 supersedes say so inline and the one
 deliberate v0-journey change is recorded in the ledger at the bottom
 (regression rule: journey updates only alongside deliberate UX changes).
 
@@ -30,9 +33,9 @@ arrows walk _inside_ a region:
 | Booth INFO "?" toggle (help mode)  | native button                                   | native                                                   | v2 → HP-1 |
 | Pattern rail — tiles, per lane     | 1 (focused tile)                                | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 → IN-3] | v0 + v2 |
 | Pattern rail — tools, per lane     | native buttons                                  | native                                                   | v0    |
-| Quadrant control strip, per lane   | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 → LY-1] | native                                                   | v2 → LY-1 |
+| Quadrant control strip, per lane   | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 · live since LY-1] | native                                                   | v2 → LY-1 |
 | Lane grid, **selected quadrant**   | 1 (focused cell)                                | the grid map below                                       | v0    |
-| Lane grid, **view-only quadrant**  | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 → LY-1] | n/a (view only)                                          | v2 → LY-1 |
+| Lane grid, **view-only quadrant**  | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 · live since LY-1] | n/a (view only)                                          | v2 → LY-1 |
 | Info region (help mode on)         | **none** — role=status, never focusable, never in the tab order [v2 → HP-1] | n/a                                                      | v2 → HP-1 |
 | Help overlay (keyboard shortcuts)  | 1 (dialog, focus-trapped)                       | native inside                                            | v0 — unchanged, SEPARATE from info mode |
 
@@ -48,7 +51,7 @@ arrows walk _inside_ a region:
 - Focus rings follow D9: `:focus-visible` outlines in the lane hue over the
   ground, never glow-only.
 
-## Quadrant selection [v2 → LY-1] — selection IS the lane selector
+## Quadrant selection [v2 · live since LY-1] — selection IS the lane selector
 
 The 2×2 quadrant layout (I2-1): one quadrant per lane, quadrant selection =
 `selection.activeLane` (ephemeral signal, never document). The selected
@@ -333,9 +336,15 @@ by the owning task):
    previously moved grid focus to the next/prev lane's grid while all lanes
    stayed editable; under the quadrant layout they SELECT the next/prev
    quadrant (which moves grid focus by the focus-movement law above and
-   announces `NOW EDITING <LANE>`). DA-3 journey steps 4/7 (lane moves,
-   PageDown-to-bass) update accordingly when LY-1 swaps the layout —
-   recorded here first, per the rule.
+   announces `NOW EDITING <LANE>`). **LANDED by LY-1** (journey deltas, per
+   the rule): DA-1 journey (tests/browser/keyboard-journey.test.tsx) — boot
+   now asserts ONE editable grid (the selected quadrant) + VIEW ONLY names,
+   the PageDown walk asserts the carried focus + `NOW EDITING LEAD`
+   announcement; DA-3 journey (tests/browser/keyboard-journey-full.test.ts)
+   — step 7 asserts the BASS announcement alongside the carried focus.
+   Pointer parity landed with it: a click on any part of a view-only
+   quadrant selects it (control clicks keep their action; a mid-tweak is
+   never yanked).
 2. **Pitched-grid Enter/Space gains note-model semantics** (IN-2): toggle-on
    = gate-default note, toggle-off = remove, mid-span = trim; cell names
    carry note start/length. No key changes on drums.

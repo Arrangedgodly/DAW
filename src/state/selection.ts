@@ -16,6 +16,7 @@
 
 import { createSignal } from "solid-js";
 import type { DrumPiece, LaneId, Pattern } from "../document/schema";
+import { LANE_NAMES } from "../components/laneMeta";
 import { docStore } from "./store";
 
 /** A focused grid cell: lane + row identity + step column. */
@@ -55,15 +56,30 @@ export type ViewMode = "focus" | "chain";
 const [viewMode, setViewMode] = createSignal<ViewMode>("chain");
 
 /** The lane selection follows the latest grid interaction. */
-export { activeLane, focusedCell, activePatterns, viewMode };
+export { activeLane, focusedCell, activePatterns, viewMode, stageStatus };
 
 export function toggleViewMode(): ViewMode {
   setViewMode((m) => (m === "chain" ? "focus" : "chain"));
   return viewMode();
 }
 
+/**
+ * LY-1 (a11y gate E1): the ONE stage-level announcement text. Every actual
+ * quadrant-selection change speaks `NOW EDITING <LANE>` through the stage
+ * role=status region (StageFloor renders it); solo changes speak through the
+ * same region (keyboard.md v2). Pure ephemeral text — never a document.
+ */
+const [stageStatus, setStageStatus] = createSignal("");
+
+/** Write the stage status region (selection/solo announcements). */
+export function announceStage(text: string): void {
+  setStageStatus(text);
+}
+
 export function selectLane(lane: LaneId): void {
+  if (activeLane() === lane) return;
   setActiveLane(lane);
+  setStageStatus(`NOW EDITING ${LANE_NAMES[lane]}`);
 }
 
 export function selectPattern(lane: LaneId, patternId: string): void {

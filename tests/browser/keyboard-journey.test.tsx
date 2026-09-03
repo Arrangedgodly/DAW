@@ -1,7 +1,8 @@
 /**
  * DA-1 browser journey: drive the REAL app by keyboard alone —
  * boot → play (body-level Space) → navigate to a drums cell (roving seed
- * focus) → toggle → lane-move (PageDown) → toggle a lead note → undo
+ * focus) → toggle → quadrant selection (PageDown; LY-1: the v0 lane-move
+ * keys now select quadrants, ledger #1) → toggle a lead note → undo
  * (Ctrl+Z, coalesced gesture) → open help (?) → dismiss (Escape).
  *
  * Note on "keyboard alone": real browsers synthesize a click for Enter on
@@ -78,20 +79,30 @@ function rovingSeed(lane: HTMLElement): HTMLElement {
   return seed as HTMLElement;
 }
 
-describe("DA-1 keyboard journey (real app)", () => {
-  it("boot → play → drums toggle → lane move → lead toggle → undo → help", async () => {
+describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
+  it("boot → play → drums toggle → quadrant select → lead toggle → undo → help", async () => {
     const { host, cleanup } = mount();
     try {
-      // Boot: all four lane grids exist with one roving tab stop each.
+      // Boot (LY-1 quadrant model): four lane grids render; exactly ONE
+      // (the selected quadrant, drums by default) owns a roving tab stop —
+      // the other three are view-only (no tab stops, not traps — E2).
       for (const lane of ["drums", "bass", "chords", "lead"]) {
         const floor = laneHost(host, lane);
         expect(
           floor.querySelector('.lane-grid-scroll [role="grid"]'),
         ).toBeTruthy();
+        const stops = [...floor.querySelectorAll(".cell")].filter(
+          (c) => c.tabIndex === 0,
+        ).length;
+        expect(stops, `${lane} tab stops`).toBe(lane === "drums" ? 1 : 0);
+        // Grid names carry the edit state in text (E3).
         expect(
-          [...floor.querySelectorAll(".cell")].filter((c) => c.tabIndex === 0)
-            .length,
-        ).toBe(1);
+          floor.querySelector('[role="grid"]')!.getAttribute("aria-label"),
+        ).toBe(
+          lane === "drums"
+            ? "DRUMS grid · EDITING"
+            : `${lane.toUpperCase()} grid · VIEW ONLY`,
+        );
       }
 
       // PLAY by keyboard: body-level Space (the DA-1 transport shortcut).
@@ -137,7 +148,9 @@ describe("DA-1 keyboard journey (real app)", () => {
       );
 
       // Back into the grid via the (still-roving) seed's tab stop, then
-      // lane-move: PageDown ×3 drums → bass → chords → lead.
+      // quadrant selection: PageDown ×3 drums → bass → chords → lead (LY-1 —
+      // the v0 lane-move keys now SELECT the quadrant; ledger #1). Each
+      // selection announces NOW EDITING <LANE> (E1) and carries focus.
       rovingSeed(drums).focus();
       key(document.activeElement!, "PageDown");
       await waitFor(() =>
@@ -150,6 +163,9 @@ describe("DA-1 keyboard journey (real app)", () => {
       key(document.activeElement!, "PageDown");
       await waitFor(() =>
         laneHost(host, "lead").contains(document.activeElement),
+      );
+      expect(host.querySelector(".stage-status")?.textContent).toBe(
+        "NOW EDITING LEAD",
       );
 
       // Edge clamp: one more PageDown stays in lead (no wrap, spec law).

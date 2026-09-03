@@ -1,34 +1,47 @@
 /*
- * App shell (DES-2): booth fixed top, stage floor below. No component
- * design here beyond the shell — lanes own the stage from DES-3/4 on.
+ * App shell (DES-2, LY-1): booth fixed top, rail + the 2×2 lane-quadrant
+ * stage below. One-page law (town-hall I2-1): at the primary viewport
+ * (1440×900) the whole instrument — booth, rail, all four quadrants + their
+ * control strips — fits with ZERO page scrolling (asserted by
+ * tests/browser/quadrant-layout.test.ts). The shell is a fixed-height flex
+ * column; per-grid horizontal scrolling stays INSIDE quadrants (the v0
+ * mechanism, never the page).
  */
 
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
 }
 
 .stage {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--color-ground);
 }
 
+/*
+ * LY-1: the four lane quadrants — 2×2 grid in visual reading order
+ * (drums · bass / chords · lead). Rows size to content so a budget miss
+ * grows the page (and fails the viewport assertion) instead of silently
+ * clipping a quadrant.
+ */
 .stage-floors {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
   gap: var(--space-3);
-  padding: var(--space-4) 0 var(--space-7);
+  padding: var(--space-3) var(--space-4) var(--space-4);
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* HU-2 empty-project hint: subtle in-world note over the silent stage. */
-.stage-floors {
-  position: relative;
-}
-
 .stage-hint {
   position: absolute;
   inset: 0;

@@ -246,6 +246,10 @@ export interface DrumsLane {
   readonly kitId: string;
   readonly gate: LaneGate;
   readonly fxChain: readonly FxDevice[];
+  /** LY-1 quadrant mix (optional, canonical-empty when default — see LaneMix). */
+  readonly volume?: number;
+  readonly mute?: boolean;
+  readonly solo?: boolean;
 }
 
 export interface PitchedLane {
@@ -253,13 +257,49 @@ export interface PitchedLane {
   readonly presetId: string;
   readonly gate: LaneGate;
   readonly fxChain: readonly FxDevice[];
+  /** LY-1 quadrant mix (optional, canonical-empty when default — see LaneMix). */
+  readonly volume?: number;
+  readonly mute?: boolean;
+  readonly solo?: boolean;
 }
 
 export type Lane = DrumsLane | PitchedLane;
 
+/**
+ * LY-1 lane mix (the chainCues precedent): optional additive fields, NO schema
+ * version bump — docs written before the quadrant layout stay valid. Canonical
+ * empty form OMITS all three (volume 1, mute false, solo false); the store's
+ * mix action writes them only away from defaults so default documents stay
+ * byte-stable (golden codec law).
+ */
+export interface LaneMix {
+  /** Linear 0..1 gain multiplier (default 1). */
+  readonly volume: number;
+  readonly mute: boolean;
+  readonly solo: boolean;
+}
+
+export const DEFAULT_LANE_MIX: LaneMix = {
+  volume: 1,
+  mute: false,
+  solo: false,
+};
+
+/** Effective mix of a lane config: explicit values over the defaults. */
+export function effectiveLaneMix(lane: Lane): LaneMix {
+  return {
+    volume: lane.volume ?? DEFAULT_LANE_MIX.volume,
+    mute: lane.mute ?? DEFAULT_LANE_MIX.mute,
+    solo: lane.solo ?? DEFAULT_LANE_MIX.solo,
+  };
+}
+
 const LaneCommon = {
   gate: LaneGateSchema,
   fxChain: v.pipe(v.array(FxDeviceSchema), v.maxLength(MAX_FX_PER_LANE)),
+  volume: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+  mute: v.optional(v.boolean()),
+  solo: v.optional(v.boolean()),
 };
 
 export const LaneSchema = v.variant("id", [

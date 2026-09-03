@@ -44,10 +44,12 @@ import {
   createSoftClipNode,
 } from "../audio/fx";
 import {
+  DEFAULT_LANE_MIX,
   DRUM_PIECES,
   LANE_IDS,
   type DrumPiece,
   type LaneId,
+  type LaneMix,
 } from "../document/schema";
 import {
   type EffectiveScale,
@@ -821,6 +823,72 @@ export class Session {
   private laneChains: (readonly FxDevice[] | null)[] = [];
   private readonly chainHosts: (FxChainHost | null)[] = [];
 
+  // -------------------------------------------------------------------------
+  // LY-1 quadrant mix (per-lane volume / mute / solo). The mix rides the SAME
+  // per-lane gain node the FX chain sinks into (session.ts laneGain); solo
+  // ducks every non-solo lane to silence (mute is per-lane). The engineBridge
+  // pushes the document's mix on the same lane-object identity as FX chains.
+  // -------------------------------------------------------------------------
+
+  private laneMix: LaneMix[] = LANE_IDS.map(() => ({ ...DEFAULT_LANE_MIX }));
+  private laneGains: (GainNode | null)[] = [];
+
+  /**
+   * Push one lane's mix (document values via the engineBridge). Recomputes
+   * EVERY lane's effective gain — solo changes other lanes' audibility, so a
+   * one-lane push can move all four gains. Applied to the gain nodes with an
+   * 8 ms de-click ramp (the chain-head fade vocabulary); before the nodes
+   * exist (nothing sounding yet) the values are simply remembered.
+   */
+  setLaneMix(laneId: LaneId, mix: LaneMix): void {
+    this.laneMix[LANE_IDS.indexOf(laneId)] = { ...mix };
+    this.applyLaneGains();
+  }
+
+  /** Current stored mix of a lane (inspector/e2e). */
+  getLaneMix(laneId: LaneId): LaneMix {
+    return this.laneMix[LANE_IDS.indexOf(laneId)] ?? { ...DEFAULT_LANE_MIX };
+  }
+
+  /**
+   * Effective gain law: mute silences the lane; if ANY lane is soloed, every
+   * non-solo lane silences too; otherwise the lane's linear volume applies.
+   */
+  private effectiveLaneGain(index: number): number {
+    const anySolo = this.laneMix.some((m) => m.solo);
+    const mix = this.laneMix[index] ?? DEFAULT_LANE_MIX;
+    if (mix.mute) return 0;
+    if (anySolo && !mix.solo) return 0;
+    return mix.volume;
+  }
+
+  private applyLaneGains(): void {
+    for (let i = 0; i < this.laneGains.length; i++) {
+      const gain = this.laneGains[i];
+      if (!gain) continue;
+      const target = this.effectiveLaneGain(i);
+      const t = this.engine.getContext().currentTime;
+      const param = gain.gain;
+      // De-click: cancel anything pending, hold the current value, ramp over
+      // 8 ms (the FX chain-head fade pair's fade-in vocabulary).
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+      param.linearRampToValueAtTime(target, t + 0.008);
+    }
+  }
+
+  /** The lane's mix gain node (created once, connected to the master). */
+  private ensureLaneGain(laneIndex: number, master: GainNode): GainNode | null {
+    if (this.laneGains[laneIndex]) return this.laneGains[laneIndex]!;
+    const ctx = this.engine.getContext();
+    if (!hasAudioNodes(ctx)) return null;
+    const gain = ctx.createGain();
+    gain.gain.value = this.effectiveLaneGain(laneIndex);
+    gain.connect(master);
+    this.laneGains[laneIndex] = gain;
+    return gain;
+  }
+
   /**
    * Push a lane's FX chain (document order). Topology edits rebuild the lane
    * subgraph glitch-free (3 ms fade-out / 8 ms fade-in on the chain head —
@@ -858,9 +926,12 @@ export class Session {
     if (this.chainHosts[laneIndex]) return;
     const ctx = this.engine.getContext();
     if (!isWorkletCapable(ctx)) return;
-    const laneGain = ctx.createGain();
-    laneGain.gain.value = 1;
-    laneGain.connect(master);
+    // LY-1: the lane gain is the shared mix node (volume/mute/solo) — created
+    // in ensureVoiceEngine for every lane, worklet or not, so the mix law is
+    // identical on both paths.
+    const laneGain =
+      this.laneGains[laneIndex] ?? this.ensureLaneGain(laneIndex, master);
+    if (!laneGain) return;
     const rampGain = Session.makeRampGain(ctx.createGain());
     const laneSeed = (0x5eed ^ ((laneIndex + 1) * 0x85ebca6b)) >>> 0;
     const timing = (): FxTiming => ({
@@ -906,12 +977,18 @@ export class Session {
       const master = this.ensureMaster();
       if (master) {
         for (let i = 0; i < LANE_IDS.length; i++) {
+          // LY-1: the lane gain (mix node) exists on every path — worklet
+          // graphs sink their FX chain into it; the exotic no-worklet
+          // fallback connects the voice engine through it directly. The mix
+          // law (volume/mute/solo) is therefore identical either way.
+          const laneGain = this.ensureLaneGain(i, master);
           // IM-4: voice engine → FX chain (chain head = ramp gain) → lane
           // gain → master. The chain host owns everything between the
           // worklet node and the lane gain.
           this.buildLaneChain(host, i, master);
-          // No worklet-graph context (exotic fallback): straight to master.
-          if (!this.chainHosts[i]) host.connect(i, master);
+          // No worklet-graph context (exotic fallback): straight through the
+          // lane gain to master.
+          if (!this.chainHosts[i] && laneGain) host.connect(i, laneGain);
         }
       }
       return host;

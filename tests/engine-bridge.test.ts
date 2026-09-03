@@ -9,6 +9,7 @@ import {
   docStore,
   setLaneChain,
   setLaneGate,
+  setLaneMix,
   setLaneScaleOverride,
   setProjectScale,
   setTransport,
@@ -20,12 +21,13 @@ import { connectStoreToEngine } from "../src/state/engineBridge";
 import type { Session } from "../src/engine/session";
 import type { LaneSchedule } from "../src/audio/song";
 import type { EffectiveScale } from "../src/document/scales";
-import type { LaneId } from "../src/document/schema";
+import type { LaneId, LaneMix } from "../src/document/schema";
 
 interface FakeSession {
   schedules: Map<LaneId, LaneSchedule>;
   sounds: Record<string, string>;
   scales: Record<string, EffectiveScale>;
+  mixes: Record<string, LaneMix>;
   bpm: number;
   swing: number;
   metronome: boolean;
@@ -35,6 +37,7 @@ interface FakeSession {
   setLaneSound(lane: LaneId, id: string): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(lane: string, scale: EffectiveScale | null): void;
+  setLaneMix(lane: LaneId, mix: LaneMix): void;
   setBpm(bpm: number): void;
   setSwingAmount(a: number): void;
   setMetronome(on: boolean): void;
@@ -49,6 +52,7 @@ function fakeSession(): FakeSession {
     schedules: new Map(),
     sounds: {},
     scales: {},
+    mixes: {},
     bpm: -1,
     swing: -1,
     metronome: false,
@@ -67,6 +71,9 @@ function fakeSession(): FakeSession {
     setLaneScale(lane, scale) {
       if (scale === null) delete s.scales[lane];
       else s.scales[lane] = scale;
+    },
+    setLaneMix(lane, mix) {
+      s.mixes[lane] = mix;
     },
     setBpm(bpm) {
       s.bpm = bpm;
@@ -166,6 +173,23 @@ describe("connectStoreToEngine", () => {
     expect(new Set(s.compiles)).toEqual(
       new Set(["drums", "bass", "chords", "lead"]),
     );
+    disconnect();
+  });
+
+  it("LY-1: mix edits push effectiveLaneMix to the session on the lane commit", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    // Default push: canonical-empty mix = the default triple on every lane.
+    expect(s.mixes["bass"]).toEqual({ volume: 1, mute: false, solo: false });
+    setLaneMix("bass", { volume: 0.25, solo: true });
+    expect(s.mixes["bass"]).toEqual({ volume: 0.25, mute: false, solo: true });
+    // The OTHER lanes re-push too (solo ducks them — the session recomputes
+    // all four gains from one lane's push).
+    expect(s.mixes["lead"]).toEqual({ volume: 1, mute: false, solo: false });
+    // Mix edits do NOT recompile lane schedules (no groove/scale input).
+    s.compiles.length = 0;
+    setLaneMix("lead", { mute: true });
+    expect(s.compiles).toHaveLength(0);
     disconnect();
   });
 });

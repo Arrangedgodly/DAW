@@ -1,33 +1,52 @@
 /*
- * Lane header strips (DES-3) + the shared scale chip/popover.
+ * Quadrant control strips (DES-3 → LY-1) + the shared scale chip/popover.
  * Ink law (D9): info-critical text = warm white on the ground; the lane hue
  * appears only on borders, fills of state chips, and focus — never as body
  * text (red lane text is restricted to ≤10px Silkscreen 700 anyway).
  * Glow law: one ≤3px layer, decoration-only, never the sole state signal.
+ *
+ * LY-1 two-tier strip: the COMPACT row (preset stepper · VOLUME · MUTE ·
+ * SOLO) is present and operable in all four quadrants; the EDIT row (scale
+ * chip · GATE · FX) renders only in the selected quadrant — display:none
+ * elsewhere, which also removes it from the tab order (never a trap).
  */
 
 .lane-head-strip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-5);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
-.lane-head-strip .lane-name {
-  margin-right: auto;
-}
-
-.lane-head-controls {
+.lane-strip-compact {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3) var(--space-5);
+  gap: var(--space-2) var(--space-4);
+}
+
+.lane-strip-compact .lane-name {
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+.lane-strip-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* View-only quadrants hide the editing tier (out of tab order + a11y tree). */
+.lane-strip-edit.is-hidden {
+  display: none;
 }
 
 .head-ctl {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .head-ctl-label {
@@ -75,9 +94,99 @@
   text-align: center;
 }
 
+.head-vol-value {
+  min-width: 4ch;
+  text-align: right;
+}
+
 .head-ctl-unit {
   margin-left: 2px;
   color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+}
+
+/* ---- LY-1 mix controls: VOLUME range + MUTE / SOLO ---- */
+
+/* The SAME in-world slider language as the booth/FX strip (DES-7 one-slider
+ * vocabulary): chassis track + warm-white square thumb. */
+.head-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.head-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.head-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.head-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.head-range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+}
+
+.head-range:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/* MUTE / SOLO: real buttons; pressed = lane-hue fill + near-black ink
+ * (fill + border + aria-pressed carry the state; never glow alone). */
+.head-mix-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  height: 20px;
+  padding: 0 var(--space-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.head-mix-btn:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.head-mix-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.head-mix-btn.is-on {
+  color: var(--color-ink-on-fill);
+  background: var(--lane-hue);
+  border-color: var(--lane-hue);
 }
 
 /* ---- Effective-scale chip (the R6 affordance) ---- */

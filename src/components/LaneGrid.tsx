@@ -1,15 +1,21 @@
 /**
- * LaneGrid (DES-4, DES-6): one lane's pad floor. The DOM grid itself is owned
- * by DomGridRenderer (D1 seam); this component provides the lane chassis
- * (label, scroll container, hue) and the document write-through + audition
- * wiring. Nothing here re-renders at 60 Hz — the renderer's rAF loop handles
+ * LaneGrid (DES-4, DES-6, LY-1): one lane's pad floor — a QUADRANT of the
+ * 2×2 stage. The DOM grid itself is owned by DomGridRenderer (D1 seam); this
+ * component provides the quadrant chassis (strip, scroll container, hue),
+ * the document write-through + audition wiring, and the quadrant-selection
+ * law. Nothing here re-renders at 60 Hz — the renderer's rAF loop handles
  * the playhead and glow outside Solid entirely.
  *
  * DES-6: the grid edits the lane's ACTIVE pattern — the ephemeral selection
- * (selection.ts activePatterns), which the pattern rail drives — no longer
- * just chain slot 0. A Keyed wrapper remounts the grid surface when the
- * selected pattern (or its shape) changes; the selection itself lives
- * outside, so collapse/expand and pattern switches never lose your place.
+ * (selection.ts activePatterns), which the pattern rail drives. A Keyed
+ * wrapper remounts the grid surface when the selected pattern (or its shape)
+ * changes; the selection itself lives outside, so collapse/expand and
+ * pattern switches never lose your place.
+ *
+ * LY-1: exactly ONE quadrant is editable (selection.activeLane IS the
+ * quadrant selection); the other three render view-only with live notes +
+ * playhead, no tab stops, not focus traps (a11y §7 E2). A click on any part
+ * of a view-only quadrant selects it (pointer parity — keyboard.md v2).
  */
 
 import {
@@ -37,16 +43,38 @@ import { getSession } from "../engine/session";
 import { DomGridRenderer, type PlayheadFrame } from "../grid/renderer";
 import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
 import {
+  activeLane,
   activePatterns,
   currentPatternFor,
   selectLane,
 } from "../state/selection";
-import { focusRequest, requestLaneFocus } from "../state/gridFocus";
+import {
+  focusRequest,
+  requestLaneFocus,
+  selectQuadrantFromPointer,
+} from "../state/gridFocus";
 import LaneHeader from "./LaneHeader";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
 
 const session = getSession();
+
+/**
+ * LY-1 quadrant geometry (production decision inside the committed 2×2
+ * structure, recorded in-task): drums keeps near-v0 pad scale (6 rows); the
+ * 14-row pitched lanes compress to 16 px cells so every quadrant fits the
+ * one-page 1440×900 law. Long patterns scroll horizontally inside the
+ * quadrant (the v0 per-grid mechanism) — the page itself never scrolls.
+ */
+const QUADRANT_GEOMETRY: Record<
+  LaneId,
+  { cellPx: number; gapPx: number; labelPx: number; fillRailPx: number }
+> = {
+  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 104 },
+  bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
+  chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
+  lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
+};
 
 function currentPattern(lane: LaneId): Pattern | undefined {
   void activePatterns();
@@ -116,6 +144,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       ? pitchedLabels(lane as Exclude<LaneId, "drums">, pattern).degrees
       : [];
     const steps = pattern.bars * 16;
+    const geo = QUADRANT_GEOMETRY[lane];
 
     const readFrame = (): PlayheadFrame | null => {
       const snap = session.transport.snapshot;
@@ -137,6 +166,12 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       rowLabels,
       steps,
       pitched,
+      cellPx: geo.cellPx,
+      gapPx: geo.gapPx,
+      labelPx: geo.labelPx,
+      fillRailPx: geo.fillRailPx,
+      // LY-1: only the selected quadrant's grid starts editable.
+      editable: activeLane() === lane,
       host: {
         readFrame,
         prefersReducedMotion: () =>
@@ -168,7 +203,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           }
         : {}),
       onToggle: (row, step) => {
-        selectLane(lane); // the lane selection follows the latest grid interaction
+        selectLane(lane); // selection follows the latest grid interaction
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
           const res = toggleDrumStep(piece, step);
@@ -184,8 +219,8 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           if (res.turnedOn) void session.audition(lane, degree);
         }
       },
-      // DA-1 lane moves: this grid asks the coordinator; the target lane's
-      // surface consumes the request below.
+      // DA-1 lane moves → LY-1 quadrant selection: this grid asks the
+      // coordinator; the target quadrant's surface consumes the request.
       onLaneMove: (dir, from) =>
         requestLaneFocus(lane, dir, from.row, from.step),
       // DA-1 audition key: Shift+Enter sounds the focused cell, no toggle.
@@ -201,12 +236,21 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     rendererRef = renderer;
     renderer.sync(syncPatternFor(lane, pattern));
 
-    // DA-1 cross-lane focus: consume requests addressed to THIS lane and
+    // LY-1 quadrant state: flip editable when the selection moves. O(1) in
+    // the renderer (tab stop + names); the rAF loop never restarts.
+    createEffect(() => {
+      rendererRef?.setEditable(activeLane() === lane);
+    });
+
+    // DA-1 cross-lane focus: consume requests addressed to THIS quadrant and
     // move DOM focus + roving tabindex to the carried cell (clamped by the
-    // renderer to this grid's rows/steps).
+    // renderer to this grid's rows/steps). "roving" requests land on the
+    // grid's remembered cursor (the strip ]/[ escape hatch).
     createEffect(() => {
       const req = focusRequest();
-      if (req && req.lane === lane) rendererRef?.focusCell(req.row, req.step);
+      if (!req || req.lane !== lane) return;
+      if (req.mode === "roving") rendererRef?.focusRoving();
+      else rendererRef?.focusCell(req.row, req.step);
     });
 
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -260,11 +304,20 @@ export default function LaneGrid(props: { lane: LaneId }) {
     return p ? `${p.id}:${p.kind}:${p.bars}` : "none";
   };
 
+  // LY-1 pointer law: a click on any part of a VIEW-ONLY quadrant selects it
+  // (control clicks keep their own action + focus; the announcement carries
+  // the change). The selected quadrant's own clicks are left alone.
+  const onQuadrantClick = () => {
+    if (activeLane() !== props.lane) selectQuadrantFromPointer(props.lane);
+  };
+
   return (
     <section
       class="lane-floor"
       data-lane={props.lane}
+      data-editing={activeLane() === props.lane}
       aria-label={LANE_NAMES[props.lane]}
+      onClick={onQuadrantClick}
     >
       <LaneHeader lane={props.lane} />
       <Show when={key()} keyed>

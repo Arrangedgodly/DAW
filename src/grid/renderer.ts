@@ -13,6 +13,13 @@
  * decay ≤180 ms; under prefers-reduced-motion (gated BOTH here via matchMedia
  * and in CSS) the sweep becomes a quantized column highlight and the trigger
  * glow a static on-state.
+ *
+ * LY-1 (quadrant layout): geometry is PARAMETERIZED — the v0 editing size
+ * (24 px cells) stays the default; quadrant-scaled grids pass smaller cells.
+ * A grid can be switched between EDITABLE and VIEW-ONLY at any time
+ * (`setEditable`): view-only grids keep rendering live notes + playhead but
+ * expose NO tab stops, NO focusable descendants, and ignore activation —
+ * the quadrant's click handler selects instead (never a focus trap, E2).
  */
 
 import type {
@@ -33,10 +40,12 @@ import {
   nextCell,
 } from "./keynav";
 
-/** Step column width budget: cell + gap (px). Keep cells ≥20px for editing. */
+/** Default geometry = the v0 full-floor editing size. */
 export const GRID_CELL_PX = 24;
 export const GRID_GAP_PX = 2;
-export const STEP_WIDTH_PX = GRID_CELL_PX + GRID_GAP_PX;
+export const GRID_LABEL_PX = 72;
+/** PX-3 fill-rail slot width (drums rows only). */
+export const GRID_FILL_RAIL_PX = 152;
 
 export interface PlayheadFrame {
   readonly playing: boolean;
@@ -62,6 +71,16 @@ export interface DomGridRendererOptions {
   /** Sounding-note widths (pitched lanes only). */
   readonly pitched: boolean;
   readonly host: GridRendererHost;
+  /** Cell box px (default 24 — the v0 editing size). */
+  readonly cellPx?: number;
+  /** Horizontal gap between cells (default 2). */
+  readonly gapPx?: number;
+  /** Row-label gutter px (default 72). */
+  readonly labelPx?: number;
+  /** Fill-rail slot width (default 152; drums mountFillControl only). */
+  readonly fillRailPx?: number;
+  /** Start editable (default true). `setEditable` flips it live. */
+  readonly editable?: boolean;
   /** Cell activated (click / Enter / Space) — owner writes the document. */
   readonly onToggle: (row: number, step: number) => void;
   /**
@@ -90,6 +109,17 @@ export interface GridRenderer {
   toggle(row: number, step: number): void;
   /** DA-1: move DOM focus + the roving tabindex to a cell (clamped). */
   focusCell(row: number, step: number): void;
+  /**
+   * LY-1: focus the grid's CURRENT roving cell without moving the cursor —
+   * the strip `]`/`[` escape hatch lands where this grid left off.
+   */
+  focusRoving(): void;
+  /**
+   * LY-1 quadrant state: editable grids own the region's tab stop + keys;
+   * view-only grids keep rendering (sync/playhead/glow) with NO tab stops
+   * and no focusable descendants (E2 — never a focus trap).
+   */
+  setEditable(editable: boolean): void;
   /** Position the playhead light bar (px) or park it (null). */
   setPlayhead(x: number | null): void;
   /** One-shot trigger glow on the sounding cells of a column. */
@@ -122,9 +152,27 @@ export class DomGridRenderer implements GridRenderer {
   private glowTimers = new Set<number>();
   private rovingCell: HTMLElement | null = null;
   private reducedMotion: MediaQueryList | null = null;
+  /** LY-1 quadrant state (see setEditable). */
+  private editable = true;
+  /** Geometry (LY-1): cell/gap/label/fill px + derived step width. */
+  private readonly cellPx: number;
+  private readonly gapPx: number;
+  private readonly labelPx: number;
+  private readonly stepWidthPx: number;
+  private readonly playheadLeftPx: number;
+  private gridEl: HTMLElement | null = null;
 
   constructor(opts: DomGridRendererOptions) {
     this.opts = opts;
+    this.cellPx = opts.cellPx ?? GRID_CELL_PX;
+    this.gapPx = opts.gapPx ?? GRID_GAP_PX;
+    this.stepWidthPx = this.cellPx + this.gapPx;
+    this.labelPx = opts.labelPx ?? GRID_LABEL_PX;
+    const fillPx = opts.mountFillControl
+      ? (opts.fillRailPx ?? GRID_FILL_RAIL_PX)
+      : 0;
+    this.playheadLeftPx = this.labelPx + fillPx;
+    this.editable = opts.editable ?? true;
     this.build();
     this.loop();
   }
@@ -139,7 +187,9 @@ export class DomGridRenderer implements GridRenderer {
       ? "lane-grid has-fill-rail"
       : "lane-grid";
     grid.setAttribute("role", "grid");
-    grid.setAttribute("aria-label", `${this.opts.laneLabel} grid`);
+    grid.setAttribute("aria-label", this.gridAriaLabel());
+    grid.dataset.editing = String(this.editable);
+    this.gridEl = grid;
 
     const body = document.createElement("div");
     body.className = "grid-body";
@@ -154,11 +204,14 @@ export class DomGridRenderer implements GridRenderer {
       label.className = "row-label";
       label.setAttribute("role", "rowheader");
       label.textContent = rowLabels[row];
+      label.style.width = `${this.labelPx}px`;
       rowEl.append(label);
 
       const cellsEl = document.createElement("div");
       cellsEl.className = "row-cells";
-      cellsEl.style.gridTemplateColumns = `repeat(${steps}, ${GRID_CELL_PX}px)`;
+      cellsEl.style.gridTemplateColumns = `repeat(${steps}, ${this.cellPx}px)`;
+      cellsEl.style.gridAutoRows = `${this.cellPx}px`;
+      cellsEl.style.gap = `${this.gapPx}px`;
 
       const rowCells: HTMLElement[] = [];
       for (let step = 0; step < steps; step++) {
@@ -208,17 +261,20 @@ export class DomGridRenderer implements GridRenderer {
     const playhead = document.createElement("div");
     playhead.className = "grid-playhead";
     playhead.setAttribute("aria-hidden", "true");
+    playhead.style.left = `${this.playheadLeftPx}px`;
     body.append(playhead);
     this.playheadEl = playhead;
 
     grid.append(body);
     container.append(grid);
 
-    // Roving tabindex seed: first cell.
+    // Roving tabindex seed: first cell (editable grids only — LY-1).
     const first = this.cells[0]?.[0];
-    if (first) {
+    if (first && this.editable) {
       first.tabIndex = 0;
       this.rovingCell = first;
+    } else if (first) {
+      this.rovingCell = first; // remembered for setEditable(true), no tab stop
     }
 
     container.addEventListener("click", this.onClick);
@@ -228,14 +284,44 @@ export class DomGridRenderer implements GridRenderer {
     }
   }
 
+  /** E3 (a11y §7): the grid's accessible name carries the edit state in text. */
+  private gridAriaLabel(): string {
+    return `${this.opts.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
+  }
+
   // -- interface ----------------------------------------------------------
 
   toggle(row: number, step: number): void {
+    if (!this.editable) return;
     this.opts.onToggle(row, step);
   }
 
   focusCell(row: number, step: number): void {
     this.moveFocus(row, step);
+  }
+
+  focusRoving(): void {
+    if (!this.editable) return;
+    if (this.rovingCell) this.rovingCell.focus();
+    else this.moveFocus(0, 0);
+  }
+
+  setEditable(editable: boolean): void {
+    if (this.editable === editable) return;
+    this.editable = editable;
+    // O(1) transitions: editable grids own exactly ONE tab stop (the roving
+    // cell); view-only grids own none. The remembered roving cell survives
+    // the flip, so re-entering edit mode returns to the same place.
+    if (editable) {
+      if (!this.rovingCell) this.rovingCell = this.cells[0]?.[0] ?? null;
+      if (this.rovingCell) this.rovingCell.tabIndex = 0;
+    } else if (this.rovingCell) {
+      this.rovingCell.tabIndex = -1;
+    }
+    if (this.gridEl) {
+      this.gridEl.setAttribute("aria-label", this.gridAriaLabel());
+      this.gridEl.dataset.editing = String(editable);
+    }
   }
 
   setPlayhead(x: number | null): void {
@@ -326,20 +412,26 @@ export class DomGridRenderer implements GridRenderer {
       while (i + len < steps.length && steps[i + len] === 2) len++;
       const run = document.createElement("div");
       run.className = "note-run";
-      run.style.left = `calc(${i} * ${STEP_WIDTH_PX}px)`;
-      run.style.width = `calc(${len} * ${STEP_WIDTH_PX}px - ${GRID_GAP_PX}px)`;
+      run.style.left = `calc(${i} * ${this.stepWidthPx}px)`;
+      run.style.width = `calc(${len} * ${this.stepWidthPx}px - ${this.gapPx}px)`;
       layer.append(run);
       i += len - 1;
     }
   }
 
   private onClick = (e: Event): void => {
+    // View-only quadrants: clicks select the QUADRANT (LaneGrid wires that on
+    // the floor); the grid itself never toggles.
+    if (!this.editable) return;
     const target = e.target as HTMLElement;
     if (!target.classList.contains("cell")) return;
     this.activate(target);
   };
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    // A view-only grid holds no focus, so keys cannot originate here — but a
+    // stale focus (mid-flip) must never toggle or move into it either (E2).
+    if (!this.editable) return;
     const target = e.target as HTMLElement;
     if (!target.classList.contains("cell")) return;
     const pos: CellPos = {
@@ -399,7 +491,10 @@ export class DomGridRenderer implements GridRenderer {
   }
 
   private moveFocus(row: number, step: number): void {
-    const rowCells = this.cells[row];
+    // Carry-clamp law (keynav carryCellTo): a position carried from a taller
+    // grid clamps to THIS grid's row count and step count — never wraps.
+    const rowIndex = Math.min(Math.max(row, 0), this.cells.length - 1);
+    const rowCells = this.cells[rowIndex];
     if (!rowCells) return;
     const cell = rowCells[Math.min(Math.max(step, 0), rowCells.length - 1)];
     if (!cell) return;
@@ -428,7 +523,7 @@ export class DomGridRenderer implements GridRenderer {
         this.setPlayhead(null);
       } else {
         this.setPlayhead(
-          playheadX(frame.loopTime, frame.options, STEP_WIDTH_PX),
+          playheadX(frame.loopTime, frame.options, this.stepWidthPx),
         );
       }
       const q = quantizedStep(frame.loopTime, frame.options);

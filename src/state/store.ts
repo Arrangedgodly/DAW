@@ -24,11 +24,13 @@
 import { createStore } from "zustand/vanilla";
 import { temporal } from "zundo";
 import {
+  DEFAULT_LANE_MIX,
   DRUM_PIECES,
   type DrumPiece,
   type FxDevice,
   type LaneGate,
   type LaneId,
+  type LaneMix,
   MAX_FX_PER_LANE,
   MAX_NOTE_LENGTH,
   MIN_NOTE_LENGTH,
@@ -41,6 +43,7 @@ import {
   type ScaleConfig,
   type Transport,
   createDefaultProject,
+  effectiveLaneMix,
   pitchedCellAt,
   resolveGateSteps,
   togglePitchedNote,
@@ -441,6 +444,44 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
         ? { ...l, kitId: presetOrKitId }
         : { ...l, presetId: presetOrKitId },
     ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LY-1 quadrant mix: per-lane volume / mute / solo (optional document fields,
+// canonical-empty at defaults — the chainCues precedent, no version bump).
+// ---------------------------------------------------------------------------
+
+/**
+ * Patch one lane's mix. Fields left undefined keep their current effective
+ * value. Values equal to the defaults are written as ABSENT keys (canonical
+ * empty form — keeps default-shaped documents byte-stable on the wire).
+ * Rapid drags of the VOLUME slider coalesce per `mix:<lane>`.
+ */
+export function setLaneMix(
+  lane: LaneId,
+  patch: Partial<Pick<LaneMix, "volume" | "mute" | "solo">>,
+): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane)!;
+  const current = effectiveLaneMix(conf);
+  const next: LaneMix = { ...current, ...patch };
+  commit(
+    withLane(doc, lane, (l) => {
+      const merged = { ...l } as typeof l & {
+        volume?: number;
+        mute?: boolean;
+        solo?: boolean;
+      };
+      if (next.volume === DEFAULT_LANE_MIX.volume) delete merged.volume;
+      else merged.volume = next.volume;
+      if (!next.mute) delete merged.mute;
+      else merged.mute = true;
+      if (!next.solo) delete merged.solo;
+      else merged.solo = true;
+      return merged;
+    }),
+    `mix:${lane}`,
   );
 }
 

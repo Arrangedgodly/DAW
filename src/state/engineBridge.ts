@@ -16,7 +16,11 @@
 
 import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
 import { getDrumKit, getPreset } from "../audio/presets";
-import { type LaneId, type ProjectDocument } from "../document/schema";
+import {
+  type LaneId,
+  effectiveLaneMix,
+  type ProjectDocument,
+} from "../document/schema";
 import { effectiveScale } from "../document/scales";
 import { getSession, type Session } from "../engine/session";
 import { docStore } from "./store";
@@ -81,7 +85,7 @@ export function requestPatternSwitch(
   if (schedule) session.setActivePattern(lane, patternId, schedule);
 }
 
-/** Push the document's effective scales + lane sound ids + FX chains. */
+/** Push the document's effective scales + lane sound ids + FX chains + mix. */
 function syncLaneConfig(doc: ProjectDocument, session: Session): void {
   for (const laneConf of doc.lanes) {
     session.setLaneSound(
@@ -91,6 +95,9 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
     // IM-4: the lane's fxChain rides the same lane-object identity, so any
     // chain edit (params, bypass, reorder, add/remove) lands here.
     session.setLaneChain(laneConf.id, laneConf.fxChain);
+    // LY-1: the quadrant mix (volume/mute/solo) rides the lane-object identity
+    // too — any mix edit re-syncs all four lanes (solo ducks the others).
+    session.setLaneMix(laneConf.id, effectiveLaneMix(laneConf));
   }
   for (const lane of PITCHED_LANES) {
     session.setLaneScale(lane, effectiveScale(doc, lane));
@@ -131,12 +138,31 @@ export function connectStoreToEngine(
     // effective scale, song chain (first-pattern selection), groove (bpm/swing).
     const grooveChanged = doc.transport !== prev.doc.transport;
     for (const lane of Object.keys(doc.patterns) as LaneId[]) {
-      // Per-lane config identity (gate/preset live on the lane object; the
-      // lanes array is replaced wholesale on any lane edit).
+      // Per-lane config identity for COMPILATION: gate + sound id + fx chain
+      // (the lanes array is replaced wholesale on any lane edit, and LY-1 mix
+      // edits replace the lane object too — a mix-only change alters none of
+      // the compile inputs, so it must not recompile).
+      const confChanged = (
+        a: (typeof doc.lanes)[number] | undefined,
+        b: (typeof doc.lanes)[number] | undefined,
+      ): boolean => {
+        if (a === b) return false;
+        if (!a || !b) return true;
+        const soundOf = (l: (typeof doc.lanes)[number]) =>
+          l.id === "drums"
+            ? (l as { kitId: string }).kitId
+            : (l as { presetId: string }).presetId;
+        return (
+          a.gate !== b.gate ||
+          soundOf(a) !== soundOf(b) ||
+          a.fxChain !== b.fxChain
+        );
+      };
       const laneConfChanged =
-        doc.lanes.find((l) => l.id === lane) !==
-          prev.doc.lanes.find((l) => l.id === lane) ||
-        doc.songChain[lane] !== prev.doc.songChain[lane];
+        confChanged(
+          doc.lanes.find((l) => l.id === lane),
+          prev.doc.lanes.find((l) => l.id === lane),
+        ) || doc.songChain[lane] !== prev.doc.songChain[lane];
       const pitchedScaleChanged = scaleChanged && lane !== "drums";
       if (
         doc.patterns[lane] !== prev.doc.patterns[lane] ||

@@ -9,8 +9,24 @@
  * one-shot and goes static under prefers-reduced-motion.
  */
 
+/*
+ * LY-1: the FX console opens as an OVERLAY CHASSIS anchored inside the
+ * selected quadrant (popover corner language: 6px radius, offset+blur
+ * shadow) — opening a strip never grows the page (one-page law). It scrolls
+ * internally when modules exceed the quadrant's height.
+ */
 .lane-fx-wrap {
-  flex-basis: 100%;
+  position: absolute;
+  top: 32px; /* below the compact strip row */
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--space-2);
+  z-index: 30;
+  overflow-y: auto;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+    transparent;
+  border-radius: 6px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
 
 .fx-strip {

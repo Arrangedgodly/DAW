@@ -1,15 +1,29 @@
 /*
- * Lane pad grids (DES-4) — the sounding grid, the product's focal moment.
- * All values from tokens.css; lane hue arrives via the data-lane attribute.
- * Ink law (D9): filled cells set glyphs in near-black on the lane fill; glow
- * is one ≤3px layer at 45–60% alpha, decoration-only; one-shot decay ≤180 ms.
+ * Lane pad grids (DES-4, LY-1 quadrants) — the sounding grid, the product's
+ * focal moment. All values from tokens.css; lane hue arrives via the
+ * data-lane attribute. Ink law (D9): filled cells set glyphs in near-black
+ * on the lane fill; glow is one ≤3px layer at 45–60% alpha, decoration-only;
+ * one-shot decay ≤180 ms.
+ *
+ * LY-1: each lane floor is a QUADRANT card (4px chassis radius — the
+ * controls/chassis corner language). The SELECTED quadrant carries the
+ * lane-hue border + a faint fill tint; view-only quadrants dim toward the
+ * ground but keep every text pair ≥ AA (a11y §7 contrast carry-over: state
+ * is fill + border + the strip's text word, never color alone). Geometry
+ * (cell px / label gutter / playhead offset) is set inline by the renderer
+ * from its options — CSS here holds only the v0 fallbacks.
  */
 
 .lane-floor {
   --lane-hue: var(--color-ink);
-  padding: var(--space-4) var(--space-5);
-  border-top: 1px solid
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid
     color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  border-radius: 4px;
 }
 
 .lane-floor[data-lane="drums"] {
@@ -25,6 +39,13 @@
   --lane-hue: var(--color-lane-lead);
 }
 
+/* Selected quadrant: lane-hue border + fill tint carry the EDITING state
+ * (with the strip's · EDIT text word and the grid's accessible name). */
+.lane-floor[data-editing="true"] {
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 3%, var(--color-ground));
+}
+
 .lane-head {
   display: flex;
   align-items: baseline;
@@ -38,13 +59,20 @@
   color: var(--color-ink);
 }
 
+/* LY-1: the visible edit-state word (text-equivalent state, D9/E3 belt+braces
+ * alongside the grid's accessible name). */
+.lane-state {
+  margin-left: var(--space-2);
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+}
+
 /* Red lane-hue text is law-restricted; the count rides warm white instead. */
 .lane-count {
   font: var(--text-value);
   color: color-mix(in srgb, var(--color-ink) 60%, var(--color-ground));
 }
 
-/* Long patterns scroll inside the lane; rows never reflow on toggling. */
+/* Long patterns scroll INSIDE the quadrant; rows never reflow on toggling. */
 .lane-grid-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -68,9 +96,14 @@
   margin-bottom: var(--space-2);
 }
 
+/* View-only quadrants tighten row rhythm (reading overview, not editing). */
+.lane-floor[data-editing="false"] .grid-row {
+  margin-bottom: var(--space-1);
+}
+
 .row-label {
   flex: none;
-  width: 72px;
+  width: 72px; /* fallback; the renderer pins the exact gutter inline */
   display: flex;
   align-items: center;
   font: var(--text-label-sm);
@@ -84,20 +117,25 @@
 .row-cells {
   position: relative;
   display: grid;
-  grid-auto-rows: 24px;
+  grid-auto-rows: 24px; /* fallback; the renderer pins cell px inline */
   gap: 2px;
 }
 
 /* Beat shading: 4/4 grouping — beats 2/4 read slightly raised. */
 .cell {
   position: relative;
-  width: 24px;
+  width: 24px; /* fallback; the renderer pins cell px inline */
   height: 24px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
   cursor: pointer;
+}
+
+/* View-only cells are not clickable — the quadrant select handles clicks. */
+.lane-floor[data-editing="false"] .cell {
+  cursor: default;
 }
 
 .cell[data-beat="1"] {
@@ -135,11 +173,12 @@
  * control can appear on row hover / keyboard focus without ever shifting
  * grid columns. Opacity-gated (NOT visibility/display): the stepper buttons
  * stay in the tab order, so the control is keyboard reachable — focusing it
- * reveals it via :focus-within.
+ * reveals it via :focus-within. LY-1: the quadrant drums grid uses the
+ * compact 104 px rail (the renderer's fillRailPx matches).
  */
 .row-fill {
   flex: none;
-  width: 152px;
+  width: 104px;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -208,11 +247,6 @@
   outline-offset: -2px;
 }
 
-/* The rail widens the label gutter; the playhead follows it. */
-.lane-grid.has-fill-rail .grid-playhead {
-  left: calc(72px + 152px);
-}
-
 /* Gate-length raise: the note bar's literal width over the uniform grid. */
 .note-runs {
   position: absolute;
@@ -229,12 +263,13 @@
   box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent);
 }
 
-/* Playhead light bar — compositor-only movement (transform). */
+/* Playhead light bar — compositor-only movement (transform). The horizontal
+ * offset (label + fill gutter) is pinned INLINE by the renderer from its
+ * geometry options (LY-1); this is only the shape. */
 .grid-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 72px; /* row-label gutter */
   width: 2px;
   margin-left: -1px;
   background: var(--color-ink);

@@ -276,6 +276,7 @@ interface FakeSession {
   setLaneSound(): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(): void;
+  setLaneMix(): void;
   setBpm(): void;
   setSwingAmount(): void;
   setMetronome(): void;
@@ -292,6 +293,7 @@ function fakeSession(): FakeSession {
       s.chains.set(lane, devices);
     },
     setLaneScale() {},
+    setLaneMix() {},
     setBpm() {},
     setSwingAmount() {},
     setMetronome() {},

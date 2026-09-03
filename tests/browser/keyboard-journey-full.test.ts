@@ -12,7 +12,8 @@
  *   4. drums grid navigation (roving seed → arrows → beat jump)
  *   5. euclid fill via keyboard (steppers preview → SET commits)
  *   6. cell toggle (Enter on a focused gridcell)
- *   7. lane move (PageDown) → bass
+ *   7. quadrant select (PageDown → BASS; LY-1: announces NOW EDITING BASS,
+ *      focus carried — the v0 lane-move key is now the quadrant selector)
  *   8. preset stepper + gate stepper via keyboard
  *   9. lane scale override via the popover (root + mode + OVERRIDE LANE)
  *  10. FX device added + param tweaked by keyboard
@@ -263,13 +264,16 @@ describe("DA-3 full keyboard journey (built app)", () => {
           "cell toggle",
         );
 
-        // --- 7. LANE MOVE → BASS -------------------------------------------
+        // --- 7. QUADRANT SELECT → BASS (LY-1 ledger #1: the v0 lane-move
+        // key now SELECTS the quadrant + announces NOW EDITING BASS; focus
+        // is carried into the newly editable bass grid at the same cell.)
         key(cell, "PageDown");
         await poll(
           () => $(`.lane-floor[data-lane="bass"]`).contains(active()),
           T.ui,
-          "lane move into bass",
+          "quadrant select carries focus into bass",
         );
+        expect($(".stage-status").textContent).toBe("NOW EDITING BASS");
 
         // --- 8. PRESET + GATE STEPPERS --------------------------------------
         const bassSound = $('[aria-label="BASS sound"]');
