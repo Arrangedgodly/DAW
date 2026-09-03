@@ -52,6 +52,8 @@
 
 import { writeMidi, type MidiData, type MidiEvent } from "midi-file";
 import {
+  DRUM_PIECES,
+  LANE_IDS,
   type DrumPiece,
   type LaneGate,
   type LaneId,
@@ -197,7 +199,9 @@ export function buildDrumNotes(
       continue;
     }
     const dur = noteDuration(gate, 0, bpm);
-    for (const piece of Object.keys(pattern.steps) as DrumPiece[]) {
+    // Fixed piece order (never Object.keys — the canonical codec key-sorts;
+    // same-tick note order must be stable across a save/load round trip).
+    for (const piece of DRUM_PIECES) {
       const steps = pattern.steps[piece];
       for (let step = 0; step < steps.length; step++) {
         if (!steps[step]) continue;
@@ -274,7 +278,8 @@ export function buildCueMarkers(doc: ProjectDocument): { tick: number; text: str
   if (!cues) return [];
   const seen = new Set<string>();
   const out: { tick: number; text: string }[] = [];
-  for (const lane of Object.keys(cues) as LaneId[]) {
+  // Fixed lane order (LANE_IDS, not Object.keys — canonical key-sorting).
+  for (const lane of LANE_IDS) {
     const labels = cues[lane];
     if (!labels) continue;
     const chain = resolveChainPatterns(doc, lane);

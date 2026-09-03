@@ -19,6 +19,7 @@ import {
   noteParamsFor,
 } from "./presets";
 import {
+  DRUM_PIECES,
   type LaneGate,
   type Pattern,
   type PitchedCell,
@@ -56,7 +57,12 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
   if (pattern.kind === "drums") {
     const kit = preset as DrumKit;
     let pieceOrdinal = 0;
-    for (const pieceName of Object.keys(pattern.steps) as (keyof typeof pattern.steps)[]) {
+    // HW-4 finding: iterate the FIXED piece order, never Object.keys —
+    // pieceOrdinal feeds the seeded-noise salt, and the canonical codec
+    // key-sorts objects, so a reloaded document would otherwise compile
+    // with different noise seeds than the live one (audibly different
+    // export before vs after reload).
+    for (const pieceName of DRUM_PIECES) {
       const piecePreset = kit.pieces[pieceName];
       if (!piecePreset) continue;
       const steps = pattern.steps[pieceName];

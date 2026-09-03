@@ -75,8 +75,10 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
     async () => {
       const bundleKey = Object.keys(bundleGlob)[0];
       const cssKey = Object.keys(cssGlob)[0];
-      expect(bundleKey, "built bundle missing (globalSetup build failed?)")
-        .toBeTruthy();
+      expect(
+        bundleKey,
+        "built bundle missing (globalSetup build failed?)",
+      ).toBeTruthy();
       expect(cssKey).toBeTruthy();
       // publicDir ("dist") maps the built asset URLs into /assets/...
       const scriptUrl = bundleKey.replace("/dist/", "/");
@@ -154,6 +156,15 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
         return url;
       };
 
+      // R14 hygiene: this journey EDITS + AUTOSAVES through the real boot
+      // path into the shared-origin IndexedDB. Wipe it BEFORE the app boots
+      // (deterministic first-run demo) and again in teardown so no journey
+      // state leaks into later same-origin boots.
+      await new Promise<void>((resolve) => {
+        const req = win.indexedDB.deleteDatabase("bitbounce");
+        req.onsuccess = req.onerror = req.onblocked = () => resolve();
+      });
+
       // Write the document: CSP meta is the FIRST thing in head (it must be
       // seen by the parser before any subresource), then the built stylesheet
       // and module. document.open() creates a fresh Document — attach the
@@ -184,9 +195,8 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       expect(appDoc.querySelectorAll(".lane-grid").length).toBe(4);
 
       // --- PLAY 2 BARS ------------------------------------------------------
-      const playBtn = appDoc.querySelector<HTMLButtonElement>(
-        ".booth-btn-play",
-      )!;
+      const playBtn =
+        appDoc.querySelector<HTMLButtonElement>(".booth-btn-play")!;
       playBtn.click();
       await poll(
         () => playBtn.textContent === "STOP",
@@ -205,7 +215,10 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
         }
       }
       playBtn.click(); // stop
-      expect(playheadMoves, "playhead never moved — audio path dead?").toBeGreaterThan(10);
+      expect(
+        playheadMoves,
+        "playhead never moved — audio path dead?",
+      ).toBeGreaterThan(10);
 
       // --- EDIT CELLS -------------------------------------------------------
       const cells = Array.from(
@@ -294,8 +307,9 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       // --- SAVE PROJECT (autosave → real IndexedDB) ---------------------------
       await poll(
         () =>
-          appDoc.querySelector(".save-indicator")?.getAttribute("data-status") ===
-          "saved",
+          appDoc
+            .querySelector(".save-indicator")
+            ?.getAttribute("data-status") === "saved",
         15_000,
         "autosave flush to IndexedDB",
       );
@@ -345,6 +359,20 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       );
 
       iframe.remove();
+      // R14 teardown: remove the iframe FIRST (closing its open DB
+      // connections — deleting under a live connection only blocks), then
+      // wipe the shared-origin DB (retry while the removal settles) so no
+      // journey state leaks into later same-origin boots.
+      for (let attempt = 0; ; attempt++) {
+        const deleted = await new Promise<boolean>((resolve) => {
+          const req = indexedDB.deleteDatabase("bitbounce");
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(true);
+          req.onblocked = () => resolve(false);
+        });
+        if (deleted || attempt >= 20) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
     },
     120_000,
   );

@@ -249,6 +249,11 @@ class VoiceEngineProcessor extends __ProcessorBase {
           this.pending.push(msg.events[i]);
         }
         this.pending.sort(byTime);
+        // Ack receipt: the offline render (IM-5) preloads the FULL event
+        // list before startRendering and must not race message delivery
+        // (a fixed settle timeout was proven insufficient under a busy
+        // page — late events landed at the next quantum, shifting onsets).
+        this.port.postMessage({ type: "loaded", count: msg.events.length });
       } else if (msg.type === "all-off") {
         this.allOff();
       }

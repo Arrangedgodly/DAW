@@ -21,6 +21,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "../../src/document/schema";
+import { createDemoProject } from "../../src/document/demoSong";
 import type { ProjectDocument, PitchedCell } from "../../src/document/schema";
 import {
   renderProjectToBuffer,
@@ -66,15 +67,27 @@ function projectFullFx(): ProjectDocument {
     { type: "bitcrusher", bypassed: false, params: { bits: 6, downsample: 3 } },
   ];
   doc.lanes.find((l) => l.id === "bass")!.fxChain = [
-    { type: "filter", bypassed: false, params: { kind: "lowpass", cutoffHz: 900, q: 1.2 } },
+    {
+      type: "filter",
+      bypassed: false,
+      params: { kind: "lowpass", cutoffHz: 900, q: 1.2 },
+    },
   ];
   doc.lanes.find((l) => l.id === "chords")!.fxChain = [
-    { type: "delay", bypassed: false, params: { timeSteps: 3, feedback: 0.35, mix: 0.3 } },
+    {
+      type: "delay",
+      bypassed: false,
+      params: { timeSteps: 3, feedback: 0.35, mix: 0.3 },
+    },
     { type: "reverb", bypassed: false, params: { size: 0.5, mix: 0.3 } },
   ];
   doc.lanes.find((l) => l.id === "lead")!.fxChain = [
     { type: "reverb", bypassed: false, params: { size: 0.35, mix: 0.35 } },
-    { type: "filter", bypassed: false, params: { kind: "highpass", cutoffHz: 200, q: 0.8 } },
+    {
+      type: "filter",
+      bypassed: false,
+      params: { kind: "highpass", cutoffHz: 200, q: 0.8 },
+    },
     { type: "drive", bypassed: false, params: { amount: 0.2 } },
   ];
   return doc;
@@ -89,6 +102,15 @@ const CASES: DeterminismCase[] = [
   { name: "plain (no FX, no swing)", doc: projectPlain },
   { name: "swing 0.5 with off-grid notes", doc: projectSwing },
   { name: "full-FX chains on every lane", doc: projectFullFx },
+  // HW-4 regression: this suite's own projects never sounded more than 2
+  // lanes, and OfflineAudioContext fan-in with 4+ parallel branches was
+  // found (HW-4 e2e byte-compare) to sum nondeterministically at the last
+  // float ULP — fixed in render.ts by serial-chaining the lane sums. The
+  // dense 4-sounding-lane demo pins that fix.
+  {
+    name: "demo song (4 dense lanes, 4-pattern chains)",
+    doc: createDemoProject,
+  },
 ];
 
 describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
@@ -134,28 +156,37 @@ describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
 });
 
 describe("HW-2 cross-config sample-rate stability (44100 law)", () => {
-  it("render path always requests 2ch @ 44100 from its context factory", { timeout: 90000 }, async () => {
-    const seen: { channels: number; length: number; sampleRate: number }[] = [];
-    const result = await renderProjectToBuffer(projectPlain(), {
-      createContext: (channels, length, sampleRate) => {
-        seen.push({ channels, length, sampleRate });
-        return new OfflineAudioContext(channels, length, sampleRate);
-      },
-    });
-    expect(seen).toHaveLength(1);
-    expect(seen[0].channels).toBe(2);
-    expect(seen[0].sampleRate).toBe(EXPORT_SAMPLE_RATE);
-    expect(seen[0].length).toBe(result.loopSamples + result.tailSamples);
-    expect(result.sampleRate).toBe(EXPORT_SAMPLE_RATE);
-  });
+  it(
+    "render path always requests 2ch @ 44100 from its context factory",
+    { timeout: 90000 },
+    async () => {
+      const seen: { channels: number; length: number; sampleRate: number }[] =
+        [];
+      const result = await renderProjectToBuffer(projectPlain(), {
+        createContext: (channels, length, sampleRate) => {
+          seen.push({ channels, length, sampleRate });
+          return new OfflineAudioContext(channels, length, sampleRate);
+        },
+      });
+      expect(seen).toHaveLength(1);
+      expect(seen[0].channels).toBe(2);
+      expect(seen[0].sampleRate).toBe(EXPORT_SAMPLE_RATE);
+      expect(seen[0].length).toBe(result.loopSamples + result.tailSamples);
+      expect(result.sampleRate).toBe(EXPORT_SAMPLE_RATE);
+    },
+  );
 
-  it("a factory building contexts at another rate is rejected (throws)", { timeout: 90000 }, async () => {
-    await expect(
-      renderProjectToBuffer(projectPlain(), {
-        // Hostile factory: ignores the requested rate (48 kHz device rate).
-        createContext: (channels, length) =>
-          new OfflineAudioContext(channels, length, 48000),
-      }),
-    ).rejects.toThrow(/44100/);
-  });
+  it(
+    "a factory building contexts at another rate is rejected (throws)",
+    { timeout: 90000 },
+    async () => {
+      await expect(
+        renderProjectToBuffer(projectPlain(), {
+          // Hostile factory: ignores the requested rate (48 kHz device rate).
+          createContext: (channels, length) =>
+            new OfflineAudioContext(channels, length, 48000),
+        }),
+      ).rejects.toThrow(/44100/);
+    },
+  );
 });

@@ -161,6 +161,13 @@ export interface VoiceEngineHost {
   connect(laneIndex: number, destination: AudioNode): void;
   /** Fast-release every voice on every lane (transport stop). */
   allOff(): void;
+  /**
+   * Resolve when every sendEvents batch since the last wait has been
+   * ACKED by its worklet (message-thread receipt confirmed). The offline
+   * render uses this instead of a fixed sleep so no event can race the
+   * start of rendering (HW-4 finding — see worklets/voiceEngine.js).
+   */
+  waitUntilLoaded(timeoutMs?: number): Promise<void>;
   /** HU-2 dev stat: steals this lane's worklet has performed (optional). */
   stolenCount?(laneIndex: number): number;
   readonly outbox: EventOutbox;
@@ -186,6 +193,10 @@ export async function createVoiceEngine(
   const nodes: WorkletNodeLike[] = [];
   const outbox = new EventOutbox(laneCount);
   const stolen = new Array<number>(laneCount).fill(0);
+  // Event-receipt acks (see waitUntilLoaded): one expected per sendEvents
+  // call with a non-empty batch, one counted per {type:'loaded'} reply.
+  let acksExpected = 0;
+  let acksReceived = 0;
   for (let i = 0; i < laneCount; i++) {
     const node = ctx.createVoiceEngineNode();
     const laneIndex = i;
@@ -194,6 +205,8 @@ export async function createVoiceEngine(
       if (!data || typeof data.type !== "string") return;
       if (data.type === "consumed" && typeof data.untilTime === "number") {
         outbox.handleWatermark(laneIndex, data.untilTime);
+      } else if (data.type === "loaded") {
+        acksReceived++;
       } else if (data.type === "stolen") {
         stolen[laneIndex] += 1;
         opts.onStolen?.(laneIndex);
@@ -215,7 +228,22 @@ export async function createVoiceEngine(
         }
       }
       outbox.enqueue(laneIndex, events);
+      acksExpected++;
       nodes[laneIndex].port.postMessage({ type: "events", events });
+    },
+    waitUntilLoaded(timeoutMs = 2000) {
+      const target = acksExpected;
+      return new Promise<void>((resolve) => {
+        const check = () => {
+          if (acksReceived >= target) return resolve();
+          if (timeoutMs <= 0) return resolve(); // bounded fallback, never hangs
+          setTimeout(() => {
+            timeoutMs -= 50;
+            check();
+          }, 50);
+        };
+        check();
+      });
     },
     connect(laneIndex, destination) {
       nodes[laneIndex].connect(destination);

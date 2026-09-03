@@ -40,17 +40,22 @@
 
 import { compileLaneSchedule, resolveChainPatterns } from "./song";
 import { type GrooveOptions, timeAtStep, secondsPerStep } from "./time";
-import { computeTailSamples, type FxDevice, type FxTiming, FxChainHost, type RampGainLike, createRealFxDeviceFactory, createSoftClipNode, softClip } from "./fx";
+import {
+  computeTailSamples,
+  type FxDevice,
+  type FxTiming,
+  FxChainHost,
+  type RampGainLike,
+  createRealFxDeviceFactory,
+  createSoftClipNode,
+  softClip,
+} from "./fx";
 import {
   createVoiceEngine,
   createBitcrusherNode,
   workletContextFor,
 } from "./voiceEngine";
-import {
-  getDrumKit,
-  getPreset,
-  type VoiceNoteOnEvent,
-} from "./presets";
+import { getDrumKit, getPreset, type VoiceNoteOnEvent } from "./presets";
 import { effectiveScale } from "../document/scales";
 import {
   LANE_IDS,
@@ -130,14 +135,19 @@ export function computeLoopSteps(
  * the compiler's segment-local times — see song.ts). Sorted by time.
  */
 export function expandLaneEventsForLoop(
-  schedule: { readonly chainSteps: number; readonly byStep: ReadonlyMap<number, readonly VoiceNoteOnEvent[]> },
+  schedule: {
+    readonly chainSteps: number;
+    readonly byStep: ReadonlyMap<number, readonly VoiceNoteOnEvent[]>;
+  },
   loopSteps: number,
   groove: GrooveOptions,
 ): VoiceNoteOnEvent[] {
   const events: VoiceNoteOnEvent[] = [];
   if (schedule.chainSteps <= 0) return events;
   for (let step = 0; step < loopSteps; step++) {
-    const local = ((step % schedule.chainSteps) + schedule.chainSteps) % schedule.chainSteps;
+    const local =
+      ((step % schedule.chainSteps) + schedule.chainSteps) %
+      schedule.chainSteps;
     const bucket = schedule.byStep.get(local);
     if (!bucket) continue;
     const time = timeAtStep(step, groove);
@@ -169,7 +179,11 @@ export function foldTail(
 // Orchestration
 // ---------------------------------------------------------------------------
 
-function laneScheduleFor(doc: ProjectDocument, lane: LaneId, groove: GrooveOptions) {
+function laneScheduleFor(
+  doc: ProjectDocument,
+  lane: LaneId,
+  groove: GrooveOptions,
+) {
   const chain = resolveChainPatterns(doc, lane);
   if (chain.length === 0) return null;
   const laneConf = doc.lanes.find((l) => l.id === lane)!;
@@ -178,8 +192,10 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, groove: GrooveOptio
     chain,
     preset:
       lane === "drums"
-        ? getDrumKit((laneConf as { kitId: string }).kitId) ?? getDrumKit("kit-default")!
-        : getPreset((laneConf as { presetId: string }).presetId) ?? getPreset("preset-lead-1")!,
+        ? (getDrumKit((laneConf as { kitId: string }).kitId) ??
+          getDrumKit("kit-default")!)
+        : (getPreset((laneConf as { presetId: string }).presetId) ??
+          getPreset("preset-lead-1")!),
     gate: laneConf.gate,
     groove,
     ...(lane === "drums"
@@ -225,7 +241,9 @@ export async function renderProjectToBuffer(
     schedules.map((s) => s?.chainSteps ?? 0),
     doc.transport.loopBars,
   );
-  const loopSamples = Math.round(loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE);
+  const loopSamples = Math.round(
+    loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,
+  );
 
   // 2. Tail budget from the document's FX chains (IM-4).
   const tailSamples = computeTailSamples(
@@ -242,9 +260,13 @@ export async function renderProjectToBuffer(
 
   // 3. Identical graph: voice engines (one addModule on THIS context) →
   //    per-lane FX chain → lane gain → master (0.9, session default) → dest.
-  const host = await createVoiceEngine(workletContextFor(ctx), LANE_IDS.length, {
-    moduleUrl: opts.moduleUrl,
-  });
+  const host = await createVoiceEngine(
+    workletContextFor(ctx),
+    LANE_IDS.length,
+    {
+      moduleUrl: opts.moduleUrl,
+    },
+  );
   const master = ctx.createGain();
   master.gain.value = 0.9;
   // Committed master soft-clip (D2–D4; landed with PX-1) — the same node the
@@ -254,10 +276,27 @@ export async function renderProjectToBuffer(
   clip.connect(ctx.destination);
   const chains: FxChainHost[] = [];
   const laneDevices: (readonly FxDevice[] | null)[] = [];
+  // Deterministic fan-in (HW-4 finding, 2026-09-02): OfflineAudioContext
+  // renders graphs with 4+ parallel branches into one node NONDETERMINISTICALLY
+  // at the last float ULP — Chromium parallelizes independent branch
+  // processing past a width threshold and the fan-in sum order then varies
+  // run to run (reproduced with pure native BufferSources → gains → one
+  // gain: n=4 differs, n=3 bit-identical; ~0.05% of samples cross an int16
+  // boundary in the exported WAV). Sum the lanes through a SERIAL chain of
+  // unity gains instead: every node has ≤ 2 inputs, so no branch parallelism
+  // and the addition order is fixed by construction. Unity multiplication is
+  // exact in FP (x*1 === x), so the mix law is unchanged.
+  const laneGains: GainNode[] = [];
   LANE_IDS.forEach((lane, i) => {
     const laneGain = ctx.createGain();
     laneGain.gain.value = 1;
-    laneGain.connect(master);
+    // Serial fan-in: lane i's sum node receives lane i-1's running sum and
+    // its own FX chain sink; only the LAST lane's gain reaches the master
+    // (connecting an intermediate one as well would duplicate that lane's
+    // signal — caught by the demoSong RMS gate during HW-4).
+    if (i > 0) laneGains[i - 1]!.connect(laneGain);
+    if (i === LANE_IDS.length - 1) laneGain.connect(master);
+    laneGains.push(laneGain);
     const laneSeed = (0x5eed ^ ((i + 1) * 0x85ebca6b)) >>> 0;
     const timing = (): FxTiming => ({ bpm: groove.bpm, when: ctx.currentTime });
     const chain = new FxChainHost({
@@ -287,7 +326,12 @@ export async function renderProjectToBuffer(
   }
 
   // postMessage delivery must land before rendering starts (Chromium race).
-  await new Promise((r) => setTimeout(r, opts.settleMs ?? 25));
+  // HW-4 finding: a fixed settle sleep was insufficient under a busy page
+  // (live app realm) — late events landed at the next quantum and shifted
+  // onsets. Wait for the worklet's explicit {type:'loaded'} acks instead,
+  // with the settle sleep kept only as the bounded fallback tail.
+  await host.waitUntilLoaded();
+  await new Promise((r) => setTimeout(r, opts.settleMs ?? 0));
 
   // 5. Render, fold, return.
   const buffer = await ctx.startRendering();
