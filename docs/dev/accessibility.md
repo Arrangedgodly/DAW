@@ -1,4 +1,4 @@
-# Accessibility audit (DA-2 — law of record)
+# Accessibility audit (DA-2 — law of record; iteration-2 extensions §7)
 
 Daredevil lens over every interactive surface. Sources of law: res-9 contrast
 table (`docs/ultron/research/res-9-typography-a11y.md`), D9 glow/motion rules.
@@ -127,3 +127,38 @@ Accepted moderates (deliberate for this UI, not defects):
 Findings the gate caught and that were fixed (kept here for the record):
 `aria-required-children` on grid rows (fill rail → now a gridcell),
 `aria-prohibited-attr` on the toasts container (aria-label removed).
+
+## 7. Iteration-2 a11y gate extensions (IN-1 — the AGREED list)
+
+The iteration-2 brief (town-hall §Iteration 2, Daredevil's claims) adds four
+semantic surfaces: the quadrant selector, view-only quadrants, drag-created
+notes / multi-clip cueing, and the info view. This section is the AGREED
+extension list for the automated gate (AC "axe gate extension list agreed"):
+each extension is a DoD item for its owning task — the task implements the
+semantics AND lands the assertion. Until the owning task lands, the extension
+is pending and the v0 gate (§6) is unchanged law. The keyboard equivalents
+for everything here live in `docs/dev/keyboard.md` (v2) — pointer paths and
+keyboard paths are both required (iteration-2 assumption).
+
+| #   | Extension (semantics required)                                                                                                                                                                                                                     | Owning task | Gate assertion when it lands                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | **Selector announces edit-target changes.** One stage-level `role="status"` `aria-live="polite"` region speaks `NOW EDITING <LANE>` on every actual quadrant-selection change, from ANY input path (quadrant keys, click on a view-only quadrant, grid focus landing in another quadrant). Selection changes must never be color/silent-only.                          | LY-1        | Browser journey: change selection by key AND by click → the live region's text changes to the new lane each time; axe on the quadrant layout: the status region exists, is labeled, and is not `aria-hidden`.                                                                                                                                                                       |
+| E2  | **View-only quadrants are not focus traps.** View-only grids expose no tab stops and no focusable descendants; their CONTROL STRIPS stay tab-reachable and operable in all four quadrants; focus never rests inside a view-only grid at any instant (selection change under focus carries focus into the newly selected grid — the v0 carry law).                       | LY-1        | Browser journey: (a) Tab walks booth → rail → every strip → the selected grid's cell and NEVER lands inside a view-only grid; (b) all four strips' controls are operable by keyboard while their grids are view-only; (c) selecting another quadrant while a grid cell is focused moves focus into the newly selected grid (carried + clamped). axe on the quadrant layout: zero critical/serious, moderates restricted to the §6 accepted set. |
+| E3  | **Quadrant/grid names carry edit state in text.** `<LANE> grid · EDITING` / `<LANE> grid · VIEW ONLY` — never color alone (D9); playing view-only notes + playhead remain perceivable (grid roles stay; playhead stays aria-hidden visual).                                                                 | LY-1        | Axe/journey: accessible names of all four grids carry the state word; flipping selection flips the names.                                                                                                                                                                                                                                                                        |
+| E4  | **Note-edit announcements (v2 note model).** Focused cell names carry note state (`note starts, <len> steps` / `note continues`); keyboard resize announces `LENGTH <len> ST` through a local `aria-live=polite` value span (the gate-stepper pattern); placement/removal ride the focused cell's name change + audition law.                                            | IN-2        | Browser journey: keyboard-place → resize by keys (±1 and ±0.25, clamps at 0.25/128) → remove; per step the announced value/name text is asserted; the same edits driven by pointer drag announce identically.                                                                                                                                                                |
+| E5  | **Drag-equivalent announcements.** Every state change a pointer drag can produce announces the SAME text when driven by keyboard — no announcement may depend on pointer-only events. Multi-clip cueing: per-lane rail `role=status` pending announcements fire per touched lane plus one `QUEUED <n> LANES` summary, identical for the drag sweep and the Shift+arrow range + Enter path. | IN-2 / IN-3 | Browser journeys: the drag path and the keyboard path each run the gesture; the announcement texts (live-region contents per step) are asserted EQUAL between paths; quantized landing semantics reuses the IM-7 observable pending state (existing rail assertions).                                                                                                        |
+| E6  | **Info-view aria-live region semantics.** The info region is `role="status"` `aria-live="polite"`, NOT focusable, NOT in the tab order (cannot trap); updates on keyboard FOCUS of any registered control (not just hover); toggling announces `INFO MODE ON …` / `INFO MODE OFF`; while ON, Escape exits the mode first (cancel-first) without moving focus.              | HP-1        | The axe gate gains a FOURTH mounted state — help mode ON — asserted clean (zero critical/serious; moderates still restricted to the §6 accepted set); browser journey: focus-driven updates (no pointer events) speak via the live region; Tab never lands on the info region; Escape exits with focus unchanged.                                                              |
+| E7  | **Keyboard-coverage contract.** Every new gesture has a no-mouse path — reviewed against the spec table `docs/dev/keyboard.md` §"Coverage review" (shipped by IN-1 with the full table). New gestures during production must add a row (or a binding) before shipping.                                                                                                     | IN-1 (this) | Per-task review: LY-1/IN-2/IN-3/HP-1 journeys exercise the keyboard paths named in the coverage table (E1–E6 above are those journeys' a11y assertions); HW-5 audits the ledger is complete.                                                                                                                                                                                   |
+
+Contrast/motion carry-over for the new surfaces (law applies now, asserted
+with each task): quadrant EDITING/VIEW ONLY state = fill + border + text,
+glow decoration-only (D9); view-only quadrants dim toward the ground but
+keep every text pair ≥ AA (5.70:1 dim-legend precedent); the info region and
+its text obey the toast/banner contrast pairs; no new motion — quadrant
+selection changes state discretely (no transition), and any indicator
+animation would need the reduced-motion gate (§4 law).
+
+The gate file itself (`tests/browser/axe-a11y.test.tsx`) is EXTENDED, not
+forked: owning tasks add mounted states/journeys per the table above; the
+§6 accepted-moderates law (a new moderate fails until triaged HERE) applies
+to the new states unchanged.

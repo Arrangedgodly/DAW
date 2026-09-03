@@ -40,3 +40,24 @@ verification steps. Task status moves in `docs/ultron/plan.md`.
 Non-goal list and fixed-scope items in `plan.md` (4 lanes, synth-only, the four
 FX devices, export formats) are untouched; deviations are recorded in the
 production log and returned to the owner if they alter scope.
+
+## 5. Iteration-2 keyboard/a11y contract (from IN-1)
+
+Iteration-2 interaction tasks additionally inherit, as DoD:
+
+- **Keyboard spec v2 is law.** `docs/dev/keyboard.md` (v2) is the contract:
+  every new gesture the task ships implements its row in §"Coverage review"
+  and exercises that keyboard path in a test. Pointer drags NEVER replace
+  keyboard paths — both are required (iteration-2 assumption). New gestures
+  not in the table must add a row (or a binding) before shipping.
+- **A11y gate extensions E1–E7.** `docs/dev/accessibility.md` §7 maps each
+  extension to its owning task with the exact gate assertion to land:
+  LY-1 → E1/E2/E3 (selector announcements, no focus traps, name-carried
+  edit state), IN-2 → E4 (+E5 with IN-3, drag-equivalent announcements),
+  IN-3 → E5 (multi-clip cue keyboard path + identical announcements),
+  HP-1 → E6 (info-view aria-live, fourth axe state). The v0 gate (§6) stays
+  law until the owning task lands; the accepted-moderates triage rule applies
+  to every new mounted state unchanged.
+- **Journey ledger.** Deliberate v0-journey changes are recorded in
+  `docs/dev/keyboard.md` §"v0 → v2 journey-change ledger" BEFORE the journey
+  tests change (the iteration-2 regression rule's paper trail).
