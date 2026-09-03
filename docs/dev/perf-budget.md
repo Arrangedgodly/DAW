@@ -199,10 +199,14 @@ regress when content lands:
 
 ## 8. Help mode OFF = baseline (TH-4 pin for HP-1's zero-cost clause)
 
-HP-1's help mode (pending as of TH-4) must cost NOTHING while off:
+HP-1's help mode — **landed 2026-09-02, compliant**: the InfoView component
+is mounted by App only while the mode is on (a `<Show>`), so mode-off means
+zero help DOM, zero listeners, zero rAF loops, zero reactive help
+subscriptions:
 
 - Every TH-4 frame-budget measurement (§2a, §2b) runs with help mode OFF —
-  the default state, asserted in-test (no help surface mounted) — and the
+  the default state, asserted in-test (no help surface mounted: neither the
+  KEYS overlay `.help-backdrop` nor the info region `.info-view`) — and the
   committed numbers above ARE the mode-off baseline.
 - **When HP-1 lands, these same gates must stay green with the mode off**
   (this is HP-1's DoD: zero listeners, zero rAF loops, zero reactive

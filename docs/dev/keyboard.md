@@ -22,9 +22,12 @@ tests/note-interaction.test.ts). Sections marked **[v2 · live since IN-3]**
 are IMPLEMENTED and gated (IN-3 landed the rail multi-clip range + CUE ALL
 and the pointer cue sweep through the same funnel — asserted in
 tests/browser/drag-cue.test.tsx + the unit gates tests/pattern-rail.test.ts
-and tests/quantized-switch.test.ts). Sections marked **[v2 → HP-1]** remain
-the forward contract the named task must implement and test (its DoD);
-everything else is live law today. v0 sections that v2 supersedes say so
+and tests/quantized-switch.test.ts). Sections marked **[v2 · live since
+HP-1]** are IMPLEMENTED and gated (HP-1 landed the info view: the booth
+INFO ? toggle, the global `i` key, focus-driven info updates, and
+Escape-exits-first — asserted in tests/browser/help-mode.test.tsx + the axe
+gate's fourth mounted state). Everything else is live law today. v0 sections
+that v2 supersedes say so
 inline and the deliberate v0-journey changes are recorded in the ledger at
 the bottom (regression rule: journey updates only
 alongside deliberate UX changes).
@@ -38,13 +41,13 @@ arrows walk _inside_ a region:
 | Region                            | Tab stops                                                                                                                                                                   | Arrows inside                                                                           | Since                                   |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------- |
 | Booth (transport)                 | native controls (documented linear strip)                                                                                                                                   | native (ranges, steppers are buttons)                                                   | v0                                      |
-| Booth INFO "?" toggle (help mode) | native button                                                                                                                                                               | native                                                                                  | v2 → HP-1                               |
+| Booth INFO "?" toggle (help mode) | native button                                                                                                                                                               | native                                                                                  | v2 · live since HP-1                    |
 | Pattern rail — tiles, per lane    | 1 (focused tile)                                                                                                                                                            | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 · live since IN-3] | v0 + v2                                 |
 | Pattern rail — tools, per lane    | native buttons                                                                                                                                                              | native                                                                                  | v0                                      |
 | Quadrant control strip, per lane  | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 · live since LY-1] | native                                                                                  | v2 → LY-1                               |
 | Lane grid, **selected quadrant**  | 1 (focused cell)                                                                                                                                                            | the grid map below                                                                      | v0                                      |
 | Lane grid, **view-only quadrant** | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 · live since LY-1]                                                                                   | n/a (view only)                                                                         | v2 → LY-1                               |
-| Info region (help mode on)        | **none** — role=status, never focusable, never in the tab order [v2 → HP-1]                                                                                                 | n/a                                                                                     | v2 → HP-1                               |
+| Info region (help mode on)        | **none** — role=status, never focusable, never in the tab order [v2 · live since HP-1]                                                                                        | n/a                                                                                     | v2 · live since HP-1                    |
 | Help overlay (keyboard shortcuts) | 1 (dialog, focus-trapped)                                                                                                                                                   | native inside                                                                           | v0 — unchanged, SEPARATE from info mode |
 
 - **Roving seed**: first item of each region is the Tab stop until the user
@@ -55,7 +58,7 @@ arrows walk _inside_ a region:
   and inline edits, Escape cancels first (existing DES-3/DES-6 behavior).
   **While help mode is ON, Escape first exits help mode** (cancel-first,
   like popovers); the region-head pop applies only when it is already off
-  [v2 → HP-1].
+  [v2 · live since HP-1].
 - Focus rings follow D9: `:focus-visible` outlines in the lane hue over the
   ground, never glow-only.
 
@@ -208,7 +211,7 @@ sweep extends):
 | `n` | new 1-bar pattern in the active lane (selects it for editing)                                                                             |
 | `d` | duplicate the active lane's selected pattern (selects it)                                                                                 |
 | `r` | rename — moves focus to the active lane's rail REN control (the inline field takes over from there; Enter commits, Esc cancels per DES-6) |
-| `i` | **[v2 → HP-1]** toggle help mode (info view) — same guards as `n`/`d`/`r` (never in text entries, never with an assistive-tech modifier)  |
+| `i` | **[v2 · live since HP-1]** toggle help mode (info view) — same guards as `n`/`d`/`r` (never in text entries, never with an assistive-tech modifier)  |
 
 Rail-local keys (DES-6, unchanged): ←/→ rove tiles, Enter/Space trigger a
 quantized switch, Delete/Backspace removes the chain slot, F2 renames, `l`
@@ -242,10 +245,13 @@ Arrows on the steppers adjust pulses/rotation natively (real buttons);
 Enter on SET commits the painted row; Escape cancels the preview. No
 additional bindings — the fill controls are plain focusable buttons.
 
-## Help mode (info view) [v2 → HP-1]
+## Help mode (info view) [v2 · live since HP-1]
 
 Ableton-style info view (I2-6), SEPARATE from the keyboard-shortcut overlay
-above, which stays unchanged.
+above, which stays unchanged. Architecture: the help REGISTRY is colocated
+with the components (src/help/registry.ts + registrations in each component
+— no central help file); the info region is src/components/InfoView.tsx,
+mounted only while the mode is on (zero cost when off — perf-budget.md §8).
 
 | Key                          | Action                                                                                                                                                           |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -371,7 +377,7 @@ by the owning task):
    Shift+`+`/`-`/Delete-removes-note (**landed by IN-2**); rail Shift+arrows
    range-select + Enter/Space CUE ALL + plain ↑/↓ row roving
    (**landed by IN-3**); global `i` help-mode toggle +
-   Escape-exits-help-first (HP-1).
+   Escape-exits-help-first (**landed by HP-1**).
 4. Everything else in the v0 map — one-Tab-stop regions, no-wrap, text-entry
    guards, body-level Space transport, Shift+Enter audition, Home/End, beat
    jump, `n`/`d`/`r`, rail-local keys, undo guards, the exclusion list —

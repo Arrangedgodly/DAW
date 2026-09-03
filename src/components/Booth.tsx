@@ -30,6 +30,8 @@ import {
 import { announceScale, projectScaleChipLabel } from "../state/scaleChip";
 import { dismissFirstRunNudge, firstRunNudge } from "../state/firstRun";
 import { openHelp } from "../state/helpOverlay";
+import { helpMode, toggleHelp } from "../state/helpMode";
+import { registerHelp } from "../help/registry";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
@@ -37,6 +39,56 @@ import Projects from "./Projects";
 const session = getSession();
 
 const BEAT_LED_COUNT = 4;
+
+// HP-1 help registry (I2-6 law: the text lives HERE, next to the controls it
+// describes; structural placeholder copy — HP-2 rewrites it text-only).
+registerHelp([
+  {
+    id: "booth.play",
+    title: "PLAY / STOP",
+    text: "Starts or stops playback. Space does the same when focus is on the page rather than a control.",
+  },
+  {
+    id: "booth.loop",
+    title: "LOOP",
+    text: "Toggles looped playback. With loop off, playback runs to the end of the pass and stops.",
+  },
+  {
+    id: "booth.metronome",
+    title: "METRONOME",
+    text: "Clicks on every beat so the tempo is audible while patterns are being built.",
+  },
+  {
+    id: "booth.keys",
+    title: "KEYS ?",
+    text: "Opens the keyboard-shortcut reference (a separate overlay; Escape closes it).",
+  },
+  {
+    id: "booth.info",
+    title: "INFO ?",
+    text: "Toggles this info mode: point at or focus any control to read what it does. I toggles it too; Escape leaves it.",
+  },
+  {
+    id: "booth.tempo",
+    title: "TEMPO",
+    text: "Tempo in beats per minute, 60 to 200. Type a value or step it with the buttons.",
+  },
+  {
+    id: "booth.scale",
+    title: "PROJECT SCALE",
+    text: "The project's musical scale. Opens the picker; every pitched lane follows it unless it carries its own override.",
+  },
+  {
+    id: "booth.swing",
+    title: "SWING",
+    text: "Swing amount: delays every second 16th step. Zero is perfectly straight timing.",
+  },
+  {
+    id: "booth.master",
+    title: "MASTER VOLUME",
+    text: "Volume of the whole mix, 0 to 100 percent.",
+  },
+]);
 
 export default function Booth() {
   // Project-scale chip (DES-3): mirrors the document scale into signals via
@@ -167,6 +219,7 @@ export default function Booth() {
             "booth-nudge": firstRunNudge() && !playing(),
           }}
           data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
+          data-help="booth.play"
           aria-pressed={playing()}
           onClick={handleTogglePlay}
         >
@@ -176,6 +229,7 @@ export default function Booth() {
           type="button"
           class="booth-btn booth-btn-loop"
           classList={{ "is-on": loopOn() }}
+          data-help="booth.loop"
           aria-pressed={loopOn()}
           onClick={handleToggleLoop}
         >
@@ -185,6 +239,7 @@ export default function Booth() {
           type="button"
           class="booth-btn booth-btn-metro"
           classList={{ "is-on": metroOn() }}
+          data-help="booth.metronome"
           aria-pressed={metroOn()}
           onClick={handleToggleMetro}
         >
@@ -193,14 +248,32 @@ export default function Booth() {
         <button
           type="button"
           class="booth-btn booth-btn-help"
+          data-help="booth.keys"
           aria-haspopup="dialog"
           onClick={(e) => openHelp(e.currentTarget)}
         >
           KEYS ?
         </button>
+        {/* HP-1: the info-mode corner toggle (beside KEYS ?; the keyboard
+            shortcut overlay stays a SEPARATE surface). */}
+        <button
+          type="button"
+          class="booth-btn booth-btn-info"
+          classList={{ "is-on": helpMode() }}
+          data-help="booth.info"
+          aria-pressed={helpMode()}
+          onClick={toggleHelp}
+        >
+          INFO ?
+        </button>
       </div>
 
-      <div class="booth-group" role="group" aria-label="Tempo">
+      <div
+        class="booth-group"
+        role="group"
+        aria-label="Tempo"
+        data-help="booth.tempo"
+      >
         <span class="booth-label" aria-hidden="true">
           TEMPO
         </span>
@@ -249,6 +322,7 @@ export default function Booth() {
               scaleChipBtn = el;
             }}
             class="scale-chip scale-chip-booth"
+            data-help="booth.scale"
             aria-haspopup="dialog"
             aria-expanded={scalePopOpen()}
             aria-label={`Project scale: ${scaleChip().text}. Open scale selector.`}
@@ -287,6 +361,7 @@ export default function Booth() {
         class="booth-group booth-group-slider"
         role="group"
         aria-label="Swing"
+        data-help="booth.swing"
       >
         <span class="booth-label" aria-hidden="true">
           SWING
@@ -311,6 +386,7 @@ export default function Booth() {
         class="booth-group booth-group-slider"
         role="group"
         aria-label="Master volume"
+        data-help="booth.master"
       >
         <span class="booth-label" aria-hidden="true">
           MASTER

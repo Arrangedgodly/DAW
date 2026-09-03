@@ -36,8 +36,51 @@ import {
 import { createNewProject } from "../persist/newProject";
 import { loadProject, type ProjectMeta } from "../persist/projectStore";
 import { showInfo, showError, showSuccess } from "../state/toasts";
+import { registerHelp } from "../help/registry";
 import { relativeTime } from "../lib/reltime";
 import "../styles/projects.css";
+
+/**
+ * HP-1 help entries for the projects popover + its booth entry (I2-6:
+ * colocated here; structural placeholder copy — HP-2 rewrites it text-only).
+ */
+registerHelp([
+  {
+    id: "projects.open",
+    title: "PROJECTS",
+    text: "Opens the projects panel: saved projects, new project, exports, and save/open file.",
+  },
+  {
+    id: "projects.item",
+    title: "SAVED PROJECT",
+    text: "Opens this saved project. If its stored data turns out to be damaged, the working project is untouched.",
+  },
+  {
+    id: "projects.new",
+    title: "NEW",
+    text: "Starts a fresh empty project — a new saved row; nothing existing is overwritten.",
+  },
+  {
+    id: "projects.wav",
+    title: "EXPORT WAV",
+    text: "Renders the current project offline to a loop-tight stereo WAV file and downloads it.",
+  },
+  {
+    id: "projects.midi",
+    title: "EXPORT MIDI",
+    text: "Exports notes and section cues as a Standard MIDI File, one track per lane. Sounds are not carried — other apps will use their own instruments.",
+  },
+  {
+    id: "projects.save",
+    title: "SAVE FILE",
+    text: "Downloads the current project as a .bitbounce.json file.",
+  },
+  {
+    id: "projects.openfile",
+    title: "OPEN FILE",
+    text: "Opens a .bitbounce.json project file as a NEW project — an import never overwrites what you are working on.",
+  },
+]);
 
 export default function Projects(): JSX.Element {
   const [open, setOpen] = createSignal(false);
@@ -235,6 +278,7 @@ export default function Projects(): JSX.Element {
           anchorBtn = el;
         }}
         class="booth-btn projects-btn"
+        data-help="projects.open"
         aria-haspopup="dialog"
         aria-expanded={open()}
         disabled={busy()}
@@ -259,6 +303,7 @@ export default function Projects(): JSX.Element {
                   <button
                     type="button"
                     class="projects-item"
+                    data-help="projects.item"
                     classList={{
                       "is-current": meta.id === getActiveProjectId(),
                     }}
@@ -283,6 +328,7 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.new"
               disabled={busy()}
               onClick={() => void handleNew()}
             >
@@ -291,6 +337,7 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.wav"
               disabled={busy()}
               onClick={() => void handleExportWav()}
             >
@@ -299,6 +346,7 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.midi"
               disabled={busy()}
               onClick={() => void handleExportMidi()}
             >
@@ -307,6 +355,7 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.save"
               onClick={handleSave}
             >
               SAVE FILE
@@ -314,6 +363,7 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.openfile"
               disabled={busy()}
               onClick={() => fileInput?.click()}
             >

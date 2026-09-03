@@ -68,11 +68,32 @@ import {
   selectQuadrantFromPointer,
 } from "../state/gridFocus";
 import { noteEditAt, type Span } from "../interaction/drag";
+import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
 
 const session = getSession();
+
+/**
+ * HP-1 help entries — one per quadrant's grid (I2-6: colocated here, next to
+ * the surface the entry describes; structural placeholder copy — HP-2
+ * rewrites it text-only). The entry covers every cell/row inside the grid:
+ * the InfoView resolves focus/hover through `closest("[data-help]")`, so the
+ * per-cell names (renderer) stay as they are.
+ */
+for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+  registerHelp([
+    {
+      id: `grid.${lane}`,
+      title: `${LANE_NAMES[lane]} GRID`,
+      text:
+        lane === "drums"
+          ? "Drums steps: click or press Enter on a pad to toggle a hit; drag across pads to paint. The fill rail spreads hits evenly for you."
+          : `${LANE_NAMES[lane]} steps: click or press Enter to place a note, drag right to draw a longer one, drag its right edge to resize. Rows follow the lane's scale.`,
+    },
+  ]);
+}
 
 /**
  * LY-1 quadrant geometry (production decision inside the committed 2×2
@@ -373,6 +394,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
   return (
     <div
       class="lane-grid-scroll"
+      data-help={`grid.${props.lane}`}
       ref={(el) => {
         container = el;
       }}

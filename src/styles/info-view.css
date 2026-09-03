@@ -1,0 +1,99 @@
+/*
+ * InfoView (HP-1) — the help-mode info region: a fixed bottom status bar in
+ * the Arcade Stage Floor vocabulary (ground chassis, 1px ink border-top,
+ * silkscreen title at the dim-legend 62% mix, warm-white info-critical text
+ * — D9 ink law; 4px chassis radius corner language not needed on a full-width
+ * bar). A NON-INTERACTIVE status surface: pointer-events:none so the mode
+ * never blocks a click or drag (the pass-through law), no tab stops, cannot
+ * trap. Mounted only while help mode is on (docs/dev/perf-budget.md §8).
+ */
+
+.info-view {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50; /* above FX overlays + popovers (30/40), below toasts (60) */
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-ground);
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* The mode's "?" badge — a control-corner (3px) chassis chip. */
+.info-view-tag {
+  flex: 0 0 auto;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 8%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 40%, var(--color-ground));
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+/* Control name — the dim-legend precedent (62% ink = 7.00:1 on ground). */
+.info-view-title {
+  flex: 0 0 auto;
+  font: var(--text-label-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  white-space: nowrap;
+}
+
+/* The explanation — info-critical text: full warm white (D9 ink law). */
+.info-view-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--text-ui);
+  font-size: 12px;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dismissal hint — right-aligned, dim legend again (decoration; the live
+ * region itself carries the spoken text). */
+.info-view-hint {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  white-space: nowrap;
+}
+
+/*
+ * Mode-obvious law (iteration-2 AC #6 "mode is obvious" — the Ableton
+ * precedent, the world's version): while the mode is on the app root carries
+ * data-help-mode="on", every registered control shows a dashed ink marker,
+ * and the whole stage takes the help cursor. Static CSS only — zero
+ * per-frame work; the outline is decoration (D9: never layout-shifting,
+ * never the sole state signal) and yields to real focus rings.
+ */
+.app[data-help-mode="on"],
+.app[data-help-mode="on"] * {
+  cursor: help;
+}
+
+.app[data-help-mode="on"] [data-help] {
+  outline: 1px dashed
+    color-mix(in srgb, var(--color-ink) 45%, transparent);
+  outline-offset: 1px;
+}
+
+/* A focused control keeps its REAL focus ring (2px solid) over the marker. */
+.app[data-help-mode="on"] [data-help]:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}

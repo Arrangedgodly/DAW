@@ -157,7 +157,16 @@ sweep and the Shift+arrows range + Enter CUE ALL path each run the gesture
 on the real app; the per-lane `role=status` pending texts + the
 `QUEUED <n> LANES` rail summary are captured per path and asserted EQUAL;
 trusted-pointer parity in `tests/browser/drag-cue-trusted.test.tsx`).
-E6 awaits HP-1.
+**E6 LANDED by HP-1** (asserted in `tests/browser/help-mode.test.tsx` + the
+axe gate's FOURTH mounted state in `tests/browser/axe-a11y.test.tsx`: the
+info region is role=status / aria-live=polite / not focusable / never in the
+tab order; focus-driven updates with zero pointer events change the region
+text; Tab never lands on it; Escape exits the mode first with focus
+unchanged — and the region-head pop applies only once the mode is off;
+hover (pointerover) updates it too; toggling announces `INFO MODE ON …` /
+`INFO MODE OFF` through the stage status region, which survives the mode
+turning off; pointer pass-through and the mid-gesture toggle are pinned in
+the behavior gate).
 
 | #   | Extension (semantics required)                                                                                                                                                                                                                                                                                                                                                             | Owning task | Gate assertion when it lands                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

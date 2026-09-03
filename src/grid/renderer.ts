@@ -42,6 +42,7 @@
  */
 
 import type { DrumPattern, LaneId } from "../document/schema";
+import { DRUM_PIECES } from "../document/schema";
 import {
   type PlayheadOptions,
   playheadX,
@@ -505,9 +506,17 @@ export class DomGridRenderer implements GridRenderer {
     // gesture cleanly first (preview cleared, nothing committed).
     this.cancelGesture();
     if (pattern.kind === "drums") {
-      const pieces = Object.keys(pattern.steps);
+      // HP-1 gate finding (the HW-4 Bug-2 class): rows are built in
+      // DRUM_PIECES order, so the row→piece map must too. Object.keys order
+      // follows insertion — and the canonical codec key-SORTS objects, so
+      // any save→load round-tripped project (every autosave restore) mapped
+      // row 1 to HAT while the label said SNARE: the grid displayed one
+      // row's hits under another row's label, and row toggles edited a
+      // different piece than the one shown. Iterate the constant, exactly
+      // like compile.ts/exportMidi.ts.
       for (let row = 0; row < this.cells.length; row++) {
-        const steps = pattern.steps[pieces[row] as keyof typeof pattern.steps];
+        const piece = DRUM_PIECES[row];
+        const steps = pattern.steps[piece];
         const rowCells = this.cells[row];
         for (let step = 0; step < rowCells.length; step++) {
           this.applyOn(rowCells[step], Boolean(steps?.[step]));

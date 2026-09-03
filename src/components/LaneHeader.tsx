@@ -48,6 +48,7 @@ import { announceStage } from "../state/selection";
 import { laneFxChain } from "../state/fxStrip";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
 import { activeLane } from "../state/selection";
+import { registerHelp, type HelpEntry } from "../help/registry";
 import { LANE_NAMES, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
 import FxStrip from "./FxStrip";
@@ -56,6 +57,57 @@ const session = getSession();
 
 const GATE_MIN = 1;
 const GATE_MAX = 16;
+
+/**
+ * HP-1 help entries for one lane's strip (I2-6: colocated HERE, next to the
+ * controls; structural placeholder copy — HP-2 rewrites it text-only). Ids
+ * are per-lane so the info region names the lane whose control is focused.
+ */
+function laneHelpEntries(lane: LaneId): HelpEntry[] {
+  const n = LANE_NAMES[lane];
+  const kind = lane === "drums" ? "kit" : "preset";
+  return [
+    {
+      id: `lane.${lane}.sound`,
+      title: `${n} ${kind === "kit" ? "KIT" : "PRESET"}`,
+      text: `Steps through the ${kind}s available to ${n}; every change auditions one note so the new sound is heard immediately.`,
+    },
+    {
+      id: `lane.${lane}.volume`,
+      title: `${n} VOLUME`,
+      text: `How loud ${n} sits in the mix.`,
+    },
+    {
+      id: `lane.${lane}.mute`,
+      title: `${n} MUTE`,
+      text: `Silences ${n} without clearing anything — its notes keep playing in the pattern.`,
+    },
+    {
+      id: `lane.${lane}.solo`,
+      title: `${n} SOLO`,
+      text: `Isolates ${n}: every other lane is ducked while solo is on.`,
+    },
+    {
+      id: `lane.${lane}.scale`,
+      title: `${n} SCALE`,
+      text: `The scale ${n} actually plays — the project scale, or this lane's own override. Opens the picker.`,
+    },
+    {
+      id: `lane.${lane}.gate`,
+      title: `${n} GATE`,
+      text: `Default length of a NEW note on ${n}, counted in 16th steps. Existing notes keep their own lengths.`,
+    },
+    {
+      id: `lane.${lane}.fx`,
+      title: `${n} FX`,
+      text: `Opens ${n}'s effect chain — up to three devices (filter, drive, crush, delay, reverb) in any order.`,
+    },
+  ];
+}
+
+for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+  registerHelp(laneHelpEntries(lane));
+}
 
 function laneConf(lane: LaneId) {
   return docStore.getState().doc.lanes.find((l) => l.id === lane)!;
@@ -250,6 +302,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           class="head-ctl"
           role="group"
           aria-label={`${LANE_NAMES[props.lane]} sound`}
+          data-help={`lane.${props.lane}.sound`}
         >
           <span class="head-ctl-label" aria-hidden="true">
             {props.lane === "drums" ? "KIT" : "PRESET"}
@@ -281,6 +334,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           class="head-ctl head-ctl-vol"
           role="group"
           aria-label={`${LANE_NAMES[props.lane]} volume`}
+          data-help={`lane.${props.lane}.volume`}
         >
           <span class="head-ctl-label" aria-hidden="true">
             VOL
@@ -305,6 +359,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           type="button"
           class="head-mix-btn"
           classList={{ "is-on": mute() }}
+          data-help={`lane.${props.lane}.mute`}
           aria-pressed={mute()}
           aria-label={`Mute ${LANE_NAMES[props.lane]}`}
           onClick={handleMute}
@@ -315,6 +370,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           type="button"
           class="head-mix-btn"
           classList={{ "is-on": solo() }}
+          data-help={`lane.${props.lane}.solo`}
           aria-pressed={solo()}
           aria-label={`Solo ${LANE_NAMES[props.lane]}`}
           onClick={handleSolo}
@@ -339,6 +395,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             }}
             class="scale-chip"
             classList={{ "is-lane": chip().overridden }}
+            data-help={`lane.${props.lane}.scale`}
             aria-haspopup="dialog"
             aria-expanded={popoverOpen()}
             aria-label={`${LANE_NAMES[props.lane]} effective scale: ${chip().text}. Open scale selector.`}
@@ -364,6 +421,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           class="head-ctl"
           role="group"
           aria-label={`${LANE_NAMES[props.lane]} gate length`}
+          data-help={`lane.${props.lane}.gate`}
         >
           <span class="head-ctl-label" aria-hidden="true">
             GATE
@@ -398,6 +456,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           type="button"
           class="head-fx"
           classList={{ "is-open": fxOpen() }}
+          data-help={`lane.${props.lane}.fx`}
           aria-expanded={fxOpen()}
           aria-controls={`fx-strip-${props.lane}`}
           aria-label={`FX chain for ${LANE_NAMES[props.lane]}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}

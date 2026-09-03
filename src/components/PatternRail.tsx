@@ -103,8 +103,53 @@ import {
   toggleViewMode,
   viewMode,
 } from "../state/selection";
+import { registerHelp } from "../help/registry";
 
 const session = getSession();
+
+/**
+ * HP-1 help entries for the rail (I2-6: colocated here, next to the tiles and
+ * tools they describe; structural placeholder copy — HP-2 rewrites it
+ * text-only). One shared tile entry: every tile in every lane carries the
+ * same id — the tile's own aria-label names the lane/pattern.
+ */
+registerHelp([
+  {
+    id: "rail.tile",
+    title: "CHAIN TILE",
+    text: "One slot in this lane's song chain. Click to switch the lane to this pattern — it lands on the next bar line (pending until then). Double-click the name to rename, the top line to label the section.",
+  },
+  {
+    id: "rail.append",
+    title: "APPEND SLOT",
+    text: "Appends the lane's selected pattern to the chain as a new slot.",
+  },
+  {
+    id: "rail.add",
+    title: "ADD PATTERN",
+    text: "Adds a new pattern of this length (1, 2 or 4 bars) to the lane and selects it for editing.",
+  },
+  {
+    id: "rail.duplicate",
+    title: "DUPLICATE",
+    text: "Copies the lane's selected pattern and selects the copy.",
+  },
+  {
+    id: "rail.rename",
+    title: "RENAME",
+    text: "Renames the lane's selected pattern.",
+  },
+  {
+    id: "rail.remove",
+    title: "REMOVE",
+    text: "Removes the lane's selected pattern from the pool (a lane always keeps at least one).",
+  },
+  {
+    id: "rail.view",
+    title: "RAIL VIEW",
+    text: "COLLAPSE focuses the view on the selected pattern's grid; EXPAND shows the whole song chain.",
+  },
+]);
 
 // ---------------------------------------------------------------------------
 // IN-3 multi-clip cueing — shared gesture/range state (rail-level, ephemeral:
@@ -595,6 +640,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               data-state={stateFor(tile)}
               data-cue-preview={sweepPreview(tile)}
               data-in-range={inRange(tile) ? "true" : undefined}
+              data-help="rail.tile"
               tabindex={tile.slot === focusedSlot() ? 0 : -1}
               aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
               onFocus={() => setFocusedSlot(tile.slot)}
@@ -644,6 +690,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="rail-append"
+          data-help="rail.append"
           aria-label={`Append ${LANE_NAMES[props.lane]} selected pattern to chain`}
           onClick={() => appendChainSlot(props.lane, selectedId())}
         >
@@ -667,6 +714,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
             <button
               type="button"
               class="rail-tool"
+              data-help="rail.rename"
               aria-label={`Rename ${LANE_NAMES[props.lane]} selected pattern`}
               onClick={() => setEditing({ kind: "name" })}
             >
@@ -692,6 +740,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
             <button
               type="button"
               class="rail-tool"
+              data-help="rail.add"
               aria-label={`Add ${bars}-bar pattern to ${LANE_NAMES[props.lane]}`}
               onClick={() => handleAdd(bars)}
             >
@@ -702,6 +751,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="rail-tool"
+          data-help="rail.duplicate"
           aria-label={`Duplicate ${LANE_NAMES[props.lane]} selected pattern`}
           onClick={handleDuplicate}
         >
@@ -710,6 +760,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="rail-tool"
+          data-help="rail.remove"
           aria-label={`Remove ${LANE_NAMES[props.lane]} selected pattern`}
           disabled={pool().length <= 1}
           onClick={handleRemovePattern}
@@ -765,6 +816,7 @@ export default function PatternRail(): JSX.Element {
         <button
           type="button"
           class="rail-view-toggle"
+          data-help="rail.view"
           aria-pressed={viewMode() === "focus"}
           onClick={() => toggleViewMode()}
         >

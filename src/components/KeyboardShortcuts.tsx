@@ -21,6 +21,7 @@ import {
 } from "../state/store";
 import { activeLane, activePatterns, selectPattern } from "../state/selection";
 import { helpOpen, openHelp } from "../state/helpOverlay";
+import { toggleHelp } from "../state/helpMode";
 import HelpOverlay from "./HelpOverlay";
 
 const session = getSession();
@@ -105,6 +106,13 @@ export default function KeyboardShortcuts(): JSX.Element {
       e.preventDefault();
       const rail = document.querySelector(`.rail-row[data-lane="${lane}"]`);
       rail?.querySelector<HTMLElement>(".rail-tools button")?.focus();
+    } else if (e.key === "i") {
+      // HP-1 (keyboard.md v2): toggle help mode (the info view) — the same
+      // guards as n/d/r (never in text entries, never with an AT/browser
+      // modifier held). While ON, Escape exits the mode first (InfoView's
+      // capture handler owns that keystroke).
+      e.preventDefault();
+      toggleHelp();
     }
   };
 

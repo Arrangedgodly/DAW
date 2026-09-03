@@ -44,6 +44,7 @@ import {
   type FxChoiceSpec,
   type FxModule,
   type FxSliderSpec,
+  FX_DEVICE_LABELS,
   FX_DEVICE_SPECS,
   FX_DEVICE_TYPES,
   canMoveFx,
@@ -54,9 +55,58 @@ import {
   paramToSlider,
   sliderToParam,
 } from "../state/fxStrip";
+import { registerHelp } from "../help/registry";
 import { LANE_NAMES } from "./laneMeta";
 
 const FLASH_MS = 180; // D9 one-shot cap
+
+/**
+ * HP-1 help entries for the FX console (I2-6: colocated here; structural
+ * placeholder copy — HP-2 rewrites it text-only). The five device entries
+ * serve BOTH the add-menu item and the mounted module of that type (same id
+ * on both — one explanation per device concept).
+ */
+registerHelp([
+  {
+    id: "fx.add",
+    title: "+ ADD FX",
+    text: "Adds an effect device to this lane's chain (three devices max).",
+  },
+  ...FX_DEVICE_TYPES.map((type) => ({
+    id: `fx.device.${type}`,
+    title: FX_DEVICE_LABELS[type],
+    text:
+      type === "filter"
+        ? "FILTER — passes or blocks a frequency range (lowpass, highpass or bandpass) around the cutoff; Q sharpens the peak."
+        : type === "drive"
+          ? "DRIVE — saturation: more amount means a denser, louder, rougher tone."
+          : type === "bitcrusher"
+            ? "CRUSH — lo-fi reduction: fewer bits or heavier downsampling means a grittier sound."
+            : type === "delay"
+              ? "DELAY — a synced echo; the time steps are 16ths of a bar, feedback sets how long the repeats carry on, mix blends them in."
+              : "REVERB — adds room; a bigger size means a longer tail, mix blends it with the dry sound.",
+  })),
+  {
+    id: "fx.bypass",
+    title: "BYPASS",
+    text: "Switches this device out of the signal path without removing it — the click-free way to compare with/without.",
+  },
+  {
+    id: "fx.move",
+    title: "REORDER",
+    text: "Moves this device earlier or later in the chain. Order changes the sound: drive into filter is not filter into drive.",
+  },
+  {
+    id: "fx.remove",
+    title: "REMOVE",
+    text: "Removes this device from the chain.",
+  },
+  {
+    id: "fx.param",
+    title: "FX PARAMETER",
+    text: "A device parameter: drag it, or focus it and use the arrow keys. Changes are audible immediately, even while playing.",
+  },
+]);
 
 interface DragState {
   from: number;
@@ -195,6 +245,7 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
               fxEntry = el;
             }}
             class="fx-add-btn"
+            data-help="fx.add"
             aria-haspopup="menu"
             aria-expanded={addOpen()}
             onClick={() => (addOpen() ? closeAddMenu() : openAddMenu())}
@@ -224,12 +275,13 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
             >
               <For each={FX_DEVICE_TYPES}>
                 {(type) => (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    class="fx-add-item"
-                    onClick={() => handleAdd(type)}
-                  >
+              <button
+                type="button"
+                role="menuitem"
+                class="fx-add-item"
+                data-help={`fx.device.${type}`}
+                onClick={() => handleAdd(type)}
+              >
                     {FX_DEVICE_SPECS[type].label}
                   </button>
                 )}
@@ -272,6 +324,7 @@ function FxModuleView(props: {
       }}
       role="listitem"
       aria-label={`${label()} module ${m().index + 1} of ${props.count}${m().device.bypassed ? ", bypassed" : ""}`}
+      data-help={`fx.device.${m().device.type}`}
       draggable={true}
       onDragStart={props.onDragStart}
       onDragOver={(e) => {
@@ -292,6 +345,7 @@ function FxModuleView(props: {
           <button
             type="button"
             class="fx-mod-btn fx-move-btn"
+            data-help="fx.move"
             disabled={!canMoveFx(m().index, -1, props.count)}
             aria-label={`Move ${label()} module up`}
             onClick={() => props.onMove(-1)}
@@ -301,6 +355,7 @@ function FxModuleView(props: {
           <button
             type="button"
             class="fx-mod-btn fx-move-btn"
+            data-help="fx.move"
             disabled={!canMoveFx(m().index, 1, props.count)}
             aria-label={`Move ${label()} module down`}
             onClick={() => props.onMove(1)}
@@ -310,6 +365,7 @@ function FxModuleView(props: {
           <button
             type="button"
             class="fx-mod-btn fx-bypass-btn"
+            data-help="fx.bypass"
             aria-pressed={m().device.bypassed}
             aria-label={
               m().device.bypassed ? `Enable ${label()}` : `Bypass ${label()}`
@@ -323,6 +379,7 @@ function FxModuleView(props: {
           <button
             type="button"
             class="fx-mod-btn fx-remove-btn"
+            data-help="fx.remove"
             aria-label={`Remove ${label()} module`}
             onClick={props.onRemove}
           >
@@ -368,7 +425,7 @@ function FxSliderControl(props: {
   const readout = () => formatFxParam(props.mod.device.type, s().key, value());
 
   return (
-    <label class="fx-param">
+    <label class="fx-param" data-help="fx.param">
       <span class="fx-param-label" aria-hidden="true">
         {s().label}
       </span>
@@ -410,7 +467,7 @@ function FxChoiceControl(props: {
     c().options[0]!.value;
 
   return (
-    <label class="fx-param fx-param-choice">
+    <label class="fx-param fx-param-choice" data-help="fx.param">
       <span class="fx-param-label" aria-hidden="true">
         {c().label}
       </span>

@@ -90,6 +90,16 @@
     color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
 }
 
+/* HP-1: INFO ? — the info-mode toggle lamp. Lit state is the warm-white
+ * chassis fill (a stage-global mode, deliberately NOT a lane hue) + the one
+ * sanctioned glow layer over the fill+border coding (D9). */
+.booth-btn-info.is-on {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+
 /* Keyboard focus: always visible, never glow-dependent. */
 .booth :focus-visible {
   outline: 2px solid var(--color-ink);

@@ -1,9 +1,11 @@
 /**
- * DA-2 axe gate: run axe-core against the REAL mounted app in three states —
+ * DA-2 axe gate: run axe-core against the REAL mounted app in four states —
  * (1) the main screen as booted, (2) the booth scale popover open, (3) the
- * help overlay open — and assert ZERO critical/serious violations.
+ * keyboard-shortcut help overlay open, (4) HP-1's help mode ON (the info
+ * view mounted, E6's fourth state) — and assert ZERO critical/serious
+ * violations.
  *
- * Moderates are triaged below: the two accepted findings are documented in
+ * Moderates are triaged below: the accepted findings are documented in
  * docs/dev/accessibility.md and asserted BY ID so a new moderate can never
  * slip in silently (an unexpected moderate fails the test).
  *
@@ -16,6 +18,7 @@ import { render } from "solid-js/web";
 import axe from "axe-core";
 import App from "../../src/App";
 import { closeHelp, openHelp } from "../../src/state/helpOverlay";
+import { setHelpMode } from "../../src/state/helpMode";
 // DA-3 fix: App imports app.css/grid.css but NOT the token sheet (that is
 // main.tsx's job in the real bundle). Without tokens every var(--color-*)
 // background resolves to nothing, axe falls back to a white page, and light
@@ -131,6 +134,39 @@ describe("DA-2 axe-core gate", () => {
       expectClean(await runAxe(host), "help overlay open");
     } finally {
       closeHelp();
+      cleanup();
+    }
+  });
+
+  // HP-1 / a11y §7 E6: the FOURTH mounted state — help mode ON (the info
+  // view). Semantics asserted here: role=status, aria-live=polite, NOT
+  // focusable / NOT in the tab order; a focus-driven update (no pointer
+  // events) changes the region's text; axe stays clean with the surface
+  // mounted.
+  it("help mode on (info view): status-region semantics clean", async () => {
+    const { host, cleanup } = mount();
+    try {
+      const info = host.querySelector<HTMLButtonElement>(".booth-btn-info")!;
+      expect(info).toBeTruthy();
+      info.click();
+      await new Promise((r) => setTimeout(r, 300));
+      const region = host.querySelector<HTMLElement>(".info-view")!;
+      expect(region).toBeTruthy();
+      expect(region.getAttribute("role")).toBe("status");
+      expect(region.getAttribute("aria-live")).toBe("polite");
+      expect(region.hasAttribute("tabindex")).toBe(false);
+      expect(region.hasAttribute("contenteditable")).toBe(false);
+
+      // Focus-driven update with ZERO pointer events (the E6 keyboard law).
+      const loop = host.querySelector<HTMLElement>('[data-help="booth.loop"]')!;
+      expect(loop).toBeTruthy();
+      loop.focus();
+      await new Promise((r) => setTimeout(r, 100));
+      expect(region.textContent).toContain("LOOP");
+
+      expectClean(await runAxe(host), "help mode on");
+    } finally {
+      setHelpMode(false);
       cleanup();
     }
   });

@@ -431,10 +431,15 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         );
 
         // (c) HP-1 zero-cost baseline: every TH-4 measurement runs with help
-        // mode OFF — the default state, asserted (no help surface mounted).
+        // mode OFF — the default state, asserted (no help surface mounted:
+        // neither the KEYS overlay nor HP-1's info view).
         expect(
           doc().querySelector(".help-backdrop"),
           "help mode must be OFF during the measurement (HP-1 zero-cost baseline)",
+        ).toBeNull();
+        expect(
+          doc().querySelector(".info-view"),
+          "the HP-1 info region must NOT be mounted while help mode is off",
         ).toBeNull();
 
         /** Step width (px) inside one lane's grid, from two sibling cells. */
@@ -786,8 +791,10 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           5000,
           "demo cues",
         );
-        // (c) the storm also runs help-mode-off (the default; asserted).
+        // (c) the storm also runs help-mode-off (the default; asserted —
+        // HP-1's info view mounts NOTHING while the mode is off).
         expect(doc().querySelector(".help-backdrop")).toBeNull();
+        expect(doc().querySelector(".info-view")).toBeNull();
 
         // --- setup: two long bass notes (resize targets), some drums hits ---
         (floor("bass").querySelector(".cell") as HTMLElement).click();

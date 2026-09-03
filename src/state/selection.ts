@@ -67,7 +67,11 @@ export function toggleViewMode(): ViewMode {
  * LY-1 (a11y gate E1): the ONE stage-level announcement text. Every actual
  * quadrant-selection change speaks `NOW EDITING <LANE>` through the stage
  * role=status region (StageFloor renders it); solo changes speak through the
- * same region (keyboard.md v2). Pure ephemeral text — never a document.
+ * same region (keyboard.md v2). HP-1: the help-mode toggle announcements
+ * (`INFO MODE ON …` / `INFO MODE OFF`, state/helpMode.ts) also ride this
+ * region — the info region itself is unmounted the instant the mode turns
+ * off, so it cannot announce its own departure. Pure ephemeral text — never
+ * a document.
  */
 const [stageStatus, setStageStatus] = createSignal("");
 

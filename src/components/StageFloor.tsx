@@ -61,12 +61,14 @@ export default function StageFloor() {
           {EMPTY_HINT_LABEL}
         </div>
       )}
-      {/* LY-1 E1: the stage-level edit-target announcement region. */}
+      {/* LY-1 E1: the stage-level announcement region — edit-target changes
+          (`NOW EDITING <LANE>`), solo changes, and HP-1's help-mode toggle
+          announcements (`INFO MODE ON …` / `INFO MODE OFF`). */}
       <div
         class="head-sr stage-status"
         role="status"
         aria-live="polite"
-        aria-label="Edit target announcements"
+        aria-label="Stage announcements"
       >
         {stageStatus()}
       </div>

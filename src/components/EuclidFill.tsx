@@ -21,10 +21,11 @@ import {
   onMount,
   type JSX,
 } from "solid-js";
-import { type DrumPiece } from "../document/schema";
+import { type DrumPiece, DRUM_PIECES } from "../document/schema";
 import { getSession } from "../engine/session";
 import { applyEuclidFill, docStore } from "../state/store";
 import { currentPatternFor } from "../state/selection";
+import { registerHelp } from "../help/registry";
 import {
   fillDisplay,
   fillKeyAction,
@@ -35,6 +36,18 @@ import {
 } from "../state/euclidFill";
 
 const session = getSession();
+
+/**
+ * HP-1 help entries — one per drum row's fill control (I2-6: colocated here;
+ * structural placeholder copy — HP-2 rewrites it text-only).
+ */
+registerHelp(
+  DRUM_PIECES.map((piece) => ({
+    id: `euclid.${piece}.fill`,
+    title: `${piece.toUpperCase()} FILL`,
+    text: `Spread the pulses as evenly as possible over the ${piece.toUpperCase()} row (rotation shifts where they land). The dashed overlay previews; SET paints the row, Escape cancels.`,
+  })),
+);
 
 /** The active drum pattern's row for `piece` (identity mirrors store writes). */
 function drumRow(piece: DrumPiece): readonly boolean[] {
@@ -115,6 +128,7 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
       class="row-fill-ctl"
       role="group"
       aria-label={`Euclidean fill for ${props.label}`}
+      data-help={`euclid.${props.piece}.fill`}
       onKeyDown={onKeyDown}
     >
       <span class="row-fill-tag" aria-hidden="true">

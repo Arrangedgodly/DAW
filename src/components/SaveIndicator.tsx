@@ -13,9 +13,20 @@ import { createSignal, onCleanup, onMount } from "solid-js";
 import { autosaveStatus, getLastSavedAt } from "../persist/boot";
 import { fullTimestamp } from "../lib/reltime";
 import { indicatorLabel } from "../lib/saveIndicator";
+import { registerHelp } from "../help/registry";
 
 /** Slow tick cadence for the relative-time text (s, not ms of accuracy). */
 const TICK_MS = 5_000;
+
+// HP-1 help entry (I2-6: colocated here; structural placeholder copy —
+// HP-2 rewrites it text-only).
+registerHelp([
+  {
+    id: "save.status",
+    title: "AUTOSAVE",
+    text: "Autosave state: SAVED with a rough time, SAVING while writing, UNSAVED CHANGES while edits wait, SAVE FAILED while retrying. The full timestamp is in the label.",
+  },
+]);
 
 export default function SaveIndicator() {
   const [now, setNow] = createSignal(Date.now());
@@ -39,6 +50,7 @@ export default function SaveIndicator() {
     <div
       class="save-indicator"
       data-status={autosaveStatus()}
+      data-help="save.status"
       role="status"
       tabindex="0"
       aria-label={aria()}
