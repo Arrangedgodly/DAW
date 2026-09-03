@@ -127,3 +127,58 @@ edge. PageUp at the first lane stays there; Ctrl+→ at the last beat stays.
 - Global shortcuts + help overlay: `src/components/KeyboardShortcuts.tsx`,
   `src/components/HelpOverlay.tsx`, `src/state/helpOverlay.ts`
 - Lane-header roving group helper: `src/lib/rovingGroup.ts`
+
+## DA-3 scripted journey (the full make-a-loop + arrange + export walkthrough)
+
+This is the complete keyboard-only product walkthrough for town-hall AC #8
+("grid editing fully keyboard-operable") and the make-a-loop + arrange +
+export journey. The browser test `tests/browser/keyboard-journey-full.test.ts`
+IS this script — it drives the REAL BUILT app (dist/ bundle, fresh IndexedDB
+→ first-run demo) step by step and asserts an observable outcome per step.
+
+Testing note: synthetic KeyboardEvents run every keydown handler the app
+installs but carry no browser default actions; native-button Enter/Space
+activation and native range-arrow stepping are platform guarantees, so the
+test replicates exactly those defaults (focus + Enter keydown + click;
+focus + Arrow keydown + stepUp + input event). Nothing is driven by mouse
+coordinates; every action begins from a focused element.
+
+| # | Step (keys) | Observable outcome asserted |
+|---|---|---|
+| 1 | Boot (no keys — first run) | booth mounts, 4 grids, demo cue labels (VERSE) in the rail |
+| 2 | `Space` at body level | PLAY aria-pressed → true (transport runs) |
+| 3 | `?` … inspect … `Escape` | role=dialog help overlay, focus trapped inside, dismissed |
+| 4 | Focus drums roving seed → `↓` `End` `Home` `.` | SNARE row, step 15 → 0 → beat-jump to 4 |
+| 5 | Tab to SNARE fill rail → `Enter` on `+` pulses ×2 → `Enter` on SET | readout counts p/16, dashed data-preview overlay, then the row paints exactly p on-cells and preview clears |
+| 6 | `Enter` on a focused cell | data-on / aria-selected flips |
+| 7 | `PageDown` | focus lands in the BASS grid (position carried, clamped) |
+| 8 | Header strip: `Enter` on preset `+`, gate `+` | preset name changes; gate value steps 1 → 2 ST |
+| 9 | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip |
+| 10 | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value |
+| 11 | Rail: focus tile 1 → `→`×3 → `Enter` | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing |
+| 12 | `Space` (stop) → `Enter` on DUP → focus last tile → `+` → `Escape` | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle) |
+| 13 | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam) |
+| 14 | `Enter` NEW … then reopen popover → `Escape` | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button |
+
+Gaps the walk found (fixed in DA-3, all in this repo):
+
+- **FX add menu ignored the keyboard menu conventions** — opening it left
+  focus on the + button and nothing closed it on Escape. Now: focus lands on
+  the first menu item on open (also reachable via ArrowDown on the entry),
+  Escape closes and refocuses + ADD FX (src/components/FxStrip.tsx).
+- **`+` append existed only as a mouse button** — the spec's rail-local `+`
+  key was never implemented. Now `+`/`=` on a focused tile appends the
+  selected pattern (src/components/PatternRail.tsx).
+- **Chain edits stranded focus** — the tile row rebuilds on any chain edit
+  (For reference diff), so `+` and `Delete` dropped focus to `<body>`.
+  Focus now lands on the tile occupying the edited slot (the appended tile
+  for `+`) (src/components/PatternRail.tsx).
+- **Escape in the rail ignored the region-head law** — now Escape on a tile
+  focuses the rail head (the COLLAPSE/EXPAND view toggle), matching the
+  Escape-pop law everywhere else.
+
+Observation recorded, deliberately NOT changed here (perf, not keyboard):
+each FX param commit rebuilds the module DOM (Solid For reference diff), so a
+60 Hz slider drag recreates the module nodes every tick. Values stay correct
+and engine ramps are unaffected (AudioParam path), but DES-7 should consider
+keying modules by identity to avoid per-tick DOM churn.

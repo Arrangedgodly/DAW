@@ -120,6 +120,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     { kind: "cue"; slot: number } | { kind: "name" } | null
   >(null);
   const [announce, setAnnounce] = createSignal("");
+  let railRowEl: HTMLDivElement | undefined;
 
   onMount(() => {
     const unsubDoc = docStore.subscribe((state, prev) => {
@@ -192,6 +193,21 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     removePattern(props.lane, selectedId());
   };
 
+  /**
+   * DA-3: chain edits rebuild the tile row (For reference diff), which drops
+   * focus to <body>. After an edit, land focus on the tile now occupying
+   * `slot` — or the new last tile when the edit appended one.
+   */
+  const focusSlotAfterEdit = (slot: number): void => {
+    queueMicrotask(() => {
+      const row = railRowEl?.querySelectorAll<HTMLButtonElement>(".rail-tile");
+      if (!row || row.length === 0) return;
+      const target = Math.min(slot, row.length - 1);
+      setFocusedSlot(target);
+      row[target]?.focus();
+    });
+  };
+
   const tileKeyDown = (e: KeyboardEvent, tile: RailTile) => {
     const count = tiles().length;
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -205,6 +221,10 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       e.preventDefault();
       if (removeChainSlot(props.lane, tile.slot)) {
         setAnnounce(`${LANE_NAMES[props.lane]}: removed chain slot ${tile.slot + 1}`);
+        // DA-3: the tile row rebuilds on chain edits — move focus to the tile
+        // now occupying this slot (or the new last tile) instead of stranding
+        // it on <body>.
+        focusSlotAfterEdit(tile.slot);
       }
     } else if (e.key === "F2") {
       e.preventDefault();
@@ -212,6 +232,24 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     } else if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       setEditing({ kind: "cue", slot: tile.slot });
+    } else if (e.key === "+" || e.key === "=") {
+      // DA-3 (spec gap fix): "+" appends the selected pattern to the chain —
+      // the keyboard twin of the rail's + button.
+      e.preventDefault();
+      const wasLast = tile.slot === tiles().length - 1;
+      appendChainSlot(props.lane, selectedId());
+      setAnnounce(`${LANE_NAMES[props.lane]}: appended chain slot ${tiles().length + 1}`);
+      // The row rebuilds on chain edits — hand focus to the appended tile
+      // (or stay on this slot) so focus is never stranded on <body>.
+      focusSlotAfterEdit(wasLast ? docStore.getState().doc.songChain[props.lane].length - 1 : tile.slot);
+    } else if (e.key === "Escape") {
+      // DA-3 (spec gap fix): Escape pops to the rail head (the view toggle),
+      // matching the region-head law in docs/dev/keyboard.md.
+      e.preventDefault();
+      (e.currentTarget as HTMLElement)
+        .closest(".rail")
+        ?.querySelector<HTMLElement>(".rail-view-toggle")
+        ?.focus();
     }
   };
 
@@ -221,7 +259,13 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   };
 
   return (
-    <div class="rail-row" data-lane={props.lane}>
+    <div
+      class="rail-row"
+      data-lane={props.lane}
+      ref={(el) => {
+        railRowEl = el;
+      }}
+    >
       <span class="rail-lane-name">{LANE_NAMES[props.lane]}</span>
 
       <div class="rail-tiles" role="group" aria-label={`${LANE_NAMES[props.lane]} song chain`}>

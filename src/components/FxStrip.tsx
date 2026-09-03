@@ -67,6 +67,21 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
 
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
   let fxEntry: HTMLButtonElement | undefined;
+  let addMenu: HTMLDivElement | undefined;
+
+  // DA-3: the add menu is a role=menu — opening it moves focus to the first
+  // item (menu convention), and Escape closes it with focus returned to the
+  // + ADD FX entry. Tab still works (items are real buttons in DOM order).
+  const openAddMenu = () => {
+    setAddOpen(true);
+    queueMicrotask(() =>
+      addMenu?.querySelector<HTMLButtonElement>(".fx-add-item")?.focus(),
+    );
+  };
+  const closeAddMenu = () => {
+    setAddOpen(false);
+    fxEntry?.focus();
+  };
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -153,12 +168,31 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
             class="fx-add-btn"
             aria-haspopup="menu"
             aria-expanded={addOpen()}
-            onClick={() => setAddOpen(!addOpen())}
+            onClick={() => (addOpen() ? closeAddMenu() : openAddMenu())}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                if (!addOpen()) openAddMenu();
+              }
+            }}
           >
             + ADD FX
           </button>
           <Show when={addOpen()}>
-            <div class="fx-add-menu" role="menu" aria-label={`Add FX device to ${LANE_NAMES[props.lane]}`}>
+            <div
+              ref={(el) => {
+                addMenu = el;
+              }}
+              class="fx-add-menu"
+              role="menu"
+              aria-label={`Add FX device to ${LANE_NAMES[props.lane]}`}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.stopPropagation();
+                  closeAddMenu();
+                }
+              }}
+            >
               <For each={FX_DEVICE_TYPES}>
                 {(type) => (
                   <button

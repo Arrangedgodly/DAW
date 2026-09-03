@@ -41,6 +41,11 @@ export default defineConfig({
     ],
   },
   test: {
+    // DA-3: vite-plugin-solid's config hook defaults test-mode configs to a
+    // jsdom environment (an uninstalled optional peer) when none is set.
+    // Both projects pin node anyway; pin the root too so a bare `vitest run`
+    // never attempts to load jsdom.
+    environment: "node",
     // HW-2: browser tests can't write files; the render-fingerprint golden
     // test emits a machine-readable console line that this node-side hook
     // writes into tests/golden/manifest.json — only under UPDATE_GOLDENS=1
