@@ -46,6 +46,7 @@ import {
 import { laneScaleChipLabel, announceScale } from "../state/scaleChip";
 import { announceStage } from "../state/selection";
 import { laneFxChain } from "../state/fxStrip";
+import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
 import { activeLane } from "../state/selection";
 import { registerHelp, type HelpEntry } from "../help/registry";
@@ -213,9 +214,20 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const stepSound = (delta: number) => {
     const list = options();
     if (list.length === 0) return;
-    const next = list[(soundIndex() + delta + list.length) % list.length];
+    const index = soundIndex();
+    const next = list[(index + delta + list.length) % list.length];
     setLaneSoundId(props.lane, next.id);
     setSoundId(next.id);
+    // PS-4 decode-on-selection law: the chosen sound's sample assets (if
+    // any) load lazily NOW, together with the stepper's two neighbors, so
+    // the next step in either direction is already decoded when reached.
+    // Failures surface as one sticky toast (engineBridge); synth sounds
+    // resolve to zero refs and prime nothing.
+    primeSoundContent([
+      next.id,
+      list[(index + delta + 1 + list.length) % list.length]?.id ?? next.id,
+      list[(index + delta - 1 + list.length) % list.length]?.id ?? next.id,
+    ]);
     // One audition of the new sound (spec: preview on change).
     void session.audition(props.lane, props.lane === "drums" ? "kick" : 0);
   };

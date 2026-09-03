@@ -40,6 +40,7 @@ import {
   type PatternBars,
   type PitchedPattern,
   type ProjectDocument,
+  type SampleProvenanceEntry,
   type ScaleConfig,
   type Transport,
   createDefaultProject,
@@ -50,6 +51,7 @@ import {
 } from "../document/schema";
 import { validateProject } from "../document/validate";
 import { euclid } from "../audio/euclid";
+import { sampleRefsForSound } from "../audio/presets";
 import { type ModeName, modeSize } from "../document/scales";
 import { type FxDeviceType, defaultFxDevice, reorderChain } from "./fxStrip";
 
@@ -446,6 +448,93 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
     ),
   );
 }
+
+// ---------------------------------------------------------------------------
+// PS-4 — sample-voice provenance maintenance (the PS-3 field's writer).
+//
+// Law (PS-3 schema): a project whose lanes use sample-backed sounds records
+// an echo of each asset's manifest row in doc.sampleProvenance, and the map
+// is canonical-empty (field omitted) when no lane does. This keeps the doc
+// self-describing through selection, reload, import, AND undo: the store
+// re-derives the map from the current lane sounds whenever it drifts.
+//
+// - The manifest is loaded through a DYNAMIC import — the content module
+//   stays out of the initial JS graph, and a synth-only document (the boot
+//   path, TH-4(d)) never triggers the import at all.
+// - Repair commits SKIP the undo history (derived metadata, not an edit);
+//   redo futures are deliberately left intact — a redo whose doc carries a
+//   stale map self-heals through this same pass.
+// ---------------------------------------------------------------------------
+
+/** Asset ids a document's current lane sounds reference (pure). */
+function sampleRefsOfDoc(doc: ProjectDocument): Set<string> {
+  const refs = new Set<string>();
+  for (const lane of doc.lanes) {
+    for (const ref of sampleRefsForSound(
+      lane.id === "drums" ? lane.kitId : lane.presetId,
+    )) {
+      refs.add(ref);
+    }
+  }
+  return refs;
+}
+
+function provenanceInSync(doc: ProjectDocument, refs: Set<string>): boolean {
+  const keys = new Set(Object.keys(doc.sampleProvenance ?? {}));
+  if (keys.size !== refs.size) return false;
+  for (const ref of refs) if (!keys.has(ref)) return false;
+  return true;
+}
+
+let provenanceRepairRunning = false;
+
+/**
+ * Bring doc.sampleProvenance back in step with the lane sounds (no-op when
+ * already in sync). Fire-and-forget; every doc change re-runs it.
+ */
+function maintainSampleProvenance(): void {
+  if (provenanceRepairRunning) return;
+  const doc0 = docStore.getState().doc;
+  if (provenanceInSync(doc0, sampleRefsOfDoc(doc0))) return;
+  provenanceRepairRunning = true;
+  void (async () => {
+    try {
+      // Loop: another edit may land while the import resolves — re-check
+      // until a write sticks against the CURRENT document.
+      for (let guard = 0; guard < 8; guard++) {
+        const doc = docStore.getState().doc;
+        const refs = sampleRefsOfDoc(doc);
+        if (provenanceInSync(doc, refs)) return;
+        const { CONTENT_ASSETS } = await import("../assets/content/loader");
+        const echo: Record<string, SampleProvenanceEntry> = {};
+        for (const ref of refs) {
+          const asset = CONTENT_ASSETS.find((a) => a.id === ref);
+          if (!asset) continue; // unknown ref is validation's business, not ours
+          echo[ref] = {
+            license: asset.license,
+            sourceUrl: asset.sourceUrl,
+            author: asset.author,
+          };
+        }
+        const next =
+          refs.size === 0
+            ? (() => {
+                const { sampleProvenance: _stale, ...rest } = doc;
+                void _stale;
+                return rest;
+              })()
+            : { ...doc, sampleProvenance: echo };
+        validateProject(next); // manifest echoes must always parse
+        skipNextHistoryEntry = true; // derived metadata: no undo step
+        docStore.setState({ doc: next });
+      }
+    } finally {
+      provenanceRepairRunning = false;
+    }
+  })();
+}
+
+docStore.subscribe(() => maintainSampleProvenance());
 
 // ---------------------------------------------------------------------------
 // LY-1 quadrant mix: per-lane volume / mute / solo (optional document fields,

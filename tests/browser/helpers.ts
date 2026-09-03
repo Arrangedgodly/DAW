@@ -8,8 +8,10 @@
 
 import { type VoiceNoteOnEvent } from "../../src/audio/presets";
 import {
+  createSampleVoiceHostFor,
   createVoiceEngine,
   workletContextFor,
+  type SampleVoiceHost,
   type VoiceEngineHost,
 } from "../../src/audio/voiceEngine";
 
@@ -35,7 +37,12 @@ export interface OfflineRenderResult {
   readonly sampleRate: number;
 }
 
-/** Render lane events through the REAL worklet graph via OfflineAudioContext. */
+/**
+ * Render lane events through the REAL graph via OfflineAudioContext. PS-4:
+ * events carrying `.sample` route to a native SampleVoiceHost on the SAME
+ * offline context, with every referenced asset decoded BEFORE scheduling
+ * (the render parity law) — synth events keep the worklet path.
+ */
 export async function renderOffline(
   opts: OfflineRenderOptions,
 ): Promise<OfflineRenderResult> {
@@ -49,17 +56,37 @@ export async function renderOffline(
   master.gain.value = 0.9;
   master.connect(ctx.destination);
 
+  const hasSampleEvents = opts.lanes.some((lane) =>
+    lane.some((e) => e.sample !== undefined),
+  );
   let host: VoiceEngineHost | null = null;
+  let sampleHost: SampleVoiceHost | null = null;
   if (opts.lanes.some((lane) => lane.length > 0)) {
+    if (hasSampleEvents) {
+      sampleHost = await createSampleVoiceHostFor(ctx, opts.lanes.length);
+      const refs = new Set<string>();
+      for (const lane of opts.lanes)
+        for (const e of lane) if (e.sample) refs.add(e.sample.ref);
+      await sampleHost.preload([...refs]);
+    }
     host = await createVoiceEngine(workletContextFor(ctx), opts.lanes.length);
     for (let i = 0; i < opts.lanes.length; i++) {
       host.connect(i, master);
+      sampleHost?.connect(i, master);
       // Loop-relative times in → absolute times out (day-one contract:
       // the full event list is preloaded before startRendering()).
-      host.sendEvents(
-        i,
-        opts.lanes[i].map((e) => ({ ...e, time: e.time + opts.startTime })),
-      );
+      const events = opts.lanes[i].map((e) => ({
+        ...e,
+        time: e.time + opts.startTime,
+      }));
+      if (!sampleHost) {
+        host.sendEvents(i, events);
+        continue;
+      }
+      const synth = events.filter((e) => e.sample === undefined);
+      const sampled = events.filter((e) => e.sample !== undefined);
+      if (synth.length > 0) host.sendEvents(i, synth);
+      if (sampled.length > 0) sampleHost.sendEvents(i, sampled);
     }
   }
 
@@ -91,6 +118,7 @@ export async function renderOffline(
 
   const buffer = await ctx.startRendering();
   host?.dispose();
+  sampleHost?.dispose();
 
   const left = buffer.getChannelData(0);
   const right = buffer.getChannelData(1);

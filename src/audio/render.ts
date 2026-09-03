@@ -18,6 +18,10 @@
  * - The FULL compiled event list (all lanes, one loop iteration, lanes with
  *   shorter chains wrapping against the common loop) is preloaded via
  *   sendEvents BEFORE startRendering() — the hard parity rule.
+ * - PS-4: sample-backed lanes ride a native SampleVoiceHost on the SAME
+ *   offline context (per-lane FX chains unchanged); every referenced asset
+ *   is decoded before anything is scheduled, so the render is deterministic
+ *   (recordings + playbackRate, no seeds).
  * - Seeded PRNGs everywhere downstream (reverb IRs derive from laneSeed).
  *
  * Loop-length semantics: lanes are poly-looping (each lane's chain wraps
@@ -51,9 +55,11 @@ import {
   softClip,
 } from "./fx";
 import {
+  createSampleVoiceHostFor,
   createVoiceEngine,
   createBitcrusherNode,
   workletContextFor,
+  type SampleVoiceHost,
 } from "./voiceEngine";
 import { getDrumKit, getPreset, type VoiceNoteOnEvent } from "./presets";
 import { effectiveScale } from "../document/scales";
@@ -267,6 +273,26 @@ export async function renderProjectToBuffer(
       moduleUrl: opts.moduleUrl,
     },
   );
+  // PS-4 offline parity law: sample-backed lanes render through the native
+  // SampleVoiceHost on THIS context, and every referenced asset is decoded
+  // BEFORE any source is scheduled and before startRendering() — the
+  // same-buffers/same-rates construction keeps the render deterministic
+  // (sample events carry no seeds). Synth-only projects never even load the
+  // content module (the host is created only when a ref exists).
+  const sampleRefs = new Set<string>();
+  for (const schedule of schedules) {
+    if (!schedule) continue;
+    for (const events of schedule.byStep.values()) {
+      for (const e of events) {
+        if (e.sample) sampleRefs.add(e.sample.ref);
+      }
+    }
+  }
+  const sampleHost: SampleVoiceHost | null =
+    sampleRefs.size > 0
+      ? await createSampleVoiceHostFor(ctx, LANE_IDS.length)
+      : null;
+  if (sampleHost) await sampleHost.preload([...sampleRefs]);
   const master = ctx.createGain();
   master.gain.value = 0.9;
   // Committed master soft-clip (D2–D4; landed with PX-1) — the same node the
@@ -301,7 +327,12 @@ export async function renderProjectToBuffer(
     const timing = (): FxTiming => ({ bpm: groove.bpm, when: ctx.currentTime });
     const chain = new FxChainHost({
       source: {
-        connect: (destination) => host.connect(i, destination as AudioNode),
+        connect: (destination) => {
+          host.connect(i, destination as AudioNode);
+          // PS-4: the lane's sample voice output sinks into the SAME chain
+          // head (per-lane FX chains apply to sampled lanes as today).
+          sampleHost?.connect(i, destination as AudioNode);
+        },
         disconnect: () => undefined,
       },
       sink: laneGain,
@@ -322,7 +353,18 @@ export async function renderProjectToBuffer(
   for (let i = 0; i < LANE_IDS.length; i++) {
     const schedule = schedules[i];
     if (!schedule) continue;
-    host.sendEvents(i, expandLaneEventsForLoop(schedule, loopSteps, groove));
+    const expanded = expandLaneEventsForLoop(schedule, loopSteps, groove);
+    if (!sampleHost) {
+      host.sendEvents(i, expanded);
+      continue;
+    }
+    // PS-4: partition per lane — synth events to the worklet (acks below),
+    // sample events to the already-preloaded native host.
+    const synth: VoiceNoteOnEvent[] = [];
+    const sampleEvents: VoiceNoteOnEvent[] = [];
+    for (const e of expanded) (e.sample ? sampleEvents : synth).push(e);
+    if (synth.length > 0) host.sendEvents(i, synth);
+    if (sampleEvents.length > 0) sampleHost.sendEvents(i, sampleEvents);
   }
 
   // postMessage delivery must land before rendering starts (Chromium race).
@@ -348,6 +390,7 @@ export async function renderProjectToBuffer(
   }
   chains.forEach((c) => c.dispose());
   host.dispose();
+  sampleHost?.dispose();
 
   const raw = [buffer.getChannelData(0), buffer.getChannelData(1)].map((c) =>
     Float32Array.from(c),

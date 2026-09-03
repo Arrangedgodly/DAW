@@ -3,11 +3,15 @@ import * as v from "valibot";
 import {
   DRUM_KITS,
   PRESET_LIBRARY,
+  SAMPLE_KIT_IDS,
+  SAMPLE_PLAYBACK_RATE_MAX,
+  SAMPLE_PLAYBACK_RATE_MIN,
   VoicePresetSchema,
   WAVE_CODE,
   getDrumKit,
   getPreset,
   noteParamsFor,
+  sampleRefsForSound,
   sampleVoiceFieldIssue,
   type VoicePreset,
 } from "../src/audio/presets";
@@ -51,8 +55,13 @@ function validatePreset(p: VoicePreset): void {
  * noise texture, envelope attack class, and release class. Two presets with
  * one signature would be "parameter nudges of one voice", which the plan
  * forbids; this makes the rule executable.
+ *
+ * PS-4 extension: the sample axis is first-class — a recorded voice is its
+ * own archetype (voiceType 'sample' + the asset id), so sample presets are
+ * distinct from every synth preset AND from each other by construction.
  */
 function presetSignature(p: VoicePreset): string {
+  if (p.voiceType === "sample") return `sample|${p.sampleRef ?? "?"}`;
   const attackClass =
     p.envelope.attack <= 0.002
       ? "perc"
@@ -192,8 +201,13 @@ describe("preset library", () => {
     }
   });
 
-  it("kits vary the committed character axes (kick sweep, snare mix, hat decay)", () => {
-    const kits = Object.values(DRUM_KITS);
+  it("synth kits vary the committed character axes (kick sweep, snare mix, hat decay)", () => {
+    // PS-4: the axis law governs SYNTH kits (recipe knobs); recorded kits
+    // vary by their recordings instead — covered by the sample-kit tests.
+    const kits = Object.values(DRUM_KITS).filter(
+      (k) => k.pieces.kick.voiceType !== "sample",
+    );
+    expect(kits.length).toBeGreaterThanOrEqual(10);
     const kickRatios = new Set(
       kits.map((k) => k.pieces.kick.pitchSweep!.endRatio),
     );
@@ -301,6 +315,43 @@ describe("noteParamsFor", () => {
       );
     }
   });
+
+  // --- PS-4: the sample branch of the wire format ----------------------------
+
+  it("sample presets carry routing data: ref + playbackRate from rootMidi (unclamped by the freq cap)", () => {
+    const p = getPreset("preset-chords-13")!; // PURE TONE, rootMidi 60
+    const ev = noteParamsFor(p, { time: 0, midi: 72, holdSeconds: 0.3 });
+    expect(ev.sample).toBeDefined();
+    expect(ev.sample!.ref).toBe("voice.chords.tone");
+    expect(ev.sample!.playbackRate).toBeCloseTo(2, 9); // +1 octave
+    expect(ev.sample!.oneShot).toBe(false); // pitched: note-length law
+    // An extreme note would have been freq-clamped on the synth path; the
+    // sample rate derives from raw midi and clamps to its OWN range.
+    const wayUp = noteParamsFor(p, { time: 0, midi: 127, holdSeconds: 0.3 });
+    expect(wayUp.sample!.playbackRate).toBe(SAMPLE_PLAYBACK_RATE_MAX);
+    const wayDown = noteParamsFor(p, { time: 0, midi: 0, holdSeconds: 0.3 });
+    expect(wayDown.sample!.playbackRate).toBe(SAMPLE_PLAYBACK_RATE_MIN);
+  });
+
+  it("sample drum pieces play one-shot at rate 1 (recordings own their envelope)", () => {
+    const kick = getDrumKit("kit-808")!.pieces.kick;
+    const ev = noteParamsFor(kick, { time: 0, holdSeconds: 0.125 });
+    expect(ev.sample!.ref).toBe("drums.808.kick");
+    expect(ev.sample!.playbackRate).toBe(1);
+    expect(ev.sample!.oneShot).toBe(true);
+  });
+
+  it("synth presets never carry sample data; sample events are deterministic (no seed dependence)", () => {
+    expect(noteParamsFor(preset, { time: 1, midi: 40, holdSeconds: 0.1 }).sample).toBeUndefined();
+    const samplePreset = getPreset("preset-lead-13")!;
+    const a = noteParamsFor(samplePreset, { time: 0.25, midi: 64, holdSeconds: 0.2 });
+    const b = noteParamsFor(samplePreset, { time: 0.25, midi: 64, holdSeconds: 0.2 });
+    expect(a.sample).toEqual(b.sample);
+    expect(a.sample!.playbackRate).toBeCloseTo(
+      Math.pow(2, (64 - 60) / 12),
+      9,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -329,7 +380,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
     };
   }
 
-  it("the committed library is synth-voiced: canonical-empty slot, no orphan sample fields (AC: existing synth presets validate unchanged)", () => {
+  it("voice-type slot laws hold across the whole library (PS-4 extension: synth canonical-empty, sample well-formed)", () => {
     const all: VoicePreset[] = [
       ...Object.values(PRESET_LIBRARY),
       ...Object.values(DRUM_KITS).flatMap((kit) =>
@@ -337,14 +388,99 @@ describe("PS-3 voice-type slot (preset format)", () => {
       ),
     ];
     expect(all.length).toBeGreaterThan(60);
+    let sampleVoices = 0;
     for (const p of all) {
-      // Canonical-empty law: synth is expressed by OMITTING the field, and a
-      // synth preset carries no half-sample fields.
-      expect(p.voiceType, p.id).toBeUndefined();
-      expect(p.sampleRef, p.id).toBeUndefined();
-      expect(p.rootMidi, p.id).toBeUndefined();
       expect(() => v.parse(VoicePresetSchema, p), p.id).not.toThrow();
+      if (p.voiceType === "sample") {
+        // Sample law: sampleRef REQUIRED (schema), rootMidi iff pitched
+        // (drum pieces have baseFreq and play at rate 1), pitchRange iff
+        // pitched, and the ref must exist in the committed content manifest.
+        expect(p.sampleRef, p.id).toBeDefined();
+        const asset = CONTENT_ASSETS.find((a) => a.id === p.sampleRef);
+        expect(asset, `${p.id}: unknown sampleRef ${p.sampleRef}`).toBeDefined();
+        if (p.baseFreq !== undefined) {
+          expect(p.rootMidi, `${p.id}: drum piece carries rootMidi`).toBeUndefined();
+          expect(p.pitchRange, `${p.id}: drum piece carries pitchRange`).toBeUndefined();
+        } else {
+          expect(p.rootMidi, `${p.id}: pitched sample preset misses rootMidi`).toBeDefined();
+          expect(p.pitchRange?.octaveBase, `${p.id}: pitched sample preset misses pitchRange`).toBeDefined();
+          const voice = asset as (typeof CONTENT_ASSETS)[number] & {
+            rootMidi?: number;
+          };
+          // Connective pin: the preset's root is the MEASURED manifest value.
+          expect(p.rootMidi, `${p.id}: rootMidi drift vs manifest`).toBe(
+            voice.rootMidi,
+          );
+        }
+        sampleVoices++;
+      } else {
+        // Canonical-empty law: synth is expressed by OMITTING the field, and
+        // a synth preset carries no half-sample fields.
+        expect(p.voiceType, p.id).toBeUndefined();
+        expect(p.sampleRef, p.id).toBeUndefined();
+        expect(p.rootMidi, p.id).toBeUndefined();
+      }
     }
+    // The committed content list is wired: 4 sample kits × 6 pieces + 6
+    // pitched sample voices = 30 sample-backed presets.
+    expect(sampleVoices).toBe(4 * 6 + 6);
+  });
+
+  it("PS-4 sample kits: the 4 committed kits map every base piece to its manifest asset", () => {
+    expect(SAMPLE_KIT_IDS.length).toBe(4);
+    for (const kitId of SAMPLE_KIT_IDS) {
+      const kit = getDrumKit(kitId)!;
+      expect(kit, kitId).toBeDefined();
+      const contentKit = kitId.replace(/^kit-/, "");
+      for (const piece of DRUM_PIECES) {
+        const p = kit.pieces[piece];
+        expect(p.sampleRef, `${kitId}.${piece}`).toBe(
+          `drums.${contentKit}.${piece}`,
+        );
+        expect(
+          CONTENT_ASSETS.some((a) => a.id === p.sampleRef),
+          `${kitId}.${piece}: ref not in manifest`,
+        ).toBe(true);
+      }
+    }
+    // Every committed drum asset is either wired (base piece of a kit) or a
+    // recorded variant kept for future curation (the 808 flagship extras).
+    const wired = new Set(
+      SAMPLE_KIT_IDS.flatMap((id) =>
+        DRUM_PIECES.map((piece) => getDrumKit(id)!.pieces[piece].sampleRef),
+      ),
+    );
+    const drumAssets = CONTENT_ASSETS.filter((a) => a.kind === "drums");
+    for (const asset of drumAssets) {
+      if (!wired.has(asset.id)) {
+        // unwired = variant rows of the 808 flagship (kick2/snare2/hat2)
+        expect(asset.id.startsWith("drums.808."), `${asset.id} unwired`).toBe(
+          true,
+        );
+        expect((asset as { variant?: number }).variant, `${asset.id}`).toBe(2);
+      }
+    }
+  });
+
+  it("PS-4 sampleRefsForSound resolves kits, sample presets, and synth no-ops", () => {
+    for (const kitId of SAMPLE_KIT_IDS) {
+      const refs = sampleRefsForSound(kitId);
+      expect(refs).toHaveLength(6);
+      for (const piece of DRUM_PIECES) {
+        expect(refs).toContain(`drums.${kitId.replace(/^kit-/, "")}.${piece}`);
+      }
+    }
+    const samplePresets = Object.values(PRESET_LIBRARY).filter(
+      (p) => p.voiceType === "sample" && p.pitchRange !== undefined,
+    );
+    expect(samplePresets).toHaveLength(6);
+    for (const p of samplePresets) {
+      expect(sampleRefsForSound(p.id)).toEqual([p.sampleRef]);
+    }
+    // Synth sounds resolve to zero refs (the lazy loader never engages).
+    expect(sampleRefsForSound("kit-default")).toEqual([]);
+    expect(sampleRefsForSound("preset-bass-1")).toEqual([]);
+    expect(sampleRefsForSound("nope")).toEqual([]);
   });
 
   it("accepts a well-formed sample preset (sampleRef into the content manifest)", () => {

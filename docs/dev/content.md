@@ -143,3 +143,43 @@ drum kicks at PS-4 (the 808 family snare/hats/clap/tom are freesound).
 - Kit/preset NAMES shown in the UI are Professor X's sound-design call
   (RES-10); the manifest keeps neutral slugs (`808`, `acoustic`, `dusty`,
   `punch`).
+
+## PS-4 wiring — how the committed content becomes sound (2026-09-03)
+
+Status: **landed (PS-4)**. The engine seam is `src/audio/voiceEngine.ts`:
+`createSampleVoiceHost` (native `AudioBufferSourceNode` voices, one lane bus
+per lane, mirrors the worklet host's `sendEvents`/`connect`/`allOff` shape)
+behind `createLaneVoiceRouter` — the session's ONE lane-voice seam that
+partitions each event batch on `VoiceNoteOnEvent.sample` (presets.ts stamps
+it from the preset's voice-type slot). The worklet path is untouched.
+
+- **Pitch mapping:** `playbackRate = 2^((noteMidi − rootMidi)/12)`, clamped
+  to ±4 octaves. `rootMidi` values are MEASURED, not guessed — method and
+  per-asset numbers are recorded next to `CONTENT_ASSETS` in loader.ts
+  (onset-frame STFT fundamental; four of the six one-shots sweep, so the
+  ONSET pitch is the root a note's attack carries).
+- **Drums vs pitched:** recorded drum pieces play their NATURAL length
+  (`SampleNoteData.oneShot` — the gate is a synth-envelope shape and would
+  truncate real recordings); pitched sample voices keep the SC-2 note-length
+  law (release fade at the length boundary; shorter recordings just end).
+- **Loudness law:** committed bytes are pinned by sha256, so levels are
+  applied at PLAY time — the host normalizes each decoded buffer to a 0.5
+  peak with a makeup capped at ×4 (recordings arrive anywhere between
+  −22 dBFS and 0 dBFS), then the preset's `level` trims musically on top.
+  Deterministic per context; identical live and offline.
+- **Loading law:** first use of a sample sound triggers the lazy load — the
+  stepper prefetches the chosen sound's assets plus its two neighbors at
+  selection; the lane sync re-primes on load/import (covers projects that
+  already use sample sounds). Zero audio-asset fetches before selection
+  (TH-4(d) gate). A failed load surfaces one sticky toast; other lanes are
+  untouched, and the next selection retries.
+- **Kit wiring:** the 4 committed kits are wired over their BASE pieces
+  (`kit-808` "808 CLASSIC", `kit-acoustic` "ACOUSTIC", `kit-dusty` "DUSTY
+  TAPE", `kit-punch` "TIGHT PUNCH"). The 808 flagship's kick2/snare2/hat2
+  variant rows stay committed content, deliberately unwired: curating them
+  (a second 808 flavor or per-piece swap) is a Professor X sound-design call
+  under the checklist above — the manifest↔preset coverage test pins exactly
+  which rows are wired so nothing silently disappears.
+- **In-project provenance:** the store derives `sampleProvenance` from the
+  current lane sounds (manifest echo at selection/load/undo; repair commits
+  skip the undo history — derived metadata, not an edit).

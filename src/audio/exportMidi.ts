@@ -138,6 +138,10 @@ export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
   "preset-bass-10": 39, // RISE P25 → Synth Bass 2
   "preset-bass-11": 39, // BREATH SUB → Synth Bass 2
   "preset-bass-12": 16, // HELD TRI → Drawbar Organ
+  // PS-4 sample voices (recorded one-shots; pitch = degreeToMidi at the
+  // preset's octaveBase — the same MIDI the audio playbackRate maps from
+  // rootMidi, so exports match what you hear; GM hint-only as ever).
+  "preset-bass-13": 38, // SUB DROP (sampled falling sweep) → Synth Bass 1
   // GM 0-based: 24 Nylon Guitar, 52 Choir Aahs, 61 Brass Section, 88 Pad 1
   // (new age), 89 Pad 2 (warm), 90 Pad 3 (polysynth), 91 Pad 4 (choir),
   // 92 Pad 5 (bowed), 98 FX 3 (crystal), 106 Koto
@@ -153,6 +157,10 @@ export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
   "preset-chords-10": 52, // CHOIR TRI → Choir Aahs
   "preset-chords-11": 98, // SPARK 12.5 → FX 3 (crystal)
   "preset-chords-12": 92, // SWELL PAD → Pad 5 (bowed)
+  // PS-4 sample voices (Kenney tonal one-shots, GM hint-only).
+  "preset-chords-13": 88, // PURE TONE → Pad 1 (new age)
+  "preset-chords-14": 90, // TWO TONE → Pad 3 (polysynth)
+  "preset-chords-15": 91, // THREE TONE → Pad 4 (choir)
   // GM 0-based: 46 Orchestral Harp, 56 Trumpet, 73 Flute, 80 Lead 1 (square),
   // 81 Lead 2 (sawtooth), 82 Lead 3 (calliope), 85 Lead 6 (voice), 106 Koto
   "preset-lead-1": 80, // CUT P50 → Lead 1 (square)
@@ -167,6 +175,9 @@ export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
   "preset-lead-10": 73, // AIR LEAD → Flute
   "preset-lead-11": 56, // SOFT HORN → Trumpet
   "preset-lead-12": 73, // FLUTE TRI → Flute
+  // PS-4 sample voices (Kenney risers, GM hint-only).
+  "preset-lead-13": 81, // PHASER UP (sampled riser) → Lead 2 (sawtooth)
+  "preset-lead-14": 82, // HIGH SWEEP (sampled riser) → Lead 3 (calliope)
 } as const;
 
 /** Track names exported for importer UIs (schema lane order). */

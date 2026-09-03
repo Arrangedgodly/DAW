@@ -59,8 +59,11 @@ export interface VoiceContentAsset {
   readonly sourceUrl: string;
   readonly author: string;
   /**
-   * Pitch-mapping root for playbackRate (RES-10/PS-3). Absent until PS-4
-   * measures the one-shots' fundamental — presets must not guess.
+   * Pitch-mapping root for playbackRate (RES-10/PS-3), MEASURED by PS-4:
+   * the onset-frame fundamental of each committed one-shot (see the
+   * rootMidi block comment below the manifest). midiToFreq(rootMidi) is
+   * the pitch the recording attacks at; presets derive
+   * playbackRate = 2^((noteMidi − rootMidi)/12).
    */
   readonly rootMidi?: number;
 }
@@ -105,13 +108,32 @@ export const CONTENT_ASSETS: readonly ContentAsset[] = [
   { kind: "drums", id: "drums.punch.clap", file: "drums-punch-clap.ogg", kit: "punch", piece: "clap", license: "CC0", sourceUrl: "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Claps/Clap_rr1.wav", author: "Sam Gossner (VCSL)" },
   { kind: "drums", id: "drums.punch.tom", file: "drums-punch-tom.ogg", kit: "punch", piece: "tom", license: "CC0", sourceUrl: "https://freesound.org/people/bdu/sounds/805/", author: "bdu" },
   // --- pitched one-shot voices (Kenney Digital Audio, pack-level CC0) -------
-  { kind: "voice", id: "voice.bass.lowtone", file: "voice-bass-lowtone.ogg", role: "bass", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
-  { kind: "voice", id: "voice.chords.tone", file: "voice-chords-tone.ogg", role: "chords", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
-  { kind: "voice", id: "voice.chords.twotone", file: "voice-chords-twotone.ogg", role: "chords", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
-  { kind: "voice", id: "voice.chords.threetone", file: "voice-chords-threetone.ogg", role: "chords", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
-  { kind: "voice", id: "voice.lead.phaserup", file: "voice-lead-phaserup.ogg", role: "lead", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
-  { kind: "voice", id: "voice.lead.highup", file: "voice-lead-highup.ogg", role: "lead", license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  // rootMidi values MEASURED by PS-4 (method recorded below the manifest):
+  // onset-frame fundamental frequency of each recording, rounded to the
+  // nearest semitone. Four of the six sweep after the attack (lowtone falls
+  // ~an octave, phaserup/highup rise, twotone/threetone step between tones)
+  // — the ONSET pitch is the playbackRate root because that is the pitch a
+  // note's attack carries; the sweep rides on top exactly as recorded.
+  { kind: "voice", id: "voice.bass.lowtone", file: "voice-bass-lowtone.ogg", role: "bass", rootMidi: 42, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  { kind: "voice", id: "voice.chords.tone", file: "voice-chords-tone.ogg", role: "chords", rootMidi: 60, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  { kind: "voice", id: "voice.chords.twotone", file: "voice-chords-twotone.ogg", role: "chords", rootMidi: 62, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  { kind: "voice", id: "voice.chords.threetone", file: "voice-chords-threetone.ogg", role: "chords", rootMidi: 60, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  { kind: "voice", id: "voice.lead.phaserup", file: "voice-lead-phaserup.ogg", role: "lead", rootMidi: 60, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
+  { kind: "voice", id: "voice.lead.highup", file: "voice-lead-highup.ogg", role: "lead", rootMidi: 75, license: "CC0", sourceUrl: "https://kenney.nl/assets/digital-audio", author: "Kenney Vleugels (Kenney.nl)" },
 ];
+
+/**
+ * PS-4 rootMidi measurement method (recorded per the plan's "measure
+ * fundamentals — record method" law; script parameters kept so the numbers
+ * are reproducible): each OGG decoded with ffmpeg to 44.1 kHz mono f32 PCM;
+ * STFT with 4096-sample Hann frames, 1024-sample hop, 16384-point FFT,
+ * quadratic peak interpolation; the ONSET frame = first frame whose dominant
+ * peak magnitude exceeds 10% of the file's strongest frame; rootMidi =
+ * round(69 + 12·log2(onsetFrameHz / 440)). Measured onset fundamentals:
+ * lowtone 94.1 Hz (midi 42.3), tone 260.7 Hz (59.9), twotone 293.9 Hz (62.0),
+ * threetone 264.8 Hz (60.2), phaserup 262.1 Hz (60.0), highup 626.9 Hz
+ * (75.1). The committed integers are the rounded values.
+ */
 
 /** The four committed sample kit ids (RES-10 shape). */
 export const CONTENT_KIT_IDS = ["808", "acoustic", "dusty", "punch"] as const;
@@ -197,6 +219,12 @@ export interface SampleLoader {
   load(ctx: BaseAudioContext, id: string): Promise<AudioBuffer>;
   /** True when a successful load is cached for this context. */
   isLoaded(ctx: BaseAudioContext, id: string): boolean;
+  /**
+   * The decoded buffer when cached, else undefined — PS-4's sync seam for the
+   * SampleVoiceHost (scheduling an AudioBufferSourceNode needs the buffer
+   * NOW; a miss is a dropped live note, never an await on the audio path).
+   */
+  peek(ctx: BaseAudioContext, id: string): AudioBuffer | undefined;
   /** Drop cached buffers (keeps in-flight promises; tests + hot-swap). */
   evict(ctx?: BaseAudioContext): void;
 }
@@ -281,6 +309,9 @@ export function createSampleLoader(deps: SampleLoaderDeps = {}): SampleLoader {
     },
     isLoaded(ctx, id) {
       return cache.get(ctx)?.has(id) ?? false;
+    },
+    peek(ctx, id) {
+      return cache.get(ctx)?.get(id);
     },
     evict(ctx) {
       if (ctx) cache.delete(ctx);

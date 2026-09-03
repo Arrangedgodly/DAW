@@ -427,3 +427,71 @@ describe("exportMidi download", () => {
     expect(result.byteLength).toBe(captured!.blob.size);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PS-4 — MIDI export law for sample voices: the exported note is the SAME
+// midi the audio engine maps playbackRate from (degreeToMidi at the preset's
+// octaveBase vs the measured rootMidi), and the GM hint is present so a
+// stock soundfont lands in the right family. Drums stay kit-independent
+// (GM channel-10 map) — recorded kits export exactly like synth kits.
+// ---------------------------------------------------------------------------
+
+describe("PS-4 sample-voice export law", () => {
+  function sampleProject(): ProjectDocument {
+    const doc = createDefaultProject();
+    const lead = doc.lanes.find((l) => l.id === "lead")!;
+    lead.presetId = "preset-lead-13"; // PHASER UP (sample, rootMidi 60, octave 4)
+    const pattern = doc.patterns.lead[0];
+    if (pattern.kind !== "pitched") throw new Error("expected pitched");
+    pattern.notes = [{ degree: 3, start: 0, length: 2 }];
+    return doc;
+  }
+
+  it("a sample-preset lane exports notes at the pitch the audio plays (octaveBase pitch)", () => {
+    const doc = sampleProject();
+    const notes = buildPitchedNotes(doc, "lead", doc.patterns.lead, 0);
+    expect(notes).toHaveLength(1);
+    // C minor, degree 3, octaveBase 4 → F4 = 65 — the same midi noteParamsFor
+    // maps to playbackRate 2^((65-60)/12) against the measured root.
+    expect(notes[0]!.noteNumber).toBe(65);
+    expect(notes[0]!.durationTicks).toBe(noteLengthTicks(2));
+  });
+
+  it("the GM program hint rides the sample lane's track (hint-only, as ever)", () => {
+    const parsed = parseMidi([...encodeMidi(sampleProject())]);
+    const lead = parsed.tracks[4];
+    const pc = lead.find((e) => e.type === "programChange");
+    if (!pc || pc.type !== "programChange") throw new Error("no programChange");
+    expect(pc.programNumber).toBe(PRESET_GM_PROGRAMS["preset-lead-13"]);
+    expect(pc.channel).toBe(LANE_CHANNELS.lead);
+  });
+
+  it("every sample preset and sample kit is covered by the hint/kit tables (no gaps)", () => {
+    for (const p of Object.values(PRESET_LIBRARY)) {
+      if (p.voiceType !== "sample") continue;
+      if (p.pitchRange === undefined) continue; // drum pieces: kit track, no hint
+      expect(
+        PRESET_GM_PROGRAMS[p.id],
+        `${p.id}: sample preset misses its GM hint`,
+      ).toBeDefined();
+    }
+    // Sample drum kits share the piece → GM drum note map: exporting with a
+    // recorded kit must produce the identical note numbers as a synth kit.
+    const drumsDoc = createDefaultProject();
+    drumsDoc.lanes.find((l) => l.id === "drums")!.kitId = "kit-808";
+    const synth = buildDrumNotes(
+      drumsDoc.patterns.drums,
+      drumsDoc.lanes[0]!.gate,
+      120,
+      0,
+    );
+    drumsDoc.lanes.find((l) => l.id === "drums")!.kitId = "kit-default";
+    const withSampleKit = buildDrumNotes(
+      drumsDoc.patterns.drums,
+      drumsDoc.lanes[0]!.gate,
+      120,
+      0,
+    );
+    expect(withSampleKit).toEqual(synth);
+  });
+});

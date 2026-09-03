@@ -26,7 +26,15 @@ import {
   getDrumKit,
   getPreset,
   noteParamsFor,
+  sampleRefsForSound,
 } from "../audio/presets";
+import {
+  type LaneVoiceRouter,
+  type SampleVoiceContextLike,
+  type SampleVoiceHost,
+  createLaneVoiceRouter,
+  createSampleVoiceHostFor,
+} from "../audio/voiceEngine";
 import {
   type VoiceEngineHost,
   createVoiceEngine,
@@ -177,6 +185,13 @@ export interface SessionOptions {
   readonly createVoiceEngineHost?: (
     ctx: AudioContextLike,
   ) => Promise<VoiceEngineHost | null>;
+  /**
+   * PS-4: injectable sample-voice host factory (tests). Receives the raw
+   * context; null when it cannot host AudioBufferSourceNodes (node fakes).
+   */
+  readonly createSampleVoiceHost?: (
+    ctx: AudioContextLike,
+  ) => Promise<SampleVoiceHost | null>;
 }
 
 export class Session {
@@ -191,7 +206,12 @@ export class Session {
   private readonly createVoiceEngineHost: NonNullable<
     SessionOptions["createVoiceEngineHost"]
   >;
-  private voiceEnginePromise: Promise<VoiceEngineHost | null> | null = null;
+  private readonly createSampleVoiceHostImpl: NonNullable<
+    SessionOptions["createSampleVoiceHost"]
+  >;
+  private voiceEnginePromise: Promise<LaneVoiceRouter | null> | null = null;
+  /** PS-4: the live context's native sample-voice host (lazy, retryable). */
+  private sampleHostPromise: Promise<SampleVoiceHost | null> | null = null;
   /** Current sound id per lane (presetId for pitched, kitId for drums). */
   private laneSounds: Record<LaneId, string> = {
     drums: "kit-default",
@@ -215,6 +235,9 @@ export class Session {
       opts.cancelTickSounds ?? this.defaultCancelTicks.bind(this);
     this.createVoiceEngineHost =
       opts.createVoiceEngineHost ?? this.defaultCreateVoiceEngine.bind(this);
+    this.createSampleVoiceHostImpl =
+      opts.createSampleVoiceHost ??
+      this.defaultCreateSampleVoiceHost.bind(this);
     this.transport = new Transport({
       getContext: () => this.engine.getContext(),
       scheduleEvent: (event, when) => this.onScheduledTick(event.step, when),
@@ -748,6 +771,17 @@ export class Session {
     await this.engine.unlock();
     const host = await this.ensureVoiceEngine();
     if (!host) return;
+    // PS-4: a sample-backed audition resolves the sample host AND the
+    // specific assets first (fast — selection prefetched them; a first-ever
+    // selection decodes here), then stamps `when` fresh — one click both
+    // selects and sounds (≤1 interaction law). Synth sounds never touch the
+    // content module. Load failures surface via the selection-time prefetch
+    // toast; the audition itself simply does not sound.
+    const refs = sampleRefsForSound(this.laneSounds[laneId]);
+    if (refs.length > 0) {
+      const sampleHost = await host.ensureSampleVoice().catch(() => null);
+      if (sampleHost) await sampleHost.preload(refs).catch(() => undefined);
+    }
     const when = this.engine.getContext().currentTime + 0.03;
     const events = this.buildAuditionEvents(laneId, degreeOrDrum, when);
     if (events.length === 0) return;
@@ -969,11 +1003,63 @@ export class Session {
     });
   };
 
-  private ensureVoiceEngine(): Promise<VoiceEngineHost | null> {
+  /**
+   * PS-4: the native sample host on the live context. The content loader is
+   * imported lazily INSIDE createSampleVoiceHostFor — no audio-asset bytes
+   * touch the boot→play path (TH-4(d)).
+   */
+  private defaultCreateSampleVoiceHost: NonNullable<
+    SessionOptions["createSampleVoiceHost"]
+  > = async (ctx) => {
+    const c = ctx as AudioContextLike & Partial<SampleVoiceContextLike>;
+    if (
+      typeof c.createBufferSource !== "function" ||
+      typeof c.createGain !== "function"
+    ) {
+      return null; // node fakes without native nodes
+    }
+    return createSampleVoiceHostFor(
+      c as SampleVoiceContextLike,
+      LANE_IDS.length,
+      {
+        onStolen: () => this.noteVoiceStolen(),
+      },
+    );
+  };
+
+  /** The live context's sample host (memoized; retries after a failure). */
+  private ensureSampleVoiceHost(): Promise<SampleVoiceHost | null> {
+    this.sampleHostPromise ??= Promise.resolve(
+      this.createSampleVoiceHostImpl(this.engine.getContext()),
+    ).catch((err: unknown) => {
+      this.sampleHostPromise = null; // next selection retries
+      throw err;
+    });
+    return this.sampleHostPromise;
+  }
+
+  /**
+   * PS-4 selection-time prefetch: decode `refs` on the LIVE context so the
+   * next PLAY (and the audition) finds them cached. Rejects with the
+   * loader's typed error — callers surface per the Hulk conventions.
+   */
+  async primeSound(refs: readonly string[]): Promise<void> {
+    if (refs.length === 0) return;
+    const host = await this.ensureSampleVoiceHost();
+    if (!host) return;
+    await host.preload(refs);
+  }
+
+  private ensureVoiceEngine(): Promise<LaneVoiceRouter | null> {
     this.voiceEnginePromise ??= this.createVoiceEngineHost(
       this.engine.getContext(),
     ).then((host) => {
       if (!host) return null;
+      // PS-4: every lane routes through the router — synth events to the
+      // worklet, sample events to the (lazily created) native host.
+      const router = createLaneVoiceRouter(host, () =>
+        this.ensureSampleVoiceHost(),
+      );
       const master = this.ensureMaster();
       if (master) {
         for (let i = 0; i < LANE_IDS.length; i++) {
@@ -985,13 +1071,13 @@ export class Session {
           // IM-4: voice engine → FX chain (chain head = ramp gain) → lane
           // gain → master. The chain host owns everything between the
           // worklet node and the lane gain.
-          this.buildLaneChain(host, i, master);
+          this.buildLaneChain(router, i, master);
           // No worklet-graph context (exotic fallback): straight through the
           // lane gain to master.
-          if (!this.chainHosts[i] && laneGain) host.connect(i, laneGain);
+          if (!this.chainHosts[i] && laneGain) router.connect(i, laneGain);
         }
       }
-      return host;
+      return router;
     });
     return this.voiceEnginePromise;
   }

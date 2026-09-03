@@ -13,6 +13,7 @@
 import { MAX_VOICE_FREQ, midiToFreq, noteSeed } from "./dsp";
 import {
   type DrumPiece,
+  DRUM_PIECES,
   MidiNoteSchema,
   SampleRefSchema,
 } from "../document/schema";
@@ -132,7 +133,41 @@ export interface VoiceNoteOnEvent {
   readonly level: number;
   /** LFSR seed 1..32767 for this note. */
   readonly seed: number;
+  /**
+   * PS-4 sample-voice routing data — present IFF the preset is sample-backed
+   * (voiceType 'sample'). The lane router partitions on this field: sample
+   * events go to the native AudioBufferSourceNode SampleVoiceHost, everything
+   * else to the worklet (which never sees a sample event — the worklet path
+   * is untouched by construction). Sample events carry no seed dependence:
+   * determinism is the recording + playbackRate, nothing else.
+   */
+  readonly sample?: SampleNoteData;
 }
+
+/**
+ * What a sample-backed note needs at the native host (PS-4, RES-10 committed
+ * route). `playbackRate` is computed HERE (compile time) as
+ * 2^((midi − rootMidi)/12) so the MAX_VOICE_FREQ clamp applied to `freq`
+ * cannot corrupt the sample's pitch mapping; it is clamped to its own sane
+ * range (±4 octaves — the synth path's equivalent discipline).
+ */
+export interface SampleNoteData {
+  /** Content-manifest asset id (CONTENT_ASSETS; never a URL). */
+  readonly ref: string;
+  /** AudioBufferSourceNode playbackRate (1.0 = the recorded pitch). */
+  readonly playbackRate: number;
+  /**
+   * Drums law: a recorded one-shot plays its NATURAL length — the gate is a
+   * synth-envelope shape and would truncate real recordings. Pitched sample
+   * voices stay gated (SC-2: release fades at the note-length boundary;
+   * shorter-than-note recordings just end, like any one-shot).
+   */
+  readonly oneShot: boolean;
+}
+
+/** Playback-rate clamp (±4 octaves), mirroring the synth freq cap's intent. */
+export const SAMPLE_PLAYBACK_RATE_MIN = 1 / 16;
+export const SAMPLE_PLAYBACK_RATE_MAX = 16;
 
 /** Resolve a preset + note coordinates into the flat worklet payload. */
 export function noteParamsFor(
@@ -154,6 +189,28 @@ export function noteParamsFor(
     MAX_VOICE_FREQ,
   );
   const sweepSeconds = sweep && sweep.seconds > 0 ? sweep.seconds : 0;
+  // PS-4: a sample-backed preset rides the reserved voice-type slot — the
+  // synth params below stay as inert carrier fields (schema shape is shared)
+  // and the router sends the event to the native SampleVoiceHost instead of
+  // the worklet. playbackRate is computed from the UNCLAMPED midi so the
+  // freq cap cannot detune samples; drums (no rootMidi) play at rate 1.
+  const sample: SampleNoteData | undefined =
+    preset.voiceType === "sample" && preset.sampleRef !== undefined
+      ? {
+          ref: preset.sampleRef,
+          playbackRate:
+            preset.rootMidi !== undefined && opts.midi !== undefined
+              ? Math.min(
+                  SAMPLE_PLAYBACK_RATE_MAX,
+                  Math.max(
+                    SAMPLE_PLAYBACK_RATE_MIN,
+                    Math.pow(2, (opts.midi - preset.rootMidi) / 12),
+                  ),
+                )
+              : 1,
+          oneShot: preset.baseFreq !== undefined,
+        }
+      : undefined;
   return {
     type: "note-on",
     time: opts.time,
@@ -177,6 +234,7 @@ export function noteParamsFor(
       Math.round(opts.time * 1000),
       opts.seedSalt ?? 0,
     ),
+    ...(sample !== undefined ? { sample } : {}),
   };
 }
 
@@ -447,6 +505,29 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     pitchRange: { octaveBase: 2 },
     seed: 1093,
   }),
+  // --- PS-4: committed sample voices (RES-10 content, Kenney one-shots) -----
+  // voiceType 'sample' routes these through the native SampleVoiceHost; the
+  // synth fields are inert carriers (schema shape shared), rootMidi is the
+  // MEASURED onset fundamental (see src/assets/content/loader.ts for the
+  // method), and pitchRange places scale degree 0 so playbackRate stays near
+  // 1.0 in the lane's home register (exported MIDI pitch == audio pitch).
+  "preset-bass-13": preset({
+    id: "preset-bass-13",
+    name: "SUB DROP",
+    // Recorded falling bass sweep (onset F#2) — every note dives as played.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.bass.lowtone",
+    rootMidi: 42,
+    pitchRange: { octaveBase: 2 },
+    seed: 1103,
+  }),
 
   // --- CHORDS: warm long-release pads + one arp-ready pluck -----------------
   "preset-chords-1": preset({
@@ -611,6 +692,58 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     level: 0.3,
     pitchRange: { octaveBase: 3 },
     seed: 2129,
+  }),
+  // --- PS-4: committed sample voices (Kenney tonal one-shots) ----------------
+  "preset-chords-13": preset({
+    id: "preset-chords-13",
+    name: "PURE TONE",
+    // Clean steady recorded tone (onset C4) — tuning-fork clarity.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.chords.tone",
+    rootMidi: 60,
+    pitchRange: { octaveBase: 4 },
+    seed: 2131,
+  }),
+  "preset-chords-14": preset({
+    id: "preset-chords-14",
+    name: "TWO TONE",
+    // Recorded two-step tone (attacks D4) — a bell-like answered phrase.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.chords.twotone",
+    rootMidi: 62,
+    pitchRange: { octaveBase: 4 },
+    seed: 2137,
+  }),
+  "preset-chords-15": preset({
+    id: "preset-chords-15",
+    name: "THREE TONE",
+    // Recorded three-step rising tones (attacks C4) — arpeggio in a note.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.chords.threetone",
+    rootMidi: 60,
+    pitchRange: { octaveBase: 4 },
+    seed: 2141,
   }),
 
   // --- LEAD: cutting pulses + one pitch-drift ("vibrato") voice -------------
@@ -781,6 +914,41 @@ export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
     pitchRange: { octaveBase: 5 },
     seed: 3119,
   }),
+  // --- PS-4: committed sample voices (Kenney tonal one-shots) ----------------
+  "preset-lead-13": preset({
+    id: "preset-lead-13",
+    name: "PHASER UP",
+    // Recorded rising sweep (attacks C4) — every note lifts as it plays.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.lead.phaserup",
+    rootMidi: 60,
+    pitchRange: { octaveBase: 4 },
+    seed: 3121,
+  }),
+  "preset-lead-14": preset({
+    id: "preset-lead-14",
+    name: "HIGH SWEEP",
+    // Recorded high riser (attacks Eb5) — fill energy into the downbeat.
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.002, decay: 0.1, sustain: 1, release: 0.09 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level: 0.85,
+    voiceType: "sample",
+    sampleRef: "voice.lead.highup",
+    rootMidi: 75,
+    pitchRange: { octaveBase: 5 },
+    seed: 3137,
+  }),
 };
 
 function piece(
@@ -804,6 +972,75 @@ function piece(
     seed: over.seed ?? 7,
     pitchRange: undefined,
   });
+}
+
+/**
+ * PS-4 sample drum piece: a recorded one-shot behind the same DrumKit shape.
+ * The synth fields are inert carriers (the router sends these to the native
+ * SampleVoiceHost, never the worklet); `baseFreq`/`level` keep the piece()
+ * conventions (drums play at playbackRate 1; level is a musical trim on top
+ * of the host's per-recording peak normalization). Recordings play their
+ * NATURAL length (SampleNoteData.oneShot) — the gate is a synth-envelope
+ * shape and would truncate real drums.
+ */
+function samplePiece(
+  kitId: string,
+  name: string,
+  ref: string,
+  level: number,
+  seed: number,
+): VoicePreset {
+  return preset({
+    id: `${kitId}-${name.toLowerCase().replace(/\s+/g, "-")}`,
+    name,
+    wave: "pulse",
+    duty: 0.5,
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.02 },
+    noiseMix: 0,
+    noiseMode: "long",
+    noiseRate: 40,
+    level,
+    baseFreq: 220, // inert on the sample path (one-shot drums play at rate 1)
+    voiceType: "sample",
+    sampleRef: ref,
+    seed,
+    pitchRange: undefined,
+  });
+}
+
+/**
+ * PS-4 sample kit: the 6-piece map over one committed content kit's base
+ * pieces (CONTENT_ASSETS kind 'drums', kit name `contentKit`). Level trims
+ * are per-piece musical shaping applied on top of the host's normalization —
+ * kicks sit fullest, hats sit under the snare, like the synth recipes.
+ */
+function sampleKit(
+  id: string,
+  name: string,
+  contentKit: string,
+  seedBase: number,
+  levels: Readonly<Record<DrumPiece, number>>,
+): DrumKit {
+  const ref = (pieceName: DrumPiece) => `drums.${contentKit}.${pieceName}`;
+  const s = (i: number) => seedBase + i;
+  return {
+    id,
+    name,
+    pieces: {
+      kick: samplePiece(id, "Kick", ref("kick"), levels.kick, s(1)),
+      snare: samplePiece(id, "Snare", ref("snare"), levels.snare, s(2)),
+      hat: samplePiece(id, "Hat", ref("hat"), levels.hat, s(3)),
+      openhat: samplePiece(
+        id,
+        "Open Hat",
+        ref("openhat"),
+        levels.openhat,
+        s(4),
+      ),
+      clap: samplePiece(id, "Clap", ref("clap"), levels.clap, s(5)),
+      tom: samplePiece(id, "Tom", ref("tom"), levels.tom, s(6)),
+    },
+  };
 }
 
 /**
@@ -1127,7 +1364,55 @@ export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
     clap: { rate: 20, decay: 0.16, level: 0.6 },
     tom: { freq: 190, endRatio: 0.35, decay: 0.3, level: 0.68 },
   }),
+  // --- PS-4: committed sample kits (RES-10 content — 4 recorded kits) --------
+  // Refs are the CONTENT_ASSETS ids (kit base pieces; the 808 flagship's
+  // kick2/snare2/hat2 extras stay committed content for future curation
+  // under docs/dev/content.md's checklist — wiring more kits is a PX call).
+  "kit-808": sampleKit("kit-808", "808 CLASSIC", "808", 7001, {
+    // The flagship: long recorded booms and snares with real air around them.
+    kick: 1,
+    snare: 0.9,
+    hat: 0.6,
+    openhat: 0.55,
+    clap: 0.8,
+    tom: 0.85,
+  }),
+  "kit-acoustic": sampleKit("kit-acoustic", "ACOUSTIC", "acoustic", 7013, {
+    // Live-room kit — wooden knock, brushed hats, human feel.
+    kick: 0.95,
+    snare: 0.9,
+    hat: 0.55,
+    openhat: 0.5,
+    clap: 0.75,
+    tom: 0.85,
+  }),
+  "kit-dusty": sampleKit("kit-dusty", "DUSTY TAPE", "dusty", 7021, {
+    // Lo-fi character kit — soft kick foot, washed snare, padded hats.
+    kick: 0.95,
+    snare: 0.85,
+    hat: 0.5,
+    openhat: 0.45,
+    clap: 0.7,
+    tom: 0.8,
+  }),
+  "kit-punch": sampleKit("kit-punch", "TIGHT PUNCH", "punch", 7031, {
+    // Upfront pop kit — dry hits that sit loud in the mix.
+    kick: 1,
+    snare: 0.95,
+    hat: 0.6,
+    openhat: 0.55,
+    clap: 0.85,
+    tom: 0.85,
+  }),
 };
+
+/** The committed sample kits (PS-4) — stepper/coverage tests key off these. */
+export const SAMPLE_KIT_IDS = [
+  "kit-808",
+  "kit-acoustic",
+  "kit-dusty",
+  "kit-punch",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Lookup
@@ -1139,4 +1424,28 @@ export function getPreset(id: string): VoicePreset | undefined {
 
 export function getDrumKit(id: string): DrumKit | undefined {
   return DRUM_KITS[id];
+}
+
+/**
+ * PS-4: the content asset ids a sound (kit or preset id) needs decoded
+ * before it can play — the stepper's selection-time prefetch list and the
+ * offline render's preload list both derive from this. Pure data, no loader
+ * import (the content module stays out of the initial JS graph).
+ */
+export function sampleRefsForSound(soundId: string): string[] {
+  const kit = getDrumKit(soundId);
+  if (kit) {
+    const refs: string[] = [];
+    // Fixed piece order (never Object.keys — canonical codec key-sorts).
+    for (const pieceName of DRUM_PIECES) {
+      const p = kit.pieces[pieceName];
+      if (p?.voiceType === "sample" && p.sampleRef !== undefined)
+        refs.push(p.sampleRef);
+    }
+    return refs;
+  }
+  const p = getPreset(soundId);
+  return p?.voiceType === "sample" && p.sampleRef !== undefined
+    ? [p.sampleRef]
+    : [];
 }

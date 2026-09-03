@@ -15,7 +15,7 @@
  */
 
 import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
-import { getDrumKit, getPreset } from "../audio/presets";
+import { getDrumKit, getPreset, sampleRefsForSound } from "../audio/presets";
 import {
   type LaneId,
   effectiveLaneMix,
@@ -23,6 +23,7 @@ import {
 } from "../document/schema";
 import { effectiveScale } from "../document/scales";
 import { getSession, type Session } from "../engine/session";
+import { showError } from "./toasts";
 import { docStore } from "./store";
 
 const PITCHED_LANES = ["bass", "chords", "lead"] as const;
@@ -85,13 +86,38 @@ export function requestPatternSwitch(
   if (schedule) session.setActivePattern(lane, patternId, schedule);
 }
 
+/**
+ * PS-4 lazy-content priming: decode the sample assets behind `soundIds` on
+ * the LIVE context (the loader's per-context cache makes this a no-op once
+ * warm). Called at selection (with the stepper's neighbors), on every lane
+ * sync (covers reload/import of a sample-using project), and never on the
+ * boot→play path of a synth-only project (zero refs → zero work, TH-4(d)).
+ * A failed load surfaces ONE sticky toast per call (Hulk failure-state
+ * contract) — playback of every other lane is untouched; the lane simply
+ * stays silent until a working sound is selected.
+ */
+export function primeSoundContent(soundIds: readonly string[]): void {
+  const refs = [...new Set(soundIds.flatMap((id) => sampleRefsForSound(id)))];
+  if (refs.length === 0) return;
+  void getSession()
+    .primeSound(refs)
+    .catch((err: unknown) => {
+      showError("A sampled sound could not load.", {
+        suggestion:
+          "Other lanes keep playing. Step to another sound and back to retry.",
+        details: [err instanceof Error ? err.message : String(err)],
+      });
+    });
+}
+
 /** Push the document's effective scales + lane sound ids + FX chains + mix. */
 function syncLaneConfig(doc: ProjectDocument, session: Session): void {
+  const soundIds: string[] = [];
   for (const laneConf of doc.lanes) {
-    session.setLaneSound(
-      laneConf.id,
-      laneConf.id === "drums" ? laneConf.kitId : laneConf.presetId,
-    );
+    const soundId =
+      laneConf.id === "drums" ? laneConf.kitId : laneConf.presetId;
+    soundIds.push(soundId);
+    session.setLaneSound(laneConf.id, soundId);
     // IM-4: the lane's fxChain rides the same lane-object identity, so any
     // chain edit (params, bypass, reorder, add/remove) lands here.
     session.setLaneChain(laneConf.id, laneConf.fxChain);
@@ -99,6 +125,9 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
     // too — any mix edit re-syncs all four lanes (solo ducks the others).
     session.setLaneMix(laneConf.id, effectiveLaneMix(laneConf));
   }
+  // PS-4: keep the current sounds' sample assets decoded (warm after the
+  // first selection; a no-op for synth-only projects).
+  primeSoundContent(soundIds);
   for (const lane of PITCHED_LANES) {
     session.setLaneScale(lane, effectiveScale(doc, lane));
   }

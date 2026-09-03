@@ -3,6 +3,13 @@
  * through the REAL engine (OfflineAudioContext + voice-engine worklet):
  * non-silent, no NaN/Infinity, and peak within sane bounds. Extends the
  * voice-load pattern (one lane, one event) across the whole content set.
+ *
+ * PS-4 extension: the library now includes the committed sample content —
+ * 4 recorded drum kits + 6 pitched one-shot voices. Those route through the
+ * REAL native SampleVoiceHost (helpers.renderOffline decodes each asset on
+ * the offline context before scheduling, the render parity law), so the
+ * same gates now prove every committed OGG fetches, decodes, and sounds
+ * through the production path.
  */
 
 import { describe, expect, it } from "vitest";
@@ -13,7 +20,7 @@ import {
   type VoicePreset,
 } from "../../src/audio/presets";
 import { DRUM_PIECES } from "../../src/document/schema";
-import { findNonFinite, renderOffline } from "./helpers";
+import { findNonFinite, hashChannelsHex, renderOffline } from "./helpers";
 
 /** Representative middle-of-lane MIDI note per pitched lane. */
 const LANE_MIDI = { bass: 40, chords: 55, lead: 67 } as const;
@@ -55,7 +62,7 @@ describe("preset library renders correctly through the real engine", () => {
       expect(peak, `${p.id} rendered silent`).toBeGreaterThan(0.01);
       expect(peak, `${p.id} peak out of sane bounds`).toBeLessThanOrEqual(1.2);
     }
-  }, 120_000);
+  }, 240_000);
 
   it("every drum kit piece is audible, finite, and within sane peak bounds", async () => {
     for (const kit of Object.values(DRUM_KITS)) {
@@ -75,5 +82,38 @@ describe("preset library renders correctly through the real engine", () => {
         ).toBeLessThanOrEqual(1.2);
       }
     }
-  }, 120_000);
+  }, 240_000);
+
+  it("PS-4: every pitched sample preset is distinct in the render (identity, not just presence)", async () => {
+    // The identity law at audio level: two different recorded voices must
+    // produce different renders (fingerprints over the real native path).
+    const render = async (id: string) => {
+      const p = PRESET_LIBRARY[id]!;
+      const { mono } = await renderOffline({
+        startTime: 0.05,
+        duration: renderDuration(p) + 0.05,
+        lanes: [
+          [
+            noteParamsFor(p, {
+              time: 0.05,
+              midi: 60,
+              holdSeconds: 0.4,
+            }),
+          ],
+        ],
+      });
+      return await hashChannelsHex([mono]);
+    };
+    const seen = new Map<string, string>();
+    for (const p of Object.values(PRESET_LIBRARY)) {
+      if (p.voiceType !== "sample" || p.pitchRange === undefined) continue;
+      const fp = await render(p.id);
+      expect(
+        seen.has(fp),
+        `${p.id} renders identically to ${seen.get(fp)}`,
+      ).toBe(false);
+      seen.set(fp, p.id);
+    }
+    expect(seen.size).toBe(6);
+  }, 240_000);
 });
