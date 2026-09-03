@@ -96,6 +96,16 @@
   flex: 1;
 }
 
+/* R3 note (DES-7): dimmed silkscreen chassis print, same treatment as the
+   popover's quiet labels (62% ink = 6.3:1, meets AA at this size). */
+.projects-note {
+  margin: 0;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+}
+
 .projects-input {
   /* Visually hidden but programmatic: the visible OPEN FILE button forwards. */
   position: absolute;

@@ -161,10 +161,56 @@
     color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
 }
 
-/* Range sliders: chassis squares, warm-white thumb, amber-accented track. */
+/* Range sliders (DES-7): the SAME in-world slider language as the FX strip
+ * (fx-strip.css) — chassis track + warm-white square thumb with an
+ * amber-accented edge. The previous native accent-color thumb rendered the
+ * OS-default round thumb (an OS imitation; two slider languages in one world). */
 .booth-range {
+  -webkit-appearance: none;
+  appearance: none;
   width: 96px;
-  accent-color: var(--color-lane-bass);
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.booth-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.booth-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.booth-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+}
+
+.booth-range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--color-ink);
+  border: 1px solid color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+}
+
+.booth-range:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
 }
 
 /* Reduced motion: booth is already static (no pulses by design);

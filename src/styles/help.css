@@ -1,11 +1,14 @@
-/* HelpOverlay (DA-1) — Arcade Stage Floor: dark chassis panel, silkscreen
-   labels, warm-white info-critical text (D9 ink law). Focus-visible in the
-   lane-hue accent, never glow-only. */
+/* HelpOverlay (DA-1) — DES-7 rewrite into the Arcade Stage Floor token
+   vocabulary (the DA-1 draft carried fallback hex vars and off-token sizes —
+   a different hand; this is the same chassis as every other popover):
+   ground panel, 1px ink border, 6px popover radius, offset+blur shadow,
+   silkscreen section labels at --text-label-sm, VT323 LED title (the world's
+   sanctioned ≥18px voice), warm-white info-critical text (D9 ink law). */
 
 .help-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 12, 0.82);
+  background: rgba(13, 11, 16, 0.82); /* ground hue */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,41 +16,44 @@
 }
 
 .help-panel {
-  background: var(--ground, #141417);
-  border: 2px solid var(--ink, #e8e2d4);
-  color: var(--ink, #e8e2d4);
-  padding: 20px 24px;
+  background: var(--color-ground);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  color: var(--color-ink);
+  border-radius: 6px;
+  padding: var(--space-5) var(--space-6);
   max-width: 640px;
   width: min(92vw, 640px);
   max-height: 84vh;
   overflow: auto;
-  box-shadow: 0 0 0 2px rgba(232, 226, 212, 0.15);
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground)) transparent;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
 
 .help-panel:focus-visible {
-  outline: 2px solid var(--accent, #e8e2d4);
+  outline: 2px solid var(--color-ink);
   outline-offset: 2px;
 }
 
+/* LED readout title — the sanctioned large voice (VT323, glow allowed ≥18px;
+   kept glowless: decoration only, not needed here). */
 .help-title {
-  font-family: var(--font-label, monospace);
-  font-size: 14px;
-  letter-spacing: 0.12em;
-  margin: 0 0 12px;
+  font: 400 22px/1 var(--font-led);
+  color: var(--color-ink);
+  margin: 0 0 var(--space-4);
 }
 
 .help-sections {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: var(--space-5);
 }
 
 .help-section-title {
-  font-family: var(--font-label, monospace);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  margin: 0 0 8px;
-  opacity: 0.8;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  margin: 0 0 var(--space-3);
 }
 
 .help-list {
@@ -56,9 +62,9 @@
 
 .help-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-3);
   align-items: baseline;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 
 .help-row dt {
@@ -66,34 +72,40 @@
 }
 
 .help-row kbd {
-  font-family: var(--font-value, monospace);
-  font-size: 11px;
-  background: rgba(232, 226, 212, 0.08);
-  border: 1px solid rgba(232, 226, 212, 0.3);
+  font: var(--text-value);
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 8%, var(--color-ground));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
+  border-radius: 3px;
   padding: 1px 4px;
   white-space: nowrap;
 }
 
 .help-row dd {
   margin: 0;
-  font-family: var(--font-value, monospace);
-  font-size: 11px;
-  opacity: 0.9;
+  font: var(--text-ui);
+  font-size: 12px;
+  color: var(--color-ink);
 }
 
 .help-close {
-  margin-top: 16px;
-  font-family: var(--font-label, monospace);
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  margin-top: var(--space-5);
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
   background: transparent;
-  color: var(--ink, #e8e2d4);
-  border: 2px solid currentColor;
-  padding: 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  border-radius: 3px;
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
 
+.help-close:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
 .help-close:focus-visible {
-  outline: 2px solid var(--ink, #e8e2d4);
-  outline-offset: 2px;
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
 }

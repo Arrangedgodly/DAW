@@ -11,8 +11,8 @@
   z-index: 70; /* above toasts (60), below nothing */
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 2px solid var(--color-ink);
   background: var(--color-ground);
   color: var(--color-ink);
@@ -48,7 +48,7 @@
   background: transparent;
   color: var(--color-ink);
   font: 700 14px/1 var(--font-ui);
-  padding: 6px 10px;
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
 

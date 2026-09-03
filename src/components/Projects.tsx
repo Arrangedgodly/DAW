@@ -302,9 +302,15 @@ export default function Projects(): JSX.Element {
               disabled={busy()}
               onClick={() => fileInput?.click()}
             >
-              OPEN FILE
-            </button>
+            OPEN FILE
+          </button>
           </div>
+          {/* R3 (DES-7): the MIDI-limitation note, in-world silkscreen copy —
+              GM programs are hint-only, so the same file sounds different in
+              any other DAW's instruments. Lives with the button it qualifies. */}
+          <p class="projects-note">
+            MIDI CARRIES NOTES + CUES, NOT THIS SYNTH — SOUNDS VARY IN OTHER DAWS
+          </p>
         </div>
       )}
       <input

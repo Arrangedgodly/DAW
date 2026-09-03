@@ -22,7 +22,7 @@
  * suppressed under prefers-reduced-motion (matchMedia AND CSS).
  */
 
-import { createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import { createSignal, For, Index, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { type LaneId } from "../document/schema";
 import {
   addFxDevice,
@@ -123,31 +123,37 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
   return (
     <div class="fx-strip" data-lane={props.lane} aria-label={`${LANE_NAMES[props.lane]} FX chain`}>
       <div class="fx-strip-modules" role="list" aria-label={`${LANE_NAMES[props.lane]} FX modules`}>
-        <For each={modules()}>
+        {/* DES-7: Index (position-keyed), not For — modules() mints fresh
+            objects on every store commit, so reference-keyed For tore down and
+            rebuilt the whole module list (DOM + range inputs) on every param
+            drag tick (the DA-3 stale-ref observation). Index patches the
+            changed slot's props in place; the slider being dragged is never
+            recreated. Reorders swap data across positions without rebuild. */}
+        <Index each={modules()}>
           {(mod) => (
             <FxModuleView
               lane={props.lane}
-              mod={mod}
+              mod={mod()}
               count={modules().length}
-              flash={flashIndex() === mod.index}
-              dropping={dropTarget() === mod.index && drag() !== null && drag()!.from !== mod.index}
-              onDragStart={() => setDrag({ from: mod.index })}
+              flash={flashIndex() === mod().index}
+              dropping={dropTarget() === mod().index && drag() !== null && drag()!.from !== mod().index}
+              onDragStart={() => setDrag({ from: mod().index })}
               onDragOver={() => {
-                if (drag() !== null && dropTarget() !== mod.index) setDropTarget(mod.index);
+                if (drag() !== null && dropTarget() !== mod().index) setDropTarget(mod().index);
               }}
               onDrop={() => {
                 const d = drag();
-                if (d) commitMove(d.from, mod.index);
+                if (d) commitMove(d.from, mod().index);
               }}
               onDragEnd={() => {
                 setDrag(null);
                 setDropTarget(-1);
               }}
-              onMove={(delta) => moveFxDevice(props.lane, mod.index, mod.index + delta)}
-              onRemove={() => removeFxDevice(props.lane, mod.index)}
+              onMove={(delta) => moveFxDevice(props.lane, mod().index, mod().index + delta)}
+              onRemove={() => removeFxDevice(props.lane, mod().index)}
             />
           )}
-        </For>
+        </Index>
         <Show when={modules().length === 0}>
           <p class="fx-strip-empty">NO DEVICES — ADD ONE BELOW</p>
         </Show>
