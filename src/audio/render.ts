@@ -23,6 +23,16 @@
  *   is decoded before anything is scheduled, so the render is deterministic
  *   (recordings + playbackRate, no seeds).
  * - Seeded PRNGs everywhere downstream (reverb IRs derive from laneSeed).
+ * - HW-5 export-mix law (coordinator resolution at LY-1 verification): the
+ *   render applies the document's lane mix — volume/mute/solo render exactly
+ *   as heard, through the SAME pure law the live session uses
+ *   (documentLaneMixGains → laneMixGain, schema.ts). Each lane's FX-chain
+ *   sink passes through a dedicated per-lane mix gain (STATIC value, no
+ *   de-click ramp — the render starts at t=0 with nothing sounding) BEFORE
+ *   the serial unity sum chain, so a lane's mix scales only its own signal
+ *   and the deterministic fan-in law below is unchanged. Canonical-empty
+ *   mixes are all-unity gains (x*1 === x, bit-exact) — pre-mix documents
+ *   render byte-identically.
  *
  * Loop-length semantics: lanes are poly-looping (each lane's chain wraps
  * independently, IM-7). The export loop is the least common multiple of all
@@ -67,6 +77,7 @@ import {
   LANE_IDS,
   type LaneId,
   type ProjectDocument,
+  documentLaneMixGains,
 } from "../document/schema";
 
 export const EXPORT_SAMPLE_RATE = 44100;
@@ -313,6 +324,10 @@ export async function renderProjectToBuffer(
   // and the addition order is fixed by construction. Unity multiplication is
   // exact in FP (x*1 === x), so the mix law is unchanged.
   const laneGains: GainNode[] = [];
+  // HW-5 export-mix vector: the document's volume/mute/solo through the SAME
+  // pure law the live session applies (schema.ts). Canonical-empty mixes are
+  // all 1s, so pre-mix documents keep their exact bytes (unity is exact in FP).
+  const mixGains = documentLaneMixGains(doc);
   LANE_IDS.forEach((lane, i) => {
     const laneGain = ctx.createGain();
     laneGain.gain.value = 1;
@@ -323,6 +338,13 @@ export async function renderProjectToBuffer(
     if (i > 0) laneGains[i - 1]!.connect(laneGain);
     if (i === LANE_IDS.length - 1) laneGain.connect(master);
     laneGains.push(laneGain);
+    // HW-5: the lane's mix rides a DEDICATED static gain between its FX-chain
+    // sink and the serial unity sum node — the sum nodes keep the
+    // deterministic fan-in law above, and a lane's mix scales only its own
+    // signal (mute = exact zeros into the sum; solo/volume per laneMixGain).
+    const mixGain = ctx.createGain();
+    mixGain.gain.value = mixGains[i]!;
+    mixGain.connect(laneGain);
     const laneSeed = (0x5eed ^ ((i + 1) * 0x85ebca6b)) >>> 0;
     const timing = (): FxTiming => ({ bpm: groove.bpm, when: ctx.currentTime });
     const chain = new FxChainHost({
@@ -335,7 +357,7 @@ export async function renderProjectToBuffer(
         },
         disconnect: () => undefined,
       },
-      sink: laneGain,
+      sink: mixGain,
       ramp: makeRampGain(ctx.createGain()),
       createDevice: createRealFxDeviceFactory(ctx, {
         laneSeed,

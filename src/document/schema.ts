@@ -294,6 +294,35 @@ export function effectiveLaneMix(lane: Lane): LaneMix {
   };
 }
 
+/**
+ * The ONE effective-gain law of the lane mix (LY-1 live monitoring; HW-5
+ * export — the coordinator resolution recorded at LY-1 verification): mute
+ * silences the lane; if ANY lane is soloed, every non-solo lane silences too
+ * (mute still wins on the solo lane itself — silence is silence); otherwise
+ * the lane's linear volume applies. Pure and shared verbatim by the live
+ * Session and the offline render (render.ts), so the exported WAV is exactly
+ * what monitoring plays.
+ */
+export function laneMixGain(mixes: readonly LaneMix[], index: number): number {
+  const anySolo = mixes.some((m) => m.solo);
+  const mix = mixes[index] ?? DEFAULT_LANE_MIX;
+  if (mix.mute) return 0;
+  if (anySolo && !mix.solo) return 0;
+  return mix.volume;
+}
+
+/**
+ * Every lane's effective gain of a document, in LANE_IDS order — the render
+ * path's mix vector (HW-5). A canonical-empty mix (all defaults) is all 1s,
+ * so pre-mix documents render through unity gains and stay byte-stable.
+ */
+export function documentLaneMixGains(doc: ProjectDocument): number[] {
+  const mixes = LANE_IDS.map((lane) =>
+    effectiveLaneMix(doc.lanes.find((l) => l.id === lane)!),
+  );
+  return mixes.map((_, i) => laneMixGain(mixes, i));
+}
+
 const LaneCommon = {
   gate: LaneGateSchema,
   fxChain: v.pipe(v.array(FxDeviceSchema), v.maxLength(MAX_FX_PER_LANE)),

@@ -14,6 +14,7 @@ manifest.
 | `midi/reference-project-v1`          | bytes (pure TS; structure check in-test, third-party parse-back in `tests/browser/exportMidi.test.ts` via `@tonejs/midi`) | `tests/golden/midi-export.golden.test.ts`           | **hard fail**                                    |
 | `render/reference-loop-fp-v1`        | render fingerprint (**environment-pinned**)                                                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `RENDER FINGERPRINT DRIFT` warning |
 | `wav/reference-export-fp-v1`         | render fingerprint of the exported .wav file bytes (**environment-pinned**)                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
+| `wav/reference-export-mix-fp-v1`     | render fingerprint of the exported .wav file bytes WITH a non-default lane mix, drums muted + lead volume 0.75 (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 
 Decode-and-assert coverage (structure, not just hashes): the reference-project
 exported WAV's headers/sample-count/seam-continuity live in
@@ -83,6 +84,23 @@ refresh. If you add a NEW golden, add its note in the same commit.
   unchanged in SC-2. (Audible divergence exists only for documents whose
   lane gate was edited after their notes were authored — non-golden
   territory, pinned instead by the SC-2 compile/store/browser tests.)
+- **2026-09-02 — HW-5 (export-mix law; ONE NEW entry, nothing regenerated).**
+  WAV export now applies the lane mix (volume/mute/solo through the render
+  pipeline — the coordinator resolution recorded at LY-1 verification; render
+  fp `e87ae0ab…` + wav fp `3eff5771…` both still match: canonical-empty mixes
+  are all-unity gains, exact in FP, so pre-mix bytes are untouched — zero
+  drift, verified). NEW entry `wav/reference-export-mix-fp-v1`
+  (`403361ca…`, 352844 B): the same full-FX reference project exported with
+  drums MUTED + lead volume 0.75 — the mix path's environment-pinned canary.
+  Seeded via the sanctioned `npm run goldens:update` browser stage (the
+  node-stage exit-red is the recorded pre-existing tripwire quirk under
+  UPDATE_GOLDENS=1 — those 7 tripwire failures are the tamper tests meeting
+  the recording mode, not a manifest problem; the browser stage was run
+  directly as stage 2 of the documented command). Hard mix-law proofs
+  (exact-silence windows, solo ≡ complementary mute, volume linearity +
+  determinism) live in `tests/browser/render-mix.test.ts`; the MIDI half
+  (notes complete regardless of mix) is pinned in
+  `tests/exportMidi.test.ts` §"HW-5".
 
 ## Review discipline
 

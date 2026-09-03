@@ -61,3 +61,12 @@ Iteration-2 interaction tasks additionally inherit, as DoD:
 - **Journey ledger.** Deliberate v0-journey changes are recorded in
   `docs/dev/keyboard.md` §"v0 → v2 journey-change ledger" BEFORE the journey
   tests change (the iteration-2 regression rule's paper trail).
+
+**Final state (HW-5 sweep, 2026-09-02):** all of the above LANDED and
+audited — E1–E6 landed by their owning tasks (accessibility.md §7 records
+each landing + its gate), E7's review obligation discharged by the HW-5
+ledger audit (keyboard.md §ledger: every entry re-verified against the
+shipping tests; no unrecorded v0-journey change exists; the iteration-2 e2e
+`tests/browser/e2e-iteration2.test.ts` is additive). The DoD for any
+POST-iteration-2 interaction work remains: new gestures add a coverage row
++ keyboard path + ledger entry before the journey tests change.

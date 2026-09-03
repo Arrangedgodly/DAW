@@ -495,3 +495,73 @@ describe("PS-4 sample-voice export law", () => {
     expect(withSampleKit).toEqual(synth);
   });
 });
+
+// ---------------------------------------------------------------------------
+// HW-5 export-mix resolution (coordinator, recorded at LY-1 verification):
+// MIDI export keeps ALL lanes' notes regardless of the mix — muting is a
+// MONITOR MIX state, not note data; notes export for other DAWs.
+// ---------------------------------------------------------------------------
+
+describe("HW-5: the lane mix never touches MIDI bytes", () => {
+  /** The reference project with a deliberately loud mix on every lane. */
+  function mixedReference() {
+    const doc = referenceMidiProject();
+    doc.lanes = doc.lanes.map((lane) => {
+      if (lane.id === "drums") return { ...lane, mute: true };
+      if (lane.id === "bass") return { ...lane, volume: 0.1 };
+      if (lane.id === "chords") return { ...lane, solo: true, volume: 0.9 };
+      return { ...lane, solo: true, mute: true };
+    });
+    return doc;
+  }
+
+  it("encodeMidi bytes are IDENTICAL with and without the mix", () => {
+    const clean = encodeMidi(referenceMidiProject());
+    const mixed = encodeMidi(mixedReference());
+    expect(mixed.byteLength).toBe(clean.byteLength);
+    // Manual byte compare (typed-array deep equal is slow on large files).
+    for (let i = 0; i < clean.length; i++) {
+      if (clean[i] !== mixed[i]) {
+        expect.fail(`MIDI differs at byte ${i} under a lane mix`);
+      }
+    }
+  });
+
+  it("a muted+soloed lane's notes are ALL still exported", () => {
+    const doc = mixedReference();
+    const clean = referenceMidiProject();
+    for (const laneConf of doc.lanes) {
+      const chain = doc.patterns[laneConf.id];
+      const notes =
+        laneConf.id === "drums"
+          ? buildDrumNotes(
+              chain,
+              laneConf.gate,
+              doc.transport.bpm,
+              doc.transport.swing,
+            )
+          : buildPitchedNotes(doc, laneConf.id, chain, doc.transport.swing);
+      const cleanNotes =
+        laneConf.id === "drums"
+          ? buildDrumNotes(
+              clean.patterns[laneConf.id],
+              clean.lanes.find((l) => l.id === laneConf.id)!.gate,
+              clean.transport.bpm,
+              clean.transport.swing,
+            )
+          : buildPitchedNotes(
+              clean,
+              laneConf.id,
+              clean.patterns[laneConf.id],
+              clean.transport.swing,
+            );
+      expect(notes.length, `${laneConf.id} note count under mix`).toBe(
+        cleanNotes.length,
+      );
+      expect(notes.length, `${laneConf.id} has content to export`).toBeGreaterThan(
+        0,
+      );
+    }
+    expect(noteCount(doc)).toBe(noteCount(clean));
+  });
+});

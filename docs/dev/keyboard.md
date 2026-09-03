@@ -383,6 +383,18 @@ by the owning task):
    jump, `n`/`d`/`r`, rail-local keys, undo guards, the exclusion list —
    carries into v2 unchanged.
 
+**HW-5 audit (2026-09-02, the M16 ledger-completeness sweep):** every entry
+above re-verified against the shipping tests — #1's journey deltas are live
+in keyboard-journey.test.tsx (VIEW ONLY names, PageDown walk + `NOW EDITING
+LEAD`) and keyboard-journey-full.test.ts (step 7 `NOW EDITING BASS`), #2's
+two-Ctrl+Z undo stage is in keyboard-journey.test.tsx, #3's additive
+bindings are pinned by the IN-2/IN-3/HP-1 gates (drag-notes, drag-cue,
+help-mode). NO further deliberate v0-journey changes exist: IN-4/TH-4/HP-2/
+PS-1..4/SC-1..2 all recorded "no journey steps changed" and the audit found
+none unrecorded. HW-5's own iteration-2 e2e
+(tests/browser/e2e-iteration2.test.ts) is a NEW journey, additive — it
+changes no v0 journey step.
+
 ## DA-3 scripted journey (the v0 make-a-loop + arrange + export walkthrough — historical record)
 
 This is the complete keyboard-only product walkthrough for town-hall AC #8

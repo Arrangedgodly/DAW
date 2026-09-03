@@ -168,6 +168,19 @@ hover (pointerover) updates it too; toggling announces `INFO MODE ON …` /
 turning off; pointer pass-through and the mid-gesture toggle are pinned in
 the behavior gate).
 
+**E7 + HW-5 audit (2026-09-02):** E7's per-task review obligation is
+discharged — every gesture of the iteration-2 feature set has its no-mouse
+path pinned by a shipping gate (E1–E6 above + the keyboard.md v2 coverage
+table), and the HW-5 M16 sweep audited the keyboard.md journey ledger
+complete: each recorded v0-journey change (#1 LY-1, #2 IN-2, #3 IN-3/HP-1
+additive bindings) is verified live in its named journey test, and no
+unrecorded deliberate v0-journey change exists (IN-4/TH-4/HP-2/PS-1..4/
+SC-1..2 all recorded no-journey-change; see keyboard.md §ledger). The
+iteration-2 e2e (tests/browser/e2e-iteration2.test.ts) additionally walks
+the quadrant-selection keyboard twin, the keyboard resize parity
+(`LENGTH <n> ST` identical text), and the help-mode focus path end to end
+on the REAL BUILT app.
+
 | #   | Extension (semantics required)                                                                                                                                                                                                                                                                                                                                                             | Owning task | Gate assertion when it lands                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | E1  | **Selector announces edit-target changes.** One stage-level `role="status"` `aria-live="polite"` region speaks `NOW EDITING <LANE>` on every actual quadrant-selection change, from ANY input path (quadrant keys, click on a view-only quadrant, grid focus landing in another quadrant). Selection changes must never be color/silent-only.                                              | LY-1        | Browser journey: change selection by key AND by click → the live region's text changes to the new lane each time; axe on the quadrant layout: the status region exists, is labeled, and is not `aria-hidden`.                                                                                                                                                                                                                                   |

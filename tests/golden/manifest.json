@@ -63,6 +63,18 @@
       "note": "SC-1 migration fixture: canonical v2 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps). Pins the quantization corner; mismatch = hard failure.",
       "sha256": "dfd3123147108d5d0ac8115d9f7fd780f45f7cf05028b6460a88b55614d8fd5e",
       "byteLength": 1907
+    },
+    "wav/reference-export-mix-fp-v1": {
+      "note": "SHA-256 of the exported .wav FILE bytes for the full-FX reference project WITH a non-default lane mix (drums muted, lead volume 0.75) — the HW-5 export-mix canary: WAV export applies volume/mute/solo through the render pipeline (the coordinator resolution recorded at LY-1 verification). Environment-pinned like the unmixed export fp (samples come from Chromium): mismatch is a console DRIFT warning, never a CI failure. The hard audio-law proofs (exact-silence windows, solo = complementary mute, volume linearity) live in tests/browser/render-mix.test.ts.",
+      "sha256": "403361caf6e1049291b786a34f2300422d0a58a5ff81b7e4b2c4677301ca0fcd",
+      "byteLength": 352844,
+      "kind": "render",
+      "renderEnv": {
+        "playwright": "playwright 1.62.1",
+        "chromium": "chromium (MacOS/Google Chrome for Testing)",
+        "sampleRate": 44100,
+        "loopSamples": 88200
+      }
     }
   }
 }

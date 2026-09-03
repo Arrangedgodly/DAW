@@ -11,7 +11,11 @@ import type { VoiceEngineHost } from "../src/audio/voiceEngine";
 import { Session } from "../src/engine/session";
 import {
   DEFAULT_LANE_MIX,
+  LANE_IDS,
+  documentLaneMixGains,
   effectiveLaneMix,
+  laneMixGain,
+  type LaneMix,
   type ProjectDocument,
 } from "../src/document/schema";
 import { canUndo, docStore, setLaneMix, undo } from "../src/state/store";
@@ -227,5 +231,95 @@ describe("Session.setLaneMix (LY-1 gain law)", () => {
       mute: true,
       solo: false,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HW-5: the ONE shared effective-gain law (live Session + offline render)
+// ---------------------------------------------------------------------------
+
+describe("laneMixGain / documentLaneMixGains (the shared export law, HW-5)", () => {
+  const mix = (
+    volume: number,
+    mute = false,
+    solo = false,
+  ): LaneMix => ({ volume, mute, solo });
+
+  it("defaults are all-unity; volume passes through linearly", () => {
+    const all = LANE_IDS.map(() => ({ ...DEFAULT_LANE_MIX }));
+    expect(all.map((_, i) => laneMixGain(all, i))).toEqual([1, 1, 1, 1]);
+    expect(laneMixGain([mix(0.5), mix(1), mix(0.25), mix(0)], 0)).toBe(0.5);
+    expect(laneMixGain([mix(0.5), mix(1), mix(0.25), mix(0)], 2)).toBe(0.25);
+    // Out-of-range index falls back to the default mix (defensive).
+    expect(laneMixGain(all, 99)).toBe(1);
+  });
+
+  it("mute silences; mute wins over solo on the same lane", () => {
+    const mixes = [mix(1), mix(1, true), mix(1), mix(1, true, true)];
+    expect(laneMixGain(mixes, 1)).toBe(0); // plain mute
+    expect(laneMixGain(mixes, 3)).toBe(0); // mute beats solo
+  });
+
+  it("ANY solo silences every non-solo lane; the solo lane keeps its volume", () => {
+    const mixes = [mix(0.8), mix(0.7), mix(0.6, false, true), mix(0.5)];
+    expect(laneMixGain(mixes, 2)).toBe(0.6); // solo lane keeps volume
+    expect(laneMixGain(mixes, 0)).toBe(0);
+    expect(laneMixGain(mixes, 1)).toBe(0);
+    expect(laneMixGain(mixes, 3)).toBe(0);
+    // Two solo lanes both stay audible at their own volumes.
+    const two = [mix(0.9, false, true), mix(0.4), mix(1, false, true), mix(1)];
+    expect(laneMixGain(two, 0)).toBe(0.9);
+    expect(laneMixGain(two, 2)).toBe(1);
+    expect(laneMixGain(two, 1)).toBe(0);
+  });
+
+  it("documentLaneMixGains: canonical-empty doc = all 1s (golden byte law)", () => {
+    // A default-mix document renders through unity gains — pre-LY-1/golden
+    // projects keep their exact bytes (the render fp + wav fp canaries).
+    expect(documentLaneMixGains(docStore.getState().doc)).toEqual([1, 1, 1, 1]);
+  });
+
+  it("documentLaneMixGains: explicit document mix resolves the full law", () => {
+    const doc: ProjectDocument = {
+      ...docStore.getState().doc,
+      lanes: docStore.getState().doc.lanes.map((lane) => {
+        if (lane.id === "drums") return { ...lane, mute: true };
+        if (lane.id === "chords") return { ...lane, solo: true, volume: 0.5 };
+        if (lane.id === "lead") return { ...lane, volume: 0.25 };
+        return lane;
+      }),
+    };
+    // drums muted → 0; bass non-solo while chords solo → 0; chords solo keeps
+    // its 0.5; lead non-solo → 0.
+    expect(documentLaneMixGains(doc)).toEqual([0, 0, 0.5, 0]);
+  });
+});
+
+describe("Session and the shared law cannot drift (HW-5 delegation pin)", () => {
+  it("session lane gains equal laneMixGain for a matrix of mix states", async () => {
+    const m = (volume: number, mute = false, solo = false): LaneMix => ({
+      volume,
+      mute,
+      solo,
+    });
+    const cases: LaneMix[][] = [
+      LANE_IDS.map(() => ({ ...DEFAULT_LANE_MIX })),
+      [m(0.5), m(1), m(1), m(1)],
+      [m(1), m(1, true), m(1), m(1)],
+      [m(0.7), m(0.6), m(0.9, false, true), m(0.4)],
+      [m(1), m(1), m(1, false, true), m(1, true, true)],
+    ];
+    for (const mixes of cases) {
+      const { session, gains, ensure } = mixSession();
+      LANE_IDS.forEach((lane, i) => session.setLaneMix(lane, mixes[i]!));
+      await ensure();
+      // gains[0] = master (0.9); gains[1..4] = lane gains in LANE_IDS order.
+      LANE_IDS.forEach((_, i) => {
+        expect(
+          gains[i + 1]!.value,
+          `case ${cases.indexOf(mixes)} lane ${i}`,
+        ).toBe(laneMixGain(mixes, i));
+      });
+    }
   });
 });

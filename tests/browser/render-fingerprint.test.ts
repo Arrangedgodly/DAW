@@ -36,6 +36,7 @@ import {
   RENDER_FP_PREFIX,
   RENDER_FP_GOLDEN_NAME,
   WAV_EXPORT_FP_GOLDEN_NAME,
+  WAV_EXPORT_MIX_FP_GOLDEN_NAME,
 } from "../golden/render-fp-protocol";
 import { exportWav } from "../../src/audio/exportWav";
 import type { DownloadSeam } from "../../src/persist/fileIO";
@@ -207,6 +208,79 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
       } else {
         console.log(
           `[wav-export-fingerprint] '${WAV_EXPORT_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        );
+      }
+      expect(true).toBe(true); // canary never blocks
+    },
+  );
+
+  // HW-5: byte fingerprint of the exported WAV for the reference project WITH
+  // a non-default lane mix (drums muted, lead volume 0.75) — the export-mix
+  // law's canary (WAV applies volume/mute/solo through the render pipeline).
+  // Hard law proofs (exact-silence windows, solo ≡ complementary mute, volume
+  // linearity) live in tests/browser/render-mix.test.ts; this pins exact
+  // bytes, environment-pinned like every render-derived fingerprint.
+  it(
+    "exported MIXED reference WAV byte fingerprint; drift only warns",
+    { timeout: 120000 },
+    async () => {
+      let captured: Blob | undefined;
+      const seam: DownloadSeam = {
+        createObjectURL: (blob) => {
+          captured = blob;
+          return "blob:captured";
+        },
+        revokeObjectURL: () => undefined,
+        createElement: () => ({
+          click: () => undefined,
+          href: "",
+          download: "",
+        }),
+      };
+      const mixed = referenceProject();
+      mixed.lanes = mixed.lanes.map((lane) =>
+        lane.id === "drums"
+          ? { ...lane, mute: true }
+          : lane.id === "lead"
+            ? { ...lane, volume: 0.75 }
+            : lane,
+      );
+      const result = await exportWav(mixed, { seam });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const bytes = new Uint8Array(await captured!.arrayBuffer());
+      expect(captured!.type).toBe("audio/wav");
+      expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+      expect(result.loopSamples).toBe(88200);
+
+      // --- Soft canary (same protocol + recorder as the render fp) ---
+      const hash = await hashBytesHex(bytes);
+      const entry = await loadManifestEntry(WAV_EXPORT_MIX_FP_GOLDEN_NAME);
+      console.log(
+        RENDER_FP_PREFIX +
+          JSON.stringify({
+            name: WAV_EXPORT_MIX_FP_GOLDEN_NAME,
+            sha256: hash,
+            byteLength: bytes.byteLength,
+            sampleRate: result.sampleRate,
+            loopSamples: result.loopSamples,
+          }),
+      );
+      if (!entry?.sha256) {
+        console.warn(
+          `[wav-export-fingerprint] no manifest entry for '${WAV_EXPORT_MIX_FP_GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+        );
+      } else if (entry.sha256 !== hash) {
+        console.warn(
+          `[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on '${WAV_EXPORT_MIX_FP_GOLDEN_NAME}': ` +
+            `manifest ${entry.sha256} (env: ${entry.renderEnv?.playwright ?? "?"}) vs current ${hash}. ` +
+            `NOT a failure — environment-pinned like the render fp. ` +
+            `If deliberate, regenerate: npm run goldens:update`,
+        );
+      } else {
+        console.log(
+          `[wav-export-fingerprint] '${WAV_EXPORT_MIX_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
         );
       }
       expect(true).toBe(true); // canary never blocks

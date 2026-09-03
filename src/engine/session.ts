@@ -58,6 +58,7 @@ import {
   type DrumPiece,
   type LaneId,
   type LaneMix,
+  laneMixGain,
 } from "../document/schema";
 import {
   type EffectiveScale,
@@ -885,15 +886,14 @@ export class Session {
   }
 
   /**
-   * Effective gain law: mute silences the lane; if ANY lane is soloed, every
-   * non-solo lane silences too; otherwise the lane's linear volume applies.
+   * Effective gain law (LY-1, HW-5-shared): mute silences the lane; if ANY
+   * lane is soloed, every non-solo lane silences too; otherwise the lane's
+   * linear volume applies. Delegates to the ONE pure law (schema.ts
+   * laneMixGain) so the offline render/export path cannot drift from live
+   * monitoring.
    */
   private effectiveLaneGain(index: number): number {
-    const anySolo = this.laneMix.some((m) => m.solo);
-    const mix = this.laneMix[index] ?? DEFAULT_LANE_MIX;
-    if (mix.mute) return 0;
-    if (anySolo && !mix.solo) return 0;
-    return mix.volume;
+    return laneMixGain(this.laneMix, index);
   }
 
   private applyLaneGains(): void {
