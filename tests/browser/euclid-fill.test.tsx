@@ -11,9 +11,19 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "solid-js/web";
 import LaneGrid from "../../src/components/LaneGrid";
 import { applyEuclidFill, docStore } from "../../src/state/store";
+// DA-3 fix precedent (fx-console-trusted/help gates): components import
+// their CSS but NOT the token sheet — main.tsx's job in the real bundle.
+// The geometry law below additionally needs the two stylesheets the fill
+// rail's geometry lives in (App.tsx owns these imports in the real app):
+// grid.css (the rail) + lane-header.css (the stepper buttons), plus the
+// token/font base so metrics match the deployed world.
+import "../../src/styles/base.css";
+import "../../src/styles/grid.css";
+import "../../src/styles/lane-header.css";
 
 function mount(lane: "drums" | "bass"): {
   host: HTMLElement;
@@ -141,6 +151,66 @@ describe("Euclidean fill control (browser DOM)", () => {
       (kickCells[1] as HTMLElement).click();
       await waitFor(() => firstDrumsPattern().steps.kick[1] === true);
       expect(kickRail.textContent).toContain("—");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("refinement-2 (critique P1-2): the rail geometry FITS the control so SET self-hits", async () => {
+    // The defect: the 104 px slot was narrower than its ~200 px control
+    // stack, so the control overflowed UNDER the row cells — elementFromPoint
+    // at SET's center returned a `.cell` and real clicks timed out. The law
+    // now: the renderer PINS the slot width inline (label-pin precedent),
+    // the control's natural width fits the slot (≥ one readout char of
+    // headroom = the 4-bar "64/64" worst case), and every control — SET
+    // included — owns its center. Trusted-pointer twins (real clicks) live
+    // in euclid-fill-trusted.test.tsx; the built-app twin in
+    // quadrant-layout.test.ts §9c.
+    await page.viewport(1440, 900); // elementFromPoint needs an on-screen rail
+    const { host, cleanup } = mount("drums");
+    // Font-metric determinism: the label/value faces load lazily on first
+    // use — load them EXPLICITLY so the slot-fit law reads the deployed
+    // Silkscreen/Departure Mono metrics, not the wider fallback face's.
+    await Promise.all([
+      document.fonts.load('700 10px "Silkscreen"'),
+      document.fonts.load('400 11px "Departure Mono"'),
+    ]);
+    await document.fonts.ready;
+    try {
+      const rail = host.querySelector(
+        '.row-fill[data-row="0"]',
+      ) as HTMLElement;
+      expect(rail.style.width, "slot width renderer-pinned inline").toBe(
+        "220px",
+      );
+      const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
+      const value = rail.querySelector(".row-fill-value")!;
+      const charPx =
+        value.getBoundingClientRect().width /
+        Math.max(1, (value.textContent ?? "0/16").length);
+      expect(
+        ctl.scrollWidth,
+        "control natural width fits the slot (+1 readout char headroom)",
+      ).toBeLessThanOrEqual(rail.clientWidth - charPx);
+      const cells = [
+        ...host.querySelectorAll(".grid-row"),
+      ][0]!.querySelector(".row-cells")!;
+      expect(ctl.getBoundingClientRect().right).toBeLessThanOrEqual(
+        cells.getBoundingClientRect().left + 0.5,
+      );
+      // The critique's exact probe: elementFromPoint at every control's
+      // center (SET used to resolve to a .cell under the paint order).
+      for (const btn of rail.querySelectorAll("button")) {
+        const r = btn.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          r.left + r.width / 2,
+          r.top + r.height / 2,
+        );
+        expect(
+          hit === btn || btn.contains(hit!),
+          `${btn.getAttribute("aria-label")} must own its center`,
+        ).toBe(true);
+      }
     } finally {
       cleanup();
     }

@@ -78,8 +78,14 @@ import {
 export const GRID_CELL_PX = 24;
 export const GRID_GAP_PX = 2;
 export const GRID_LABEL_PX = 72;
-/** PX-3 fill-rail slot width (drums rows only). */
-export const GRID_FILL_RAIL_PX = 152;
+/**
+ * PX-3 fill-rail slot width (drums rows only). Refinement-2 (critique P1-2):
+ * sized to FIT the control stack (E tag + pulses/rotation steppers + SET =
+ * 207.3 px at the 4-bar "64/64" readout worst case) + 8 px trailing gutter +
+ * headroom — at the old narrower slots the control overflowed UNDER the row
+ * cells and SET was pointer-dead.
+ */
+export const GRID_FILL_RAIL_PX = 220;
 /**
  * IN-2/IN-4: right-edge resize hit-zone width (px, inward from the note's
  * right edge — the IN-4 honest-geometry law: the zone never overhangs the
@@ -262,6 +268,8 @@ export class DomGridRenderer implements GridRenderer {
   private readonly cellPx: number;
   private readonly gapPx: number;
   private readonly labelPx: number;
+  /** PX-3 fill-rail slot width (0 when no fill control is mounted). */
+  private readonly fillPx: number;
   private readonly stepWidthPx: number;
   private readonly playheadLeftPx: number;
   private gridEl: HTMLElement | null = null;
@@ -281,10 +289,10 @@ export class DomGridRenderer implements GridRenderer {
     this.gapPx = opts.gapPx ?? GRID_GAP_PX;
     this.stepWidthPx = this.cellPx + this.gapPx;
     this.labelPx = opts.labelPx ?? GRID_LABEL_PX;
-    const fillPx = opts.mountFillControl
+    this.fillPx = opts.mountFillControl
       ? (opts.fillRailPx ?? GRID_FILL_RAIL_PX)
       : 0;
-    this.playheadLeftPx = this.labelPx + fillPx;
+    this.playheadLeftPx = this.labelPx + this.fillPx;
     this.editable = opts.editable ?? true;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.build();
@@ -357,7 +365,13 @@ export class DomGridRenderer implements GridRenderer {
 
       // PX-3 fill rail (drums only): a stable-width slot between the label
       // and the cells so the control can appear on hover/focus without ever
-      // shifting the grid columns. DA-2: the slot is a gridcell so the row's
+      // shifting the grid columns. The slot WIDTH is pinned INLINE from
+      // fillRailPx (the label-pin precedent): the CSS fallback and this value
+      // can never drift, and the playhead offset (playheadLeftPx = label +
+      // fill) always matches the slot the DOM actually paints. Refinement-2
+      // (critique P1-2): the slot must fit the mounted control — an
+      // undersized rail let the control overflow UNDER the cells (SET
+      // pointer-dead). DA-2: the slot is a gridcell so the row's
       // required-children contract holds (the fill control is a labeled
       // interactive group — legal inside a gridcell, not a bare row).
       if (this.opts.mountFillControl) {
@@ -365,6 +379,7 @@ export class DomGridRenderer implements GridRenderer {
         fill.className = "row-fill";
         fill.setAttribute("role", "gridcell");
         fill.dataset.row = String(row);
+        fill.style.width = `${this.fillPx}px`;
         rowEl.append(fill); // label → fill rail → cells (appended next)
         this.opts.mountFillControl(row, fill);
       }

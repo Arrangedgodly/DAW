@@ -454,6 +454,52 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           "CLOSE button closes the console",
         );
 
+        // --- 9c. EUCLID FILL-RAIL GEOMETRY (refinement-2, critique P1-2) ---
+        // The pointer-dead SET, proven fixed ON THE BUILT APP: the 104 px
+        // fill slot was narrower than its ~200 px control stack, so the
+        // control overflowed UNDER the row cells (SET at x286–321 past the
+        // cells' x233; elementFromPoint returned a `.cell`; real clicks
+        // timed out). Now: every drum row's control fits its rail AND clears
+        // the cells, all six SET buttons own their centers, the 1-bar demo
+        // quadrant keeps its internal no-scroll at 1440×900 (the widened
+        // rail re-budgeted INSIDE the quadrant — 72+228+350=650 ≤ its 666
+        // px gut), and the one-page law is untouched. Trusted-pointer twins
+        // (real clicks + preview/commit) live in euclid-fill-trusted.test.tsx.
+        for (let row = 0; row < 6; row++) {
+          const rail = floor("drums").querySelector(
+            `.row-fill[data-row="${row}"]`,
+          ) as HTMLElement;
+          const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
+          const cells = [
+            ...floor("drums").querySelectorAll(".grid-row"),
+          ][row]!.querySelector(".row-cells")!;
+          expect(rail.style.width, `row ${row} rail pinned inline`).toBe(
+            "220px",
+          );
+          expect(
+            ctl.getBoundingClientRect().right,
+            `row ${row} fill control clears the cells`,
+          ).toBeLessThanOrEqual(cells.getBoundingClientRect().left + 0.5);
+          const set = rail.querySelector(".row-fill-apply")!;
+          const r = set.getBoundingClientRect();
+          const hit = idoc().elementFromPoint(
+            r.left + r.width / 2,
+            r.top + r.height / 2,
+          );
+          expect(
+            hit === set || set.contains(hit!),
+            `row ${row} SET must own its center (was a .cell)`,
+          ).toBe(true);
+        }
+        const drumsScroll = floor("drums").querySelector(
+          ".lane-grid-scroll",
+        ) as HTMLElement;
+        expect(
+          drumsScroll.scrollWidth,
+          "1-bar demo drums quadrant needs no internal scroll after the widening",
+        ).toBeLessThanOrEqual(drumsScroll.clientWidth);
+        expect(pageFits(), "page still fits with the widened rail").toBe(true);
+
         // --- 10. One-page law under the Hulk extreme (4-bar pattern) -------
         const add4B = $<HTMLButtonElement>(
           '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',

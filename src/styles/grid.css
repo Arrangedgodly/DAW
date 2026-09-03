@@ -181,12 +181,16 @@
  * control can appear on row hover / keyboard focus without ever shifting
  * grid columns. Opacity-gated (NOT visibility/display): the stepper buttons
  * stay in the tab order, so the control is keyboard reachable — focusing it
- * reveals it via :focus-within. LY-1: the quadrant drums grid uses the
- * compact 104 px rail (the renderer's fillRailPx matches).
+ * reveals it via :focus-within. The WIDTH is pinned INLINE by the renderer
+ * from fillRailPx (the label-pin precedent); 220 px here is only the v0
+ * fallback — refinement-2 (critique P1-2): the rail must FIT its control
+ * stack (E tag + pulses/rotation steppers + SET ≈ 207–220 px depending on
+ * the readout). At the old 104 px the control overflowed UNDER the row
+ * cells and SET was pointer-dead.
  */
 .row-fill {
   flex: none;
-  width: 104px;
+  width: 220px;
   display: flex;
   align-items: center;
   gap: var(--space-2);

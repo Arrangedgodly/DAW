@@ -106,7 +106,18 @@ const QUADRANT_GEOMETRY: Record<
   LaneId,
   { cellPx: number; gapPx: number; labelPx: number; fillRailPx: number }
 > = {
-  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 104 },
+  // Refinement-2 (critique P1-2): the fill rail must FIT its control stack —
+  // at the old 104 px slot the E-tag + pulses/rotation steppers + SET needed
+  // 200 px (207 at the 4-bar "64/64" readout worst case), so the control
+  // overflowed 88 px UNDER the row cells and SET was pointer-dead
+  // (elementFromPoint at its center returned a .cell; real clicks timed out).
+  // 220 = measured 207.3 worst case + font-fallback headroom (the 8 px
+  // trailing gutter rides inside the slot as padding, total 228). The stolen
+  // 124 px of grid width is re-budgeted inside the quadrant per its own law
+  // (long patterns scroll INSIDE the quadrant — a 1-bar pattern,
+  // 72+228+350=650 px, still fits the 666 px quadrant gut at 1440×900 with
+  // zero internal scroll; 4-bar scrolls, exactly as before).
+  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 220 },
   bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
   chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
   lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
