@@ -108,46 +108,45 @@ import { registerHelp } from "../help/registry";
 const session = getSession();
 
 /**
- * HP-1 help entries for the rail (I2-6: colocated here, next to the tiles and
- * tools they describe; structural placeholder copy — HP-2 rewrites it
- * text-only). One shared tile entry: every tile in every lane carries the
- * same id — the tile's own aria-label names the lane/pattern.
+ * HP-2 help content for the rail (Professor X voice on HP-1's registry;
+ * I2-6 colocated law). One shared tile entry: every tile in every lane
+ * carries the same id — the tile's own aria-label names the lane/pattern.
  */
 registerHelp([
   {
     id: "rail.tile",
     title: "CHAIN TILE",
-    text: "One slot in this lane's song chain. Click to switch the lane to this pattern — it lands on the next bar line (pending until then). Double-click the name to rename, the top line to label the section.",
+    text: "One slot in this lane's song chain. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
   },
   {
     id: "rail.append",
     title: "APPEND SLOT",
-    text: "Appends the lane's selected pattern to the chain as a new slot.",
+    text: "Adds another slot playing the lane's selected pattern to the end of the chain. The + key does the same while a tile is focused.",
   },
   {
     id: "rail.add",
     title: "ADD PATTERN",
-    text: "Adds a new pattern of this length (1, 2 or 4 bars) to the lane and selects it for editing.",
+    text: "Creates a new pattern of this length (1, 2 or 4 bars) for the lane and selects it for editing. Shortcut: N.",
   },
   {
     id: "rail.duplicate",
     title: "DUPLICATE",
-    text: "Copies the lane's selected pattern and selects the copy.",
+    text: "Copies the lane's selected pattern and switches editing to the copy — the safe way to vary a section. Shortcut: D.",
   },
   {
     id: "rail.rename",
     title: "RENAME",
-    text: "Renames the lane's selected pattern.",
+    text: "Renames the lane's selected pattern. In the field: Enter saves, Escape cancels (shortcut R, or F2 on a tile).",
   },
   {
     id: "rail.remove",
     title: "REMOVE",
-    text: "Removes the lane's selected pattern from the pool (a lane always keeps at least one).",
+    text: "Deletes the lane's selected pattern from the pool — a lane always keeps at least one. To cut a slot from the chain instead, focus a tile and press Delete.",
   },
   {
     id: "rail.view",
     title: "RAIL VIEW",
-    text: "COLLAPSE focuses the view on the selected pattern's grid; EXPAND shows the whole song chain.",
+    text: "COLLAPSE zooms the grids in on the selected pattern; EXPAND shows every lane's full chain.",
   },
 ]);
 
@@ -333,6 +332,9 @@ function InlineEdit(props: {
   initial: string;
   maxChars: number;
   label: string;
+  /** HP-2 coverage: optional data-help id — the rail's name editor resolves
+   *  to rail.rename; the in-tile cue editor keeps its tile's entry. */
+  help?: string;
   onCommit: (value: string) => void;
   onCancel: () => void;
 }): JSX.Element {
@@ -344,6 +346,7 @@ function InlineEdit(props: {
       value={value()}
       maxLength={props.maxChars}
       aria-label={props.label}
+      data-help={props.help}
       ref={(el) => {
         el.focus();
         el.select();
@@ -728,6 +731,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
             }
             maxChars={8}
             label={`Name for ${LANE_NAMES[props.lane]} selected pattern`}
+            help="rail.rename"
             onCommit={(v) => {
               setEditing(null);
               if (v !== "") renamePattern(props.lane, selectedId(), v);

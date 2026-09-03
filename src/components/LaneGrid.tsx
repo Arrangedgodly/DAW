@@ -76,11 +76,10 @@ import { LANE_NAMES } from "./laneMeta";
 const session = getSession();
 
 /**
- * HP-1 help entries — one per quadrant's grid (I2-6: colocated here, next to
- * the surface the entry describes; structural placeholder copy — HP-2
- * rewrites it text-only). The entry covers every cell/row inside the grid:
- * the InfoView resolves focus/hover through `closest("[data-help]")`, so the
- * per-cell names (renderer) stay as they are.
+ * HP-2 help content — one entry per quadrant's grid (Professor X voice on
+ * HP-1's registry; I2-6 colocated law). The entry covers every cell/row
+ * inside the grid: the InfoView resolves focus/hover through
+ * `closest("[data-help]")`, so the per-cell names (renderer) stay as they are.
  */
 for (const lane of ["drums", "bass", "chords", "lead"] as const) {
   registerHelp([
@@ -89,8 +88,8 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       title: `${LANE_NAMES[lane]} GRID`,
       text:
         lane === "drums"
-          ? "Drums steps: click or press Enter on a pad to toggle a hit; drag across pads to paint. The fill rail spreads hits evenly for you."
-          : `${LANE_NAMES[lane]} steps: click or press Enter to place a note, drag right to draw a longer one, drag its right edge to resize. Rows follow the lane's scale.`,
+          ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
+          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key.`,
     },
   ]);
 }

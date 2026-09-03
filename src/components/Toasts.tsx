@@ -8,7 +8,24 @@
 
 import { For } from "solid-js";
 import { dismissToast, toastStack, type Toast } from "../state/toasts";
+import { registerHelp } from "../help/registry";
 import "../styles/toasts.css";
+
+// HP-2 coverage: notifications are interactive too (dismiss + suggested
+// action). Transient surfaces, but the info view explains them like anything
+// else while they are on screen (I2-6 colocated law).
+registerHelp([
+  {
+    id: "toast.dismiss",
+    title: "DISMISS",
+    text: "Closes this notification. Errors stay until you dismiss them; info notes leave on their own after a few seconds.",
+  },
+  {
+    id: "toast.action",
+    title: "NOTIFICATION ACTION",
+    text: "Runs this notification's suggested fix — for example RECOVER downloads the untouched original file it is telling you about.",
+  },
+]);
 
 function ToastCard(props: { toast: Toast }) {
   const t = () => props.toast;
@@ -30,6 +47,7 @@ function ToastCard(props: { toast: Toast }) {
           <button
             type="button"
             class="toast-action"
+            data-help="toast.action"
             onClick={() => {
               t().action!.run();
               dismissToast(t().id);
@@ -42,6 +60,7 @@ function ToastCard(props: { toast: Toast }) {
       <button
         type="button"
         class="toast-dismiss"
+        data-help="toast.dismiss"
         aria-label="Dismiss notification"
         onClick={() => dismissToast(t().id)}
       >

@@ -18,13 +18,12 @@ import { registerHelp } from "../help/registry";
 /** Slow tick cadence for the relative-time text (s, not ms of accuracy). */
 const TICK_MS = 5_000;
 
-// HP-1 help entry (I2-6: colocated here; structural placeholder copy —
-// HP-2 rewrites it text-only).
+// HP-2 help content (Professor X voice on HP-1's registry; I2-6 colocated law).
 registerHelp([
   {
     id: "save.status",
     title: "AUTOSAVE",
-    text: "Autosave state: SAVED with a rough time, SAVING while writing, UNSAVED CHANGES while edits wait, SAVE FAILED while retrying. The full timestamp is in the label.",
+    text: "Your work writes itself to this browser as you edit — no save button needed. SAVED with a rough time is healthy; if SAVE FAILED appears it keeps retrying, and SAVE FILE always exports a copy regardless.",
   },
 ]);
 

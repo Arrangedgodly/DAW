@@ -61,50 +61,50 @@ import { LANE_NAMES } from "./laneMeta";
 const FLASH_MS = 180; // D9 one-shot cap
 
 /**
- * HP-1 help entries for the FX console (I2-6: colocated here; structural
- * placeholder copy — HP-2 rewrites it text-only). The five device entries
- * serve BOTH the add-menu item and the mounted module of that type (same id
- * on both — one explanation per device concept).
+ * HP-2 help content for the FX console (Professor X voice on HP-1's registry;
+ * I2-6 colocated law). The five device entries serve BOTH the add-menu item
+ * and the mounted module of that type (same id on both — one explanation per
+ * device concept).
  */
 registerHelp([
   {
     id: "fx.add",
     title: "+ ADD FX",
-    text: "Adds an effect device to this lane's chain (three devices max).",
+    text: "Adds an effect device to this lane's rack — three at most. Order matters: each device feeds the next.",
   },
   ...FX_DEVICE_TYPES.map((type) => ({
     id: `fx.device.${type}`,
     title: FX_DEVICE_LABELS[type],
     text:
       type === "filter"
-        ? "FILTER — passes or blocks a frequency range (lowpass, highpass or bandpass) around the cutoff; Q sharpens the peak."
+        ? "FILTER — a tone control. Everything around CUTOFF survives, the rest rolls away; TYPE picks which neighborhood (low, high or a band), Q sharpens the peak."
         : type === "drive"
-          ? "DRIVE — saturation: more amount means a denser, louder, rougher tone."
+          ? "DRIVE — saturation: more AMOUNT means a denser, louder, rougher tone. At the top it starts to squash."
           : type === "bitcrusher"
-            ? "CRUSH — lo-fi reduction: fewer bits or heavier downsampling means a grittier sound."
+            ? "CRUSH — lo-fi grit, old-console style. Fewer BITS or a heavier DOWNSAMPLE throws detail away on purpose."
             : type === "delay"
-              ? "DELAY — a synced echo; the time steps are 16ths of a bar, feedback sets how long the repeats carry on, mix blends them in."
-              : "REVERB — adds room; a bigger size means a longer tail, mix blends it with the dry sound.",
+              ? "DELAY — an echo locked to the tempo. SYNC picks the echo's note length (1/8 to 1/2), FEEDBACK how long the repeats ring on, MIX how loud they sit."
+              : "REVERB — a sense of room. SIZE is the room (the readout shows seconds of tail); MIX blends it under the dry sound.",
   })),
   {
     id: "fx.bypass",
     title: "BYPASS",
-    text: "Switches this device out of the signal path without removing it — the click-free way to compare with/without.",
+    text: "Switches this device out of the signal path without removing it — the click-free way to compare with and without.",
   },
   {
     id: "fx.move",
     title: "REORDER",
-    text: "Moves this device earlier or later in the chain. Order changes the sound: drive into filter is not filter into drive.",
+    text: "Moves this device earlier or later in the chain (drag works too). Order changes the sound: drive into delay is not delay into drive.",
   },
   {
     id: "fx.remove",
     title: "REMOVE",
-    text: "Removes this device from the chain.",
+    text: "Takes this device out of the chain — its settings go with it.",
   },
   {
     id: "fx.param",
     title: "FX PARAMETER",
-    text: "A device parameter: drag it, or focus it and use the arrow keys. Changes are audible immediately, even while playing.",
+    text: "A device setting. Drag the slider, or focus it and use the arrow keys — every change is heard immediately, even mid-play.",
   },
 ]);
 

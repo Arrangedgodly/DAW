@@ -59,9 +59,9 @@ const GATE_MIN = 1;
 const GATE_MAX = 16;
 
 /**
- * HP-1 help entries for one lane's strip (I2-6: colocated HERE, next to the
- * controls; structural placeholder copy — HP-2 rewrites it text-only). Ids
- * are per-lane so the info region names the lane whose control is focused.
+ * HP-2 help content for one lane's strip (Professor X voice on HP-1's
+ * registry; I2-6 colocated law). Ids are per-lane so the info region names
+ * the lane whose control is focused.
  */
 function laneHelpEntries(lane: LaneId): HelpEntry[] {
   const n = LANE_NAMES[lane];
@@ -70,37 +70,37 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
     {
       id: `lane.${lane}.sound`,
       title: `${n} ${kind === "kit" ? "KIT" : "PRESET"}`,
-      text: `Steps through the ${kind}s available to ${n}; every change auditions one note so the new sound is heard immediately.`,
+      text: `Cycles through the ${kind}s ${n} can wear. Every step plays one note, so you hear the new sound the moment you land on it.`,
     },
     {
       id: `lane.${lane}.volume`,
       title: `${n} VOLUME`,
-      text: `How loud ${n} sits in the mix.`,
+      text: `How loud ${n} sits against the other lanes. MASTER in the booth moves the whole mix at once.`,
     },
     {
       id: `lane.${lane}.mute`,
       title: `${n} MUTE`,
-      text: `Silences ${n} without clearing anything — its notes keep playing in the pattern.`,
+      text: `Silences ${n} while its notes stay exactly where you painted them — press again and it returns.`,
     },
     {
       id: `lane.${lane}.solo`,
       title: `${n} SOLO`,
-      text: `Isolates ${n}: every other lane is ducked while solo is on.`,
+      text: `Isolates ${n}: every other lane ducks down until you press it again. Handy for checking one part.`,
     },
     {
       id: `lane.${lane}.scale`,
       title: `${n} SCALE`,
-      text: `The scale ${n} actually plays — the project scale, or this lane's own override. Opens the picker.`,
+      text: `The notes ${n} actually offers — the project scale, or this lane's own if it overrides. Opens the picker.`,
     },
     {
       id: `lane.${lane}.gate`,
       title: `${n} GATE`,
-      text: `Default length of a NEW note on ${n}, counted in 16th steps. Existing notes keep their own lengths.`,
+      text: `How long a NEW note lasts when you click once, counted in 16th steps. Drag a note's right edge — or press + / − — to reshape it afterwards.`,
     },
     {
       id: `lane.${lane}.fx`,
       title: `${n} FX`,
-      text: `Opens ${n}'s effect chain — up to three devices (filter, drive, crush, delay, reverb) in any order.`,
+      text: `Opens ${n}'s effect rack: up to three devices in a row, reorderable, bypassable in one click.`,
     },
   ];
 }

@@ -41,44 +41,44 @@ import { relativeTime } from "../lib/reltime";
 import "../styles/projects.css";
 
 /**
- * HP-1 help entries for the projects popover + its booth entry (I2-6:
- * colocated here; structural placeholder copy — HP-2 rewrites it text-only).
+ * HP-2 help content for the projects popover + its booth entry (Professor X
+ * voice on HP-1's registry; I2-6 colocated law).
  */
 registerHelp([
   {
     id: "projects.open",
     title: "PROJECTS",
-    text: "Opens the projects panel: saved projects, new project, exports, and save/open file.",
+    text: "Opens the projects panel: everything you have saved, plus new project, exports and file save/open. Escape closes it.",
   },
   {
     id: "projects.item",
     title: "SAVED PROJECT",
-    text: "Opens this saved project. If its stored data turns out to be damaged, the working project is untouched.",
+    text: "Switches to this saved project — each one keeps its own autosave. A damaged row fails safely: your current work is never overwritten.",
   },
   {
     id: "projects.new",
     title: "NEW",
-    text: "Starts a fresh empty project — a new saved row; nothing existing is overwritten.",
+    text: "Starts a fresh, empty project in its own saved slot — nothing existing is overwritten. Pick a preset and paint the grid.",
   },
   {
     id: "projects.wav",
     title: "EXPORT WAV",
-    text: "Renders the current project offline to a loop-tight stereo WAV file and downloads it.",
+    text: "Renders the song offline to a stereo WAV — exactly the loop you hear, seam-free, ready to share or drop in a video. Playback is never interrupted.",
   },
   {
     id: "projects.midi",
     title: "EXPORT MIDI",
-    text: "Exports notes and section cues as a Standard MIDI File, one track per lane. Sounds are not carried — other apps will use their own instruments.",
+    text: "Saves the notes and section cues as a Standard MIDI File, one track per lane. It carries no sounds — other apps play it with their own instruments.",
   },
   {
     id: "projects.save",
     title: "SAVE FILE",
-    text: "Downloads the current project as a .bitbounce.json file.",
+    text: "Downloads the current project as a .bitbounce.json file — the whole song, openable here on any machine.",
   },
   {
     id: "projects.openfile",
     title: "OPEN FILE",
-    text: "Opens a .bitbounce.json project file as a NEW project — an import never overwrites what you are working on.",
+    text: "Opens a .bitbounce.json project file as a NEW project — an import never touches what you are working on.",
   },
 ]);
 

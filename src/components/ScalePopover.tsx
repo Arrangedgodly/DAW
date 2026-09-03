@@ -21,6 +21,37 @@ import {
   rootName,
   type ScaleStoreSeam,
 } from "../state/scaleChip";
+import { registerHelp } from "../help/registry";
+
+/**
+ * HP-2 help entries for the popover's internals (HP-1 deliberately deferred
+ * them here — the plan's coverage list owns "scale popover"; I2-6 colocated
+ * law unchanged). Root/mode are registered on their GROUP containers (the
+ * booth-stepper pattern): one explanation per concept, every button inside
+ * resolves through `closest("[data-help]")`.
+ */
+registerHelp([
+  {
+    id: "scale.root",
+    title: "ROOT",
+    text: "The note the scale starts from. Pick any of the twelve — same mode on a new root is the easiest way to change a song's mood without changing a single note.",
+  },
+  {
+    id: "scale.mode",
+    title: "MODE",
+    text: "The scale's flavor: the step pattern that makes major bright and minor dark. The pentatonic modes offer fewer rows — every note they leave you is a safe one.",
+  },
+  {
+    id: "scale.apply",
+    title: "APPLY SCALE",
+    text: "Applies the root and mode picked above. From a lane chip this becomes that lane's own scale (an override); from the booth it sets the scale every lane follows.",
+  },
+  {
+    id: "scale.detach",
+    title: "USE PROJECT SCALE",
+    text: "Puts this lane back on the project scale — one press and the override is gone. Notes keep their scale positions and simply sound in the scale they now share.",
+  },
+]);
 
 export type ScaleAppliedFn = (root: number, mode: ModeName) => void;
 
@@ -132,7 +163,12 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
       aria-label="Scale selector"
       onKeyDown={handleKeydown}
     >
-      <div class="scale-pop-group" role="group" aria-label="Root note">
+      <div
+        class="scale-pop-group"
+        role="group"
+        aria-label="Root note"
+        data-help="scale.root"
+      >
         <span class="scale-pop-heading" aria-hidden="true">
           ROOT
         </span>
@@ -153,7 +189,12 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
         </div>
       </div>
 
-      <div class="scale-pop-group" role="group" aria-label="Mode">
+      <div
+        class="scale-pop-group"
+        role="group"
+        aria-label="Mode"
+        data-help="scale.mode"
+      >
         <span class="scale-pop-heading" aria-hidden="true">
           MODE
         </span>
@@ -179,13 +220,19 @@ export default function ScalePopover(props: ScalePopoverProps): JSX.Element {
       </div>
 
       <div class="scale-pop-actions">
-        <button type="button" class="scale-pop-commit" onClick={commit}>
+        <button
+          type="button"
+          class="scale-pop-commit"
+          data-help="scale.apply"
+          onClick={commit}
+        >
           {props.variant === "project" ? "SET PROJECT SCALE" : "OVERRIDE LANE"}
         </button>
         {props.variant === "lane" && (
           <button
             type="button"
             class="scale-pop-detach"
+            data-help="scale.detach"
             aria-disabled={props.overridden ? "false" : "true"}
             classList={{ "is-dim": !props.overridden }}
             onClick={() => {

@@ -13,7 +13,18 @@ import {
   type MediaDevicesLike,
 } from "../engine/deviceWatch";
 import { showInfo } from "../state/toasts";
+import { registerHelp } from "../help/registry";
 import "../styles/toasts.css";
+
+// HP-2 coverage: the resume affordance is an interactive control (I2-6
+// colocated law).
+registerHelp([
+  {
+    id: "audio.resume",
+    title: "RESUME AUDIO",
+    text: "Sound was interrupted — a device switch or the system standing the tab down. Press to bring it back; nothing about your song was lost.",
+  },
+]);
 
 export default function AudioStatus() {
   const session = getSession();
@@ -54,6 +65,7 @@ export default function AudioStatus() {
       <button
         type="button"
         class="audio-resume"
+        data-help="audio.resume"
         onClick={() => void session.engine.unlock()}
       >
         TAP TO RESUME AUDIO

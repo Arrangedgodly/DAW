@@ -40,53 +40,54 @@ const session = getSession();
 
 const BEAT_LED_COUNT = 4;
 
-// HP-1 help registry (I2-6 law: the text lives HERE, next to the controls it
-// describes; structural placeholder copy — HP-2 rewrites it text-only).
+// HP-2 help content (Professor X voice, riding HP-1's registry): plain
+// language, music-first, every entry says what it is + what happens when you
+// use it; keyboard twins get a mention where one exists (I2-6 colocated law).
 registerHelp([
   {
     id: "booth.play",
     title: "PLAY / STOP",
-    text: "Starts or stops playback. Space does the same when focus is on the page rather than a control.",
+    text: "Starts or stops the song. The Space bar does the same whenever focus is on the page rather than a control.",
   },
   {
     id: "booth.loop",
     title: "LOOP",
-    text: "Toggles looped playback. With loop off, playback runs to the end of the pass and stops.",
+    text: "Keeps the song repeating from the top. With loop off, playback runs to the end of the pass and stops by itself.",
   },
   {
     id: "booth.metronome",
     title: "METRONOME",
-    text: "Clicks on every beat so the tempo is audible while patterns are being built.",
+    text: "Clicks on every beat so the tempo is something you can hear while building patterns. The click is for you only — it never reaches the WAV or MIDI exports.",
   },
   {
     id: "booth.keys",
     title: "KEYS ?",
-    text: "Opens the keyboard-shortcut reference (a separate overlay; Escape closes it).",
+    text: "Opens the keyboard-shortcut reference: every key this instrument knows, on one page. Escape closes it.",
   },
   {
     id: "booth.info",
     title: "INFO ?",
-    text: "Toggles this info mode: point at or focus any control to read what it does. I toggles it too; Escape leaves it.",
+    text: "Turns this info view on: point at or focus any control and this bar explains it. I toggles, Escape leaves — controls keep working either way.",
   },
   {
     id: "booth.tempo",
     title: "TEMPO",
-    text: "Tempo in beats per minute, 60 to 200. Type a value or step it with the buttons.",
+    text: "Song speed in beats per minute, 60 to 200. Takes effect immediately — synced delays shift with it so echoes stay on the beat.",
   },
   {
     id: "booth.scale",
     title: "PROJECT SCALE",
-    text: "The project's musical scale. Opens the picker; every pitched lane follows it unless it carries its own override.",
+    text: "The note pool every pitched lane plays from. Opens the picker; a lane only ignores it when it carries an override of its own.",
   },
   {
     id: "booth.swing",
     title: "SWING",
-    text: "Swing amount: delays every second 16th step. Zero is perfectly straight timing.",
+    text: "Delays every second 16th note so the groove leans — higher means lazier. 0% is dead straight.",
   },
   {
     id: "booth.master",
     title: "MASTER VOLUME",
-    text: "Volume of the whole mix, 0 to 100 percent.",
+    text: "Volume of the whole mix, 0 to 100%. Balance the lanes against each other with the VOLUME strip inside each quadrant.",
   },
 ]);
 

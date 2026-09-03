@@ -31,11 +31,14 @@
  * 10. MODE-OBVIOUS: dashed markers on registered controls + the help cursor
  *     (static CSS — the world's Ableton-precedent tell).
  *
- * Plus the registry anti-rot invariants (the seed of HP-2's coverage gate):
- * non-empty id/title/text for every entry; every LITERAL data-help="…" in the
- * component sources resolves to an entry; every registered id is reachable
- * from the sources (literal, or one of the known per-lane/piece/device
- * generators). A control whose data-help id has no entry FAILS here.
+ * Plus the registry anti-rot invariants (HP-2 widened the source scan to all
+ * TWELVE registering components): non-empty id/title/text for every entry;
+ * every LITERAL data-help="…" in the component sources resolves to an entry;
+ * every registered id is reachable from the sources (literal, or one of the
+ * known per-lane/piece/device generators). A control whose data-help id has
+ * no entry FAILS here. The mounted-surface WALK (every interactive element
+ * must resolve to a substantive entry) lives in help-coverage.test.tsx —
+ * HP-2's coverage gate proper.
  */
 
 import { describe, expect, it } from "vitest";
@@ -71,7 +74,9 @@ import type { PitchedPattern } from "../../src/document/schema";
 import "../../src/styles/base.css";
 
 // ?raw source feeds the anti-rot scan (Vite raw imports — bundled at test
-// build time; no fs access needed in the browser page).
+// build time; no fs access needed in the browser page). HP-2 widened the
+// scan beyond HP-1's eight: the deferred ScalePopover internals plus the
+// failure chrome (toasts, banners, audio-resume) now register too.
 import boothSrc from "../../src/components/Booth.tsx?raw";
 import laneHeaderSrc from "../../src/components/LaneHeader.tsx?raw";
 import laneGridSrc from "../../src/components/LaneGrid.tsx?raw";
@@ -80,6 +85,10 @@ import patternRailSrc from "../../src/components/PatternRail.tsx?raw";
 import fxStripSrc from "../../src/components/FxStrip.tsx?raw";
 import projectsSrc from "../../src/components/Projects.tsx?raw";
 import saveIndicatorSrc from "../../src/components/SaveIndicator.tsx?raw";
+import scalePopoverSrc from "../../src/components/ScalePopover.tsx?raw";
+import toastsSrc from "../../src/components/Toasts.tsx?raw";
+import bannerSrc from "../../src/components/Banner.tsx?raw";
+import audioStatusSrc from "../../src/components/AudioStatus.tsx?raw";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
@@ -504,6 +513,10 @@ const SOURCES = [
   fxStripSrc,
   projectsSrc,
   saveIndicatorSrc,
+  scalePopoverSrc,
+  toastsSrc,
+  bannerSrc,
+  audioStatusSrc,
 ] as const;
 
 /** Every LITERAL `data-help="…"` id stamped in the component sources. */

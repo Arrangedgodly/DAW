@@ -16,7 +16,18 @@ import {
   isBannerDismissed,
 } from "../support/banners";
 import { detectSupport } from "../support/detect";
+import { registerHelp } from "../help/registry";
 import "../styles/banner.css";
+
+// HP-2 coverage: the support banner's dismiss is an interactive control
+// (I2-6 colocated law) — failure chrome explains itself like everything else.
+registerHelp([
+  {
+    id: "banner.dismiss",
+    title: "DISMISS BANNER",
+    text: "Hides this browser-support notice for the session (Escape works too). Whatever the notice says still stands — the app keeps running on what does work.",
+  },
+]);
 
 const DISMISS_LABEL: Record<string, string> = {
   unsupported: "Dismiss unsupported-browser banner",
@@ -57,6 +68,7 @@ export default function SupportBanners() {
         <button
           type="button"
           class="support-banner-dismiss"
+          data-help="banner.dismiss"
           aria-label={DISMISS_LABEL[model!.kind]}
           onClick={dismiss}
         >

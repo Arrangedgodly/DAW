@@ -38,14 +38,14 @@ import {
 const session = getSession();
 
 /**
- * HP-1 help entries — one per drum row's fill control (I2-6: colocated here;
- * structural placeholder copy — HP-2 rewrites it text-only).
+ * HP-2 help content — one per drum row's fill control (Professor X voice on
+ * HP-1's registry; I2-6 colocated law).
  */
 registerHelp(
   DRUM_PIECES.map((piece) => ({
     id: `euclid.${piece}.fill`,
     title: `${piece.toUpperCase()} FILL`,
-    text: `Spread the pulses as evenly as possible over the ${piece.toUpperCase()} row (rotation shifts where they land). The dashed overlay previews; SET paints the row, Escape cancels.`,
+    text: `Spreads hits evenly across the ${piece.toUpperCase()} row — the instant-cool-rhythm lever. PULSES sets how many, ROTATION slides where they land; the dashed overlay previews, SET (or Enter) paints the row, Escape cancels. Hand-edit freely afterwards.`,
   })),
 );
 

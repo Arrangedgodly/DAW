@@ -15,10 +15,13 @@
  * reactive subscriptions and no help DOM anywhere (the InfoView component is
  * mounted by App only while the mode is on).
  *
- * Content (HP-2): the `text` strings shipped here by HP-1 are terse
- * STRUCTURAL placeholders — HP-2 rewrites them in the plain-language,
- * music-first voice via TEXT-ONLY edits to the colocated constants (the
- * registry API is frozen: id + title + text).
+ * Content (HP-2, landed): every `text` is written in the plain-language,
+ * music-first voice — each entry says what the control is and what happens
+ * when you use it, in one or two short sentences, with the keyboard twin
+ * named where one exists. The registry API stays frozen (id + title + text);
+ * HP-2's coverage gate (tests/browser/help-coverage.test.tsx) walks the
+ * mounted app's interactive surfaces and fails on any control without a
+ * registered, substantive entry.
  */
 
 export interface HelpEntry {
