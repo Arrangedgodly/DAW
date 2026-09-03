@@ -25,6 +25,7 @@ import {
   LANE_OCTAVE_FALLBACK,
   MIDI_EXTENSION,
   noteCount,
+  noteLengthTicks,
   PPQ,
   PRESET_GM_PROGRAMS,
   PITCHED_VELOCITY,
@@ -64,6 +65,15 @@ describe("tick math", () => {
     expect(gateTicks({ unit: "seconds", value: 0.25 }, 120)).toBe(240);
     // 0.1 s at 120 BPM = 0.2 beats (0.5 s/beat) = 96 ticks exactly.
     expect(gateTicks({ unit: "seconds", value: 0.1 }, 120)).toBe(96);
+  });
+
+  it("SC-2: note lengths map to exact ticks on the 0.25-step grid", () => {
+    // 0.25-step granularity × 120 ticks/step is always an integer.
+    expect(noteLengthTicks(1)).toBe(120);
+    expect(noteLengthTicks(2.5)).toBe(300);
+    expect(noteLengthTicks(0.25)).toBe(30);
+    expect(noteLengthTicks(15)).toBe(1800);
+    expect(noteLengthTicks(128)).toBe(15360);
   });
 
   it("midi-file honors header.ticksPerBeat = 480 (PPQ convention, round trip)", () => {
@@ -160,33 +170,17 @@ describe("note building", () => {
   });
 
   it("bass: scale-degree resolution C minor octave 2 (degree 0 = C2 = 36) with sustain", () => {
-    const lane = doc.lanes.find((l) => l.id === "bass")!;
-    const notes = buildPitchedNotes(
-      doc,
-      "bass",
-      [doc.patterns.bass[0]],
-      lane.gate,
-      120,
-      0,
-    );
+    const notes = buildPitchedNotes(doc, "bass", [doc.patterns.bass[0]], 0);
     expect(notes).toHaveLength(1);
     // preset-bass-1 pitchRange.octaveBase = 2; C minor degree 0 → 12*(2+1)+0 = 36.
     expect(notes[0].noteNumber).toBe(36);
     expect(notes[0].tick).toBe(0);
-    // Gate 2 steps + 1 sustain marker = 3 × 120 = 360 ticks.
+    // Migrated v1 shape: gate 2 steps + 1 sustain marker = one 3-step note.
     expect(notes[0].durationTicks).toBe(360);
   });
 
   it("chords: diatonic triad stack [0, 2, 4] at the lane channel", () => {
-    const lane = doc.lanes.find((l) => l.id === "chords")!;
-    const notes = buildPitchedNotes(
-      doc,
-      "chords",
-      [doc.patterns.chords[0]],
-      lane.gate,
-      120,
-      0,
-    );
+    const notes = buildPitchedNotes(doc, "chords", [doc.patterns.chords[0]], 0);
     // C minor triad from degree 0 at octave base 3 (preset-chords-1): C3, Eb3, G3.
     expect(notes.map((n) => n.noteNumber).sort((a, b) => a - b)).toEqual([
       48, 51, 55,
@@ -195,18 +189,55 @@ describe("note building", () => {
   });
 
   it("lead: degree 3 of C minor at octave 4 = F4 = 65 on step 8", () => {
-    const lane = doc.lanes.find((l) => l.id === "lead")!;
-    const notes = buildPitchedNotes(
-      doc,
-      "lead",
-      [doc.patterns.lead[0]],
-      lane.gate,
-      120,
-      0,
-    );
+    const notes = buildPitchedNotes(doc, "lead", [doc.patterns.lead[0]], 0);
     expect(notes).toHaveLength(1);
     expect(notes[0].noteNumber).toBe(65);
     expect(notes[0].tick).toBe(8 * 120);
+  });
+
+  it("SC-2: durations come from note lengths (fractional + long + gate-independent)", () => {
+    // Same hand-authored notes under THREE different lane gates: durations
+    // must not move — the gate is only the single-click default.
+    const withNotes = (
+      notes: readonly { degree: number; start: number; length: number }[],
+      gateValue: number,
+    ): ProjectDocument => {
+      const d = createDefaultProject();
+      const lane = d.lanes.find((l) => l.id === "lead")!;
+      lane.gate = { unit: "steps", value: gateValue };
+      const lead = d.patterns.lead[0];
+      d.patterns.lead = lead.kind === "pitched" ? [{ ...lead, notes }] : [];
+      return d;
+    };
+    const authored = [
+      { degree: 0, start: 2, length: 2.5 },
+      { degree: 0, start: 8, length: 15 },
+    ];
+    for (const gateValue of [1, 2, 16]) {
+      const gated = withNotes(authored, gateValue);
+      const notes = buildPitchedNotes(gated, "lead", gated.patterns.lead, 0);
+      expect(notes.map((n) => n.durationTicks)).toEqual([300, 1800]);
+      expect(notes.map((n) => n.tick)).toEqual([240, 960]);
+    }
+  });
+
+  it("SC-2: notes on degrees outside the row manifest are skipped (compiler parity)", () => {
+    const d = createDefaultProject();
+    const lead = d.patterns.lead[0];
+    if (lead.kind !== "pitched") throw new Error("kind");
+    d.patterns.lead = [
+      {
+        ...lead,
+        rowDegrees: [0, 1, 2, 3], // degree 7 has no row
+        notes: [
+          { degree: 0, start: 0, length: 1 },
+          { degree: 7, start: 0, length: 4 },
+        ],
+      },
+    ];
+    const notes = buildPitchedNotes(d, "lead", d.patterns.lead, 0);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].noteNumber).toBe(60); // degree 0 at octave base 4 = C4
   });
 
   it("noteCount totals every lane", () => {

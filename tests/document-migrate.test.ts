@@ -204,7 +204,7 @@ describe("v1 → v2 (SC-1): the note-model migration", () => {
     );
   });
 
-  it("AUDIO-LOSSLESS: migrated documents compile to the exact same {time, freq, hold} as the v0 law computed from the v1 cells", () => {
+  it("AUDIO-LOSSLESS: migrated documents compile to the exact {time, freq} and holds within the documented bound", () => {
     const texts = [
       v1DemoProjectText(),
       sustainHeavyV1ProjectText(),
@@ -279,7 +279,27 @@ describe("v1 → v2 (SC-1): the note-model migration", () => {
           groove,
           lane === "chords",
         );
-        expect(actual, `${text.slice(0, 40)} ${lane}`).toEqual(expected);
+        // SC-2 law change: holds now come from note.length in ONE
+        // multiplication (length × stepSec) where the v0 law summed
+        // gateSec + k × stepSec. Steps-gate lanes agree to float
+        // reassociation noise (1 ulp); seconds-gate lanes additionally carry
+        // the documented SC-1 migration quantization (≤ half of the 0.25-step
+        // grid). time/freq stay EXACTLY equal.
+        expect(actual, `${text.slice(0, 40)} ${lane}`).toHaveLength(
+          expected.length,
+        );
+        const holdTolerance =
+          conf.gate.unit === "seconds"
+            ? 0.125 * secondsPerStep(groove.bpm) + 1e-9
+            : 1e-9;
+        for (let i = 0; i < actual.length; i++) {
+          expect(actual[i].time, `${lane}[${i}].time`).toBe(expected[i].time);
+          expect(actual[i].freq, `${lane}[${i}].freq`).toBe(expected[i].freq);
+          expect(
+            Math.abs(actual[i].hold - expected[i].hold),
+            `${lane}[${i}].hold ${actual[i].hold} vs ${expected[i].hold}`,
+          ).toBeLessThanOrEqual(holdTolerance);
+        }
       }
     }
   });

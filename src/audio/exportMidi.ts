@@ -5,8 +5,8 @@
  * Architecture (RES-5b): `midi-file` (2.8 KB gz) owns ONLY the byte framing —
  * varlen quantities, delta times, MThd/MTrk chunk layout. The event model is
  * ours: one section below builds typed per-lane note lists from the SAME
- * pattern-walking semantics as the audio compiler (compile.ts): sustain
- * markers (cell 2) extend the gate, chords lane stacks diatonic triads
+ * note-walking semantics as the audio compiler (compile.ts): v2 note lengths
+ * are durations, chords lane stacks diatonic triads
  * [degree, degree+2, degree+4], pitch comes from degreeToMidi on the lane's
  * effective scale at the preset's octave base. Nothing here reads
  * VoiceNoteOnEvent (audio-clock payloads are wrong units for MIDI and drum
@@ -39,9 +39,12 @@
  *   for hypothetical presets without a pitch range.
  * - Velocities: fixed sensible defaults (no dynamic expression exists in the
  *   document); pitched notes at PITCHED_VELOCITY.
- * - Duration: gate in steps → exact ticks (steps × TICKS_PER_STEP); gate in
- *   seconds → rounded to ticks at the project BPM. Sustain markers add one
- *   step each, exactly like compile.ts.
+ * - Duration (SC-2): pitched notes carry their own lengths — ticks are exact
+ *   on the 0.25-step grid (length × TICKS_PER_STEP, always an integer); the
+ *   lane gate does not scale durations (it is only the single-click default).
+ *   Notes on degrees outside the pattern's row manifest are skipped, exactly
+ *   like the audio compiler (v1: no row). Drums keep the gate: steps → exact
+ *   ticks, seconds → rounded to ticks at the project BPM.
  * - Swing: odd 16th steps shift by round(swing × TICKS_PER_STEP) ticks — the
  *   same delay fraction the audio groove applies, on the tick grid.
  *
@@ -59,8 +62,6 @@ import {
   type LaneId,
   type Pattern,
   type ProjectDocument,
-  pitchedPatternView,
-  resolveGateSteps,
 } from "../document/schema";
 import { effectiveScale, degreeToMidi } from "../document/scales";
 import { getPreset } from "./presets";
@@ -184,13 +185,18 @@ export function gateTicks(gate: LaneGate, bpm: number): number {
     : Math.round((gate.value * (PPQ * bpm)) / 60);
 }
 
+/**
+ * SC-2: a v2 note length in ticks. Lengths live on the 0.25-step grid, so
+ * length × TICKS_PER_STEP is always an integer; the max(1, …) guard keeps a
+ * hypothetical zero/near-zero length round-tripping as a note.
+ */
+export function noteLengthTicks(length: number): number {
+  return Math.max(1, Math.round(length * TICKS_PER_STEP));
+}
+
 /** Minimum one tick so a zero/near-zero gate still round-trips as a note. */
-function noteDuration(
-  gate: LaneGate,
-  sustainSteps: number,
-  bpm: number,
-): number {
-  return Math.max(1, gateTicks(gate, bpm) + sustainSteps * TICKS_PER_STEP);
+function gateDurationTicks(gate: LaneGate, bpm: number): number {
+  return Math.max(1, gateTicks(gate, bpm));
 }
 
 /** Drums lane → GM notes (piece identity maps directly; pattern walk). */
@@ -207,7 +213,7 @@ export function buildDrumNotes(
       cursor += pattern.bars * 16 * TICKS_PER_STEP;
       continue;
     }
-    const dur = noteDuration(gate, 0, bpm);
+    const dur = gateDurationTicks(gate, bpm);
     // Fixed piece order (never Object.keys — the canonical codec key-sorts;
     // same-tick note order must be stable across a save/load round trip).
     for (const piece of DRUM_PIECES) {
@@ -229,17 +235,16 @@ export function buildDrumNotes(
 }
 
 /**
- * Pitched lane → GM notes. Same laws as compile.ts: cell 1 triggers, cell 2
- * sustains one step per marker, chords lane stacks [degree, degree+2,
- * degree+4], pitch = degreeToMidi(effective scale, row degree + offset,
- * preset octave base).
+ * Pitched lane → GM notes. Same laws as compile.ts (SC-2): v2 note lengths are
+ * the durations (exact on the 0.25-step grid — parse-back equality holds),
+ * chords lane stacks [degree, degree+2, degree+4], pitch = degreeToMidi(
+ * effective scale, note degree + offset, preset octave base). Notes on degrees
+ * outside the pattern's row manifest are skipped, exactly like the compiler.
  */
 export function buildPitchedNotes(
   doc: ProjectDocument,
   lane: Exclude<LaneId, "drums">,
   chain: readonly Pattern[],
-  gate: LaneGate,
-  bpm: number,
   swing: number,
 ): MidiNote[] {
   const laneConf = doc.lanes.find((l) => l.id === lane);
@@ -259,29 +264,17 @@ export function buildPitchedNotes(
       cursor += pattern.bars * 16 * TICKS_PER_STEP;
       continue;
     }
-    // SC-1 compatibility view (see compile.ts): v2 notes → the v1 cell model,
-    // same sustain-walk law as v0 — exported bytes are unchanged by the schema
-    // bump. SC-2 moves durations to note lengths natively.
-    const gateSteps = resolveGateSteps(gate, bpm);
-    for (const row of pitchedPatternView(pattern, gateSteps).rows) {
-      const steps = row.steps;
-      for (let step = 0; step < steps.length; step++) {
-        if (steps[step] !== 1) continue;
-        let sustain = 0;
-        while (
-          step + 1 + sustain < steps.length &&
-          steps[step + 1 + sustain] === 2
-        ) {
-          sustain++;
-        }
-        for (const off of stack) {
-          notes.push({
-            tick: cursor + stepTick(step, swing),
-            noteNumber: degreeToMidi(scale, row.degree + off, octaveBase),
-            velocity: PITCHED_VELOCITY,
-            durationTicks: noteDuration(gate, sustain, bpm),
-          });
-        }
+    const manifest = new Set(pattern.rowDegrees);
+    for (const note of pattern.notes) {
+      if (!manifest.has(note.degree)) continue;
+      const durationTicks = noteLengthTicks(note.length);
+      for (const off of stack) {
+        notes.push({
+          tick: cursor + stepTick(note.start, swing),
+          noteNumber: degreeToMidi(scale, note.degree + off, octaveBase),
+          velocity: PITCHED_VELOCITY,
+          durationTicks,
+        });
       }
     }
     cursor += pattern.bars * 16 * TICKS_PER_STEP;
@@ -477,14 +470,7 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
           },
         });
       }
-      for (const note of buildPitchedNotes(
-        doc,
-        lane,
-        chain,
-        laneConf.gate,
-        bpm,
-        swing,
-      )) {
+      for (const note of buildPitchedNotes(doc, lane, chain, swing)) {
         events.push({
           tick: note.tick,
           event: {
@@ -537,14 +523,8 @@ export function noteCount(doc: ProjectDocument): number {
             doc.transport.bpm,
             doc.transport.swing,
           ).length
-        : buildPitchedNotes(
-            doc,
-            laneConf.id,
-            chain,
-            laneConf.gate,
-            doc.transport.bpm,
-            doc.transport.swing,
-          ).length;
+        : buildPitchedNotes(doc, laneConf.id, chain, doc.transport.swing)
+            .length;
   }
   return n;
 }

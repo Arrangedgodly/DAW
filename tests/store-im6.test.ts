@@ -7,13 +7,16 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  addNote,
   addPattern,
   canRedo,
   canUndo,
   docStore,
   duplicatePattern,
   redo,
+  removeNote,
   renamePattern,
+  resizeNote,
   setLaneChain,
   setLaneGate,
   setLaneScaleOverride,
@@ -190,6 +193,114 @@ describe("pattern primitives + song chain", () => {
     const before = doc();
     expect(() => setLaneChain("lead", ["nope"])).toThrow();
     expect(doc()).toBe(before);
+  });
+});
+
+describe("note-edit actions (SC-2)", () => {
+  function leadPattern() {
+    const p = doc().patterns.lead[0];
+    if (p.kind !== "pitched") throw new Error("expected pitched lead");
+    return p;
+  }
+
+  it("addNote inserts a sorted note; replacing the same anchor is idempotent", () => {
+    expect(addNote("lead", "lead-1", { degree: 3, start: 4, length: 8 })).toBe(
+      true,
+    );
+    expect(addNote("lead", "lead-1", { degree: 0, start: 0, length: 2 })).toBe(
+      true,
+    );
+    expect(leadPattern().notes).toEqual([
+      { degree: 0, start: 0, length: 2 },
+      { degree: 3, start: 4, length: 8 },
+    ]);
+    // Re-adding the same anchor replaces (last write wins — drag re-drop).
+    expect(
+      addNote("lead", "lead-1", { degree: 3, start: 4, length: 2.5 }),
+    ).toBe(true);
+    expect(leadPattern().notes).toEqual([
+      { degree: 0, start: 0, length: 2 },
+      { degree: 3, start: 4, length: 2.5 },
+    ]);
+  });
+
+  it("addNote snaps lengths to the 0.25 grid and clamps to schema bounds", () => {
+    addNote("lead", "lead-1", { degree: 0, start: 0, length: 2.3 }); // → 2.25
+    addNote("lead", "lead-1", { degree: 1, start: 0, length: 999 }); // → 128
+    addNote("lead", "lead-1", { degree: 2, start: 0, length: 0.1 }); // → 0.25
+    // Notes stay sorted by (degree, start).
+    expect(leadPattern().notes.map((n) => n.length)).toEqual([2.25, 128, 0.25]);
+  });
+
+  it("addNote refuses unknown patterns and degrees outside the row manifest", () => {
+    const before = doc();
+    expect(addNote("lead", "nope", { degree: 0, start: 0, length: 1 })).toBe(
+      false,
+    );
+    // Default lead manifest is 0..13 (minor × 2 octaves); degree 20 has no row.
+    expect(addNote("lead", "lead-1", { degree: 20, start: 0, length: 1 })).toBe(
+      false,
+    );
+    expect(doc()).toBe(before); // untouched
+  });
+
+  it("addNote throws through validation on an invalid start (store untouched)", () => {
+    const before = doc();
+    // start 16 exceeds the 1-bar pattern (semantic check).
+    expect(() =>
+      addNote("lead", "lead-1", { degree: 0, start: 16, length: 1 }),
+    ).toThrow();
+    expect(doc()).toBe(before);
+  });
+
+  it("removeNote deletes the anchored note; missing anchors are a no-op", () => {
+    addNote("lead", "lead-1", { degree: 5, start: 2, length: 4 });
+    expect(removeNote("lead", "lead-1", 5, 2)).toBe(true);
+    expect(leadPattern().notes).toEqual([]);
+    // No-op removals keep every identity (nothing re-syncs downstream).
+    const before = doc();
+    expect(removeNote("lead", "lead-1", 5, 2)).toBe(false);
+    expect(removeNote("lead", "nope", 5, 2)).toBe(false);
+    expect(doc()).toBe(before);
+  });
+
+  it("resizeNote snaps + clamps; unchanged or missing targets are no-ops", () => {
+    addNote("lead", "lead-1", { degree: 4, start: 0, length: 2 });
+    expect(resizeNote("lead", "lead-1", 4, 0, 6.4)).toBe(true); // → 6.5
+    expect(leadPattern().notes[0].length).toBe(6.5);
+    expect(resizeNote("lead", "lead-1", 4, 0, 6.5)).toBe(false); // unchanged
+    expect(resizeNote("lead", "lead-1", 4, 0, -3)).toBe(true); // → clamp 0.25
+    expect(leadPattern().notes[0].length).toBe(0.25);
+    expect(resizeNote("lead", "lead-1", 9, 0, 3)).toBe(false); // no such note
+  });
+
+  it("note edits coalesce per note:<lane>:<pattern>; undo restores pre-gesture", () => {
+    vi.useFakeTimers({ toFake: ["performance"] });
+    addNote("lead", "lead-1", { degree: 3, start: 0, length: 2 });
+    resizeNote("lead", "lead-1", 3, 0, 4);
+    resizeNote("lead", "lead-1", 3, 0, 8);
+    expect(leadPattern().notes).toEqual([{ degree: 3, start: 0, length: 8 }]);
+    undo();
+    expect(leadPattern().notes).toEqual([]); // whole gesture = one step
+    expect(canUndo()).toBe(false);
+
+    // A different pattern is a different family → separate undo entry.
+    addNote("lead", "lead-1", { degree: 3, start: 0, length: 2 });
+    addNote("bass", "bass-1", { degree: 0, start: 0, length: 2 });
+    expect(canUndo()).toBe(true);
+    undo();
+    expect(
+      doc().patterns.bass[0].kind === "pitched"
+        ? doc().patterns.bass[0].notes
+        : [],
+    ).toEqual([]);
+  });
+
+  it("note edits only touch the target pattern (pattern-scoped, unlike toggles)", () => {
+    const second = addPattern("lead", 1, "B");
+    addNote("lead", "lead-1", { degree: 0, start: 0, length: 3 });
+    const b = doc().patterns.lead.find((p) => p.id === second)!;
+    expect(b.kind === "pitched" ? b.notes : []).toEqual([]);
   });
 });
 

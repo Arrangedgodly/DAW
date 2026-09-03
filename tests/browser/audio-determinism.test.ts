@@ -159,6 +159,70 @@ describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
   );
 });
 
+/**
+ * SC-2 (iteration 2): per-note lengths are REAL durations in the render — a
+ * note sounds for length × secondsPerStep and releases at that boundary
+ * (per-sample ADSR hold), independent of the lane gate (which is only the
+ * single-click default). Proven through offline ONSET/OFFSET ENERGY WINDOWS:
+ * one 2-step note at step 0 and one 8-step note at step 4 (lead lane only,
+ * preset-lead-1: attack 1 ms, sustain 0.8, release 50 ms, no FX) — the gaps
+ * between/after the notes must be silent, and the 8-step note must still be
+ * sounding a full 3+ steps beyond any gate-length interpretation.
+ */
+describe("SC-2 note-length engine — sustained notes via energy windows", () => {
+  const SR = EXPORT_SAMPLE_RATE;
+
+  function rms(ch: Float32Array, fromSec: number, toSec: number): number {
+    const from = Math.round(fromSec * SR);
+    const to = Math.round(toSec * SR);
+    let sum = 0;
+    for (let i = from; i < to; i++) sum += ch[i] * ch[i];
+    return Math.sqrt(sum / (to - from));
+  }
+
+  it(
+    "a ≥2-step note plays sustained: onset/offset land at the note boundaries",
+    { timeout: 90000 },
+    async () => {
+      const doc = projectPlain();
+      // Replace the lead content: 2-step note @0, 8-step note @4 (degree 2).
+      // Lane gate stays at its default (2 steps) — irrelevant to durations.
+      const lead = doc.patterns.lead[0];
+      if (lead.kind !== "pitched") throw new Error("expected pitched lead");
+      lead.notes = [
+        { degree: 0, start: 0, length: 2 },
+        { degree: 2, start: 4, length: 8 },
+      ];
+      // Nothing else sounds (projectPlain puts drums on 0/4/8/12 — clear it).
+      const drums = doc.patterns.drums[0];
+      drums.steps.kick = new Array(16).fill(false);
+
+      const result = await renderProjectToBuffer(doc);
+      expect(result.loopSamples).toBe(1 * 4 * ((SR * 60) / 120)); // 1 bar
+      const ch = result.channels[0];
+
+      // Onset 1 at t=0: energy present through the 2-step hold.
+      expect(rms(ch, 0.0, 0.2)).toBeGreaterThan(0.02);
+      // Offset 1 at t=2 steps (0.25 s) + 50 ms release: gap is silent.
+      expect(rms(ch, 0.35, 0.48)).toBeLessThan(1e-4);
+      // Onset 2 at t=4 steps (0.5 s): energy starts exactly there.
+      expect(rms(ch, 0.5, 0.6)).toBeGreaterThan(0.02);
+      // SUSTAINED: at 3.2–7.2 steps in (0.8–1.4 s) the 8-step note still
+      // sounds — a gate-length (2-step) interpretation would be silent here.
+      expect(rms(ch, 0.8, 1.4)).toBeGreaterThan(0.02);
+      // Offset 2 at t=12 steps (1.5 s) + release: loop tail is silent.
+      expect(rms(ch, 1.62, 1.98)).toBeLessThan(1e-4);
+
+      // The two channels carry the same mono sum (worklet writes all chans).
+      for (let i = 0; i < result.loopSamples; i++) {
+        if (result.channels[1][i] !== ch[i]) {
+          expect.fail(`channel divergence at sample ${i}`);
+        }
+      }
+    },
+  );
+});
+
 describe("HW-2 cross-config sample-rate stability (44100 law)", () => {
   it(
     "render path always requests 2ch @ 44100 from its context factory",

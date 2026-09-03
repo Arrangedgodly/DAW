@@ -5,6 +5,13 @@
  * time VoiceNoteOnEvents (times are loop-relative seconds; the transport adds
  * its timeline offset). This is the ONLY way patterns become sound; the same
  * compiled list feeds online playback and offline renders (IM-5 parity).
+ *
+ * SC-2 (iteration 2): pitched note durations come from the v2 note model —
+ * each note sounds `length × secondsPerStep(bpm)` (musical time, 0.25-step
+ * grid). The lane `gate` no longer scales pitched holds; it is only the
+ * single-click default length (and the drums one-shot gate). The voice's
+ * per-sample ADSR releases exactly at the hold boundary (worklet v.hold),
+ * so the release lands at the note-length boundary with sample accuracy.
  */
 
 import { type GrooveOptions, secondsPerStep, timeAtStep } from "./time";
@@ -14,20 +21,17 @@ import {
   type VoicePreset,
   noteParamsFor,
 } from "./presets";
-import {
-  DRUM_PIECES,
-  type LaneGate,
-  type Pattern,
-  type PitchedPattern,
-  pitchedPatternView,
-  resolveGateSteps,
-} from "../document/schema";
+import { DRUM_PIECES, type LaneGate, type Pattern } from "../document/schema";
 import { type EffectiveScale, degreeToMidi } from "../document/scales";
 
 export interface LaneCompileInput {
   readonly pattern: Pattern;
   /** Pitched lanes: the lane preset. Drum pattern: the kit. */
   readonly preset: VoicePreset | DrumKit;
+  /**
+   * Drums: the one-shot gate. Pitched: the single-click default note length
+   * only — durations come from `note.length` (SC-2 law), never from the gate.
+   */
   readonly gate: LaneGate;
   readonly groove: GrooveOptions;
   /** Required for pitched patterns: resolves degree → midi. */
@@ -84,37 +88,29 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
     const octaveBase = p.pitchRange?.octaveBase ?? 4;
     const stack = input.stackChord === true;
     const degrees = stack ? [0, 2, 4] : [0];
-    // SC-1 compatibility view: v2 notes project back onto the v1 cell model,
-    // so this sustain-walk law (and its exact gate + sustain duration) is
-    // unchanged from v0 for every migrated document. SC-2 replaces this with
-    // direct note-length consumption.
-    const gateSteps = resolveGateSteps(gate, groove.bpm);
-    for (const row of pitchedPatternView(pattern as PitchedPattern, gateSteps)
-      .rows) {
-      const steps = row.steps;
-      for (let step = 0; step < steps.length; step++) {
-        const cell = steps[step];
-        if (cell !== 1) continue;
-        // gate + one extra step per following sustain marker (cell 2)
-        let sustain = 0;
-        while (
-          step + 1 + sustain < steps.length &&
-          steps[step + 1 + sustain] === 2
-        ) {
-          sustain++;
-        }
-        const hold = gateSec + sustain * stepSec;
-        for (const off of degrees) {
-          const midi = degreeToMidi(scale, row.degree + off, octaveBase);
-          events.push(
-            noteParamsFor(p, {
-              time: timeAtStep(step, groove),
-              midi,
-              holdSeconds: hold,
-              seedSalt: step * 16 + row.degree + off,
-            }),
-          );
-        }
+    // SC-2: v2 notes are consumed NATIVELY — hold = note.length × step
+    // seconds (musical time). The lane gate is ONLY the single-click default
+    // length; changing it no longer changes how long existing notes sound.
+    // The v0 sustain-marker walk is retired: a note's length IS its duration,
+    // even when it runs past the pattern end (the v0 gate-overhang law).
+    // Notes on degrees outside the pattern's row manifest stay unplayed
+    // (v1: no row existed to carry them).
+    const manifest = new Set(pattern.rowDegrees);
+    for (const note of pattern.notes) {
+      if (!manifest.has(note.degree)) continue;
+      const hold = note.length * stepSec;
+      for (const off of degrees) {
+        const midi = degreeToMidi(scale, note.degree + off, octaveBase);
+        events.push(
+          noteParamsFor(p, {
+            time: timeAtStep(note.start, groove),
+            midi,
+            holdSeconds: hold,
+            // Same salt law as v0 (start/degree identifiers), so noise-carrying
+            // presets keep their per-note seeds bit-identically.
+            seedSalt: note.start * 16 + note.degree + off,
+          }),
+        );
       }
     }
   }

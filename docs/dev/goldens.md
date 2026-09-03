@@ -71,6 +71,18 @@ refresh. If you add a NEW golden, add its note in the same commit.
   project-v1` and the render/export fingerprints — the v2 compat view
   reproduces v0 cell semantics exactly, so export/render bytes are unchanged
   (verified: zero DRIFT warnings, MIDI golden hash untouched).
+- **2026-09-02 — SC-2 (note-length engine; NOTHING regenerated).** The
+  compiler/MIDI exporter switched from the SC-1 compat view to NATIVE v2 note
+  consumption (hold = length × secondsPerStep; the plan explicitly sanctioned
+  render/export fingerprint drift for this task). Drift did NOT materialize:
+  every golden project carries gate-length notes (no gate-vs-length
+  divergence, no seconds-gate lanes), where the native law computes
+  byte-identical events. Verified ×2 full browser runs: render fp
+  `e87ae0ab…`, wav fp `3eff5771…` both match manifest, and the hard MIDI
+  golden `midi/reference-project-v1` passes untouched. manifest.json
+  unchanged in SC-2. (Audible divergence exists only for documents whose
+  lane gate was edited after their notes were authored — non-golden
+  territory, pinned instead by the SC-2 compile/store/browser tests.)
 
 ## Review discipline
 

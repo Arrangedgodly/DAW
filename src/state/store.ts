@@ -7,8 +7,9 @@
  *
  * History coalescing (documented decision): rapid same-family edits within a
  * 350 ms trailing window collapse into ONE undo step. Families: all cell
- * toggles ("toggle" — grid painting), per-lane gate drags ("gate:<lane>"),
- * per-knob transport drags ("transport:<field>"). The first edit of a family
+ * toggles ("toggle" — grid painting), note edits ("note:<lane>:<pattern>",
+ * SC-2), per-lane gate drags ("gate:<lane>"), per-knob transport drags
+ * ("transport:<field>"). The first edit of a family
  * (or after a >350 ms gap, or after any undo/redo) records normally; follow-up
  * edits in the window skip the history push, so undo jumps back to the state
  * before the gesture instead of mid-stroke. Implementation: a one-shot flag
@@ -29,6 +30,10 @@ import {
   type LaneGate,
   type LaneId,
   MAX_FX_PER_LANE,
+  MAX_NOTE_LENGTH,
+  MIN_NOTE_LENGTH,
+  NOTE_LENGTH_GRANULARITY,
+  type Note,
   type Pattern,
   type PatternBars,
   type PitchedPattern,
@@ -255,6 +260,128 @@ export function togglePitchedCell(
     );
   }
   return { turnedOn };
+}
+
+// ---------------------------------------------------------------------------
+// Note-edit actions (SC-2) — the editing surface for explicit v2 notes. The
+// click UI keeps `togglePitchedCell` (v0 law) until IN-2's drag gestures land;
+// these actions are pattern-scoped (drag edits the pattern being displayed)
+// and coalesce per `note:<lane>:<pattern>` so one gesture = one undo step.
+// ---------------------------------------------------------------------------
+
+/**
+ * Rewrite one pitched pattern immutably. The patch returns the SAME pattern
+ * object when it would change nothing; a fully no-op edit yields null so the
+ * caller can skip the commit (no history entry, identities preserved).
+ */
+function withPitchedPattern(
+  doc: ProjectDocument,
+  lane: Exclude<LaneId, "drums">,
+  patternId: string,
+  patch: (pattern: PitchedPattern) => PitchedPattern,
+): ProjectDocument | null {
+  let changed = false;
+  const patterns = doc.patterns[lane].map((p) => {
+    if (p.kind !== "pitched" || p.id !== patternId) return p;
+    const next = patch(p);
+    if (next !== p) changed = true;
+    return next;
+  });
+  return changed
+    ? { ...doc, patterns: { ...doc.patterns, [lane]: patterns } }
+    : null;
+}
+
+/** Snap a gesture length onto the note grid, clamped to the schema bounds. */
+function snapNoteLength(length: number): number {
+  const snapped =
+    Math.round(length / NOTE_LENGTH_GRANULARITY) * NOTE_LENGTH_GRANULARITY;
+  return Math.min(MAX_NOTE_LENGTH, Math.max(MIN_NOTE_LENGTH, snapped));
+}
+
+/**
+ * Add (or replace, when a note is already anchored at the same degree+start)
+ * one explicit note in the target pattern. The degree must exist in the
+ * pattern's row manifest — a note with no visible row would neither display
+ * nor sound (the same law the compiler applies). Returns false (store
+ * untouched) when the pattern or row does not exist. Invalid start/shape
+ * values throw through validation with the store untouched.
+ */
+export function addNote(
+  lane: Exclude<LaneId, "drums">,
+  patternId: string,
+  note: Note,
+): boolean {
+  const doc = docStore.getState().doc;
+  const next = withPitchedPattern(doc, lane, patternId, (p) => {
+    if (!p.rowDegrees.includes(note.degree)) return p;
+    const snapped = { ...note, length: snapNoteLength(note.length) };
+    const notes = p.notes.filter(
+      (n) => !(n.degree === note.degree && n.start === note.start),
+    );
+    notes.push(snapped);
+    notes.sort((a, b) => a.degree - b.degree || a.start - b.start);
+    return { ...p, notes };
+  });
+  if (!next) return false; // no pattern / degree outside the manifest
+  commit(next, `note:${lane}:${patternId}`);
+  return true;
+}
+
+/**
+ * Remove the note anchored at (degree, start) in the target pattern. Returns
+ * false (store untouched) when no such note exists.
+ */
+export function removeNote(
+  lane: Exclude<LaneId, "drums">,
+  patternId: string,
+  degree: number,
+  start: number,
+): boolean {
+  const doc = docStore.getState().doc;
+  const next = withPitchedPattern(doc, lane, patternId, (p) => {
+    if (!p.notes.some((n) => n.degree === degree && n.start === start)) {
+      return p;
+    }
+    return {
+      ...p,
+      notes: p.notes.filter((n) => !(n.degree === degree && n.start === start)),
+    };
+  });
+  if (!next) return false;
+  commit(next, `note:${lane}:${patternId}`);
+  return true;
+}
+
+/**
+ * Set the length of the note anchored at (degree, start) — the resize
+ * primitive for edge-drag and keyboard resize (IN-2). The length is snapped
+ * to the 0.25-step grid and clamped to the schema bounds (gesture-friendly;
+ * validation would reject off-grid values). Returns false (store untouched)
+ * when no such note exists or the snapped length is unchanged.
+ */
+export function resizeNote(
+  lane: Exclude<LaneId, "drums">,
+  patternId: string,
+  degree: number,
+  start: number,
+  length: number,
+): boolean {
+  const doc = docStore.getState().doc;
+  const next = withPitchedPattern(doc, lane, patternId, (p) => {
+    let touched = false;
+    const snapped = snapNoteLength(length);
+    const notes = p.notes.map((n) => {
+      if (n.degree !== degree || n.start !== start) return n;
+      if (n.length === snapped) return n;
+      touched = true;
+      return { ...n, length: snapped };
+    });
+    return touched ? { ...p, notes } : p;
+  });
+  if (!next) return false;
+  commit(next, `note:${lane}:${patternId}`);
+  return true;
 }
 
 /**

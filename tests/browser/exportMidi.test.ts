@@ -9,9 +9,10 @@
  *   format 1; 5 tracks (tempo/cue + 4 lanes); tempo = project BPM; drums on
  *   channel 9 (zero-based) with GM note numbers at exact 16th ticks
  *   (16th = PPQ/4 = 120 ticks at PPQ 480); pitched pitches equal the expected
- *   scale-degree resolution; durations come from gates (+ sustain markers);
- *   cue markers survive as marker meta events (asserted via midi-file's
- *   parseMidi, the runtime dep, since @tonejs/midi folds meta differently).
+ *   scale-degree resolution; durations come from note lengths (SC-2: exact on
+ *   the 0.25-step grid — parse-back equality); cue markers survive as marker
+ *   meta events (asserted via midi-file's parseMidi, the runtime dep, since
+ *   @tonejs/midi folds meta differently).
  */
 
 import { describe, expect, it } from "vitest";
@@ -133,6 +134,43 @@ describe("MF-5 MIDI export — third-party parse-back (@tonejs/midi)", () => {
     expect(lead.notes[0].ticks).toBe(8 * TICKS_PER_STEP);
     expect(lead.notes[0].durationTicks).toBe(2 * TICKS_PER_STEP);
     expect(lead.notes[0].velocity).toBeCloseTo(96 / 127, 4);
+  });
+
+  it("SC-2: parse-back durations EQUAL note lengths (fractional + sustained)", async () => {
+    // A hand-authored v2 project: fractional 0.25-grid lengths, a long
+    // sustained note running past its neighbors, a chords-lane triad. The
+    // independent parser must read back exactly length × TICKS_PER_STEP.
+    const doc = referenceMidiProject();
+    const withNotes = (
+      lane: "bass" | "chords" | "lead",
+      notes: readonly { degree: number; start: number; length: number }[],
+    ) => {
+      doc.patterns[lane] = doc.patterns[lane].map((p) =>
+        p.kind === "pitched" ? { ...p, notes } : p,
+      );
+    };
+    withNotes("bass", [
+      { degree: 0, start: 0, length: 2.5 },
+      { degree: 0, start: 8, length: 15 },
+    ]);
+    withNotes("chords", [{ degree: 0, start: 0, length: 12 }]);
+    withNotes("lead", [{ degree: 3, start: 4, length: 0.25 }]);
+
+    const cap = captureSeam();
+    const result = exportMidi(doc, { seam: cap.seam });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
+    const midi = new Midi(bytes.slice().buffer);
+
+    const bass = midi.tracks[1].notes.sort((a, b) => a.ticks - b.ticks);
+    expect(bass.map((n) => n.durationTicks)).toEqual([
+      2.5 * TICKS_PER_STEP,
+      15 * TICKS_PER_STEP,
+    ]);
+    for (const n of midi.tracks[2].notes)
+      expect(n.durationTicks).toBe(12 * TICKS_PER_STEP);
+    expect(midi.tracks[3].notes[0].durationTicks).toBe(0.25 * TICKS_PER_STEP);
   });
 
   it("cue markers survive as marker meta events in track 0", async () => {
