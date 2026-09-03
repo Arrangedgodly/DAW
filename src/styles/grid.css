@@ -263,6 +263,47 @@
   box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent);
 }
 
+/* IN-2 drag preview: ONE dashed note spanning the dragged segments — the
+ * euclid preview language (never the committed on-state; zero store writes
+ * until release). */
+.note-run.is-drag-preview {
+  background: color-mix(in srgb, var(--lane-hue) 25%, var(--color-ground));
+  border: 1px dashed var(--lane-hue);
+  box-shadow: none;
+}
+
+/* IN-2 right-edge resize hit zone: ±5px around the note's end, pointer-only
+ * (the keyboard equivalent is +/- on the focused cell — spec v2; the zone is
+ * aria-hidden inside the note-runs layer, never a tab stop). */
+.note-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -5px;
+  width: 10px;
+  cursor: ew-resize;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.note-edge::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  right: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-ground) 45%, var(--lane-hue));
+}
+
+/* View-only quadrants: no resize affordance (not editable — E2's no-op law
+ * for pointer interaction, matching the grid's ignored clicks). */
+.lane-floor[data-editing="false"] .note-edge {
+  pointer-events: none;
+  cursor: default;
+}
+
 /* Playhead light bar — compositor-only movement (transform). The horizontal
  * offset (label + fill gutter) is pinned INLINE by the renderer from its
  * geometry options (LY-1); this is only the shape. */

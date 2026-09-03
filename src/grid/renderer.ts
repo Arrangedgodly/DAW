@@ -20,13 +20,19 @@
  * (`setEditable`): view-only grids keep rendering live notes + playhead but
  * expose NO tab stops, NO focusable descendants, and ignore activation —
  * the quadrant's click handler selects instead (never a focus trap, E2).
+ *
+ * IN-2 (drag notes): pitched grids render NOTES natively — one `.note-run`
+ * bar per note with a right-EDGE hit zone. Pointer gestures (drag-create from
+ * an empty cell, edge-drag resize, drums paint) preview locally (zero store
+ * writes — the euclid `data-preview` language) and commit once on release;
+ * pointer capture keeps up-outside/pointercancel deliverable (the systematic
+ * edge sweep is IN-4's). Keyboard equivalents (spec v2): `+`/`-` ±1 step,
+ * Shift ±0.25 resize the focused note; Delete/Backspace removes it; resize
+ * commits announce `LENGTH <len> ST` through a local aria-live span from BOTH
+ * the pointer and the keyboard path (E4/E5 parity).
  */
 
-import type {
-  DrumPattern,
-  LaneId,
-  PitchedPatternView,
-} from "../document/schema";
+import type { DrumPattern, LaneId } from "../document/schema";
 import {
   type PlayheadOptions,
   playheadX,
@@ -39,6 +45,24 @@ import {
   isLaneMoveKey,
   nextCell,
 } from "./keynav";
+import {
+  type CreateDrag,
+  type PaintDrag,
+  type ResizeDrag,
+  type Span,
+  createDragBegin,
+  createDragLength,
+  createDragMove,
+  lengthAnnouncement,
+  paintDragBegin,
+  paintDragMove,
+  paintDragRange,
+  focusedSpanIndex,
+  resizeBy,
+  resizeDragBegin,
+  resizeDragCommit,
+  resizeDragMove,
+} from "../interaction/drag";
 
 /** Default geometry = the v0 full-floor editing size. */
 export const GRID_CELL_PX = 24;
@@ -46,6 +70,8 @@ export const GRID_GAP_PX = 2;
 export const GRID_LABEL_PX = 72;
 /** PX-3 fill-rail slot width (drums rows only). */
 export const GRID_FILL_RAIL_PX = 152;
+/** IN-2: right-edge resize hit-zone width (px, each side of the edge). */
+export const NOTE_EDGE_HIT_PX = 5;
 
 export interface PlayheadFrame {
   readonly playing: boolean;
@@ -59,6 +85,17 @@ export interface GridRendererHost {
   readonly readFrame: () => PlayheadFrame | null;
   /** Reduced-motion gate (matchMedia) — the render loop must also honor it. */
   readonly prefersReducedMotion: () => boolean;
+}
+
+/**
+ * IN-2: what a pitched grid syncs — NOTES per rendered row (row order =
+ * opts.rowLabels; the owner already resolved degrees → rows). Lengths live on
+ * the 0.25-step grid and MAY overhang the pattern end (schema law, loops
+ * wrap).
+ */
+export interface PitchedNotesView {
+  readonly kind: "pitched";
+  readonly rows: ReadonlyArray<readonly Span[]>;
 }
 
 export interface DomGridRendererOptions {
@@ -102,6 +139,23 @@ export interface DomGridRendererOptions {
    * framework UI into `el` and owns that subtree's lifecycle.
    */
   readonly mountFillControl?: (row: number, el: HTMLElement) => void;
+  /** IN-2 (pitched): pointer drag created a note — owner commits + auditions. */
+  readonly onNoteCreate?: (row: number, start: number, length: number) => void;
+  /**
+   * IN-2 (pitched): note length committed (edge-drag release OR keyboard
+   * `+`/`-`) — owner resizes through the store; the renderer announces.
+   */
+  readonly onNoteResize?: (row: number, start: number, length: number) => void;
+  /** IN-2 (pitched): keyboard Delete/Backspace removed the focused note. */
+  readonly onNoteRemove?: (row: number, start: number) => void;
+  /**
+   * IN-2 (drums): drag painted hits — every cell in the swept range that was
+   * OFF at gesture start. The owner turns exactly these on (one gesture,
+   * coalesced undo).
+   */
+  readonly onDrumsPaint?: (
+    cells: ReadonlyArray<{ row: number; step: number }>,
+  ) => void;
 }
 
 export interface GridRenderer {
@@ -127,7 +181,7 @@ export interface GridRenderer {
   /** Recompute cached geometry (after resize / font load). */
   layout(): void;
   /** Push document pattern state (class toggles only). */
-  sync(pattern: DrumPattern | PitchedPatternView): void;
+  sync(pattern: DrumPattern | PitchedNotesView): void;
   /**
    * PX-3: paint a Euclidean PREVIEW overlay onto one row (dashed lane-hue
    * outline; never touches the committed on-state). Null clears the preview.
@@ -138,6 +192,25 @@ export interface GridRenderer {
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+/** One active pointer gesture (IN-2). */
+type Gesture =
+  | { kind: "create"; pointerId: number; drag: CreateDrag; moved: boolean }
+  | {
+      kind: "resize";
+      pointerId: number;
+      drag: ResizeDrag;
+      moved: boolean;
+      runEl: HTMLElement;
+    }
+  | {
+      kind: "paint";
+      pointerId: number;
+      drag: PaintDrag;
+      moved: boolean;
+      /** Steps OFF at gesture start ("row:step") — painting never erases. */
+      offCells: ReadonlySet<string>;
+    };
+
 /**
  * DOM/CSS-Grid default renderer. Builds the grid once (rows + cells + playhead
  * bar), then only mutates classes, one transform and data attributes.
@@ -146,6 +219,8 @@ export class DomGridRenderer implements GridRenderer {
   private readonly opts: DomGridRendererOptions;
   private readonly cells: HTMLElement[][] = [];
   private readonly runLayers: (HTMLElement | null)[] = [];
+  /** IN-2: committed note spans per row (drives runs, cells, names, keys). */
+  private rowSpans: readonly (readonly Span[])[] = [];
   private playheadEl: HTMLElement | null = null;
   private raf = 0;
   private lastQuantized: number | null = null;
@@ -161,6 +236,15 @@ export class DomGridRenderer implements GridRenderer {
   private readonly stepWidthPx: number;
   private readonly playheadLeftPx: number;
   private gridEl: HTMLElement | null = null;
+  /** IN-2 announcement span (E4 — the gate-stepper value pattern). */
+  private lengthLiveEl: HTMLElement | null = null;
+  /** IN-2 active pointer gesture; null = idle. */
+  private gesture: Gesture | null = null;
+  /** IN-2 preview bar for a create-drag (removed on end). */
+  private previewRunEl: HTMLElement | null = null;
+  /** IN-2: swallow the click that follows a committed/cancelled gesture. */
+  private suppressClick = false;
+  private suppressClearTimer = 0;
 
   constructor(opts: DomGridRendererOptions) {
     this.opts = opts;
@@ -173,6 +257,7 @@ export class DomGridRenderer implements GridRenderer {
       : 0;
     this.playheadLeftPx = this.labelPx + fillPx;
     this.editable = opts.editable ?? true;
+    this.rowSpans = opts.rowLabels.map(() => []);
     this.build();
     this.loop();
   }
@@ -223,13 +308,15 @@ export class DomGridRenderer implements GridRenderer {
         // Beat shading: 4/4 grouping — odd beats read slightly raised.
         cell.dataset.beat = String(Math.floor(step / 4) % 2);
         cell.tabIndex = -1;
-        cell.setAttribute("aria-label", `${rowLabels[row]} step ${step + 1}`);
+        cell.setAttribute("aria-label", this.cellName(row, step));
         cellsEl.append(cell);
         rowCells.push(cell);
       }
       this.cells.push(rowCells);
 
-      // Sustained-note width layer (pitched only).
+      // Sustained-note layer (pitched only): one bar per note, each with a
+      // right-edge resize hit zone (IN-2). aria-hidden — keyboard resize
+      // happens from the focused CELL (spec v2), never from the bar.
       let runLayer: HTMLElement | null = null;
       if (this.opts.pitched) {
         runLayer = document.createElement("div");
@@ -268,6 +355,16 @@ export class DomGridRenderer implements GridRenderer {
     grid.append(body);
     container.append(grid);
 
+    // IN-2 E4: the local note-length announcement value span (gate-stepper
+    // pattern). OUTSIDE the role=grid element so the grid's required-children
+    // contract stays clean; NO aria-label (aria-prohibited-attr on live
+    // regions — the DA-2 toasts lesson).
+    const live = document.createElement("span");
+    live.className = "head-sr note-length-live";
+    live.setAttribute("aria-live", "polite");
+    container.append(live);
+    this.lengthLiveEl = live;
+
     // Roving tabindex seed: first cell (editable grids only — LY-1).
     const first = this.cells[0]?.[0];
     if (first && this.editable) {
@@ -279,6 +376,11 @@ export class DomGridRenderer implements GridRenderer {
 
     container.addEventListener("click", this.onClick);
     container.addEventListener("keydown", this.onKeyDown);
+    // IN-2 pointer gestures (capture-on-down keeps up-outside deliverable).
+    container.addEventListener("pointerdown", this.onPointerDown);
+    container.addEventListener("pointermove", this.onPointerMove);
+    container.addEventListener("pointerup", this.onPointerUp);
+    container.addEventListener("pointercancel", this.onPointerCancel);
     if (typeof window !== "undefined" && window.matchMedia) {
       this.reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
     }
@@ -287,6 +389,22 @@ export class DomGridRenderer implements GridRenderer {
   /** E3 (a11y §7): the grid's accessible name carries the edit state in text. */
   private gridAriaLabel(): string {
     return `${this.opts.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
+  }
+
+  /**
+   * E4 (a11y §7): the focused cell's name carries note state in text —
+   * anchor: `<row> step <n>, note starts, <len> steps`; spanned:
+   * `…, note continues`; empty: the v0 name.
+   */
+  private cellName(row: number, step: number): string {
+    const base = `${this.opts.rowLabels[row]} step ${step + 1}`;
+    if (!this.opts.pitched) return base;
+    const idx = focusedSpanIndex(this.rowSpans[row] ?? [], step);
+    if (idx < 0) return base;
+    const span = this.rowSpans[row][idx];
+    if (span.start === step)
+      return `${base}, note starts, ${String(span.length)} steps`;
+    return `${base}, note continues`;
   }
 
   // -- interface ----------------------------------------------------------
@@ -353,7 +471,10 @@ export class DomGridRenderer implements GridRenderer {
     this.lastQuantized = null;
   }
 
-  sync(pattern: DrumPattern | PitchedPatternView): void {
+  sync(pattern: DrumPattern | PitchedNotesView): void {
+    // A sync mid-gesture would fight the preview (external edit) — cancel the
+    // gesture cleanly first (preview cleared, nothing committed).
+    this.cancelGesture();
     if (pattern.kind === "drums") {
       const pieces = Object.keys(pattern.steps);
       for (let row = 0; row < this.cells.length; row++) {
@@ -365,15 +486,9 @@ export class DomGridRenderer implements GridRenderer {
       }
       return;
     }
+    this.rowSpans = pattern.rows;
     for (let row = 0; row < this.cells.length; row++) {
-      const patternRow = pattern.rows[row];
-      const rowCells = this.cells[row];
-      for (let step = 0; step < rowCells.length; step++) {
-        const cell = patternRow?.steps[step] ?? 0;
-        this.applyOn(rowCells[step], cell !== 0);
-        rowCells[step].dataset.sustain = cell === 2 ? "true" : "false";
-      }
-      this.syncRuns(row, patternRow?.steps ?? []);
+      this.syncPitchedRow(row);
     }
   }
 
@@ -391,8 +506,14 @@ export class DomGridRenderer implements GridRenderer {
     cancelAnimationFrame(this.raf);
     for (const timer of this.glowTimers) window.clearTimeout(timer);
     this.glowTimers.clear();
-    this.opts.container.removeEventListener("click", this.onClick);
-    this.opts.container.removeEventListener("keydown", this.onKeyDown);
+    if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
+    const { container } = this.opts;
+    container.removeEventListener("click", this.onClick);
+    container.removeEventListener("keydown", this.onKeyDown);
+    container.removeEventListener("pointerdown", this.onPointerDown);
+    container.removeEventListener("pointermove", this.onPointerMove);
+    container.removeEventListener("pointerup", this.onPointerUp);
+    container.removeEventListener("pointercancel", this.onPointerCancel);
   }
 
   // -- internals ------------------------------------------------------------
@@ -402,27 +523,57 @@ export class DomGridRenderer implements GridRenderer {
     cell.setAttribute("aria-selected", String(on));
   }
 
-  private syncRuns(row: number, steps: readonly number[]): void {
+  /** Render one pitched row from its committed spans: cells + bars + names. */
+  private syncPitchedRow(row: number): void {
+    const spans = this.rowSpans[row] ?? [];
+    const rowCells = this.cells[row];
+    for (let step = 0; step < rowCells.length; step++) {
+      const idx = focusedSpanIndex(spans, step);
+      const covering = idx >= 0;
+      const anchor = covering && spans[idx].start === step;
+      this.applyOn(rowCells[step], covering);
+      rowCells[step].dataset.sustain = String(covering && !anchor);
+      rowCells[step].setAttribute("aria-label", this.cellName(row, step));
+    }
+    this.renderRuns(row);
+  }
+
+  private renderRuns(row: number): void {
     const layer = this.runLayers[row];
     if (!layer) return;
     layer.replaceChildren();
-    for (let i = 0; i < steps.length; i++) {
-      if (steps[i] !== 1) continue;
-      let len = 1;
-      while (i + len < steps.length && steps[i + len] === 2) len++;
-      const run = document.createElement("div");
-      run.className = "note-run";
-      run.style.left = `calc(${i} * ${this.stepWidthPx}px)`;
-      run.style.width = `calc(${len} * ${this.stepWidthPx}px - ${this.gapPx}px)`;
-      layer.append(run);
-      i += len - 1;
+    for (const span of this.rowSpans[row] ?? []) {
+      layer.append(this.buildRun(row, span.start, span.length));
     }
+  }
+
+  private buildRun(row: number, start: number, length: number): HTMLElement {
+    const run = document.createElement("div");
+    run.className = "note-run";
+    run.style.left = `calc(${start} * ${this.stepWidthPx}px)`;
+    run.style.width = `calc(${length} * ${this.stepWidthPx}px - ${this.gapPx}px)`;
+    // IN-2 right-edge resize hit zone (keyboard equivalent = `+`/`-` keys —
+    // the zone itself is aria-hidden decoration, never a tab stop).
+    const edge = document.createElement("div");
+    edge.className = "note-edge";
+    edge.dataset.row = String(row);
+    edge.dataset.start = String(start);
+    edge.dataset.length = String(length);
+    run.append(edge);
+    return run;
   }
 
   private onClick = (e: Event): void => {
     // View-only quadrants: clicks select the QUADRANT (LaneGrid wires that on
     // the floor); the grid itself never toggles.
     if (!this.editable) return;
+    if (this.suppressClick) {
+      // A committed/cancelled pointer gesture — the trailing click must not
+      // re-activate the anchor cell.
+      this.suppressClick = false;
+      if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
+      return;
+    }
     const target = e.target as HTMLElement;
     if (!target.classList.contains("cell")) return;
     this.activate(target);
@@ -464,6 +615,29 @@ export class DomGridRenderer implements GridRenderer {
       return;
     }
 
+    // IN-2 note keys — PITCHED only (drums keep the one-shot law, I2-4:
+    // +/-/Delete do nothing there). Browser zoom (Ctrl/Cmd +/-) is on the
+    // deliberate exclusion list — never intercepted with a modifier held.
+    if (this.opts.pitched && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        this.keyResize(
+          pos.row,
+          pos.step,
+          e.key === "+" || e.key === "=",
+          e.shiftKey ? 0.25 : 1,
+        );
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        const spans = this.rowSpans[pos.row] ?? [];
+        const idx = focusedSpanIndex(spans, pos.step);
+        if (idx >= 0) this.opts.onNoteRemove?.(pos.row, spans[idx].start);
+        return;
+      }
+    }
+
     // Lane moves (PageUp/PageDown, Ctrl+↑/↓, [ ]) — host coordinates.
     const laneDir = isLaneMoveKey(e.key, e.ctrlKey || e.metaKey);
     if (laneDir !== null) {
@@ -484,6 +658,310 @@ export class DomGridRenderer implements GridRenderer {
       this.moveFocus(next.row, next.step);
     }
   };
+
+  /** Keyboard resize of the focused note (spec v2 ±1 / Shift ±0.25). */
+  private keyResize(
+    row: number,
+    step: number,
+    grow: boolean,
+    magnitude: number,
+  ): void {
+    const spans = this.rowSpans[row] ?? [];
+    const idx = focusedSpanIndex(spans, step);
+    if (idx < 0) return;
+    const span = spans[idx];
+    const next = resizeBy(span.length, grow ? magnitude : -magnitude);
+    if (next === span.length) return; // clamped no-op at 0.25 / 128
+    this.announceLength(next);
+    this.opts.onNoteResize?.(row, span.start, next);
+  }
+
+  /** E4/E5: the ONE resize announcement text, from every input path. */
+  private announceLength(length: number): void {
+    if (this.lengthLiveEl)
+      this.lengthLiveEl.textContent = lengthAnnouncement(length);
+  }
+
+  // -- IN-2 pointer gestures -------------------------------------------------
+
+  private onPointerDown = (e: PointerEvent): void => {
+    if (!this.editable || this.gesture || !e.isPrimary) return;
+    this.suppressClick = false; // a fresh press always re-arms normal clicks
+    const target = e.target as HTMLElement;
+
+    // Edge hit zone → resize gesture (pitched only).
+    const edge = target.closest<HTMLElement>(".note-edge");
+    if (edge && this.opts.pitched) {
+      const row = Number(edge.dataset.row ?? "-1");
+      const start = Number(edge.dataset.start);
+      const length = Number(edge.dataset.length);
+      const spans = this.rowSpans[row] ?? [];
+      const span = spans.find((s) => s.start === start && s.length === length);
+      if (span && this.opts.onNoteResize) {
+        this.gesture = {
+          kind: "resize",
+          pointerId: e.pointerId,
+          drag: resizeDragBegin(row, span),
+          moved: false,
+          runEl: edge.parentElement as HTMLElement,
+        };
+        this.capture(e);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    const cell = target.closest<HTMLElement>(".cell");
+    if (!cell) return;
+    const row = Number(cell.dataset.row);
+    const step = Number(cell.dataset.step);
+    if (this.opts.pitched) {
+      // Only an EMPTY cell starts a drag-create; covered cells fall through
+      // to the click law (remove at the anchor / trim mid-span).
+      if (focusedSpanIndex(this.rowSpans[row] ?? [], step) >= 0) return;
+      if (!this.opts.onNoteCreate) return;
+      this.gesture = {
+        kind: "create",
+        pointerId: e.pointerId,
+        drag: createDragBegin(row, step, this.opts.steps),
+        moved: false,
+      };
+    } else {
+      if (!this.opts.onDrumsPaint) return;
+      this.gesture = {
+        kind: "paint",
+        pointerId: e.pointerId,
+        drag: paintDragBegin(row, step, this.opts.steps),
+        moved: false,
+        offCells: this.snapshotOffCells(),
+      };
+    }
+    this.capture(e);
+    e.preventDefault();
+  };
+
+  /** Cells currently off, keyed "row:step" — the paint commit set. */
+  private snapshotOffCells(): Set<string> {
+    const off = new Set<string>();
+    for (let row = 0; row < this.cells.length; row++) {
+      const rowCells = this.cells[row];
+      for (let step = 0; step < rowCells.length; step++) {
+        if (rowCells[step].dataset.on !== "true") off.add(`${row}:${step}`);
+      }
+    }
+    return off;
+  }
+
+  private capture(e: PointerEvent): void {
+    // Pointer capture keeps pointerup/pointercancel deliverable when the
+    // pointer leaves the grid (up-outside commits; cancel cancels). Synthetic
+    // test events carry no active pointer — capture throws and we proceed
+    // uncaptured (listeners on the container still track in-grid moves).
+    try {
+      this.opts.container.setPointerCapture(e.pointerId);
+    } catch {
+      /* uncaptured — IN-4 owns the systematic edge sweep */
+    }
+  }
+
+  private releaseCapture(pointerId: number): void {
+    try {
+      this.opts.container.releasePointerCapture(pointerId);
+    } catch {
+      /* already released */
+    }
+  }
+
+  /** The pointer's step-space position on one row (x only; gestures are row-locked). */
+  private pointerStepFloat(e: PointerEvent, row: number): number {
+    const cellsEl = this.cells[row]?.[0]?.parentElement;
+    if (!cellsEl) return 0;
+    const rect = cellsEl.getBoundingClientRect();
+    return (e.clientX - rect.left) / this.stepWidthPx;
+  }
+
+  private onPointerMove = (e: PointerEvent): void => {
+    const g = this.gesture;
+    if (!g || e.pointerId !== g.pointerId) return;
+    if (g.kind === "create") {
+      const next = createDragMove(
+        g.drag,
+        Math.floor(this.pointerStepFloat(e, g.drag.row)),
+      );
+      if (next !== g.drag) {
+        g.drag = next;
+        g.moved = true;
+        this.previewCreate(g.drag);
+      }
+    } else if (g.kind === "resize") {
+      const next = resizeDragMove(g.drag, this.pointerStepFloat(e, g.drag.row));
+      if (next !== g.drag) {
+        const extended = next.length > g.drag.length;
+        g.drag = next;
+        g.moved = true;
+        this.previewResize(g.drag, g.runEl, extended);
+      }
+    } else {
+      const next = paintDragMove(
+        g.drag,
+        Math.floor(this.pointerStepFloat(e, g.drag.row)),
+      );
+      if (next !== g.drag) {
+        g.drag = next;
+        g.moved = true;
+        this.previewPaint(g.drag, g.offCells);
+      }
+    }
+  };
+
+  private onPointerUp = (e: PointerEvent): void => {
+    const g = this.gesture;
+    if (!g || e.pointerId !== g.pointerId) return;
+    this.releaseCapture(g.pointerId);
+    this.gesture = null;
+    if (g.kind === "create") {
+      this.clearCreatePreview();
+      const length = createDragLength(g.drag);
+      if (length !== null) {
+        // A real drag committed — swallow the trailing click (click-parity
+        // with v0: roving follows the interaction).
+        this.armClickSuppression();
+        const anchor = this.cells[g.drag.row]?.[g.drag.start];
+        if (anchor) this.setRoving(anchor);
+        this.opts.onNoteCreate?.(g.drag.row, g.drag.start, length);
+      }
+      // No drag → the natural click event fires → single-click law (gate
+      // default) through onClick/activate.
+    } else if (g.kind === "resize") {
+      const length = resizeDragCommit(g.drag);
+      this.clearResizePreview(g.drag.row);
+      this.armClickSuppression();
+      if (length !== null) {
+        this.announceLength(length);
+        this.opts.onNoteResize?.(g.drag.row, g.drag.start, length);
+      }
+    } else {
+      this.clearPaintPreview();
+      const cells: Array<{ row: number; step: number }> = [];
+      if (g.moved) {
+        const range = paintDragRange(g.drag);
+        for (let step = range.from; step <= range.to; step++) {
+          if (g.offCells.has(`${g.drag.row}:${step}`))
+            cells.push({ row: g.drag.row, step });
+        }
+      }
+      if (cells.length > 0) {
+        this.armClickSuppression();
+        this.opts.onDrumsPaint?.(cells);
+      }
+      // No move → the natural click fires → single-click toggle (v0 law).
+    }
+  };
+
+  private onPointerCancel = (e: PointerEvent): void => {
+    const g = this.gesture;
+    if (!g || e.pointerId !== g.pointerId) return;
+    this.releaseCapture(g.pointerId);
+    this.cancelGesture();
+  };
+
+  /** Clear any active gesture + its preview; commit NOTHING (IN-4 law). */
+  private cancelGesture(): void {
+    const g = this.gesture;
+    this.gesture = null;
+    if (!g) return;
+    if (g.kind === "create") this.clearCreatePreview();
+    else if (g.kind === "resize") this.clearResizePreview(g.drag.row);
+    else this.clearPaintPreview();
+  }
+
+  private armClickSuppression(): void {
+    this.suppressClick = true;
+    // The trailing click (if any) arrives in the same task as pointerup; the
+    // timer is the belt-and-braces expiry so a click that never comes cannot
+    // eat a later, genuine click.
+    if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
+    this.suppressClearTimer = window.setTimeout(() => {
+      this.suppressClick = false;
+    }, 0);
+  }
+
+  // Previews — renderer-local only (zero store writes; euclid's language).
+
+  private previewCreate(drag: CreateDrag): void {
+    this.clearCreatePreview();
+    const rowCells = this.cells[drag.row];
+    if (!rowCells) return;
+    for (let step = drag.start; step <= drag.end; step++) {
+      rowCells[step]?.setAttribute("data-preview", "true");
+    }
+    const layer = this.runLayers[drag.row];
+    if (layer && drag.end > drag.start) {
+      const bar = this.buildRun(
+        drag.row,
+        drag.start,
+        drag.end - drag.start + 1,
+      );
+      bar.classList.add("is-drag-preview");
+      layer.append(bar);
+      this.previewRunEl = bar;
+    }
+  }
+
+  private clearCreatePreview(): void {
+    this.previewRunEl?.remove();
+    this.previewRunEl = null;
+    this.clearAllCellPreviews();
+  }
+
+  private previewResize(
+    drag: ResizeDrag,
+    runEl: HTMLElement,
+    extended: boolean,
+  ): void {
+    runEl.style.width = `calc(${drag.length} * ${this.stepWidthPx}px - ${this.gapPx}px)`;
+    if (extended) {
+      // Dashed outline on the cells the extension newly covers (the bar
+      // itself is the primary preview; shrink previews stay bar-only).
+      const rowCells = this.cells[drag.row];
+      const oldEnd = drag.start + drag.from;
+      for (
+        let step = Math.max(0, Math.ceil(oldEnd));
+        step < drag.start + drag.length && step < rowCells.length;
+        step++
+      ) {
+        rowCells[step]?.setAttribute("data-preview", "true");
+      }
+    }
+  }
+
+  private clearResizePreview(row: number): void {
+    this.clearAllCellPreviews();
+    this.renderRuns(row); // restore committed bar geometry
+  }
+
+  private previewPaint(drag: PaintDrag, offCells: ReadonlySet<string>): void {
+    this.clearPaintPreview();
+    const rowCells = this.cells[drag.row];
+    if (!rowCells) return;
+    const range = paintDragRange(drag);
+    for (let step = range.from; step <= range.to; step++) {
+      if (offCells.has(`${drag.row}:${step}`))
+        rowCells[step]?.setAttribute("data-preview", "true");
+    }
+  }
+
+  private clearPaintPreview(): void {
+    this.clearAllCellPreviews();
+  }
+
+  private clearAllCellPreviews(): void {
+    for (const row of this.cells) {
+      for (const cell of row) delete cell.dataset.preview;
+    }
+  }
+
+  // -- focus / roving --------------------------------------------------------
 
   private activate(cell: HTMLElement): void {
     this.setRoving(cell);

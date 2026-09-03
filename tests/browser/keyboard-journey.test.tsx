@@ -11,8 +11,10 @@
  * and transport uses the body-level Space shortcut, so every step here
  * exercises the actual keyboard code paths.
  *
- * Undo assertion leans on IM-6's coalescing: both toggles are dispatched
- * inside the 350 ms "toggle" family window → ONE Ctrl+Z reverts both.
+ * Undo assertion: IM-6 coalescing makes each GESTURE one undo step. Since
+ * IN-2 the pitched toggle rides the `note:<lane>:<pattern>` family (SC-2)
+ * while drums keep "toggle" — the test's drums toggle and lead note are two
+ * gestures, reverted by two Ctrl+Z presses (journey-change ledger #2).
  */
 
 import { describe, expect, it } from "vitest";
@@ -200,13 +202,19 @@ describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
         return p.kind === "pitched" && cellBefore(p) === !leadBefore;
       });
 
-      // UNDO (Ctrl+Z): both toggles coalesced into one gesture → both revert.
+      // UNDO (Ctrl+Z) — IN-2 journey delta (ledger #2): the pitched toggle
+      // now rides the SC-2 note family `note:<lane>:<pattern>` while drums
+      // keep the "toggle" family, so the two edits are TWO undo steps (each
+      // still one gesture). First undo reverts the lead note…
       key(document.activeElement!, "z", { ctrlKey: true });
       await waitFor(() => {
         const lead = activePatternOf("lead");
         return lead.kind === "pitched" && cellBefore(lead) === leadBefore;
       });
-      expect(activeDrumsSteps("snare")[4]).toBe(snareBefore);
+      // …the drums toggle is still there; the second undo reverts it.
+      expect(activeDrumsSteps("snare")[4]).toBe(!snareBefore);
+      key(document.activeElement!, "z", { ctrlKey: true });
+      await waitFor(() => activeDrumsSteps("snare")[4] === snareBefore);
 
       // Help overlay: "?" opens a focus-trapped dialog; Escape dismisses.
       document.body.focus();

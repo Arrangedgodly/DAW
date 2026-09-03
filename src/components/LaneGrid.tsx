@@ -1,6 +1,6 @@
 /**
- * LaneGrid (DES-4, DES-6, LY-1): one lane's pad floor — a QUADRANT of the
- * 2×2 stage. The DOM grid itself is owned by DomGridRenderer (D1 seam); this
+ * LaneGrid (DES-4, DES-6, LY-1, IN-2): one lane's pad floor — a QUADRANT of
+ * the 2×2 stage. The DOM grid itself is owned by DomGridRenderer (D1 seam); this
  * component provides the quadrant chassis (strip, scroll container, hue),
  * the document write-through + audition wiring, and the quadrant-selection
  * law. Nothing here re-renders at 60 Hz — the renderer's rAF loop handles
@@ -16,6 +16,12 @@
  * quadrant selection); the other three render view-only with live notes +
  * playhead, no tab stops, not focus traps (a11y §7 E2). A click on any part
  * of a view-only quadrant selects it (pointer parity — keyboard.md v2).
+ *
+ * IN-2 (v2 note law): pitched clicks/Enter place (gate default), remove
+ * (anchor) or trim (mid-span) through the SC-2 pattern-scoped note actions —
+ * replacing the v0 all-patterns cell toggle (journey-change ledger #2).
+ * Pointer drag-create / edge-drag resize / drums paint commit through the
+ * same actions on release (previews are renderer-local, zero store writes).
  */
 
 import {
@@ -34,14 +40,22 @@ import {
   type LaneId,
   PITCH_CLASS_NAMES,
   type Pattern,
-  type PitchedPatternView,
-  pitchedPatternView,
   resolveGateSteps,
 } from "../document/schema";
 import { effectiveScale, modeSize } from "../document/scales";
 import { getSession } from "../engine/session";
-import { DomGridRenderer, type PlayheadFrame } from "../grid/renderer";
-import { docStore, toggleDrumStep, togglePitchedCell } from "../state/store";
+import {
+  DomGridRenderer,
+  type PitchedNotesView,
+  type PlayheadFrame,
+} from "../grid/renderer";
+import {
+  addNote,
+  docStore,
+  removeNote,
+  resizeNote,
+  toggleDrumStep,
+} from "../state/store";
 import {
   activeLane,
   activePatterns,
@@ -53,6 +67,7 @@ import {
   requestLaneFocus,
   selectQuadrantFromPointer,
 } from "../state/gridFocus";
+import { noteEditAt, type Span } from "../interaction/drag";
 import LaneHeader from "./LaneHeader";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
@@ -106,21 +121,48 @@ function pitchedLabels(
 }
 
 /**
- * What the renderer syncs: drums patterns pass through; pitched patterns are
- * projected onto the v1 cell view (SC-1 bridge — the renderer still consumes
- * exactly the model v0 rendered; SC-2/IN-2 move it to notes + spans).
+ * What the renderer syncs (IN-2): drums patterns pass through; pitched
+ * patterns project their v2 NOTES onto rows (degree → row index via the
+ * pattern's manifest). The renderer renders note spans natively — the v1
+ * cell view (SC-1 bridge) is retired from the UI path.
  */
-function syncPatternFor(
-  lane: LaneId,
-  pattern: Pattern,
-): DrumPattern | PitchedPatternView {
+function syncPatternFor(pattern: Pattern): DrumPattern | PitchedNotesView {
   if (pattern.kind !== "pitched") return pattern; // drums pass through
+  const byDegree = new Map<number, Span[]>();
+  for (const note of pattern.notes) {
+    const list = byDegree.get(note.degree);
+    if (list) list.push(note);
+    else byDegree.set(note.degree, [note]);
+  }
+  const rows = pattern.rowDegrees.map(
+    (degree) => byDegree.get(degree) ?? [], // degree without a row: unplayed
+  );
+  return { kind: "pitched", rows };
+}
+
+/**
+ * The lane's effective gate in note steps at the CURRENT document BPM — the
+ * single-click default length (I2-3), read at interaction time so BPM/gate
+ * edits apply immediately.
+ */
+function laneGateStepsNow(lane: LaneId): number {
   const doc = docStore.getState().doc;
   const conf = doc.lanes.find((l) => l.id === lane);
-  // Fixed-lane documents always carry the lane config; 1 step is the inert
-  // fallback if one is ever missing.
-  const gateSteps = conf ? resolveGateSteps(conf.gate, doc.transport.bpm) : 1;
-  return pitchedPatternView(pattern, gateSteps);
+  return conf ? resolveGateSteps(conf.gate, doc.transport.bpm) : 1;
+}
+
+/**
+ * One row's note spans at interaction time (the mount-time props.pattern is
+ * a stale snapshot after the first edit — always read the live document).
+ */
+function rowSpansNow(lane: LaneId, patternId: string, degree: number): Span[] {
+  const p = docStore
+    .getState()
+    .doc.patterns[lane].find((cand) => cand.id === patternId);
+  if (p?.kind !== "pitched") return [];
+  return p.notes
+    .filter((n) => n.degree === degree)
+    .map((n) => ({ start: n.start, length: n.length }));
 }
 
 /**
@@ -208,15 +250,75 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           const piece = DRUM_PIECES[row] as DrumPiece;
           const res = toggleDrumStep(piece, step);
           if (res.turnedOn) void session.audition(lane, piece);
-        } else {
-          const degree = degrees[row];
-          if (degree === undefined) return;
-          const res = togglePitchedCell(
-            lane as Exclude<LaneId, "drums">,
+          return;
+        }
+        // IN-2 v2 note law (keyboard.md v2): place / remove / trim, scoped to
+        // the DISPLAYED pattern (DES-6) through the SC-2 note actions.
+        const degree = degrees[row];
+        if (degree === undefined) return;
+        const gateSteps = laneGateStepsNow(lane);
+        const spans = rowSpansNow(lane, pattern.id, degree);
+        const decision = noteEditAt(spans, gateSteps, step);
+        if (decision.kind === "place") {
+          if (
+            addNote(lane, pattern.id, {
+              degree,
+              start: step,
+              length: gateSteps,
+            })
+          )
+            void session.audition(lane, degree); // placement auditions (v0 law)
+        } else if (decision.kind === "remove") {
+          removeNote(lane, pattern.id, degree, decision.span.start);
+        } else if (decision.kind === "trim") {
+          resizeNote(
+            lane,
+            pattern.id,
             degree,
-            step,
+            decision.span.start,
+            decision.length,
           );
-          if (res.turnedOn) void session.audition(lane, degree);
+        }
+      },
+      // IN-2 pointer gestures — commit on release, through the same store
+      // note actions (0.25 snap + clamps live in the store; SC-2).
+      onNoteCreate: (row, start, length) => {
+        selectLane(lane);
+        const degree = degrees[row];
+        if (degree === undefined) return;
+        const pitchedLane = lane as Exclude<LaneId, "drums">;
+        if (addNote(pitchedLane, pattern.id, { degree, start, length }))
+          void session.audition(lane, degree); // audition on create (plan law)
+      },
+      onNoteResize: (row, start, length) => {
+        const degree = degrees[row];
+        if (degree === undefined) return;
+        resizeNote(
+          lane as Exclude<LaneId, "drums">,
+          pattern.id,
+          degree,
+          start,
+          length,
+        );
+      },
+      onNoteRemove: (row, start) => {
+        const degree = degrees[row];
+        if (degree === undefined) return;
+        removeNote(lane as Exclude<LaneId, "drums">, pattern.id, degree, start);
+      },
+      onDrumsPaint: (cells) => {
+        selectLane(lane);
+        let auditioned = false;
+        for (const c of cells) {
+          const piece = DRUM_PIECES[c.row] as DrumPiece | undefined;
+          if (!piece) continue;
+          const res = toggleDrumStep(piece, c.step); // cells were off → on
+          if (res.turnedOn && !auditioned) {
+            // One placement audition per gesture — a hit-per-cell machine
+            // gun would fight the one-shot law (I2-4).
+            auditioned = true;
+            void session.audition(lane, piece);
+          }
         }
       },
       // DA-1 lane moves → LY-1 quadrant selection: this grid asks the
@@ -234,7 +336,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     rendererRef = renderer;
-    renderer.sync(syncPatternFor(lane, pattern));
+    renderer.sync(syncPatternFor(pattern));
 
     // LY-1 quadrant state: flip editable when the selection moves. O(1) in
     // the renderer (tab stop + names); the rAF loop never restarts.
@@ -254,17 +356,11 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     const unsubscribe = docStore.subscribe((state, prev) => {
-      // Re-sync on pattern content OR lane-config/transport identity: the
-      // v2 pitched view derives sustain markers from the lane gate at the
-      // current BPM (SC-1), so a gate or BPM change re-derives the cells.
-      if (
-        state.doc.patterns[lane] === prev.doc.patterns[lane] &&
-        state.doc.lanes === prev.doc.lanes &&
-        state.doc.transport === prev.doc.transport
-      )
-        return;
+      // Re-sync on pattern-content identity only: IN-2 renders notes
+      // natively (no gate/BPM-derived view left to invalidate).
+      if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;
       const next = state.doc.patterns[lane].find((p) => p.id === pattern.id);
-      if (next) renderer.sync(syncPatternFor(lane, next));
+      if (next) renderer.sync(syncPatternFor(next));
     });
 
     onCleanup(() => {

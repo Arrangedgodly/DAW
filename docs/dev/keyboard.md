@@ -15,11 +15,15 @@ iteration-2 quadrant layout and note model. Sections marked
 **[v2 · live since LY-1]** are IMPLEMENTED and gated (LY-1 landed the
 quadrant selector, strips, announcements, and focus-carry law — asserted in
 tests/browser/quadrant-layout.test.ts + the updated DA-1/DA-3 journeys).
-Sections marked **[v2 → IN-2]**, **[v2 → IN-3]**, **[v2 → HP-1]** remain the
-forward contract the named task must implement and test (its DoD); everything
-else is live law today. v0 sections that v2 supersedes say so inline and the one
-deliberate v0-journey change is recorded in the ledger at the bottom
-(regression rule: journey updates only alongside deliberate UX changes).
+Sections marked **[v2 · live since IN-2]** are IMPLEMENTED and gated (IN-2
+landed drag-create/edge-drag/drums-paint + the keyboard note law — asserted
+in tests/browser/drag-notes.test.tsx + the unit gate
+tests/note-interaction.test.ts). Sections marked **[v2 → IN-3]**,
+**[v2 → HP-1]** remain the forward contract the named task must implement
+and test (its DoD); everything else is live law today. v0 sections that v2
+supersedes say so inline and the deliberate v0-journey changes are recorded
+in the ledger at the bottom (regression rule: journey updates only
+alongside deliberate UX changes).
 
 ## Focus model — regions and tab stops
 
@@ -27,17 +31,17 @@ The screen is a stack of composite regions. Each composite region exposes
 **exactly one Tab stop** (roving tabindex, APG); Tab walks region to region,
 arrows walk _inside_ a region:
 
-| Region                             | Tab stops                                       | Arrows inside                                            | Since |
-| ---------------------------------- | ----------------------------------------------- | -------------------------------------------------------- | ----- |
-| Booth (transport)                  | native controls (documented linear strip)       | native (ranges, steppers are buttons)                    | v0    |
-| Booth INFO "?" toggle (help mode)  | native button                                   | native                                                   | v2 → HP-1 |
-| Pattern rail — tiles, per lane     | 1 (focused tile)                                | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 → IN-3] | v0 + v2 |
-| Pattern rail — tools, per lane     | native buttons                                  | native                                                   | v0    |
-| Quadrant control strip, per lane   | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 · live since LY-1] | native                                                   | v2 → LY-1 |
-| Lane grid, **selected quadrant**   | 1 (focused cell)                                | the grid map below                                       | v0    |
-| Lane grid, **view-only quadrant**  | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 · live since LY-1] | n/a (view only)                                          | v2 → LY-1 |
-| Info region (help mode on)         | **none** — role=status, never focusable, never in the tab order [v2 → HP-1] | n/a                                                      | v2 → HP-1 |
-| Help overlay (keyboard shortcuts)  | 1 (dialog, focus-trapped)                       | native inside                                            | v0 — unchanged, SEPARATE from info mode |
+| Region                            | Tab stops                                                                                                                                                                   | Arrows inside                                                                           | Since                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------- |
+| Booth (transport)                 | native controls (documented linear strip)                                                                                                                                   | native (ranges, steppers are buttons)                                                   | v0                                      |
+| Booth INFO "?" toggle (help mode) | native button                                                                                                                                                               | native                                                                                  | v2 → HP-1                               |
+| Pattern rail — tiles, per lane    | 1 (focused tile)                                                                                                                                                            | ←/→ along the chain, Enter triggers; Shift+arrows extend a multi-clip range [v2 → IN-3] | v0 + v2                                 |
+| Pattern rail — tools, per lane    | native buttons                                                                                                                                                              | native                                                                                  | v0                                      |
+| Quadrant control strip, per lane  | native controls (preset/kit stepper, VOLUME range, MUTE, SOLO) — **all four quadrants' strips stay tab-reachable even when their grid is view-only** [v2 · live since LY-1] | native                                                                                  | v2 → LY-1                               |
+| Lane grid, **selected quadrant**  | 1 (focused cell)                                                                                                                                                            | the grid map below                                                                      | v0                                      |
+| Lane grid, **view-only quadrant** | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 · live since LY-1]                                                                                   | n/a (view only)                                                                         | v2 → LY-1                               |
+| Info region (help mode on)        | **none** — role=status, never focusable, never in the tab order [v2 → HP-1]                                                                                                 | n/a                                                                                     | v2 → HP-1                               |
+| Help overlay (keyboard shortcuts) | 1 (dialog, focus-trapped)                                                                                                                                                   | native inside                                                                           | v0 — unchanged, SEPARATE from info mode |
 
 - **Roving seed**: first item of each region is the Tab stop until the user
   moves; moving roving updates `tabIndex` only (never reorders DOM).
@@ -58,12 +62,12 @@ The 2×2 quadrant layout (I2-1): one quadrant per lane, quadrant selection =
 quadrant's grid is editable; the other three render view-only with live
 notes + playhead.
 
-| Key                                | Action                                                                                             |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| PageDown / PageUp                  | select next / previous quadrant (order drums → bass → chords → lead = visual reading order; clamped, never wraps) |
-| Ctrl+↓ / Ctrl+↑                    | same as PageDown / PageUp (v0 alternates, kept)                                                    |
-| `]` / `[`                          | same, and ALSO inside quadrant control strips (see scope rule below)                               |
-| Click on any part of a view-only quadrant | pointer path: selects that quadrant (mouse parity; grid or strip)                            |
+| Key                                       | Action                                                                                                            |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| PageDown / PageUp                         | select next / previous quadrant (order drums → bass → chords → lead = visual reading order; clamped, never wraps) |
+| Ctrl+↓ / Ctrl+↑                           | same as PageDown / PageUp (v0 alternates, kept)                                                                   |
+| `]` / `[`                                 | same, and ALSO inside quadrant control strips (see scope rule below)                                              |
+| Click on any part of a view-only quadrant | pointer path: selects that quadrant (mouse parity; grid or strip)                                                 |
 
 - **Key scope rule.** PageUp/PageDown and Ctrl+↑/↓ fire only from a focused
   grid cell (the v0 lane-move scope — they are grid keys). On quadrant
@@ -92,9 +96,9 @@ notes + playhead.
   gate E2). Their control strips remain fully tab-reachable and operable
   ("always operable" — tweak any lane without switching). Grid accessible
   names carry the state in text: `<LANE> grid · EDITING` / `<LANE> grid ·
-  VIEW ONLY` (never color alone — D9).
+VIEW ONLY` (never color alone — D9).
 - **Quadrant mix controls** (new, LY-1): VOLUME = native `input
-  type=range` with `aria-valuetext` (free arrow-key a11y, DES-5 precedent);
+type=range` with `aria-valuetext` (free arrow-key a11y, DES-5 precedent);
   MUTE / SOLO = real buttons with `aria-pressed`. Solo changes also announce
   through the stage status region (solo changes OTHER lanes' audibility —
   the muted-by-solo state must be speakable: `SOLO <LANE>` / `SOLO OFF`).
@@ -104,25 +108,25 @@ notes + playhead.
 Pure math lives in `src/grid/keynav.ts`; bounds clamp (no wrap — see
 "Wrap rules"). Rows = drum pieces (drums) or scale degrees (pitched).
 
-| Key                            | Action                                                                |
-| ------------------------------ | --------------------------------------------------------------------- |
-| ← / →                          | move one step (clamp at row ends)                                     |
-| ↑ / ↓                          | move one row (clamp at top/bottom row)                                |
-| Home / End                     | first / last step of the current row                                  |
-| PageDown / PageUp              | **v2: select next / previous quadrant** (v0: lane move — superseded; see ledger) |
-| Ctrl+↓ / Ctrl+↑ (or `]` / `[`) | **v2: select next / previous quadrant** (v0: lane move — superseded; see ledger) |
-| Ctrl+→ / Ctrl+← (or `.` / `,`) | beat jump: ±4 steps (one 4/4 beat), clamped                           |
-| Enter / Space                  | toggle — drums: hit on/off; pitched: the note law below               |
-| Shift+Enter                    | audition the focused cell WITHOUT toggling (v0 law, kept)             |
-| `+` / `=` and `-` / `_`        | **[v2 → IN-2]** pitched only: resize the focused note ±1 step         |
-| Shift+`+` / Shift+`-`          | **[v2 → IN-2]** pitched only: resize the focused note ±0.25 step (the snap-law floor) |
-| Delete / Backspace             | **[v2 → IN-2]** pitched only: remove the focused note (grid-region-local; the rail's Delete removes a chain slot in its own region — same key, different region, v0 precedent) |
+| Key                            | Action                                                                                                                                                                                    |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ← / →                          | move one step (clamp at row ends)                                                                                                                                                         |
+| ↑ / ↓                          | move one row (clamp at top/bottom row)                                                                                                                                                    |
+| Home / End                     | first / last step of the current row                                                                                                                                                      |
+| PageDown / PageUp              | **v2: select next / previous quadrant** (v0: lane move — superseded; see ledger)                                                                                                          |
+| Ctrl+↓ / Ctrl+↑ (or `]` / `[`) | **v2: select next / previous quadrant** (v0: lane move — superseded; see ledger)                                                                                                          |
+| Ctrl+→ / Ctrl+← (or `.` / `,`) | beat jump: ±4 steps (one 4/4 beat), clamped                                                                                                                                               |
+| Enter / Space                  | toggle — drums: hit on/off; pitched: the note law below                                                                                                                                   |
+| Shift+Enter                    | audition the focused cell WITHOUT toggling (v0 law, kept)                                                                                                                                 |
+| `+` / `=` and `-` / `_`        | **[v2 · live since IN-2]** pitched only: resize the focused note ±1 step                                                                                                                  |
+| Shift+`+` / Shift+`-`          | **[v2 · live since IN-2]** pitched only: resize the focused note ±0.25 step (the snap-law floor)                                                                                          |
+| Delete / Backspace             | **[v2 · live since IN-2]** pitched only: remove the focused note (grid-region-local; the rail's Delete removes a chain slot in its own region — same key, different region, v0 precedent) |
 
 Quadrant selection keeps the carried row _index_ and step (clamped to the
 target grid's row count and pattern length); drums rows map by position,
 pitched rows by position into that lane's own degree rows (v0 carry law).
 
-## Note editing on the v2 note model [v2 → IN-2]
+## Note editing on the v2 note model [v2 · live since IN-2]
 
 Schema v2 (SC-1/SC-2): pitched notes are `{degree, start, length}`; length
 lives on the 0.25-step grid, clamped [0.25, 128] (`MIN/MAX_NOTE_LENGTH`);
@@ -148,7 +152,7 @@ Delete there do nothing).
   128 a `+` does nothing; lengths never wrap). Held-key repeats are ONE undo
   gesture (`note:<lane>:<pattern>` coalescing family, SC-2). **Keyboard
   resize is discrete commits, not a held preview** — unlike the pointer's
-  zero-store-write preview + commit-on-release (IN-2), each keypress is its
+  zero-store-write preview + commit-on-release (landed), each keypress is its
   own (coalesced) commit; recording this asymmetry as deliberate: keys are
   discrete, drags are continuous.
 - **No re-audition on resize** (pitch unchanged; re-triggering per step
@@ -156,7 +160,7 @@ Delete there do nothing).
   auditions anything.
 - **Announcements (a11y gate E4).** The focused cell's accessible name
   carries note state in text — anchor: `<row> step <n>, note starts, <len>
-  steps`; spanned: `note continues`; empty: v0 name. Resize steps announce
+steps`; spanned: `note continues`; empty: v0 name. Resize steps announce
   through a local `aria-live=polite` value span: `LENGTH <len> ST` (the
   gate-stepper value-announce pattern). Placement/removal are carried by the
   focused cell's own name change + audition.
@@ -170,13 +174,13 @@ clips queues exactly those N, identical pending/quantized semantics as
 clicking individually — one queued switch per touched lane) gets this
 keyboard path:
 
-| Key                    | Action                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| Shift+← / Shift+→      | extend a selection RANGE along the focused lane row (anchor = where the shift began)          |
-| Shift+↑ / Shift+↓      | extend the range to the same slot position (carried, clamped to each row's length) in the adjacent lane row(s) |
-| plain ← / → / ↑ / ↓    | still rove focus and COLLAPSE the range to the focused tile (cancel-extend)                   |
-| Escape                 | collapse the range to the focused tile (no chain edit happened)                               |
-| Enter / Space          | **CUE ALL**: commit the range — for every lane row the range touches (top→bottom), fire `requestPatternSwitch` on that row's tile at the range's focus-edge column, clamped to the row's length |
+| Key                 | Action                                                                                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shift+← / Shift+→   | extend a selection RANGE along the focused lane row (anchor = where the shift began)                                                                                                            |
+| Shift+↑ / Shift+↓   | extend the range to the same slot position (carried, clamped to each row's length) in the adjacent lane row(s)                                                                                  |
+| plain ← / → / ↑ / ↓ | still rove focus and COLLAPSE the range to the focused tile (cancel-extend)                                                                                                                     |
+| Escape              | collapse the range to the focused tile (no chain edit happened)                                                                                                                                 |
+| Enter / Space       | **CUE ALL**: commit the range — for every lane row the range touches (top→bottom), fire `requestPatternSwitch` on that row's tile at the range's focus-edge column, clamped to the row's length |
 
 - The commit path IS the individual-click path (`requestPatternSwitch` per
   lane; IM-7's same-lane supersede law makes one-switch-per-lane exact);
@@ -197,7 +201,7 @@ keyboard path:
 | `n` | new 1-bar pattern in the active lane (selects it for editing)                                                                             |
 | `d` | duplicate the active lane's selected pattern (selects it)                                                                                 |
 | `r` | rename — moves focus to the active lane's rail REN control (the inline field takes over from there; Enter commits, Esc cancels per DES-6) |
-| `i` | **[v2 → HP-1]** toggle help mode (info view) — same guards as `n`/`d`/`r` (never in text entries, never with an assistive-tech modifier)   |
+| `i` | **[v2 → HP-1]** toggle help mode (info view) — same guards as `n`/`d`/`r` (never in text entries, never with an assistive-tech modifier)  |
 
 Rail-local keys (DES-6, unchanged): ←/→ rove tiles, Enter/Space trigger a
 quantized switch, Delete/Backspace removes the chain slot, F2 renames, `l`
@@ -236,13 +240,13 @@ additional bindings — the fill controls are plain focusable buttons.
 Ableton-style info view (I2-6), SEPARATE from the keyboard-shortcut overlay
 above, which stays unchanged.
 
-| Key                          | Action                                                                                        |
-| ---------------------------- | --------------------------------------------------------------------------------------------- |
-| booth "?" INFO button        | toggle help mode (real button, Tab + Enter — the mouse-parity path)                            |
-| `i`                          | toggle help mode from anywhere (guards: not in text entries, no AT modifiers held)              |
+| Key                          | Action                                                                                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| booth "?" INFO button        | toggle help mode (real button, Tab + Enter — the mouse-parity path)                                                                                              |
+| `i`                          | toggle help mode from anywhere (guards: not in text entries, no AT modifiers held)                                                                               |
 | Tab / arrows (while ON)      | normal navigation — focus any registered control; the info region updates on FOCUS, not just hover (the Daredevil law: help mode must respond to keyboard focus) |
-| Escape (while ON)            | exit help mode (cancel-first; focus stays where it was — nothing was trapped)                   |
-| `i` or the button (while ON) | exit help mode; announcement `INFO MODE OFF`                                                    |
+| Escape (while ON)            | exit help mode (cancel-first; focus stays where it was — nothing was trapped)                                                                                    |
+| `i` or the button (while ON) | exit help mode; announcement `INFO MODE OFF`                                                                                                                     |
 
 - **No trap, no modal:** help mode is a mode, not an overlay — every control
   stays reachable and operable; the info region itself is `role="status"`
@@ -250,7 +254,7 @@ above, which stays unchanged.
   status region cannot trap anything; pointer pass-through onto the stage is
   HP-1's recorded production decision).
 - **Announcements (a11y gate E6):** toggling announces `INFO MODE ON —
-  FOCUS A CONTROL TO HEAR WHAT IT DOES` / `INFO MODE OFF`; each focused
+FOCUS A CONTROL TO HEAR WHAT IT DOES` / `INFO MODE OFF`; each focused
   registered control's help text is spoken (and shown) once per focus move —
   no repetition while focus rests.
 - Toggling help mode mid-gesture must not corrupt an active drag (gesture
@@ -288,19 +292,19 @@ Every gesture iteration 2 introduces, reviewed against this spec — the table
 IN-1 ships as the no-missing-path proof; owning tasks implement + test the
 path as DoD:
 
-| New gesture (pointer/world)                                | Keyboard path (this spec)                                                                 | Owning task |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------- |
-| Select a quadrant by clicking it                           | PageUp/PageDown, Ctrl+↑/↓ (grids), `]`/`[` (grids + strips)                               | LY-1        |
-| Tweak any lane's preset/VOLUME/MUTE/SOLO without selecting | all four strips stay tab-reachable; native range/button keys                               | LY-1        |
-| View-only quadrants show live notes/playhead               | no keys needed — no tab stop, no trap; names carry VIEW ONLY                               | LY-1        |
-| Place a note with gate-default length (single click)        | Enter/Space on an empty cell                                                               | IN-2        |
-| Drag-create a sustained note across segments               | place (Enter), then `+`/`=` to lengthen (or Enter mid-span to trim)                        | IN-2        |
-| Edge-drag resize a note                                    | `+`/`-` (±1 step), Shift+`+`/`-` (±0.25) on the focused note; Enter mid-span = trim to here | IN-2        |
-| Remove a dragged note                                      | Enter at its anchor, or Delete/Backspace on the focused note                               | IN-2        |
-| Drums drag-paint hits across steps                         | per-cell Enter toggles (v0) + euclid fill rows (PX-3) — reviewed, deliberately NO new binding (one-shot law, I2-4) | IN-2 |
-| Multi-clip drag cueing across lanes                        | Shift+arrows range-select on the rail, Enter = CUE ALL                                     | IN-3        |
-| "?" corner toggle for info mode                            | booth INFO button (Tab+Enter) + global `i`                                                 | HP-1        |
-| Hover a control to read its help text                      | focus it — info region updates on focus, aria-live speaks it                               | HP-1        |
+| New gesture (pointer/world)                                | Keyboard path (this spec)                                                                                          | Owning task |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------- |
+| Select a quadrant by clicking it                           | PageUp/PageDown, Ctrl+↑/↓ (grids), `]`/`[` (grids + strips)                                                        | LY-1        |
+| Tweak any lane's preset/VOLUME/MUTE/SOLO without selecting | all four strips stay tab-reachable; native range/button keys                                                       | LY-1        |
+| View-only quadrants show live notes/playhead               | no keys needed — no tab stop, no trap; names carry VIEW ONLY                                                       | LY-1        |
+| Place a note with gate-default length (single click)       | Enter/Space on an empty cell                                                                                       | IN-2        |
+| Drag-create a sustained note across segments               | place (Enter), then `+`/`=` to lengthen (or Enter mid-span to trim)                                                | IN-2        |
+| Edge-drag resize a note                                    | `+`/`-` (±1 step), Shift+`+`/`-` (±0.25) on the focused note; Enter mid-span = trim to here                        | IN-2        |
+| Remove a dragged note                                      | Enter at its anchor, or Delete/Backspace on the focused note                                                       | IN-2        |
+| Drums drag-paint hits across steps                         | per-cell Enter toggles (v0) + euclid fill rows (PX-3) — reviewed, deliberately NO new binding (one-shot law, I2-4) | IN-2        |
+| Multi-clip drag cueing across lanes                        | Shift+arrows range-select on the rail, Enter = CUE ALL                                                             | IN-3        |
+| "?" corner toggle for info mode                            | booth INFO button (Tab+Enter) + global `i`                                                                         | HP-1        |
+| Hover a control to read its help text                      | focus it — info region updates on focus, aria-live speaks it                                                       | HP-1        |
 
 No gesture in the iteration-2 brief lacks a keyboard row. New gesture
 proposals during production must add a row here (or land a binding) before
@@ -347,10 +351,19 @@ by the owning task):
    never yanked).
 2. **Pitched-grid Enter/Space gains note-model semantics** (IN-2): toggle-on
    = gate-default note, toggle-off = remove, mid-span = trim; cell names
-   carry note start/length. No key changes on drums.
+   carry note start/length. No key changes on drums. **LANDED by IN-2**
+   (journey deltas, per the rule): the pitched toggle now writes the
+   DISPLAYED pattern only (pattern-scoped SC-2 note actions — v0 wrote the
+   same cell into every pattern of the lane) and coalesces per
+   `note:<lane>:<pattern>` instead of the drums "toggle" family — so a drums
+   toggle + a pitched note edit are TWO undo gestures. DA-1 journey
+   (tests/browser/keyboard-journey.test.tsx) — the undo stage now presses
+   Ctrl+Z twice (the lead note reverts, then the snare toggle), stage by
+   stage.
 3. **New bindings** (additive, none replaces a v0 binding): grid `+`/`-`/
-   Shift+`+`/`-`/Delete-removes-note (IN-2); rail Shift+arrows range-select
-   (IN-3); global `i` help-mode toggle + Escape-exits-help-first (HP-1).
+   Shift+`+`/`-`/Delete-removes-note (**landed by IN-2**); rail Shift+arrows
+   range-select (IN-3); global `i` help-mode toggle +
+   Escape-exits-help-first (HP-1).
 4. Everything else in the v0 map — one-Tab-stop regions, no-wrap, text-entry
    guards, body-level Space transport, Shift+Enter audition, Home/End, beat
    jump, `n`/`d`/`r`, rail-local keys, undo guards, the exclusion list —
@@ -373,22 +386,22 @@ test replicates exactly those defaults (focus + Enter keydown + click;
 focus + Arrow keydown + stepUp + input event). Nothing is driven by mouse
 coordinates; every action begins from a focused element.
 
-| #   | Step (keys)                                                                          | Observable outcome asserted                                                                                                                           |
-| --- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Boot (no keys — first run)                                                           | booth mounts, 4 grids, demo cue labels (VERSE) in the rail                                                                                            |
-| 2   | `Space` at body level                                                                | PLAY aria-pressed → true (transport runs)                                                                                                             |
-| 3   | `?` … inspect … `Escape`                                                             | role=dialog help overlay, focus trapped inside, dismissed                                                                                             |
-| 4   | Focus drums roving seed → `↓` `End` `Home` `.`                                       | SNARE row, step 15 → 0 → beat-jump to 4                                                                                                               |
-| 5   | Tab to SNARE fill rail → `Enter` on `+` pulses ×2 → `Enter` on SET                   | readout counts p/16, dashed data-preview overlay, then the row paints exactly p on-cells and preview clears                                           |
-| 6   | `Enter` on a focused cell                                                            | data-on / aria-selected flips                                                                                                                         |
+| #   | Step (keys)                                                                          | Observable outcome asserted                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Boot (no keys — first run)                                                           | booth mounts, 4 grids, demo cue labels (VERSE) in the rail                                                                                             |
+| 2   | `Space` at body level                                                                | PLAY aria-pressed → true (transport runs)                                                                                                              |
+| 3   | `?` … inspect … `Escape`                                                             | role=dialog help overlay, focus trapped inside, dismissed                                                                                              |
+| 4   | Focus drums roving seed → `↓` `End` `Home` `.`                                       | SNARE row, step 15 → 0 → beat-jump to 4                                                                                                                |
+| 5   | Tab to SNARE fill rail → `Enter` on `+` pulses ×2 → `Enter` on SET                   | readout counts p/16, dashed data-preview overlay, then the row paints exactly p on-cells and preview clears                                            |
+| 6   | `Enter` on a focused cell                                                            | data-on / aria-selected flips                                                                                                                          |
 | 7   | `PageDown`                                                                           | focus lands in the BASS grid (position carried, clamped) — **v2: becomes "selects the BASS quadrant + announces"; LY-1 updates this step (ledger #1)** |
-| 8   | Header strip: `Enter` on preset `+`, gate `+`                                        | preset name changes; gate value steps 1 → 2 ST                                                                                                        |
-| 9   | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE                | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip         |
-| 10  | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value                       |
-| 11  | Rail: focus tile 1 → `→`×3 → `Enter`                                                 | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing                                  |
-| 12  | `Space` (stop) → `Enter` on DUP → focus last tile → `+` → `Escape`                   | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle)               |
-| 13  | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI                                  | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam) |
-| 14  | `Enter` NEW … then reopen popover → `Escape`                                         | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button  |
+| 8   | Header strip: `Enter` on preset `+`, gate `+`                                        | preset name changes; gate value steps 1 → 2 ST                                                                                                         |
+| 9   | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE                | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip          |
+| 10  | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value                        |
+| 11  | Rail: focus tile 1 → `→`×3 → `Enter`                                                 | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing                                   |
+| 12  | `Space` (stop) → `Enter` on DUP → focus last tile → `+` → `Escape`                   | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle)                |
+| 13  | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI                                  | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam)  |
+| 14  | `Enter` NEW … then reopen popover → `Escape`                                         | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button   |
 
 Gaps the walk found (fixed in DA-3, all in this repo):
 
