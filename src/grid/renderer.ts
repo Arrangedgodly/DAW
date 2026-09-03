@@ -30,6 +30,15 @@
  * Shift ±0.25 resize the focused note; Delete/Backspace removes it; resize
  * commits announce `LENGTH <len> ST` through a local aria-live span from BOTH
  * the pointer and the keyboard path (E4/E5 parity).
+ *
+ * IN-2 FIX (verifier FAIL 2026-09-03): SINGLE-CLICK activation runs on
+ * POINTERUP of an unmoved gesture, never on the trailing `click` — Chromium
+ * retargets the click that follows a captured press to the capture element
+ * (this container), so a click-target cell check can never pass under REAL
+ * pointers (synthetic test pointers cannot capture, which is why the old
+ * click-only law passed its gates). The `click` listener stays only for
+ * bare synthetic clicks (HTMLElement.click(), e2e drivers) and is suppressed
+ * after every pointerup activation so a real click activates exactly once.
  */
 
 import type { DrumPattern, LaneId } from "../document/schema";
@@ -209,7 +218,13 @@ type Gesture =
       moved: boolean;
       /** Steps OFF at gesture start ("row:step") — painting never erases. */
       offCells: ReadonlySet<string>;
-    };
+    }
+  /**
+   * IN-2 fix: press on a COVERED pitched cell (anchor / mid-span). No
+   * preview — pointerup runs the click law (remove / trim) directly, because
+   * the trailing click is retargeted to the container under pointer capture.
+   */
+  | { kind: "tap"; pointerId: number; row: number; step: number };
 
 /**
  * DOM/CSS-Grid default renderer. Builds the grid once (rows + cells + playhead
@@ -568,12 +583,16 @@ export class DomGridRenderer implements GridRenderer {
     // the floor); the grid itself never toggles.
     if (!this.editable) return;
     if (this.suppressClick) {
-      // A committed/cancelled pointer gesture — the trailing click must not
-      // re-activate the anchor cell.
+      // A committed/cancelled/activated pointer gesture — the trailing click
+      // must not re-activate the anchor cell.
       this.suppressClick = false;
       if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
       return;
     }
+    // IN-2 fix: real captured presses activate on POINTERUP instead; this
+    // path only serves bare synthetic clicks (HTMLElement.click(), e2e
+    // drivers) — under real pointers the captured click targets the
+    // container, not a cell.
     const target = e.target as HTMLElement;
     if (!target.classList.contains("cell")) return;
     this.activate(target);
@@ -716,9 +735,16 @@ export class DomGridRenderer implements GridRenderer {
     const row = Number(cell.dataset.row);
     const step = Number(cell.dataset.step);
     if (this.opts.pitched) {
-      // Only an EMPTY cell starts a drag-create; covered cells fall through
-      // to the click law (remove at the anchor / trim mid-span).
-      if (focusedSpanIndex(this.rowSpans[row] ?? [], step) >= 0) return;
+      // Covered cell (anchor / mid-span): arm a TAP so pointerup can run the
+      // remove/trim law directly. Falling through to the trailing click (the
+      // old law) is dead under real pointers: this press captures, and the
+      // capture retargets the click to the container (IN-2 fix).
+      if (focusedSpanIndex(this.rowSpans[row] ?? [], step) >= 0) {
+        this.gesture = { kind: "tap", pointerId: e.pointerId, row, step };
+        this.capture(e);
+        e.preventDefault();
+        return;
+      }
       if (!this.opts.onNoteCreate) return;
       this.gesture = {
         kind: "create",
@@ -783,6 +809,7 @@ export class DomGridRenderer implements GridRenderer {
   private onPointerMove = (e: PointerEvent): void => {
     const g = this.gesture;
     if (!g || e.pointerId !== g.pointerId) return;
+    if (g.kind === "tap") return; // no preview — activation decides on release
     if (g.kind === "create") {
       const next = createDragMove(
         g.drag,
@@ -829,9 +856,15 @@ export class DomGridRenderer implements GridRenderer {
         const anchor = this.cells[g.drag.row]?.[g.drag.start];
         if (anchor) this.setRoving(anchor);
         this.opts.onNoteCreate?.(g.drag.row, g.drag.start, length);
+      } else {
+        // Unmoved = a single click. Run the activation law HERE (gate-default
+        // place): under real pointers this press captured, and the capture
+        // retargets the trailing click to the container — it can never reach
+        // onClick (IN-2 fix).
+        this.activateIfReleasedOver(g.drag.row, g.drag.start, e);
       }
-      // No drag → the natural click event fires → single-click law (gate
-      // default) through onClick/activate.
+    } else if (g.kind === "tap") {
+      this.activateIfReleasedOver(g.row, g.step, e);
     } else if (g.kind === "resize") {
       const length = resizeDragCommit(g.drag);
       this.clearResizePreview(g.drag.row);
@@ -853,8 +886,11 @@ export class DomGridRenderer implements GridRenderer {
       if (cells.length > 0) {
         this.armClickSuppression();
         this.opts.onDrumsPaint?.(cells);
+      } else {
+        // Unmoved paint = a single click → the v0 toggle+audition law, run
+        // directly on release (same capture-retarget reason as create).
+        this.activateIfReleasedOver(g.drag.row, g.drag.anchor, e);
       }
-      // No move → the natural click fires → single-click toggle (v0 law).
     }
   };
 
@@ -872,7 +908,46 @@ export class DomGridRenderer implements GridRenderer {
     if (!g) return;
     if (g.kind === "create") this.clearCreatePreview();
     else if (g.kind === "resize") this.clearResizePreview(g.drag.row);
-    else this.clearPaintPreview();
+    else if (g.kind === "paint") this.clearPaintPreview();
+    // tap: no preview
+  }
+
+  /**
+   * IN-2 fix: single-click activation from POINTERUP of an unmoved gesture.
+   * Chromium retargets the click that follows a captured press to the
+   * capture element (the container), so `onClick` never sees a cell target
+   * under real pointers — the activation law must run here. Click-parity
+   * guard: activate only when the release hit-tests back to the PRESSED cell
+   * (a down/up on different elements never produced a cell-targeted click in
+   * v0 either — the release lands on the common ancestor).
+   */
+  private activateIfReleasedOver(
+    row: number,
+    step: number,
+    e: PointerEvent,
+  ): void {
+    const anchor = this.cells[row]?.[step];
+    if (!anchor) return;
+    if (this.cellAtPoint(e.clientX, e.clientY) !== anchor) return;
+    this.armClickSuppression(); // the trailing click must not double-activate
+    this.activate(anchor);
+  }
+
+  /**
+   * The cell under viewport coordinates (x inside the step span, y inside the
+   * row band) — the release-side hit test for click parity. Null off-grid.
+   */
+  private cellAtPoint(clientX: number, clientY: number): HTMLElement | null {
+    for (const rowCells of this.cells) {
+      const el = rowCells[0]?.parentElement;
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (clientY < rect.top || clientY >= rect.bottom) continue;
+      if (clientX < rect.left || clientX >= rect.right) return null;
+      const step = Math.floor((clientX - rect.left) / this.stepWidthPx);
+      return rowCells[step] ?? null;
+    }
+    return null;
   }
 
   private armClickSuppression(): void {

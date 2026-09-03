@@ -26,7 +26,9 @@
  * pointer, so setPointerCapture throws and is skipped (caught in the
  * renderer) — moves stay inside the grid, which is exactly what the
  * container listeners track. Real drags additionally capture (IN-4 sweeps
- * the rest).
+ * the rest). SINGLE-CLICK activation under REAL captured pointers (the
+ * Chromium click-retarget trap) is pinned by the companion trusted-input
+ * gate: tests/browser/drag-notes-trusted.test.tsx (CDP Input domain).
  */
 
 import { describe, expect, it } from "vitest";
