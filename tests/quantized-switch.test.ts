@@ -59,8 +59,10 @@ function scheduleFor(chain: Pattern[]): LaneSchedule {
 
 interface Harness {
   session: Session;
-  sent: { lane: number; step: number; freq: number | undefined }[];
+  sent: { lane: number; step: number; time: number; freq: number | undefined }[];
   deliverUpTo(step: number): Promise<void>;
+  /** R-3: manual refill at an absolute audio-clock time (re-play clocks). */
+  deliverAt(when: number): Promise<void>;
 }
 
 async function makeHarness(
@@ -77,7 +79,8 @@ async function makeHarness(
   } as unknown as AudioContextLike;
   const sent: Harness["sent"] = [];
   // Step attribution is exact: delivered events carry the tick's absolute
-  // time = TIMELINE + globalStep * SPB (swing 0).
+  // time = TIMELINE + globalStep * SPB (swing 0). R-3 also keeps the raw
+  // time so re-played passes (a NEW timeline start) can be attributed.
   const host: VoiceEngineHost = {
     outbox: new EventOutbox(4),
     sendEvents: (lane, events) => {
@@ -85,6 +88,7 @@ async function makeHarness(
         sent.push({
           lane,
           step: Math.round((e.time - TIMELINE) / SPB),
+          time: e.time,
           freq: e.freq,
         });
       }
@@ -111,15 +115,23 @@ async function makeHarness(
     session.setLaneSchedule(lane, schedule);
   }
   session.transport.play();
+  const settle = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  };
   const deliverUpTo = async (step: number) => {
     // Clock just past step `step`'s tick: the 0.1 s horizon covers exactly
     // steps 0..step (the next tick is 0.125 s away).
     state.now = TIMELINE + step * SPB + 1e-6;
     intervalCb!();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
   };
-  return { session, sent, deliverUpTo };
+  const deliverAt = async (when: number) => {
+    state.now = when + 1e-6;
+    intervalCb!();
+    await settle();
+  };
+  return { session, sent, deliverUpTo, deliverAt };
 }
 
 function freqsAt(
@@ -336,5 +348,44 @@ describe("quantized live switching (IM-7)", () => {
     expect(h.session.getActivePattern("drums")).toBe("ALT-2");
     expect(freqsAt(h, 0, 21).length).toBe(1); // ALT-2 kick at 16+5
     expect(freqsAt(h, 0, 20).length).toBe(0); // ALT-1 never landed
+  });
+
+  // R-3 (refinement entry 3): play-from-stop must FLUSH the delivery
+  // cursor. Anchor steps (and the lastDeliveredStep high-water) are
+  // session-lifetime state; after an iteration-mode rebuild the anchor is
+  // left at a global step that need not align with the NEW chain length
+  // (32-step chain rebuilt at step 32 into a 48-step chain → anchor 32).
+  // The next play's global step restarts at 0, so without the flush the
+  // lane delivers chain-local (0 − 32) mod 48 = 16 — a slot with no event
+  // here, i.e. silent for the first steps while `playing` reads true (the
+  // same dead-air class the critique measured on LOOP re-enable).
+  it("R-3: play-from-stop flushes the cursor — a fresh play's step 0 is chain-local 0 for every lane (no stale-anchor dead air)", async () => {
+    const h = await makeHarness({ drums: scheduleFor([A1, B1]) });
+    await h.deliverUpTo(5);
+    h.session.setActivePattern("drums", "C2", scheduleFor([C2])); // 2 bars
+    await h.deliverUpTo(32); // iteration rebuild lands: anchor 16→ chain 48
+    expect(h.session.getActivePattern("drums")).toBe("C2");
+
+    // STOP, then PLAY through the real togglePlay path (the flush lives in
+    // its start branch — transport.play() alone must not be used here).
+    h.session.transport.stop();
+    const ctx = h.session.engine.getContext();
+    const newTimeline = ctx.currentTime + 0.1; // togglePlay's startDelay
+    await h.session.togglePlay();
+    expect(h.session.transport.snapshot.playing).toBe(true);
+
+    // The fresh play's step 0 delivers the CURRENT chain's local 0 (C2's
+    // kick), not a stale-anchor slot. C2 kicks at local 0, 8, 24.
+    await h.deliverAt(newTimeline + 0 * SPB);
+    const step0 = h.sent.filter(
+      (s) => s.lane === 0 && Math.abs(s.time - newTimeline) < 1e-9,
+    );
+    expect(step0.length).toBe(1); // audible at the very first step
+    await h.deliverAt(newTimeline + 8 * SPB);
+    const step8 = h.sent.filter(
+      (s) => s.lane === 0 && Math.abs(s.time - (newTimeline + 8 * SPB)) < 1e-9,
+    );
+    expect(step8.length).toBe(1); // C2's second kick on-grid
+    h.session.transport.stop();
   });
 });

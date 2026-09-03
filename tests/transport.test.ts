@@ -249,6 +249,88 @@ describe("Transport state machine", () => {
     h.transport.stop();
   });
 
+  // R-3 (critique P2-4 / deferred #11): a one-shot EXHAUSTS its compile
+  // cursor one horizon (1.5 s) before the last step sounds. Re-enabling LOOP
+  // inside that window used to leave `exhausted` latched — compileTicks
+  // returned [] forever while `playing` stayed true: dead air with the
+  // transport claiming to play, and the auto-stop could never fire (it
+  // requires !loop). The re-arm must resume looping.
+  it("R-3: loop re-enabled during the exhausted tail RESUMES looping seamlessly at the pass boundary (no silent-playing stall)", () => {
+    const h = makeTransport();
+    h.transport.setLoop(false);
+    h.transport.play(); // pass [0.1, 2.1); horizon 1.5 s
+    h.ctx.currentTime = 1.0; // horizon [1, 2.5] covers the pass end
+    vi.advanceTimersByTime(200);
+    expect(h.scheduled.length).toBe(16); // whole one-shot compiled: EXHAUSTED
+    expect(h.transport.snapshot.playing).toBe(true); // tail still sounding
+
+    // The stall moment: loop back ON while exhausted + playing.
+    h.transport.setLoop(true);
+    h.ctx.currentTime = 1.6;
+    vi.advanceTimersByTime(200);
+    // Compilation resumed: the next pass starts EXACTLY at the pass boundary
+    // (2.1 s = 0.1 + 16 * 0.125), global step numbering continues.
+    expect(h.scheduled.length).toBeGreaterThan(16);
+    expect(h.scheduled[16]!.event.step).toBe(16);
+    expect(h.scheduled[16]!.when).toBe(0.1 + 16 * 0.125);
+    expect(h.transport.snapshot.playing).toBe(true);
+    // And it keeps looping on later refills.
+    h.ctx.currentTime = 3;
+    vi.advanceTimersByTime(200);
+    h.ctx.currentTime = 5;
+    vi.advanceTimersByTime(200);
+    expect(h.scheduled.at(-1)!.event.step).toBeGreaterThan(31);
+    h.transport.stop();
+  });
+
+  it("R-3: loop re-enabled just past the pass end (before the auto-stop refill) resumes from the first step at/after now — never the past", () => {
+    const h = makeTransport();
+    h.transport.setLoop(false);
+    h.transport.play();
+    h.ctx.currentTime = 1.0; // exhaust the cursor (horizon covers 2.1)
+    vi.advanceTimersByTime(200);
+    expect(h.scheduled.length).toBe(16);
+    // Past the pass end but BEFORE the refill that would auto-stop.
+    h.ctx.currentTime = 2.15;
+    h.transport.setLoop(true);
+    h.ctx.currentTime = 2.3; // the resume refill happens a bit later
+    vi.advanceTimersByTime(200);
+    expect(h.scheduled.length).toBeGreaterThan(16);
+    const resumed = h.scheduled[16]!;
+    // The law: first new onset is the first grid step at/after the
+    // re-enable moment (2.15) — 2.225 = 2.1 + 1 * 0.125 — inside one step,
+    // and never a replay of already-sounded steps.
+    expect(resumed.when).toBeGreaterThanOrEqual(2.15);
+    expect(resumed.when).toBeLessThanOrEqual(2.15 + 0.125);
+    expect(resumed.event.step).toBe(17); // pass 1, step 1 (global numbering)
+    h.transport.stop();
+  });
+
+  it("R-3 repro (critique P2-4 choreography): one-shot exhausts → auto-stop → LOOP re-enable → PLAY sounds within the normal first-lookahead window (NOT ~1.5 s)", () => {
+    const h = makeTransport();
+    h.transport.play(); // loop ON from a fresh start (regression guard)
+    h.transport.setLoop(false); // mid-play toggle to one-shot
+    h.ctx.currentTime = 5;
+    vi.advanceTimersByTime(200); // final pass compiled, exhausted
+    h.ctx.currentTime = 6;
+    vi.advanceTimersByTime(200); // auto-stop
+    expect(h.transport.snapshot.playing).toBe(false);
+
+    h.transport.setLoop(true); // the user re-enables LOOP while stopped
+    h.ctx.currentTime = 10;
+    const playClock = h.ctx.currentTime;
+    h.transport.play();
+    // First audible onset: the startDelay pre-roll + at most one step —
+    // the normal first-lookahead window. The defect class this pins shut:
+    // a stale horizon/high-water making the next PLAY silent for a
+    // horizon's worth (~1.5 s) of dead air.
+    const first = h.scheduled.find((s) => s.when > playClock)!;
+    expect(first.when - playClock).toBeLessThanOrEqual(0.1 + 0.125);
+    expect(first.event.step).toBe(0); // fresh pass from the top
+    expect(h.transport.getPosition()).toEqual({ bar: 0, beat: 0, step: 0 });
+    h.transport.stop();
+  });
+
   it("setters clamp, dedupe, and emit snapshot changes", () => {
     const h = makeTransport();
     h.transport.setBpm(500);

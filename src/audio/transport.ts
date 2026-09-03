@@ -165,7 +165,45 @@ export class Transport {
   setLoop(loop: boolean): void {
     if (loop === this._loop) return;
     this._loop = loop;
+    // R-3 (critique P2-4 / deferred #11, the IN-4 non-blocking note): a
+    // one-shot pass EXHAUSTS its compile cursor one horizon before the last
+    // step sounds. Re-enabling LOOP inside that window used to leave
+    // `exhausted` latched: compileTicks returned [] forever while `playing`
+    // stayed true (dead air; the auto-stop can never fire either — it
+    // requires !loop). Re-arm the cursor so looping RESUMES: seamlessly at
+    // the upcoming pass boundary while the tail still sounds, else from the
+    // first step at/after now. Leave-loop-off and the whole IN-4 one-shot
+    // auto-stop law are untouched (the re-arm only runs on loop=true).
+    if (loop && this.exhausted && this._playing) this.rearmAfterExhaustion();
     this.emit();
+  }
+
+  /**
+   * R-3: point the compile cursor at the first step that has not sounded.
+   * The exhaustion break compiled THROUGH the pass end only, so nothing
+   * before the cursor can double-schedule; steps already past are skipped
+   * (they were never heard — scheduling them now would be a late burst).
+   */
+  private rearmAfterExhaustion(): void {
+    const now = this.getContext().currentTime;
+    const groove = { bpm: this._bpm, swing: this._swing };
+    const steps = totalSteps(this._loopBars);
+    const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
+    // Skip whole passes that ended while the auto-stop raced us (normally
+    // < one refill interval; a throttled background tab can make this
+    // several — the 1-2 s horizon still covers the resume).
+    while (this.passStart + loopLen <= now) {
+      this.passStart += loopLen;
+      this.passIndex += 1;
+    }
+    // First step of the current pass at/after now (nextStepAtOrAfter is 0
+    // for a not-yet-started pass: the seamless tail case). The clamp mirrors
+    // play()'s startStep law for the swung last-step edge.
+    this.stepInPass = Math.min(
+      nextStepAtOrAfter(now - this.passStart, groove),
+      steps - 1,
+    );
+    this.exhausted = false;
   }
 
   setLoopBars(bars: LoopBars): void {

@@ -264,6 +264,16 @@ export class Session {
       // Warm the voice engines during the pre-roll so the first pattern step
       // is never dropped waiting on the worklet module load.
       this.resetVoiceStealCount(); // steal stats are per-play (HU-2)
+      // R-3: play-from-stop FLUSHES the delivery cursor. The new play's
+      // global step restarts at 0, so every lane's chain-local 0 must be
+      // that step — anchors and lastDeliveredStep are otherwise
+      // session-lifetime state left over from the previous pass (a mid-play
+      // iteration-mode rebuild can leave an anchor non-aligned with the
+      // current chain length, mis-placing or silencing the first iteration
+      // of the next play; a stale high-water step defers stopped switch
+      // requests past slot 0). Same law as the while-stopped schedule push.
+      for (const pb of this.lanePlayback) pb.anchorStep = 0;
+      this.lastDeliveredStep = -1;
       if (this.lanePlayback.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
