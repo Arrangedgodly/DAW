@@ -11,6 +11,19 @@
  * written with the EXACT CSP meta from index.html (tests/csp-policy.ts; the
  * unit guard tests/csp.test.ts pins source ↔ constant drift).
  *
+ * PS-2 refinement (2026-09-03, recorded journey change): the CSP's
+ * connect-src was widened from 'none' to 'self' — same-origin ONLY — for the
+ * RES-10 lazy sample content (build-bundled hashed /assets/*.ogg). The
+ * journey therefore now asserts: third-party calls stay at ZERO, while
+ * same-origin bundled-asset fetches are permitted. After the main ledger,
+ * two DELIBERATE probes pin both edges exactly:
+ *   - POSITIVE: fetching a real committed content OGG through the iframe's
+ *     fetch under the CSP succeeds, and its bytes decode via
+ *     AudioContext.decodeAudioData (the PS-2 loader contract).
+ *   - NEGATIVE: a cross-origin fetch is BLOCKED by the CSP (fetch rejects +
+ *     a securitypolicyviolation event naming connect-src) — third-party
+ *     remains impossible.
+ *
  * Instrumentation, installed on the iframe window BEFORE any app code runs
  * (about:blank inherits the parent origin, so 'self' in the CSP covers the
  * dev-server origin serving the assets):
@@ -24,8 +37,10 @@
  *
  * Journey: boot → play 2 bars → edit cells → add + bypass an FX device →
  * export WAV → export MIDI → SAVE FILE → wait for the IndexedDB autosave
- * flush. Assertions: zero fetch/XHR/WS/EventSource/beacon calls, zero CSP
- * violations, and every performance resource entry same-origin.
+ * flush. Assertions: zero third-party fetch/XHR/WS/EventSource/beacon calls
+ * (same-origin /assets/ fetches allowed — none occur on the boot path by
+ * the TH-4(d) lazy law), zero CSP violations during the journey, every
+ * performance resource entry same-origin, then the two deliberate probes.
  *
  * The iframe approach (vs. loading the served /index.html directly) exists
  * because (a) the dev pipeline strips the CSP meta (cspDevStrip — HMR needs
@@ -39,6 +54,7 @@ import { CSP_POLICY } from "../csp-policy";
 
 const bundleGlob = import.meta.glob("/dist/assets/index-*.js");
 const cssGlob = import.meta.glob("/dist/assets/index-*.css");
+const contentOggGlob = import.meta.glob("/dist/assets/*.ogg");
 
 interface NetworkCall {
   readonly kind: "fetch" | "xhr" | "websocket" | "eventsource" | "beacon";
@@ -318,13 +334,28 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       await new Promise((r) => setTimeout(r, 500));
 
       // --- THE LEDGER ----------------------------------------------------------
-      // 1. Zero fetch / XHR / WebSocket / EventSource / sendBeacon — entirely.
+      // 1. Zero THIRD-PARTY network API calls (PS-2: same-origin bundled
+      //    asset fetches are permitted — none occur on the boot→save path by
+      //    the TH-4(d) lazy law, but the allowance is deliberate).
+      const sameOriginAllowed = (target: string) => {
+        try {
+          const u = new URL(target, win.location.href);
+          return (
+            u.origin === win.location.origin && u.pathname.startsWith("/assets/")
+          );
+        } catch {
+          return false;
+        }
+      };
+      const thirdParty = monitor.calls.filter((c) => !sameOriginAllowed(c.target));
       expect(
-        monitor.calls,
-        `network API calls: ${JSON.stringify(monitor.calls)}`,
+        thirdParty,
+        `third-party network API calls: ${JSON.stringify(thirdParty)}`,
       ).toEqual([]);
 
-      // 2. Zero CSP violations — nothing even ATTEMPTED a forbidden load.
+      // 2. Zero CSP violations during the journey — nothing even ATTEMPTED a
+      //    forbidden load (the deliberate negative probe below is checked
+      //    separately, after this point).
       expect(
         monitor.violations,
         `CSP violations: ${JSON.stringify(monitor.violations)}`,
@@ -360,8 +391,50 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
 
       console.log(
         `[CA-1 zero-network] resources=${entries.length} (all same-origin) ` +
-          `fetch/xhr/ws/es/beacon=0 cspViolations=0 ` +
+          `thirdPartyCalls=0 cspViolations=0 ` +
           `blobDownloads=${monitor.objectUrls.length}`,
+      );
+
+      // --- PS-2 DELIBERATE PROBES (recorded journey extension) --------------
+      // The connect-src 'self' refinement has exactly two edges; pin both.
+      const oggKeys = Object.keys(contentOggGlob);
+      expect(
+        oggKeys.length,
+        "committed content OGGs missing from dist/assets — " +
+          "did the PS-2 loader entry stop emitting them?",
+      ).toBeGreaterThanOrEqual(33);
+
+      // POSITIVE: a real committed content OGG fetched + decoded under the
+      // full CSP through the iframe's own fetch/AudioContext.
+      const oggUrl = oggKeys[0].replace("/dist/", "/");
+      const res = await win.fetch(oggUrl);
+      expect(res.ok, `same-origin content fetch ${oggUrl} blocked by CSP?`)
+        .toBe(true);
+      const bytes = await res.arrayBuffer();
+      expect(bytes.byteLength).toBeGreaterThan(1000);
+      const probeCtx = new win.AudioContext();
+      try {
+        const buffer = await probeCtx.decodeAudioData(bytes.slice(0));
+        expect(buffer.length).toBeGreaterThan(0);
+        expect(buffer.sampleRate).toBe(probeCtx.sampleRate);
+      } finally {
+        await probeCtx.close();
+      }
+
+      // NEGATIVE: a cross-origin fetch must be BLOCKED — rejected promise +
+      // a CSP violation naming connect-src. Third-party stays impossible.
+      const before = monitor.violations.length;
+      await expect(
+        win.fetch("https://bitbounce-csp-negative-probe.example/x.ogg"),
+        "cross-origin fetch was NOT blocked by the CSP",
+      ).rejects.toThrow();
+      await new Promise((r) => setTimeout(r, 100)); // violation event is async
+      expect(monitor.violations.length).toBe(before + 1);
+      expect(monitor.violations[before]).toContain("connect-src");
+
+      console.log(
+        `[CA-1 PS-2 probes] sameOriginOgg=${oggUrl} ` +
+          `${bytes.byteLength}B decoded; crossOriginBlockedBy=CSP`,
       );
 
       iframe.remove();

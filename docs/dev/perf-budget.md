@@ -172,9 +172,10 @@ is verified by the human session protocol (R12), not in CI.
 
 ## 7. Lazy-content budget (TH-4, iteration 2 — the RES-10 pin for PS-2/PS-4)
 
-Same-origin sample content does not exist yet (PS-2 assets / PS-4 sample
-voices land later); the GATE is committed NOW so the lazy-load law cannot
-regress when content lands:
+Sample content LANDED with PS-2 (2026-09-03: 33 CC0 OGG one-shots,
+~285 KB, emitted as hashed dist/assets/*.ogg via the separate `content`
+build entry; PS-4's SampleVoiceHost is the consumer). The gate keeps
+SIMULATING stalls so the law cannot regress as usage grows:
 
 - **First paint must complete < 3 s under a simulated 4 s asset stall.**
 - **PLAY → transport running < 3 s under the same stall.**
@@ -191,8 +192,10 @@ regress when content lands:
 - Enforced in `tests/browser/frame-budget.test.ts` ("TH-4 (d) lazy-content
   budget"). Offline renders are NOT in scope here — they preload/decode
   everything before `startRendering()` by the day-one parity law.
-- Local measured (M1, no content exists yet): first paint 51 ms, PLAY
-  53 ms, 0 audio-asset fetches, 0 decodes.
+- Local measured (TH-4, no content wired): first paint 51 ms, PLAY 53 ms.
+  Re-measured at PS-2 WITH the 33 OGGs physically present in dist/assets:
+  first paint 57 ms, PLAY 55 ms, 0 audio-asset fetches, 0 decodes — the
+  loader is not on the boot path (gate run 2026-09-03).
 - Teeth (red/green): an `await fetch("/assets/content/red-proof.ogg")`
   injected before the app's first render pushes first paint to 4218 ms and
   FAILS the paint budget (and the eager-fetch assertion).

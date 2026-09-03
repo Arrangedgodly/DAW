@@ -1,5 +1,5 @@
 /**
- * CA-1 canonical Content-Security-Policy string.
+ * CA-1 canonical Content-Security-Policy string (PS-2-refined).
  *
  * Single source of truth shared by the unit guard (tests/csp.test.ts, which
  * asserts index.html carries this exact policy verbatim) and the browser
@@ -17,9 +17,17 @@
  * - font-src 'self' data:   — all faces are self-hosted woff2 files; the two
  *                             smallest are data-URL-inlined by Vite (data:
  *                             embeds fetch nothing — no network surface)
- * - connect-src 'none'      — THE privacy statement: no fetch, XHR, WebSocket,
- *                             EventSource, or sendBeacon may reach ANY origin,
- *                             same-origin included. Nothing can phone home.
+ * - connect-src 'self'      — THE privacy statement (PS-2 refinement of v0's
+ *                             'none'): no fetch, XHR, WebSocket, EventSource,
+ *                             or sendBeacon may reach any origin OTHER than
+ *                             this one — the single sanctioned use is lazy-
+ *                             loading the build-bundled CC0 sample content
+ *                             (RES-10: hashed same-origin /assets/*.ogg;
+ *                             src/assets/content/loader.ts enforces the
+ *                             origin check in code as well). Third-party
+ *                             network remains impossible: 'self' carries no
+ *                             host, scheme, or wildcard. Nothing can phone
+ *                             home.
  * - worker-src 'self'       — the audio worklet module is a plain same-origin
  *                             /assets/voiceEngine-*.js URL in the built app
  *                             (src/audio/voiceEngine.ts: new URL("./worklets/
@@ -33,6 +41,6 @@
  */
 export const CSP_POLICY =
   "default-src 'self'; script-src 'self'; style-src 'self'; " +
-  "img-src 'self' data:; font-src 'self' data:; connect-src 'none'; " +
+  "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; " +
   "worker-src 'self'; media-src 'self'; object-src 'none'; " +
   "frame-src 'none'; base-uri 'none'; form-action 'none'";

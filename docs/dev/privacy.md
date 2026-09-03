@@ -34,15 +34,23 @@ privacy statement a page can make:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self';
-img-src 'self' data:; font-src 'self' data:; connect-src 'none';
+img-src 'self' data:; font-src 'self' data:; connect-src 'self';
 worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none';
 base-uri 'none'; form-action 'none'
 ```
 
-- **`connect-src 'none'`** is the core: it makes _any_ fetch/XHR/WebSocket/
-  EventSource/beacon unloadable — same-origin included. Even a future bug or
-  a compromised dependency could not open a channel; the browser itself
-  refuses.
+- **`connect-src 'self'`** is the core (refined from v0's `'none'` by PS-2,
+  2026-09-03, for the RES-10 sample content): it makes _any_
+  fetch/XHR/WebSocket/EventSource/beacon to any origin OTHER THAN THIS ONE
+  unloadable. The single sanctioned same-origin use is lazily fetching the
+  build-bundled CC0 sample one-shots (`/assets/*.ogg` emitted by our own
+  Vite build — see docs/dev/content.md and PROVENANCE.md); the loader
+  (`src/assets/content/loader.ts`) refuses off-origin URLs in code as well,
+  because CSP cannot path-scope `'self'`. Third-party remains impossible —
+  no host, scheme, or wildcard is granted, and the unit guard
+  (tests/csp.test.ts) fails if one ever appears. Even a future bug or a
+  compromised dependency could not open an external channel; the browser
+  itself refuses.
 - Every other directive is pinned to `'self'` (+ `data:` for Vite-inlined
   images/fonts, which are embedded bytes and fetch nothing).
 - **`worker-src 'self'` is deliberately minimal.** The audio worklet module
@@ -106,10 +114,13 @@ executes — only possible on a window the test creates itself.
   nothing to poison because nothing is fetched from one.
 - It cannot auto-update or "check for news" — no update pings exist.
 - It cannot collect crash reports or usage analytics — none are wired, and
-  `connect-src 'none'` would block any that appeared.
+  `connect-src 'self'` would block any that appeared (same-origin-only
+  fetches are exclusively the bundled sample assets, loader-enforced).
 - It has no accounts, no cloud sync, and no server-side anything. Your data
   is IndexedDB in your browser profile plus the files you export yourself.
 
-If a future feature needs network (e.g. v1 sample packs), that feature must
-return to the town hall first: the CSP changes only with an explicit,
-recorded privacy decision — never silently.
+If a future feature needs network (e.g. remote sample packs in v1+), that
+feature must return to the town hall first: the CSP changes only with an
+explicit, recorded privacy decision — never silently. The PS-2 refinement
+('none' → 'self', same-origin bundled content only) is that recorded
+decision; see PROVENANCE.md for every byte it permits.

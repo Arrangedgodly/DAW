@@ -3,6 +3,10 @@ import solid from "vite-plugin-solid";
 import { playwright } from "@vitest/browser-playwright";
 import { onRenderFingerprintConsoleLog } from "./tests/golden/render-fp-recorder.ts";
 import type { Plugin } from "vite";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * CA-1: the strict zero-network CSP meta in index.html (connect-src 'none' …)
@@ -31,6 +35,22 @@ function cspDevStrip(): Plugin {
 
 export default defineConfig({
   plugins: [solid(), cspDevStrip()],
+  build: {
+    rollupOptions: {
+      // PS-2 (RES-10): emit the sample-content loader as its OWN entry so
+      // the committed CC0 OGGs (referenced by its import.meta.glob) ship as
+      // hashed same-origin /assets/*.ogg while staying OUT of the app's
+      // initial-load JS graph — index.html never references this chunk, so
+      // check-bundle counts it as lazy, and the app doesn't import it until
+      // PS-4 wires the SampleVoiceHost (fetches happen only via load()).
+      input: {
+        // key "index" keeps the app entry chunk named index-<hash>.js — the
+        // browser gates glob /dist/assets/index-*.js to load the built app.
+        index: resolve(__dirname, "index.html"),
+        content: resolve(__dirname, "src/assets/content/loader.ts"),
+      },
+    },
+  },
   resolve: {
     alias: [
       {

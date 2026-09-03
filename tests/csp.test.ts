@@ -33,4 +33,30 @@ describe("CA-1 CSP guard", () => {
     const html = readFileSync("dist/index.html", "utf8");
     expect(html).toContain(`content="${CSP_POLICY}"`);
   });
+
+  // PS-2: connect-src was refined 'none' -> 'self' for lazy same-origin
+  // sample content (RES-10). These pins make the refinement un-widenable:
+  // same-origin only, never a third-party hole.
+  it("connect-src is exactly 'self' — same-origin asset fetch only", () => {
+    const connect = CSP_POLICY.match(/connect-src ([^;]+)/)?.[1];
+    expect(connect?.trim()).toBe("'self'");
+  });
+
+  it("no directive may grant a host, scheme, wildcard, or blob: source", () => {
+    const allowed = new Set(["'self'", "'none'", "data:"]);
+    for (const directive of CSP_POLICY.split(";")) {
+      const d = directive.trim();
+      if (!d) continue;
+      // The only granted keywords are 'self', 'none', and data: (font/img
+      // inlining) — anything else (https:, *., *.tld, blob:) is a widening.
+      const granted = d.slice(d.indexOf(" ") + 1);
+      for (const token of granted.split(/\s+/)) {
+        expect(
+          allowed.has(token),
+          `unexpected CSP source token "${token}" in "${d}"`,
+        ).toBe(true);
+      }
+    }
+    expect(CSP_POLICY).not.toMatch(/blob:|https?:|\*/);
+  });
 });

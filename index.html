@@ -4,22 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      CA-1 zero-network guarantee (town-hall AC 9): Bitbounce is local-first
-      forever — no telemetry, no CDN, no data leaving the device except
-      explicit file exports (programmatic blob-anchor downloads, not network
-      writes). This is the strongest policy a page can carry: connect-src
-      'none' means NO fetch, XHR, WebSocket, EventSource, or sendBeacon
-      target is ever loadable — same-origin included; every other directive
-      is pinned to 'self' (the audio worklet module is a plain same-origin
-      /assets/... URL in the built app, so worker-src needs no blob:). The
-      meta is stripped ONLY for `vite dev`, where HMR needs inline styles +
-      a ws: connection (cspDevStrip plugin in vite.config.ts); the built
-      artifact users receive always carries the full policy. Guarded by
-      tests/browser/zero-network.test.ts; see docs/dev/privacy.md.
+      CA-1 zero-network guarantee (town-hall AC 9), refined by PS-2: Bitbounce
+      is local-first forever — no telemetry, no CDN, no data leaving the
+      device except explicit file exports (programmatic blob-anchor
+      downloads, not network writes). connect-src 'self' (was 'none' through
+      v0) allows ONLY same-origin fetch/XHR — the single sanctioned use is
+      lazy-loading the build-bundled CC0 sample content (RES-10: hashed
+      /assets/*.ogg produced by our own build; src/assets/content/loader.ts
+      refuses any off-origin URL, CSP cannot path-scope 'self'). Third-party
+      network stays impossible: default-src is locked to 'self', no
+      wildcard, no scheme, no host allowlist — nothing outside this origin
+      is ever loadable. Every other directive is pinned to 'self' (the
+      audio worklet module is a plain same-origin /assets/... URL in the
+      built app, so worker-src needs no blob:). The meta is stripped ONLY
+      for `vite dev`, where HMR needs inline styles + a ws: connection
+      (cspDevStrip plugin in vite.config.ts); the built artifact users
+      receive always carries the full policy. Guarded by
+      tests/browser/zero-network.test.ts (incl. a deliberate cross-origin
+      fetch probe that MUST be blocked); see docs/dev/privacy.md and
+      docs/dev/content.md.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Bitbounce</title>
     <!-- res-9 critical-path preload set ONLY: the font-display:swap value/ui
