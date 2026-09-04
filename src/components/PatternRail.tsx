@@ -2,8 +2,12 @@
  * PatternRail (DES-6 + IN-3): the song arrangement rail under the booth. Per
  * lane, one row of pattern TILES — chain instances in the lane's chain order
  * (repeats allowed; a tile = one chain slot referencing a pattern) — plus the
- * lane's pattern-management controls (ADD 1/2/4 bars, DUP, REN, RM, "+"
- * append slot).
+ * lane's pattern-management controls (ADD 1/2/4 bars, DUP, REN, RM) behind
+ * one PAT trigger per row (refinement-6: the six-tool row ×4 lanes competed
+ * with the tiles for scan space — the tools are pool management, so they
+ * distill into the popover vocabulary; every control keeps its function,
+ * help entry, and keyboard twin) and the "+" append slot with the tiles
+ * (chain structure lives next to the chain it extends).
  *
  * Click a tile while playing → quantized switch request (engineBridge.
  * requestPatternSwitch); the tile shows PENDING (from session.
@@ -148,6 +152,11 @@ registerHelp([
     title: "RAIL VIEW",
     text: "COLLAPSE zooms the grids in on the selected pattern; EXPAND shows every lane's full chain.",
   },
+  {
+    id: "rail.tools",
+    title: "PATTERN TOOLS",
+    text: "Opens this lane's pattern toolbox: new 1, 2 or 4-bar patterns, duplicate, rename, remove. The keys reach them without opening it — N new, D duplicate, R rename — and it closes itself after an action or on Escape.",
+  },
 ]);
 
 // ---------------------------------------------------------------------------
@@ -161,6 +170,13 @@ const [cueSweep, setCueSweep] = createSignal<CueSweep | null>(null);
 const [railRange, setRailRange] = createSignal<RailRange | null>(null);
 /** The rail summary line both paths announce identically (E5). */
 const [cueSummary, setCueSummary] = createSignal("");
+/**
+ * Refinement-6 (critique P3, heuristic 8): which lane's pattern-tools menu
+ * is open (null = all closed). Rail-level ephemeral signal (the cueSweep
+ * pattern — never document state); one lane at a time, so opening another
+ * row's toolbox closes the first.
+ */
+const [toolsLane, setToolsLane] = createSignal<LaneId | null>(null);
 
 let railEl: HTMLElement | undefined;
 let sweepPointerId = -1;
@@ -445,9 +461,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     const sweep = cueSweep();
     if (!sweep || !sweep.touched.has(`${props.lane}:${tile.slot}`))
       return undefined;
-    return sweep.lastByLane.get(props.lane) === tile.slot
-      ? "target"
-      : "swept";
+    return sweep.lastByLane.get(props.lane) === tile.slot ? "target" : "swept";
   };
 
   /** IN-3: the keyboard range marks its tiles (text-equivalent, D9). */
@@ -485,6 +499,58 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 
   const handleRemovePattern = () => {
     removePattern(props.lane, selectedId());
+  };
+
+  // ---- Refinement-6: the per-lane pattern-tools menu ---------------------
+  // Distill of the six-tool row (critique P3): the management controls live
+  // in the popover vocabulary (scale-pop/fx-add-menu law — ground chassis,
+  // 25%-ink border, 6px radius, chassis cast), NOT in the row competing
+  // with the tiles. Keyboard contract unchanged: `r` opens this menu
+  // focused on REN (KeyboardShortcuts clicks the trigger when REN is not
+  // rendered); `n`/`d`/tile F2/dblclick never routed through the buttons.
+  // Actions close the menu (fx handleAdd precedent); the rename field runs
+  // its own Enter/Esc/blur lifecycle inside it. Escape closes with focus
+  // returned to the trigger (stopPropagation keeps the page-level Escape
+  // order: inline edits/popovers consume before the FX console/region pops).
+  const toolsOpen = () => toolsLane() === props.lane;
+  let toolsBtn: HTMLButtonElement | undefined;
+  let toolsMenuEl: HTMLDivElement | undefined;
+
+  const openTools = () => {
+    setToolsLane(props.lane);
+    // Menu convention (DA-3 fx add menu): focus lands on the first control.
+    queueMicrotask(() =>
+      toolsMenuEl?.querySelector<HTMLButtonElement>(".rail-tool")?.focus(),
+    );
+  };
+  const closeTools = (refocus = true) => {
+    if (toolsLane() === props.lane) setToolsLane(null);
+    // Never strand focus on <body> when the menu unmounts under it.
+    if (refocus) toolsBtn?.focus();
+  };
+  /**
+   * DA-3 law inside the menu: ending the rename edit unmounts the field, so
+   * focus would drop to <body>. Land it back on the menu's first control —
+   * but ONLY when it actually dropped (a blur-commit that moved focus
+   * somewhere real, e.g. a clicked tile, is never yanked back).
+   */
+  const refocusToolsAfterEdit = () => {
+    queueMicrotask(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        toolsMenuEl?.querySelector<HTMLButtonElement>(".rail-tool")?.focus();
+      }
+    });
+  };
+  /**
+   * Tile dblclick / F2 rename entries (DES-6, unchanged function): the name
+   * field lives in the tools menu, so these paths OPEN it — the field
+   * renders in place of REN and focuses itself (the IN-4 dblclick focus
+   * re-assert inside InlineEdit covers the double-press race).
+   */
+  const beginRename = () => {
+    setToolsLane(props.lane);
+    setEditing({ kind: "name" });
   };
 
   /**
@@ -577,7 +643,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       }
     } else if (e.key === "F2") {
       e.preventDefault();
-      setEditing({ kind: "name" });
+      beginRename();
     } else if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       setEditing({ kind: "cue", slot: tile.slot });
@@ -652,7 +718,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
                 if (suppressTileClick) return;
                 triggerTile(tile);
               }}
-              onDblClick={() => setEditing({ kind: "name" })}
+              onDblClick={() => beginRename()}
               onKeyDown={(e) => tileKeyDown(e, tile)}
             >
               <Show
@@ -711,66 +777,114 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         role="group"
         aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
       >
-        <Show
-          when={editing()?.kind === "name"}
-          fallback={
-            <button
-              type="button"
-              class="rail-tool"
-              data-help="rail.rename"
-              aria-label={`Rename ${LANE_NAMES[props.lane]} selected pattern`}
-              onClick={() => setEditing({ kind: "name" })}
-            >
-              REN
-            </button>
-          }
+        <button
+          type="button"
+          class="rail-tool rail-tools-trigger"
+          data-help="rail.tools"
+          aria-haspopup="dialog"
+          aria-expanded={toolsOpen()}
+          aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+          ref={(el) => {
+            toolsBtn = el;
+          }}
+          onClick={() => (toolsOpen() ? closeTools(false) : openTools())}
         >
-          <InlineEdit
-            initial={
-              pool().find((p) => p.patternId === selectedId())?.name ?? ""
-            }
-            maxChars={8}
-            label={`Name for ${LANE_NAMES[props.lane]} selected pattern`}
-            help="rail.rename"
-            onCommit={(v) => {
-              setEditing(null);
-              if (v !== "") renamePattern(props.lane, selectedId(), v);
+          PAT
+        </button>
+        <Show when={toolsOpen()}>
+          <div
+            class="rail-tools-menu"
+            role="dialog"
+            aria-modal="false"
+            aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+            ref={(el) => {
+              toolsMenuEl = el;
             }}
-            onCancel={() => setEditing(null)}
-          />
-        </Show>
-        <For each={[1, 2, 4] as const}>
-          {(bars) => (
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                // Consumes BEFORE the page-level Escape order (the
+                // fx-add-menu law) — the inline rename field one level
+                // deeper consumes its own keystroke first.
+                e.stopPropagation();
+                closeTools();
+              }
+            }}
+          >
+            <Show
+              when={editing()?.kind === "name"}
+              fallback={
+                <button
+                  type="button"
+                  class="rail-tool"
+                  data-help="rail.rename"
+                  aria-label={`Rename ${LANE_NAMES[props.lane]} selected pattern`}
+                  onClick={() => setEditing({ kind: "name" })}
+                >
+                  REN
+                </button>
+              }
+            >
+              <InlineEdit
+                initial={
+                  pool().find((p) => p.patternId === selectedId())?.name ?? ""
+                }
+                maxChars={8}
+                label={`Name for ${LANE_NAMES[props.lane]} selected pattern`}
+                help="rail.rename"
+                onCommit={(v) => {
+                  setEditing(null);
+                  if (v !== "") renamePattern(props.lane, selectedId(), v);
+                  refocusToolsAfterEdit();
+                }}
+                onCancel={() => {
+                  setEditing(null);
+                  refocusToolsAfterEdit();
+                }}
+              />
+            </Show>
+            <For each={[1, 2, 4] as const}>
+              {(bars) => (
+                <button
+                  type="button"
+                  class="rail-tool"
+                  data-help="rail.add"
+                  aria-label={`Add ${bars}-bar pattern to ${LANE_NAMES[props.lane]}`}
+                  onClick={() => {
+                    handleAdd(bars);
+                    closeTools();
+                  }}
+                >
+                  +{bars}B
+                </button>
+              )}
+            </For>
             <button
               type="button"
               class="rail-tool"
-              data-help="rail.add"
-              aria-label={`Add ${bars}-bar pattern to ${LANE_NAMES[props.lane]}`}
-              onClick={() => handleAdd(bars)}
+              data-help="rail.duplicate"
+              aria-label={`Duplicate ${LANE_NAMES[props.lane]} selected pattern`}
+              onClick={() => {
+                handleDuplicate();
+                closeTools();
+              }}
             >
-              +{bars}B
+              DUP
             </button>
-          )}
-        </For>
-        <button
-          type="button"
-          class="rail-tool"
-          data-help="rail.duplicate"
-          aria-label={`Duplicate ${LANE_NAMES[props.lane]} selected pattern`}
-          onClick={handleDuplicate}
-        >
-          DUP
-        </button>
-        <button
-          type="button"
-          class="rail-tool"
-          data-help="rail.remove"
-          aria-label={`Remove ${LANE_NAMES[props.lane]} selected pattern`}
-          disabled={pool().length <= 1}
-          onClick={handleRemovePattern}
-        >
-          RM
-        </button>
+            <button
+              type="button"
+              class="rail-tool"
+              data-help="rail.remove"
+              aria-label={`Remove ${LANE_NAMES[props.lane]} selected pattern`}
+              disabled={pool().length <= 1}
+              onClick={() => {
+                handleRemovePattern();
+                closeTools();
+              }}
+            >
+              RM
+            </button>
+          </div>
+        </Show>
       </div>
 
       <span class="head-sr" role="status" aria-live="polite">
@@ -786,6 +900,7 @@ export default function PatternRail(): JSX.Element {
     onCleanup(() => {
       setCueSweep(null);
       setRailRange(null);
+      setToolsLane(null);
       sweepPointerId = -1;
       sweepCaptured = false;
     });

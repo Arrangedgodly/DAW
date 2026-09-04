@@ -13,7 +13,8 @@
  * States walked: base chrome (booth + four quadrant strips + four grids +
  * euclid rails + rail) · FX strip with devices mounted · FX add menu ·
  * projects popover · lane scale popover (the HP-1 deferral HP-2 owns) ·
- * booth project-scale popover · rail rename inline editor.
+ * booth project-scale popover · rail pattern-tools menu + rename inline
+ * editor (refinement-6: the tools live behind the row's PAT popover).
  *
  * Documented EXCLUSIONS (deliberate, per plan law):
  * - The KEYS overlay (.help-backdrop): the keyboard-shortcut reference is a
@@ -118,8 +119,14 @@ function walkInteractive(scope: string): WalkFinding[] {
       findings.push({ describe, scope: `${scope} (unregistered id)` });
       continue;
     }
-    if (PLACEHOLDER_RE.test(entry.text) || entry.text.trim().length < MIN_TEXT) {
-      findings.push({ describe, scope: `${scope} (thin text: "${entry.text}")` });
+    if (
+      PLACEHOLDER_RE.test(entry.text) ||
+      entry.text.trim().length < MIN_TEXT
+    ) {
+      findings.push({
+        describe,
+        scope: `${scope} (thin text: "${entry.text}")`,
+      });
     }
   }
   return findings;
@@ -168,7 +175,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
             new MouseEvent("click", { bubbles: true, cancelable: true }),
           );
         const keyAt = (k: string) =>
-          (document.activeElement as Element ?? document.body).dispatchEvent(
+          ((document.activeElement as Element) ?? document.body).dispatchEvent(
             new KeyboardEvent("keydown", {
               key: k,
               bubbles: true,
@@ -194,9 +201,9 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         // grid + euclid rails, all four rail rows)
         await waitFor(
           () =>
-            host.querySelector(
-              '.lane-floor[data-lane="drums"] [role="grid"]',
-            )?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+            host
+              .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
+              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
           4000,
           "drums quadrant editable (demo loaded)",
         );
@@ -210,9 +217,9 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         selectLane("bass"); // demo bass lane carries FX devices
         await waitFor(
           () =>
-            host.querySelector(
-              '.lane-floor[data-lane="bass"] [role="grid"]',
-            )?.getAttribute("aria-label") === "BASS grid · EDITING",
+            host
+              .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
+              ?.getAttribute("aria-label") === "BASS grid · EDITING",
           2000,
           "bass quadrant editable",
         );
@@ -319,7 +326,21 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           "project scale popover closed",
         );
 
-        // --- STATE 7: rail rename inline editor ------------------------
+        // --- STATE 7: rail pattern-tools menu + rename inline editor ------
+        // Refinement-6: the six management tools live behind the row's PAT
+        // popover — walk it OPEN (every tool must still resolve to its
+        // registered entry), then the rename field inside it.
+        click('.rail-row[data-lane="bass"] .rail-tools-trigger');
+        await waitFor(
+          () => host.querySelector(".rail-tools-menu") !== null,
+          2000,
+          "pattern tools menu open",
+        );
+        findings = walkInteractive("rail pattern tools menu");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the tools menu must be fully covered",
+        ).toEqual([]);
         click('.rail-row[data-lane="bass"] [data-help="rail.rename"]');
         await waitFor(
           () => host.querySelector(".rail-tools .rail-edit") !== null,
@@ -345,6 +366,15 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () => host.querySelector(".rail-tools .rail-edit") === null,
           2000,
           "rename editor closed",
+        );
+        // Then the menu's own Escape (the documented order: inline edits
+        // consume first, popovers second) — focus rests in the menu after
+        // the field's guard refocus, so the menu's bubbled handler sees it.
+        keyAt("Escape");
+        await waitFor(
+          () => host.querySelector(".rail-tools-menu") === null,
+          2000,
+          "pattern tools menu closed",
         );
 
         // --- Final: the coverage census (the log's count) ---------------

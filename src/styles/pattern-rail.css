@@ -7,6 +7,10 @@
  *
  * LY-1 one-page law: the rail compacts to single-line rows (cue inline with
  * pattern name + bars) so booth + rail + all four quadrants fit 1440×900.
+ * Refinement-6 (critique P3): the rows carry ONLY chain reading/structure —
+ * lane name, tiles, the + append — while pattern-pool management (REN/+NB/
+ * DUP/RM) distills into the PAT popover, so the tiles keep the scan space
+ * the six-tool rows used to compete for.
  */
 
 /*
@@ -65,6 +69,7 @@
 
 .rail-row {
   --lane-hue: var(--color-ink);
+  position: relative; /* refinement-6: anchors the .rail-tools popover */
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -258,6 +263,31 @@
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
+}
+
+/* Refinement-6 (critique P3, heuristic 8 — tools row density): the six
+ * management controls distill behind the PAT trigger into the popover
+ * vocabulary (the scale-pop/fx-add-menu law: opaque ground, 1px 25%-ink
+ * border, 6px radius, one chassis cast — no new styling vocabulary). The
+ * menu is absolute AGAINST THE ROW (not the 45px tools cluster — an
+ * abspos shrink-to-fit inside the tiny cluster wraps to one column), the
+ * row's layout NEVER grows for it, and the tiles keep the horizontal
+ * space the six-button row used to spend. */
+.rail-tools-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 216px;
+  padding: var(--space-3);
+  background: var(--color-ground);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 6px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
 
 .rail-tool {

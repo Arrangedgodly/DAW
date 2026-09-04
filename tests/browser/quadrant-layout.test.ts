@@ -482,9 +482,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             `.row-fill[data-row="${row}"]`,
           ) as HTMLElement;
           const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
-          const cells = [
-            ...floor("drums").querySelectorAll(".grid-row"),
-          ][row]!.querySelector(".row-cells")!;
+          const cells = [...floor("drums").querySelectorAll(".grid-row")][
+            row
+          ]!.querySelector(".row-cells")!;
           expect(rail.style.width, `row ${row} rail pinned inline`).toBe(
             "220px",
           );
@@ -513,6 +513,19 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(pageFits(), "page still fits with the widened rail").toBe(true);
 
         // --- 10. One-page law under the Hulk extreme (4-bar pattern) -------
+        // Refinement-6: the tools live behind the row's PAT menu — open it,
+        // then act inside it (the `n` key twin bypasses the menu).
+        $<HTMLButtonElement>(
+          '.rail-row[data-lane="lead"] .rail-tools-trigger',
+        ).click();
+        await poll(
+          () =>
+            idoc().querySelector(
+              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
+            ) !== null,
+          2_000,
+          "LEAD pattern tools menu open",
+        );
         const add4B = $<HTMLButtonElement>(
           '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
         );
@@ -601,11 +614,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
       };
       const trackOf = (lane: string): number =>
         Number.parseFloat(
-          idoc()!
-            .querySelector<HTMLElement>(
-              `.lane-floor[data-lane="${lane}"] .row-cells`,
-            )!
-            .style.gridAutoRows,
+          idoc()!.querySelector<HTMLElement>(
+            `.lane-floor[data-lane="${lane}"] .row-cells`,
+          )!.style.gridAutoRows,
         );
 
       try {
@@ -654,18 +665,14 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // control height law). Every quadrant's LAST row is fully inside
         // the viewport — compression, never clipping.
         const bassTrack = trackOf("bass");
-        expect(bassTrack, "bass tracks compressed (was a fixed 16px)").toBe(
-          15,
-        );
+        expect(bassTrack, "bass tracks compressed (was a fixed 16px)").toBe(15);
         expect(
           trackOf("drums"),
           "drums keeps its committed 20px floor (fill-rail control law)",
         ).toBe(20);
         for (const lane of ["drums", "bass", "chords", "lead"]) {
           const rows = Array.from(
-            $(`.lane-floor[data-lane="${lane}"]`).querySelectorAll(
-              ".grid-row",
-            ),
+            $(`.lane-floor[data-lane="${lane}"]`).querySelectorAll(".grid-row"),
           );
           expect(rows.length, `${lane} row count`).toBeGreaterThan(0);
           const last = rows[rows.length - 1].getBoundingClientRect();
@@ -683,7 +690,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
 
         // --- 1b-3. Entry-2 euclid law at 1280 (no occlusion regression) --
         for (let row = 0; row < 6; row++) {
-          const rail = $(`.lane-floor[data-lane="drums"] .row-fill[data-row="${row}"]`);
+          const rail = $(
+            `.lane-floor[data-lane="drums"] .row-fill[data-row="${row}"]`,
+          );
           expect(rail.style.width, `row ${row} rail pinned`).toBe("220px");
           const set = rail.querySelector(".row-fill-apply")!;
           const r = set.getBoundingClientRect();
@@ -709,8 +718,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           "page fits with the FX console open at 1280 (overlay never grows the page)",
         ).toBe(true);
         const fxWrap = $(".lane-fx-wrap");
-        const stripRect = $(`.lane-floor[data-lane="drums"] .lane-head-strip`)
-          .getBoundingClientRect();
+        const stripRect = $(
+          `.lane-floor[data-lane="drums"] .lane-head-strip`,
+        ).getBoundingClientRect();
         expect(fxWrap.getBoundingClientRect().top).toBeGreaterThanOrEqual(
           stripRect.bottom - 0.5,
         );
@@ -727,9 +737,10 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             r.left + r.width / 2,
             r.top + r.height / 2,
           );
-          expect(hit === el || el.contains(hit!), `${sel} self-hits at 1280`).toBe(
-            true,
-          );
+          expect(
+            hit === el || el.contains(hit!),
+            `${sel} self-hits at 1280`,
+          ).toBe(true);
         }
         idoc().body.dispatchEvent(
           new KeyboardEvent("keydown", {
@@ -754,10 +765,13 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           5_000,
           "tracks restored to the committed scale at 1440×900",
         );
-        expect(fits(VIEW_W, VIEW_H), "page fits after growing to 1440×900").toBe(
-          true,
+        expect(
+          fits(VIEW_W, VIEW_H),
+          "page fits after growing to 1440×900",
+        ).toBe(true);
+        const drumsScroll = $(
+          `.lane-floor[data-lane="drums"] .lane-grid-scroll`,
         );
-        const drumsScroll = $(`.lane-floor[data-lane="drums"] .lane-grid-scroll`);
         expect(
           drumsScroll.scrollWidth,
           "1-bar drums no-internal-scroll law restored at 1440",
@@ -773,6 +787,18 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(fits(MIN_W, MIN_H), "page fits back at 1280×800").toBe(true);
 
         // --- 1b-6. Hulk extreme at the minimum ----------------------------
+        // Refinement-6: open the row's PAT menu, then add inside it.
+        $<HTMLButtonElement>(
+          '.rail-row[data-lane="lead"] .rail-tools-trigger',
+        ).click();
+        await poll(
+          () =>
+            idoc().querySelector(
+              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
+            ) !== null,
+          2_000,
+          "LEAD pattern tools menu open at 1280",
+        );
         $<HTMLButtonElement>(
           '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
         ).click();
@@ -800,8 +826,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // their readability floor instead of growing the page.
         $(`.lane-floor[data-lane="bass"] .cell`).click();
         await poll(
-          () =>
-            $(`.lane-floor[data-lane="bass"]`).dataset.editing === "true",
+          () => $(`.lane-floor[data-lane="bass"]`).dataset.editing === "true",
           2_000,
           "bass selected at 1280",
         );

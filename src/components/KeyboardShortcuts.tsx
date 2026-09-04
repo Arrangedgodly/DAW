@@ -102,10 +102,14 @@ export default function KeyboardShortcuts(): JSX.Element {
       if (id) selectPattern(lane, id);
     } else if (e.key === "r") {
       // Rename via rail focus (spec): focus the active lane's REN control;
-      // the inline field takes over from there.
+      // the inline field takes over from there. Refinement-6: REN lives in
+      // the row's pattern-tools menu — when it is not rendered, open the
+      // menu (the trigger click lands focus on REN itself).
       e.preventDefault();
       const rail = document.querySelector(`.rail-row[data-lane="${lane}"]`);
-      rail?.querySelector<HTMLElement>(".rail-tools button")?.focus();
+      const ren = rail?.querySelector<HTMLElement>('[data-help="rail.rename"]');
+      if (ren) ren.focus();
+      else rail?.querySelector<HTMLElement>(".rail-tools-trigger")?.click();
     } else if (e.key === "i") {
       // HP-1 (keyboard.md v2): toggle help mode (the info view) — the same
       // guards as n/d/r (never in text entries, never with an AT/browser

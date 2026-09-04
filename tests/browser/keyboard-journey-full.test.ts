@@ -419,6 +419,21 @@ describe("DA-3 full keyboard journey (built app)", () => {
           T.ui,
           "stop",
         );
+        // Refinement-6: the pattern tools live behind the row's PAT menu —
+        // open it (menu convention lands focus on REN, the first control),
+        // then activate DUP inside it. The `d` key twin still bypasses the
+        // menu entirely (keyboard.md ledger #5).
+        kbActivate(
+          bassRow.querySelector<HTMLButtonElement>(".rail-tools-trigger")!,
+        );
+        await poll(
+          () =>
+            bassRow.querySelector<HTMLButtonElement>(
+              'button[aria-label="Duplicate BASS selected pattern"]',
+            ) !== null,
+          T.ui,
+          "BASS pattern tools menu open",
+        );
         kbActivate(
           bassRow.querySelector<HTMLButtonElement>(
             'button[aria-label="Duplicate BASS selected pattern"]',

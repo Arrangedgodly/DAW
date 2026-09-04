@@ -147,7 +147,8 @@ function installTestAudioContext(
               break;
             }
           }
-          if (text === null) throw new Error(`worklet module fetch failed: ${url}`);
+          if (text === null)
+            throw new Error(`worklet module fetch failed: ${url}`);
           await origAddModule(
             win.URL.createObjectURL(
               new win.Blob([text], { type: "text/javascript" }),
@@ -253,7 +254,10 @@ async function bootBuiltApp(opts: {
 }
 
 /** PLAY via the real booth button; resolves once the transport runs. */
-async function clickPlayAndWait(app: BootResult, budgetMs = 5000): Promise<number> {
+async function clickPlayAndWait(
+  app: BootResult,
+  budgetMs = 5000,
+): Promise<number> {
   const t0 = performance.now();
   app.playBtn().click();
   await poll(
@@ -305,9 +309,8 @@ describe("frame budget (built app, playing + 200 toggles)", () => {
               }
             }
 
-            const cells = doc().querySelectorAll<HTMLElement>(
-              ".lane-grid .cell",
-            );
+            const cells =
+              doc().querySelectorAll<HTMLElement>(".lane-grid .cell");
             if (toggles < TOGGLE_COUNT && cells.length > 0) {
               // Two real DOM cell clicks per frame: the realistic worst case
               // of a fast editor, through click delegation → store → bridge →
@@ -402,11 +405,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         };
         const floor = (lane: string): HTMLElement =>
           $(`.lane-floor[data-lane="${lane}"]`);
-        const cellAt = (
-          lane: string,
-          row: number,
-          step: number,
-        ): HTMLElement =>
+        const cellAt = (lane: string, row: number, step: number): HTMLElement =>
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
@@ -491,6 +490,17 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         };
         const add4Bar = async (lane: string): Promise<void> => {
           const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
+          // Refinement-6: the tools live behind the row's PAT menu — open it
+          // first, then act inside it.
+          $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+          await poll(
+            () =>
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
+              ) !== null,
+            2000,
+            `${lane} pattern tools menu open`,
+          );
           (
             $(
               `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
@@ -514,8 +524,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           ).click();
           await poll(
             () =>
-              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
-                .length === 5,
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 5,
             2000,
             `${lane} dense pattern appended to the chain`,
           );
@@ -531,8 +542,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
             key(tile, "Delete");
             await poll(
               () =>
-                doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
-                  .length ===
+                doc().querySelectorAll(
+                  `.rail-row[data-lane="${lane}"] .rail-tile`,
+                ).length ===
                 4 - i,
               2000,
               `${lane} demo chain slot ${i} removed`,
@@ -552,7 +564,8 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // bass: 7 sustained long notes (rows 0..12) + spread clicks.
         await selectLane("bass");
         await add4Bar("bass");
-        for (const row of [0, 2, 4, 6, 8, 10, 12]) dragCreate("bass", row, 0, 31);
+        for (const row of [0, 2, 4, 6, 8, 10, 12])
+          dragCreate("bass", row, 0, 31);
         await poll(
           () => floor("bass").querySelectorAll(".note-run").length >= 7,
           3000,
@@ -608,9 +621,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           2000,
           "fx add menu",
         );
-        (
-          doc().querySelectorAll(".fx-add-item")[0] as HTMLElement
-        ).click();
+        (doc().querySelectorAll(".fx-add-item")[0] as HTMLElement).click();
         await poll(
           () =>
             doc().querySelectorAll('.fx-strip[data-lane="drums"] .fx-mod')
@@ -623,8 +634,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // --- Structural preconditions --------------------------------------
         for (const lane of LANES) {
           const label =
-            ($(`.lane-floor[data-lane="${lane}"] .head-fx`) as HTMLElement)
-              .getAttribute("aria-label") ?? "";
+            (
+              $(`.lane-floor[data-lane="${lane}"] .head-fx`) as HTMLElement
+            ).getAttribute("aria-label") ?? "";
           expect(label, `${lane} FX chain active`).toContain("device");
         }
         expect(doc().querySelectorAll(".lane-grid").length).toBe(4);
@@ -681,9 +693,8 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
             intervals.push(now - last);
             last = now;
             for (const lane of LANES) {
-              const ph = floor(lane).querySelector<HTMLElement>(
-                ".grid-playhead",
-              );
+              const ph =
+                floor(lane).querySelector<HTMLElement>(".grid-playhead");
               if (ph) {
                 const t = ph.style.transform;
                 if (t && t !== lastT[lane]) {
@@ -753,11 +764,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         };
         const floor = (lane: string): HTMLElement =>
           $(`.lane-floor[data-lane="${lane}"]`);
-        const cellAt = (
-          lane: string,
-          row: number,
-          step: number,
-        ): HTMLElement =>
+        const cellAt = (lane: string, row: number, step: number): HTMLElement =>
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
@@ -864,11 +871,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
               return t.classList.contains("rail-tile");
             if (a === "data-active")
               return t.classList.contains("booth-beat-led");
-            if (
-              a === "data-status" ||
-              a === "aria-label" ||
-              a === "title"
-            )
+            if (a === "data-status" || a === "aria-label" || a === "title")
               return t.classList.contains("save-indicator");
             return false;
           }
@@ -970,23 +973,16 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
             () => press.dispatchEvent(pe("pointerdown", c.x, c.y)),
             (i) => {
               const stepFloat = 2 + ((i * 3) % 40); // oscillate the live length
-              return pe(
-                "pointermove",
-                cells.left + (stepFloat + 0.5) * w,
-                c.y,
-              );
+              return pe("pointermove", cells.left + (stepFloat + 0.5) * w, c.y);
             },
             () => press,
             () =>
-              press.dispatchEvent(
-                pe("pointerup", cells.left + 10.5 * w, c.y),
-              ),
+              press.dispatchEvent(pe("pointerup", cells.left + 10.5 * w, c.y)),
             () => {
               if (doc().querySelector(".note-run.is-drag-preview"))
                 saw.createPreviewBar = true;
               if (
-                floor(lane).querySelector('.cell[data-preview="true"]') !==
-                null
+                floor(lane).querySelector('.cell[data-preview="true"]') !== null
               )
                 saw.createPreviewCells = true;
             },
@@ -1007,9 +1003,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
             `.lane-floor[data-lane="${lane}"] .note-edge[data-row="0"]`,
           );
           const c = center(edge);
-          const cells = edge
-            .closest(".row-cells")!
-            .getBoundingClientRect();
+          const cells = edge.closest(".row-cells")!.getBoundingClientRect();
           const w = stepWidth(lane);
           const noteStart = Number(edge.dataset.start);
           const runEl = edge.parentElement as HTMLElement;
@@ -1019,11 +1013,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
             () => edge.dispatchEvent(pe("pointerdown", c.x, c.y)),
             (i) => {
               const endStep = noteStart + 4 + ((i * 2) % 22);
-              return pe(
-                "pointermove",
-                cells.left + (endStep + 0.5) * w,
-                c.y,
-              );
+              return pe("pointermove", cells.left + (endStep + 0.5) * w, c.y);
             },
             () => edge,
             () =>
@@ -1037,8 +1027,10 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           );
           await poll(
             () =>
-              (floor(lane).querySelector(".note-length-live")?.textContent ?? "")
-                .startsWith("LENGTH"),
+              (
+                floor(lane).querySelector(".note-length-live")?.textContent ??
+                ""
+              ).startsWith("LENGTH"),
             2000,
             "resize announcement after release commit",
           );
@@ -1078,11 +1070,9 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           );
           await poll(
             () =>
-              floor("drums")
-                .querySelectorAll<HTMLElement>(
-                  '.cell[data-row="1"][data-on="true"]',
-                )
-                .length >= 4,
+              floor("drums").querySelectorAll<HTMLElement>(
+                '.cell[data-row="1"][data-on="true"]',
+              ).length >= 4,
             2000,
             "painted hits committed on release",
           );
@@ -1130,9 +1120,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         }
 
         // --- Budgets ---------------------------------------------------------
-        expect(allIntervals.length).toBeGreaterThan(
-          (STORM_WINDOW_MS / 50) * 3,
-        );
+        expect(allIntervals.length).toBeGreaterThan((STORM_WINDOW_MS / 50) * 3);
         const over = allIntervals.filter((d) => d >= FRAME_BUDGET_MS);
         expect(
           over.length / allIntervals.length,
@@ -1243,8 +1231,7 @@ describe("TH-4 (d) lazy-content budget (built app, simulated asset stall)", () =
             const sampleRate = this.sampleRate;
             return new Promise<AudioBuffer>((resolve) => {
               setTimeout(
-                () =>
-                  resolve(this.createBuffer(1, 128, sampleRate)),
+                () => resolve(this.createBuffer(1, 128, sampleRate)),
                 CONTENT_STALL_MS,
               );
             });

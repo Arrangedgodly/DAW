@@ -139,7 +139,10 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   4.63; CSS 11.91 KB gz); growth since = iteration-2 eager-path features
   (quadrant layout, help registry, preset/sample code) + refinement fixes,
   tracked at every task in production-log.md. 64.31 ≤ 300 KB — 21% of
-  budget. Vite's own build report prints slightly different gzip figures
+  budget. Later same-day drift (measured 2026-09-03, refinement-6 — the
+  rail pattern-tools popover, same method): initial JS 64.65 KB gz, CSS
+  13.13 KB gz (+0.34 / +0.04; 22% of budget). Vite's own build report
+  prints slightly different gzip figures
   (e.g. 66.41 KB initial) because it uses its default gzip settings, not
   -9; the gate's numbers above are the contract.
 - res-9 preload discipline: index.html preloads ONLY the critical

@@ -462,6 +462,19 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "stop",
         );
+        // Refinement-6: the tools live behind the row's PAT menu — open it,
+        // then duplicate inside it (the `d` key twin bypasses the menu).
+        bassRow
+          .querySelector<HTMLButtonElement>(".rail-tools-trigger")!
+          .click();
+        await poll(
+          () =>
+            bassRow.querySelector<HTMLButtonElement>(
+              'button[aria-label="Duplicate BASS selected pattern"]',
+            ) !== null,
+          T.ui,
+          "BASS pattern tools menu open",
+        );
         // Duplicate creates a NEW pattern ("NAME+" copy, selected but not yet
         // chained — the chain length is unchanged until append) ...
         bassRow
