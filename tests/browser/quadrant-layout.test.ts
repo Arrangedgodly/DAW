@@ -7,6 +7,18 @@
  *    Height ≤ the viewport AND every booth/rail/strip bounding box inside
  *    it. Re-asserted after a 4-bar pattern joins (the Hulk extreme — long
  *    patterns scroll INSIDE quadrants, never the page).
+ * 1b. REFINEMENT-4 (critique P2-5): the one-page law extends to the
+ *    1280×800 tested minimum — BOTH axes. The pre-fix page measured
+ *    1312×825 in an 800-px viewport (the rail box's content-box width:100%
+ *    + its own 32 px padding = the horizontal breach; fixed 16/20 px
+ *    quadrant row tracks = the vertical). Now the quadrant stage FLEXES
+ *    within the 100dvh budget: row tracks compress per their own laws
+ *    (floors: drums 20 px = the fill-rail control height, pitched 12 px =
+ *    the Silkscreen label floor), no content loss (every row inside the
+ *    viewport), 4-bar grids scroll inside quadrants as always, the
+ *    entry-1 FX console and entry-2 euclid rail keep their pointer laws at
+ *    1280, and a mid-session viewport resize recovers (1280 → 1440 → 1280:
+ *    tracks restore to the committed scale, then compress again).
  * 2. E1 (a11y §7): every actual quadrant-selection change — by key AND by
  *    click — speaks `NOW EDITING <LANE>` through the stage role=status
  *    region (exists, labeled, not aria-hidden).
@@ -522,6 +534,291 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
       } finally {
         // R14 teardown: remove the iframe (closes its DB connections), then
         // wipe the shared-origin IndexedDB with retries.
+        iframe.remove();
+        for (let attempt = 0; ; attempt++) {
+          const deleted = await new Promise<boolean>((resolve) => {
+            const req = indexedDB.deleteDatabase("bitbounce");
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(true);
+            req.onblocked = () => resolve(false);
+          });
+          if (deleted || attempt >= 20) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+    },
+    120_000,
+  );
+
+  it(
+    "refinement-4: 1280×800 one page on BOTH axes; quadrants flex within the 100dvh budget; resize recovers",
+    { timeout: 120_000 },
+    async () => {
+      const bundleKey = Object.keys(bundleGlob)[0];
+      const cssKey = Object.keys(cssGlob)[0];
+      expect(bundleKey, "built bundle missing").toBeTruthy();
+      expect(cssKey).toBeTruthy();
+
+      const MIN_W = 1280;
+      const MIN_H = 800;
+
+      const iframe = document.createElement("iframe");
+      iframe.style.width = `${MIN_W}px`;
+      iframe.style.height = `${MIN_H}px`;
+      document.body.appendChild(iframe);
+      const win = iframe.contentWindow!;
+
+      await new Promise<void>((resolve) => {
+        const req = win.indexedDB.deleteDatabase("bitbounce");
+        req.onsuccess = req.onerror = req.onblocked = () => resolve();
+      });
+
+      const doc0 = iframe.contentDocument!;
+      doc0.open();
+      doc0.write(`<!doctype html><html><head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="${cssKey.replace("/dist/", "/")}" />
+</head><body><div id="root"></div>
+<script type="module" src="${bundleKey.replace("/dist/", "/")}"></script>
+</body></html>`);
+      doc0.close();
+
+      const idoc = () => iframe.contentDocument!;
+      const $ = <T extends Element>(sel: string): T => {
+        const el = idoc().querySelector<T>(sel);
+        if (!el) throw new Error(`missing ${sel}`);
+        return el;
+      };
+      /** The one-page law at an explicit viewport size. */
+      const fits = (w: number, h: number): boolean => {
+        const de = idoc().documentElement;
+        return (
+          de.scrollWidth <= w &&
+          de.scrollHeight <= h &&
+          (idoc().body.scrollWidth ?? 0) <= w &&
+          (idoc().body.scrollHeight ?? 0) <= h
+        );
+      };
+      const trackOf = (lane: string): number =>
+        Number.parseFloat(
+          idoc()!
+            .querySelector<HTMLElement>(
+              `.lane-floor[data-lane="${lane}"] .row-cells`,
+            )!
+            .style.gridAutoRows,
+        );
+
+      try {
+        await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
+        await poll(
+          () =>
+            Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(
+              (c) => c.textContent === "VERSE",
+            ),
+          5_000,
+          "demo cues",
+        );
+        // Let the budget fit settle (fonts + first observers). Teeth note:
+        // on a revert of the entry-4 fixes this poll times out and the
+        // assertion below reports the measured breach (was 1312×825).
+        let settled = false;
+        try {
+          await poll(() => fits(MIN_W, MIN_H), 5_000, "1280 fit settle");
+          settled = true;
+        } catch {
+          settled = false;
+        }
+        const de = idoc().documentElement;
+        expect(
+          settled,
+          `page must fit ${MIN_W}×${MIN_H} on BOTH axes (measured ${de.scrollWidth}×${de.scrollHeight} — pre-fix 1312×825)`,
+        ).toBe(true);
+        // --- 1b-1. THE BREACH, BOTH AXES --------------------------------
+        // Pre-fix: 1312 × 825 in an 1280 × 800 viewport (25 px page v-scroll
+        // + 32 px page h-scroll — the entry-2 verifier's recorded deltas).
+        expect(de.scrollWidth, "no horizontal page scroll").toBeLessThanOrEqual(
+          MIN_W,
+        );
+        expect(de.scrollHeight, "no vertical page scroll").toBeLessThanOrEqual(
+          MIN_H,
+        );
+        // The rail box itself sits inside the viewport (was right = 1312).
+        expect(
+          $(".rail").getBoundingClientRect().right,
+          "rail box inside viewport",
+        ).toBeLessThanOrEqual(MIN_W + 0.5);
+
+        // --- 1b-2. Quadrants flexed per their own laws, no content loss --
+        // bass (14 rows) compresses within its readability floor [12, 16);
+        // drums keeps its committed 20 px (6-row slack + the fill-rail
+        // control height law). Every quadrant's LAST row is fully inside
+        // the viewport — compression, never clipping.
+        const bassTrack = trackOf("bass");
+        expect(bassTrack, "bass tracks compressed (was a fixed 16px)").toBe(
+          15,
+        );
+        expect(
+          trackOf("drums"),
+          "drums keeps its committed 20px floor (fill-rail control law)",
+        ).toBe(20);
+        for (const lane of ["drums", "bass", "chords", "lead"]) {
+          const rows = Array.from(
+            $(`.lane-floor[data-lane="${lane}"]`).querySelectorAll(
+              ".grid-row",
+            ),
+          );
+          expect(rows.length, `${lane} row count`).toBeGreaterThan(0);
+          const last = rows[rows.length - 1].getBoundingClientRect();
+          expect(
+            last.bottom,
+            `${lane} last row fully inside the viewport (no content loss)`,
+          ).toBeLessThanOrEqual(MIN_H + 0.5);
+          expect(last.height, `${lane} rows render at full track height`).toBe(
+            Number.parseFloat(
+              getComputedStyle(rows[0].querySelector(".row-cells")!)
+                .gridAutoRows,
+            ),
+          );
+        }
+
+        // --- 1b-3. Entry-2 euclid law at 1280 (no occlusion regression) --
+        for (let row = 0; row < 6; row++) {
+          const rail = $(`.lane-floor[data-lane="drums"] .row-fill[data-row="${row}"]`);
+          expect(rail.style.width, `row ${row} rail pinned`).toBe("220px");
+          const set = rail.querySelector(".row-fill-apply")!;
+          const r = set.getBoundingClientRect();
+          const hit = idoc().elementFromPoint(
+            r.left + r.width / 2,
+            r.top + r.height / 2,
+          );
+          expect(
+            hit === set || set.contains(hit!),
+            `row ${row} SET owns its center at 1280`,
+          ).toBe(true);
+        }
+
+        // --- 1b-4. Entry-1 FX console law at 1280 --------------------------
+        $(".lane-floor[data-lane='drums'] .head-fx").click();
+        await poll(
+          () => !!idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "fx console opens at 1280",
+        );
+        expect(
+          fits(MIN_W, MIN_H),
+          "page fits with the FX console open at 1280 (overlay never grows the page)",
+        ).toBe(true);
+        const fxWrap = $(".lane-fx-wrap");
+        const stripRect = $(`.lane-floor[data-lane="drums"] .lane-head-strip`)
+          .getBoundingClientRect();
+        expect(fxWrap.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+          stripRect.bottom - 0.5,
+        );
+        for (const sel of [
+          ".head-fx",
+          ".scale-chip",
+          'button[aria-label="Shorter gate for DRUMS"]',
+          'button[aria-label="Longer gate for DRUMS"]',
+          '[aria-label="DRUMS gate length"] .head-ctl-label',
+        ]) {
+          const el = $(`.lane-floor[data-lane="drums"] ${sel}`);
+          const r = el.getBoundingClientRect();
+          const hit = idoc().elementFromPoint(
+            r.left + r.width / 2,
+            r.top + r.height / 2,
+          );
+          expect(hit === el || el.contains(hit!), `${sel} self-hits at 1280`).toBe(
+            true,
+          );
+        }
+        idoc().body.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+        await poll(
+          () => !idoc().querySelector(".lane-fx-wrap"),
+          2_000,
+          "Escape closes the console at 1280",
+        );
+
+        // --- 1b-5. Mid-session resize: rotation recovery ------------------
+        // 1280×800 → 1440×900: tracks restore to the committed scale and
+        // the entry-2 §9c law (1-bar drums, no internal scroll) returns.
+        iframe.style.width = `${VIEW_W}px`;
+        iframe.style.height = `${VIEW_H}px`;
+        await poll(
+          () => trackOf("bass") === 16,
+          5_000,
+          "tracks restored to the committed scale at 1440×900",
+        );
+        expect(fits(VIEW_W, VIEW_H), "page fits after growing to 1440×900").toBe(
+          true,
+        );
+        const drumsScroll = $(`.lane-floor[data-lane="drums"] .lane-grid-scroll`);
+        expect(
+          drumsScroll.scrollWidth,
+          "1-bar drums no-internal-scroll law restored at 1440",
+        ).toBeLessThanOrEqual(drumsScroll.clientWidth);
+        // …and back down to the minimum: compression resumes, page fits.
+        iframe.style.width = `${MIN_W}px`;
+        iframe.style.height = `${MIN_H}px`;
+        await poll(
+          () => trackOf("bass") === 15,
+          5_000,
+          "tracks re-compressed back at 1280×800",
+        );
+        expect(fits(MIN_W, MIN_H), "page fits back at 1280×800").toBe(true);
+
+        // --- 1b-6. Hulk extreme at the minimum ----------------------------
+        $<HTMLButtonElement>(
+          '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
+        ).click();
+        await poll(
+          () =>
+            ($(`.lane-floor[data-lane="lead"]`).querySelectorAll(".cell")
+              .length ?? 0) ===
+            14 * 64,
+          5_000,
+          "4-bar lead pattern rendered at 1280",
+        );
+        expect(
+          fits(MIN_W, MIN_H),
+          "page fits with a 4-bar pattern at 1280×800 (grid scrolls inside its quadrant, never the page)",
+        ).toBe(true);
+        const leadScroll = $(`.lane-floor[data-lane="lead"] .lane-grid-scroll`);
+        expect(
+          leadScroll.scrollWidth,
+          "the 4-bar grid scrolls INSIDE its quadrant",
+        ).toBeGreaterThan(leadScroll.clientWidth);
+
+        // --- 1b-7. Tallest-lane editing at the minimum --------------------
+        // Selecting a 14-row pitched lane (the strip edit tier + 4px editing
+        // row margins spend the most budget) must still fit: tracks ride
+        // their readability floor instead of growing the page.
+        $(`.lane-floor[data-lane="bass"] .cell`).click();
+        await poll(
+          () =>
+            $(`.lane-floor[data-lane="bass"]`).dataset.editing === "true",
+          2_000,
+          "bass selected at 1280",
+        );
+        await poll(
+          () => trackOf("bass") <= 11 && fits(MIN_W, MIN_H),
+          5_000,
+          "bass editing fit at 1280",
+        );
+        expect(trackOf("bass"), "bass tracks at the readability floor").toBe(
+          11,
+        );
+        expect(
+          fits(MIN_W, MIN_H),
+          "page fits with the tallest lane editing at 1280×800",
+        ).toBe(true);
+      } finally {
+        // R14 teardown (same law as above).
         iframe.remove();
         for (let attempt = 0; ; attempt++) {
           const deleted = await new Promise<boolean>((resolve) => {

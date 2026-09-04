@@ -9,10 +9,20 @@
  * pattern name + bars) so booth + rail + all four quadrants fit 1440×900.
  */
 
+/*
+ * Refinement-4 (critique P2-5, the 1280×800 one-page breach — horizontal
+ * half): the rail BOX must never exceed the stage. `width: 100%` on this
+ * content-box element ADDED its own horizontal padding on top (2 ×
+ * --space-5 = 32 px), so the box measured 1312 px inside a 1280 viewport —
+ * the 32 px page h-scroll the entry-2 verifier recorded. At ≥1432 px
+ * viewports the 1400 px max-width clamp hid the bug (box 1432 px); calc()
+ * subtracts the padding so the OUTER box fits at every width while those
+ * viewports stay byte-identical (1400 px content, 1432 px box).
+ */
 .rail {
   --lane-hue: var(--color-ink);
   max-width: 1400px;
-  width: 100%;
+  width: calc(100% - 2 * var(--space-5));
   margin: 0 auto;
   padding: var(--space-3) var(--space-5) 0;
   border-top: 1px solid

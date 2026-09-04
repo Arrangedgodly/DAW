@@ -128,6 +128,16 @@ export default defineConfig({
             }),
             instances: [{ browser: "chromium" }],
             headless: !!process.env.CI,
+            // Refinement-4 (critique P2-5): the browser gate runs at the
+            // product's TESTED MINIMUM (DESIGN.md: 1280×800 — the one-page
+            // law's floor, asserted by quadrant-layout §1b). vitest's default
+            // 414×896 page viewport was never a deliberate choice: below
+            // 1280 the page scrolls and view-only quadrants h-scroll with no
+            // keyboard access (small-surface behavior the mobile slice MB-1/
+            // MB-3 owns and will gate in its own viewport). Tests that size
+            // their own iframes (quadrant-layout, frame-budget, e2e,
+            // zero-network) are unaffected by this page viewport.
+            viewport: { width: 1280, height: 800 },
           },
           maxWorkers: 1,
           minWorkers: 1,

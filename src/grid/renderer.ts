@@ -131,6 +131,15 @@ export interface DomGridRendererOptions {
   readonly host: GridRendererHost;
   /** Cell box px (default 24 — the v0 editing size). */
   readonly cellPx?: number;
+  /**
+   * Refinement-4 (critique P2-5, the 1280×800 one-page breach — vertical
+   * half): the row-track HEIGHT px, decoupled from cellPx. The horizontal
+   * geometry (cellPx → stepWidthPx → playhead/hit math) stays renderer-pinned
+   * law; the VERTICAL track is the axis the quadrant stage compresses when
+   * the 100dvh budget is short (setRowHeight — the owner's viewport-budget
+   * fit). Default = cellPx (v0 square cells, byte-identical when never set).
+   */
+  readonly rowHeightPx?: number;
   /** Horizontal gap between cells (default 2). */
   readonly gapPx?: number;
   /** Row-label gutter px (default 72). */
@@ -205,6 +214,14 @@ export interface GridRenderer {
   setEditable(editable: boolean): void;
   /** Position the playhead light bar (px) or park it (null). */
   setPlayhead(x: number | null): void;
+  /**
+   * Refinement-4 (critique P2-5): re-pin the vertical row-track px live
+   * (the quadrant viewport-budget fit — rotation/resize mid-session). Pure
+   * geometry: class-visible state and the rAF loop are untouched, so the
+   * v0 resize law (a resize never strands the playhead) holds by
+   * construction.
+   */
+  setRowHeight(px: number): void;
   /** One-shot trigger glow on the sounding cells of a column. */
   triggerGlow(step: number): void;
   /** Recompute cached geometry (after resize / font load). */
@@ -272,6 +289,10 @@ export class DomGridRenderer implements GridRenderer {
   private readonly fillPx: number;
   private readonly stepWidthPx: number;
   private readonly playheadLeftPx: number;
+  /** Refinement-4: vertical row-track px (mutable — setRowHeight). */
+  private rowHeightPx: number;
+  /** One `.row-cells` per row — the vertical track pins (setRowHeight). */
+  private readonly rowTracks: HTMLElement[] = [];
   private gridEl: HTMLElement | null = null;
   /** IN-2 announcement span (E4 — the gate-stepper value pattern). */
   private lengthLiveEl: HTMLElement | null = null;
@@ -289,6 +310,7 @@ export class DomGridRenderer implements GridRenderer {
     this.gapPx = opts.gapPx ?? GRID_GAP_PX;
     this.stepWidthPx = this.cellPx + this.gapPx;
     this.labelPx = opts.labelPx ?? GRID_LABEL_PX;
+    this.rowHeightPx = opts.rowHeightPx ?? this.cellPx;
     this.fillPx = opts.mountFillControl
       ? (opts.fillRailPx ?? GRID_FILL_RAIL_PX)
       : 0;
@@ -332,8 +354,11 @@ export class DomGridRenderer implements GridRenderer {
       const cellsEl = document.createElement("div");
       cellsEl.className = "row-cells";
       cellsEl.style.gridTemplateColumns = `repeat(${steps}, ${this.cellPx}px)`;
-      cellsEl.style.gridAutoRows = `${this.cellPx}px`;
+      // Refinement-4: the vertical track pins rowHeightPx (default cellPx) —
+      // the axis the quadrant viewport-budget fit compresses live.
+      cellsEl.style.gridAutoRows = `${this.rowHeightPx}px`;
       cellsEl.style.gap = `${this.gapPx}px`;
+      this.rowTracks.push(cellsEl);
 
       const rowCells: HTMLElement[] = [];
       for (let step = 0; step < steps; step++) {
@@ -503,6 +528,12 @@ export class DomGridRenderer implements GridRenderer {
     }
     this.playheadEl.style.opacity = "1";
     this.playheadEl.style.transform = `translateX(${x}px)`;
+  }
+
+  setRowHeight(px: number): void {
+    if (px === this.rowHeightPx) return; // idempotent — observers converge
+    this.rowHeightPx = px;
+    for (const track of this.rowTracks) track.style.gridAutoRows = `${px}px`;
   }
 
   triggerGlow(step: number): void {

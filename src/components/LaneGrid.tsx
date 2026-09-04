@@ -101,10 +101,22 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
  * 14-row pitched lanes compress to 16 px cells so every quadrant fits the
  * one-page 1440×900 law. Long patterns scroll horizontally inside the
  * quadrant (the v0 per-grid mechanism) — the page itself never scrolls.
+ *
+ * Refinement-4 (critique P2-5, the 1280×800 one-page breach — vertical
+ * half): minRowPx is the per-lane READABILITY FLOOR for the row-track
+ * compression the viewport-budget fit applies (see fitQuadrantRows below).
+ * drums 20 px = the fill-rail control stack's committed height (SET and the
+ * steppers must never be squeezed under their own controls); pitched 11 px =
+ * the Silkscreen label floor (10 px glyphs + 1 px breathing — reached only
+ * when a tallest 14-row lane is the EDITING quadrant at the 1280×800
+ * minimum, where its strip edit tier + 4 px editing row margins spend the
+ * rest of that quadrant's budget). Below these floors the page honestly
+ * scrolls instead of shrinking illegibly — narrower viewports are the
+ * mobile slice's (MB-1) breakpoints, which extend this same seam.
  */
 const QUADRANT_GEOMETRY: Record<
   LaneId,
-  { cellPx: number; gapPx: number; labelPx: number; fillRailPx: number }
+  { cellPx: number; gapPx: number; labelPx: number; fillRailPx: number; minRowPx: number }
 > = {
   // Refinement-2 (critique P1-2): the fill rail must FIT its control stack —
   // at the old 104 px slot the E-tag + pulses/rotation steppers + SET needed
@@ -117,11 +129,211 @@ const QUADRANT_GEOMETRY: Record<
   // (long patterns scroll INSIDE the quadrant — a 1-bar pattern,
   // 72+228+350=650 px, still fits the 666 px quadrant gut at 1440×900 with
   // zero internal scroll; 4-bar scrolls, exactly as before).
-  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 220 },
-  bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
-  chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
-  lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0 },
+  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 220, minRowPx: 20 },
+  bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
 };
+
+/* ---------------------------------------------------------------------------
+ * Refinement-4 (critique P2-5): the quadrant stage FLEXES within the 100dvh
+ * budget. The shell was already a fixed-height flex column (.app 100dvh →
+ * stage flex:1 min-height:0), but the quadrant row tracks were FIXED px
+ * (renderer-pinned 16/20), so whenever the viewport's leftover fell short
+ * (measured 825 px of content in the 800 px viewport at 1280×800) the page
+ * scrolled — the grow-on-miss law without its shrink-to-fit twin (the
+ * critique's own framing). The mechanism below is the renderer-pinned-
+ * geometry precedent (label pin, fill-rail pin, refinement-1's measured FX
+ * wrap): MEASURE the real flexed budget, then re-pin each quadrant's
+ * vertical row-track px through the renderer seam (setRowHeight) so the
+ * quadrant's own laws decide HOW it compresses —
+ *   - tracks clamp at cellPx when the budget is met (viewports that fit are
+ *     BYTE-IDENTICAL to before: 1440×900 and 1920×1080 keep their 290 px
+ *     quadrant rows and 16/20 px tracks);
+ *   - tracks compress toward minRowPx only by the measured deficit (no
+ *     content loss: every row stays fully rendered, cells within
+ *     readability);
+ *   - horizontal laws untouched (long/1-bar patterns scroll INSIDE the
+ *     quadrant exactly as today — entry-2's recorded 1280 trade stands);
+ *   - rotation-safe: ResizeObservers on the stage/rail/every strip (booth
+ *     wrap, rail growth, edit-row toggles — everything that changes the
+ *     budget) re-run the fit, and the rAF-rendered playhead is untouched
+ *     (the v0 resize law holds by construction).
+ * MB-1 (the mobile slice) extends this seam: its tablet scale re-uses the
+ * parameterized geometry + this fit; its phone stage replaces the 2×2 but
+ * keeps the same 100dvh shell.
+ * ------------------------------------------------------------------------- */
+
+/** One live grid surface registered for the budget fit (GridSurface scope). */
+interface QuadrantSurface {
+  /** Stage row (0 = drums|bass, 1 = chords|lead) — the 2×2 pairing. */
+  readonly row: 0 | 1;
+  readonly rowCount: number;
+  readonly minRowPx: number;
+  readonly maxRowPx: number;
+  readonly renderer: () => DomGridRenderer | null;
+  readonly scrollEl: HTMLElement;
+  readonly stripEl: HTMLElement | null;
+}
+
+const liveSurfaces = new Set<QuadrantSurface>();
+let fitObserver: ResizeObserver | null = null;
+let fitQueued = false;
+
+/** rAF-coalesced fit (resize-time only — never in the 60 Hz loop). */
+function scheduleFit(): void {
+  if (fitQueued) return;
+  fitQueued = true;
+  requestAnimationFrame(() => {
+    fitQueued = false;
+    fitQuadrantRows();
+  });
+}
+
+/**
+ * The fit itself — TWO PHASES, measured, never restated as constants (the
+ * refinement-2 drift lesson):
+ *
+ * Phase 1 (grow-on-miss preserved): measure every quadrant's NATURAL height
+ * (strip + chrome + max-track content, at its CURRENT edit state — the
+ * selected quadrant's strip carries the edit tier and 4px row margins) and
+ * sum the two stage ROWS (each row = the taller of its pair). If the rows
+ * fit the stage's real leftover (100dvh − booth-as-wrapped − rail-as-wrapped
+ * − the floors' chrome), NOTHING compresses — viewports that fit keep the
+ * committed scale byte-for-byte, exactly the pre-entry layout law.
+ *
+ * Phase 2 (shrink-to-fit, the critique's ask): only under a REAL total
+ * deficit does each quadrant compress against an equal split of the budget
+ * — the deficit is repaid in whole track px down to the lane's readability
+ * floor. Natural heights are extrapolated from the CURRENT pinned track
+ * (offsetHeight + rows × (max − current)) so measurement never writes to
+ * the DOM (a layout write mid-gesture is the TH-4(b) zero-mutations law).
+ *
+ * Guards: no shell (bare component tests) or no layout (jsdom) → stand
+ * down; provisional font metrics never compress (see ensureFitObservers).
+ */
+function fitQuadrantRows(): void {
+  const stage = document.querySelector<HTMLElement>("main.stage");
+  const rail = document.querySelector<HTMLElement>(".rail");
+  const floors = document.querySelector<HTMLElement>(".stage-floors");
+  if (!stage || !rail || !floors || liveSurfaces.size === 0) return;
+  const stageH = stage.clientHeight;
+  const railH = rail.offsetHeight;
+  if (stageH <= 0 || railH <= 0) return; // no layout context — stand down
+  // Never COMPRESS on provisional metrics: before the pixel faces load,
+  // fallback-font heights run a hair taller and the compression would be
+  // undone by the font-swap observer — the TH-4(b) flip-flop write class.
+  // Restores stay allowed (no-op at the committed scale).
+  const fontsFinal =
+    typeof document === "undefined" ||
+    !document.fonts ||
+    document.fonts.status === "loaded";
+  const floorsStyle = getComputedStyle(floors);
+  const chrome =
+    Number.parseFloat(floorsStyle.paddingTop) +
+    Number.parseFloat(floorsStyle.paddingBottom) +
+    Number.parseFloat(floorsStyle.rowGap);
+  const rowsBudget = stageH - railH - chrome;
+  const rowH = Math.floor(rowsBudget / 2);
+  if (rowH <= 0) return;
+
+  // Phase 1: measure every quadrant's natural height (no DOM writes).
+  const measured: Array<{
+    surface: QuadrantSurface;
+    renderer: DomGridRenderer;
+    above: number;
+    below: number;
+    natural: number;
+  }> = [];
+  const rowNatural = [0, 0];
+  for (const surface of liveSurfaces) {
+    const renderer = surface.renderer();
+    const scroll = surface.scrollEl;
+    if (!renderer || !scroll.isConnected) continue;
+    const floor = scroll.closest<HTMLElement>(".lane-floor");
+    if (!floor) continue;
+    // Everything above the scroll container (the strip, at its CURRENT
+    // edit state) + the card chrome under it.
+    const above =
+      scroll.getBoundingClientRect().top - floor.getBoundingClientRect().top;
+    const floorStyle = getComputedStyle(floor);
+    const below =
+      Number.parseFloat(floorStyle.paddingBottom) +
+      Number.parseFloat(floorStyle.borderBottomWidth);
+    // Natural (max-track) content height WITHOUT touching the DOM:
+    // extrapolate linearly from the CURRENT pinned track — offsetHeight is
+    // the honest flow height (it includes the horizontal-scrollbar
+    // thickening of an in-quadrant h-scrolling grid, e.g. 4-bar patterns).
+    const firstTrack = scroll.querySelector<HTMLElement>(".row-cells");
+    if (!firstTrack) continue;
+    const currentPx = Number.parseFloat(firstTrack.style.gridAutoRows);
+    const natural =
+      scroll.offsetHeight + surface.rowCount * (surface.maxRowPx - currentPx);
+    measured.push({ surface, renderer, above, below, natural });
+    const total = above + below + natural;
+    if (total > rowNatural[surface.row]) rowNatural[surface.row] = total;
+  }
+
+  // Phase 2: fit — restore when the page fits naturally, else compress.
+  const fitsNaturally = rowNatural[0] + rowNatural[1] <= rowsBudget;
+  for (const m of measured) {
+    const { surface, renderer, above, below, natural } = m;
+    const available = rowH - above - below;
+    if (fitsNaturally || !fontsFinal || natural <= available) {
+      // Budget met — the committed scale (no-op restore when already max).
+      renderer.setRowHeight(surface.maxRowPx);
+      continue;
+    }
+    const deficit = natural - available;
+    const target = Math.max(
+      surface.minRowPx,
+      surface.maxRowPx - Math.ceil(deficit / surface.rowCount),
+    );
+    renderer.setRowHeight(target);
+  }
+}
+
+/** Observe everything that can change the budget (lazily, once). */
+function ensureFitObservers(surfaces: Iterable<QuadrantSurface>): void {
+  if (
+    fitObserver ||
+    typeof window === "undefined" ||
+    typeof window.ResizeObserver === "undefined"
+  ) {
+    return;
+  }
+  fitObserver = new ResizeObserver(() => scheduleFit());
+  // Viewport/booth wrap (stage height) + rail growth (tile wraps).
+  const stage = document.querySelector("main.stage");
+  const rail = document.querySelector(".rail");
+  if (stage) fitObserver.observe(stage);
+  if (rail) fitObserver.observe(rail);
+  // Strip height flips (the edit tier follows the selection).
+  for (const surface of surfaces) {
+    if (surface.stripEl) fitObserver.observe(surface.stripEl);
+  }
+  // Font landings: the pixel faces change strip/label metrics, and the
+  // swap may NOT resize any observed element — so the fit that finally
+  // may compress (see fontsFinal) re-runs on every completed load batch.
+  // (document.fonts.ready is NOT usable here: it can resolve before the
+  // first load even starts, with fallback metrics still applied.)
+  document.fonts?.addEventListener("loadingdone", scheduleFit);
+}
+
+function registerQuadrantSurface(surface: QuadrantSurface): void {
+  liveSurfaces.add(surface);
+  ensureFitObservers(liveSurfaces);
+  if (surface.stripEl && fitObserver) fitObserver.observe(surface.stripEl);
+  // Synchronous first fit: onMount runs before the first paint, and with
+  // provisional font metrics it can only restore (no-op) — compression
+  // waits for final metrics via the loadingdone/observer triggers above.
+  fitQuadrantRows();
+}
+
+function unregisterQuadrantSurface(surface: QuadrantSurface): void {
+  liveSurfaces.delete(surface);
+  if (surface.stripEl && fitObserver) fitObserver.unobserve(surface.stripEl);
+}
 
 function currentPattern(lane: LaneId): Pattern | undefined {
   void activePatterns();
@@ -378,6 +590,25 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
 
     rendererRef = renderer;
     renderer.sync(syncPatternFor(pattern));
+
+    // Refinement-4 (critique P2-5): register for the viewport-budget fit —
+    // the quadrant's vertical row tracks flex within the 100dvh budget
+    // (see fitQuadrantRows). The strip is this quadrant's own (queried
+    // inside its lane-floor) so edit-tier toggles re-fit its budget.
+    const surface: QuadrantSurface = {
+      row: lane === "drums" || lane === "bass" ? 0 : 1,
+      rowCount: rowLabels.length,
+      minRowPx: geo.minRowPx,
+      maxRowPx: geo.cellPx,
+      renderer: () => rendererRef,
+      scrollEl: container,
+      stripEl:
+        container
+          .closest(".lane-floor")
+          ?.querySelector<HTMLElement>(".lane-head-strip") ?? null,
+    };
+    registerQuadrantSurface(surface);
+    onCleanup(() => unregisterQuadrantSurface(surface));
 
     // LY-1 quadrant state: flip editable when the selection moves. O(1) in
     // the renderer (tab stop + names); the rAF loop never restarts.
