@@ -113,6 +113,36 @@ type=range` with `aria-valuetext` (free arrow-key a11y, DES-5 precedent);
   through the stage status region (solo changes OTHER lanes' audibility —
   the muted-by-solo state must be speakable: `SOLO <LANE>` / `SOLO OFF`).
 
+## Phone lane switcher [v2 · live since MB-1] — the quadrant selector at phone width
+
+At phone stage width (MB-1, town-hall mobile addendum) the 2×2 quadrants do
+not render — the stage shows ONE lane, and the LANE SWITCHER (a `tablist`
+in the sticky chrome: booth + switcher + condensed rail pinned) IS the
+quadrant selection. It drives the SAME `selection.activeLane` signal with
+the SAME laws — announcement (`NOW EDITING <LANE>` through the stage status
+region), and the grid quadrant-selection keys keep working unchanged from
+the grid (there is exactly one grid, always the EDITING one).
+
+| Key                        | Action                                                                    |
+| -------------------------- | ------------------------------------------------------------------------- |
+| Tab (into the switcher)    | one stop — the ACTIVE lane's tab (roving tabindex)                        |
+| ArrowRight / ArrowLeft     | select next/previous lane (drums → bass → chords → lead; clamped, no wrap) + focus follows |
+| Home / End                 | select the first / last lane                                              |
+| Enter / Space / click      | select the focused tab                                                    |
+
+- **Focus movement law on the switcher.** Arrow selection moves focus to
+  the newly selected TAB (the tabs convention — automatic activation). This
+  is the one surface where selection moves focus alongside the
+  announcement: the switcher is itself the selector, so the focused tab and
+  the selected lane can never disagree. Selecting by click leaves focus on
+  the clicked tab (native), and selection changes from ANY other path
+  (grid keys, rail) leave switcher focus exactly where it is — the active
+  tab (re-styled, still focused) carries the change.
+- **Grid keys unchanged.** PageUp/PageDown, Ctrl+↑/↓ from the grid, and
+  `]`/`[` from the strips select lanes exactly as on the quadrant stage;
+  the grid remounts as the newly selected lane (phone stages render one
+  lane at a time — the focus-carry law's remount twin).
+
 ## Grid map (inside the selected quadrant's grid, on a focused cell)
 
 Pure math lives in `src/grid/keynav.ts`; bounds clamp (no wrap — see
@@ -352,6 +382,7 @@ path as DoD:
 | Multi-clip drag cueing across lanes                        | Shift+arrows range-select on the rail, Enter = CUE ALL                                                             | IN-3        |
 | "?" corner toggle for info mode                            | booth INFO button (Tab+Enter) + global `i`                                                                         | HP-1        |
 | Hover a control to read its help text                      | focus it — info region updates on focus, aria-live speaks it                                                       | HP-1        |
+| Select a lane from the phone switcher                      | the switcher IS a keyboard surface: ArrowLeft/Right, Home/End, Tab roving (§Phone lane switcher)                   | MB-1        |
 
 No gesture in the iteration-2 brief lacks a keyboard row. New gesture
 proposals during production must add a row here (or land a binding) before
@@ -457,6 +488,16 @@ by the owning task):
    guards, body-level Space transport, Shift+Enter audition, Home/End, beat
    jump, `n`/`d`/`r`, rail-local keys, undo guards, the exclusion list —
    carries into v2 unchanged.
+7. **The phone lane switcher** (MB-1 — mobile slice, town-hall addendum;
+   additive, no binding replaced, no desktop journey step touched): at phone
+   stage width a `role=tablist` joins the sticky chrome and IS the quadrant
+   selection — ArrowLeft/ArrowRight/Home/End select + focus (automatic
+   activation, roving tabindex; see §Phone lane switcher). The v0/v2
+   quadrant keys keep their exact meaning from the grid and strips; the
+   announcement law is the same region, the same text. Desktop (≥1024) and
+   tablet quadrant stages never mount the switcher — the desktop journeys
+   are untouched by construction (m4). Gate:
+   tests/browser/mobile-viewport.test.ts §1.
 
 **HW-5 audit (2026-09-02, the M16 ledger-completeness sweep):** every entry
 above re-verified against the shipping tests — #1's journey deltas are live

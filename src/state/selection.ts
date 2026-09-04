@@ -55,8 +55,63 @@ const [focusedCell, setFocusedCell] = createSignal<FocusedCell | null>(null);
 export type ViewMode = "focus" | "chain";
 const [viewMode, setViewMode] = createSignal<ViewMode>("chain");
 
+/* ---------------------------------------------------------------------------
+ * MB-1 (mobile slice): the RESPONSIVE STAGE MODE — pure viewport-derived view
+ * state (the same two-tier law as the rest of this file: never document
+ * state, never undo history). ONE source of truth for the breakpoint, read by
+ * the App shell (data-stage attribute + the phone chrome group), StageFloor
+ * (quadrant stage vs single-lane stage + lane switcher), LaneGrid (geometry
+ * preset + the viewport-budget fit's stand-down) and PatternRail (the
+ * condensed phone rail) — CSS keys entirely off .app[data-stage], so the JS
+ * mode and the stylesheet can never drift.
+ *
+ * Breakpoints (the committed law, town-hall mobile addendum):
+ *   phone   — width < 768, OR width < 1024 with height < 600 (a ROTATED
+ *             phone keeps the phone law: sticky chrome + single-lane stage;
+ *             the 2×2 quadrant stage is meaningless at phone heights).
+ *   tablet  — 768 ≤ width < 1024 (and height ≥ 600): the 2×2 quadrant stage
+ *             responsively scaled (the refinement-4 flex fit owns the
+ *             vertical budget).
+ *   desktop — width ≥ 1024: the one-page law, byte-identical (m4).
+ * ------------------------------------------------------------------------- */
+export type StageMode = "phone" | "tablet" | "desktop";
+
+const PHONE_MQ = "(max-width: 767.98px)";
+const SHORT_NARROW_MQ =
+  "(min-width: 768px) and (max-width: 1023.98px) and (max-height: 599.98px)";
+const UNDER_DESKTOP_MQ = "(max-width: 1023.98px)";
+
+function deriveStageMode(): StageMode {
+  if (typeof window === "undefined" || !window.matchMedia) return "desktop";
+  if (
+    window.matchMedia(PHONE_MQ).matches ||
+    window.matchMedia(SHORT_NARROW_MQ).matches
+  ) {
+    return "phone";
+  }
+  return window.matchMedia(UNDER_DESKTOP_MQ).matches ? "tablet" : "desktop";
+}
+
+const [stageMode, setStageMode] = createSignal<StageMode>(deriveStageMode());
+
+// Rotation/resize re-derives the mode live (the refinement-4 re-fit law).
+if (typeof window !== "undefined" && window.matchMedia) {
+  for (const query of [PHONE_MQ, SHORT_NARROW_MQ, UNDER_DESKTOP_MQ]) {
+    window
+      .matchMedia(query)
+      .addEventListener("change", () => setStageMode(deriveStageMode()));
+  }
+}
+
 /** The lane selection follows the latest grid interaction. */
-export { activeLane, focusedCell, activePatterns, viewMode, stageStatus };
+export {
+  activeLane,
+  focusedCell,
+  activePatterns,
+  viewMode,
+  stageStatus,
+  stageMode,
+};
 
 export function toggleViewMode(): ViewMode {
   setViewMode((m) => (m === "chain" ? "focus" : "chain"));

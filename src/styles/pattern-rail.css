@@ -33,6 +33,47 @@
     color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
 }
 
+/*
+ * MB-1 (mobile slice) — the CONDENSED PHONE RAIL (the recorded production
+ * decision, see PatternRail.tsx): only the active lane's row renders (the
+ * component decides WHICH row); here the row condenses to ONE stable line —
+ * lane name + horizontally scrolling tiles + the one PAT trigger — so the
+ * pinned chrome never grows with chain length. The tiles strip owns its own
+ * horizontal scroll (the PAT popover is anchored on the ROW, not inside the
+ * strip, so it is never clipped). The rail head (title + COLLAPSE toggle)
+ * hides at phone width: the one-lane stage is already the focused view.
+ */
+.app[data-stage="phone"] .rail {
+  width: calc(100% - 2 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+}
+
+.app[data-stage="phone"] .rail-head {
+  display: none;
+}
+
+.app[data-stage="phone"] .rail-row {
+  flex-wrap: nowrap;
+  gap: var(--space-3);
+}
+
+.app[data-stage="phone"] .rail-lane-name {
+  width: auto;
+  flex: none;
+}
+
+.app[data-stage="phone"] .rail-tiles {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.app[data-stage="phone"] .rail-tools {
+  flex: none;
+}
+
 .rail-head {
   display: flex;
   align-items: baseline;

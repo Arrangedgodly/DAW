@@ -199,9 +199,40 @@
   transition: opacity 120ms ease;
 }
 
-.grid-row:hover .row-fill,
+.grid-row:hover .row-fill:not(.is-overlay),
 .row-fill:focus-within {
   opacity: 1;
+}
+
+/*
+ * MB-1 (mobile slice): on NARROW stages (phone + tablet) the drums fill
+ * rail becomes a focus-revealed OVERLAY over the row's cells — the 220 px
+ * in-flow slot would leave ~4 visible cells beside a label at 360 px, so
+ * the committed "1-bar default view" forces the rail out of flow (the
+ * renderer pins its left at the label gutter and drops the playhead offset
+ * to the label alone). Revealed, it paints as a floating chassis (the
+ * popover vocabulary: opaque ground, 1px 25%-ink border, one chassis
+ * cast); hidden it is invisible AND untouchable — hover reveal is retired
+ * here (hover is not a touch input; MB-3 owns the tap/focus reveal twin,
+ * the focus-within path below keeps it keyboard-reachable today).
+ */
+.row-fill.is-overlay {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-ground);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 4px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+.row-fill.is-overlay:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .row-fill-ctl {

@@ -61,6 +61,7 @@ import {
   activePatterns,
   currentPatternFor,
   selectLane,
+  stageMode,
 } from "../state/selection";
 import {
   focusRequest,
@@ -116,7 +117,13 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
  */
 const QUADRANT_GEOMETRY: Record<
   LaneId,
-  { cellPx: number; gapPx: number; labelPx: number; fillRailPx: number; minRowPx: number }
+  {
+    cellPx: number;
+    gapPx: number;
+    labelPx: number;
+    fillRailPx: number;
+    minRowPx: number;
+  }
 > = {
   // Refinement-2 (critique P1-2): the fill rail must FIT its control stack —
   // at the old 104 px slot the E-tag + pulses/rotation steppers + SET needed
@@ -134,6 +141,48 @@ const QUADRANT_GEOMETRY: Record<
   chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
 };
+
+/* ---------------------------------------------------------------------------
+ * MB-1 (mobile slice): the NARROW geometry — phone (<768 single-lane stage)
+ * AND tablet (768–1024 quadrant stage) share one horizontal law so rotation
+ * between them re-fits without a geometry rethink:
+ *   - cell 15 + gap 1: the tightest phone (360 px) must fit a 1-bar row
+ *     BESIDE its label with no horizontal scroll (the committed default
+ *     view) — drums measure 68 (label box) + 16×15 + 15 = 323 px against a
+ *     334 px content width, 11 px of honest slack; 16 px cells would read
+ *     339 px and scroll. The quadrant pitched scale (16) stays 16 — only
+ *     the narrow preset pays the phone-width tax;
+ *   - labels condense (drums 60 = the OPENHAT Silkscreen floor at 10 px;
+ *     pitched 48 — short note names);
+ *   - the drums fill rail becomes a focus-revealed OVERLAY over the cells
+ *     (renderer fillRailMode "overlay" — the 220 px in-flow slot would leave
+ *     ~4 visible cells at 360 px, so the committed "1-bar default view"
+ *     forces the rail out of flow; MB-3 owns the touch-reveal twin);
+ *   - minRowPx 11 for every lane at narrow widths (the drums 20 px floor
+ *     protected the IN-FLOW fill control — the overlay removes that need;
+ *     11 px stays the Silkscreen label floor, the refinement-4 readability
+ *     law the tablet fit compresses toward).
+ * PHONE_ROW_PX restores the v0 24 px editing rows on the phone stage: the
+ * single lane owns the whole viewport height and the page scrolls (the
+ * committed scrolling law), so rows can be finger-sized instead of
+ * quadrant-compressed.
+ * ------------------------------------------------------------------------- */
+const NARROW_GEOMETRY: Record<
+  LaneId,
+  {
+    cellPx: number;
+    gapPx: number;
+    labelPx: number;
+    fillRailPx: number;
+    minRowPx: number;
+  }
+> = {
+  drums: { cellPx: 15, gapPx: 1, labelPx: 60, fillRailPx: 220, minRowPx: 11 },
+  bass: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  chords: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  lead: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+};
+const PHONE_ROW_PX = 24;
 
 /* ---------------------------------------------------------------------------
  * Refinement-4 (critique P2-5): the quadrant stage FLEXES within the 100dvh
@@ -213,6 +262,11 @@ function scheduleFit(): void {
  * down; provisional font metrics never compress (see ensureFitObservers).
  */
 function fitQuadrantRows(): void {
+  // MB-1: the phone stage SCROLLS (the committed sticky-chrome + scrolling-
+  // grid law) — there is no one-page budget to fit, so the compressor stands
+  // down; tracks stay at the phone preset. (No phone surfaces register
+  // either — this guard is defense in depth for mid-rotation transitions.)
+  if (stageMode() === "phone") return;
   const stage = document.querySelector<HTMLElement>("main.stage");
   const rail = document.querySelector<HTMLElement>(".rail");
   const floors = document.querySelector<HTMLElement>(".stage-floors");
@@ -322,7 +376,19 @@ function ensureFitObservers(surfaces: Iterable<QuadrantSurface>): void {
 
 function registerQuadrantSurface(surface: QuadrantSurface): void {
   liveSurfaces.add(surface);
-  ensureFitObservers(liveSurfaces);
+  // MB-1: the phone/desktop shell swap REMOVES the old stage/rail elements
+  // from the DOM (App renders a different structure per stage mode), so the
+  // budget observers re-target the CURRENT elements on every registration —
+  // observing the same element twice is a no-op, and a fresh rotation's
+  // remount therefore always lands observed.
+  if (fitObserver) {
+    const stage = document.querySelector("main.stage");
+    const rail = document.querySelector(".rail");
+    if (stage) fitObserver.observe(stage);
+    if (rail) fitObserver.observe(rail);
+  } else {
+    ensureFitObservers(liveSurfaces);
+  }
   if (surface.stripEl && fitObserver) fitObserver.observe(surface.stripEl);
   // Synchronous first fit: onMount runs before the first paint, and with
   // provisional font metrics it can only restore (no-op) — compression
@@ -422,6 +488,15 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     const lane = props.lane;
     const pattern = props.pattern;
 
+    // MB-1: geometry preset follows the stage mode. The mount is keyed on
+    // the mode too (LaneGrid's key), so a phone↔tablet↔desktop transition
+    // remounts the surface with its own geometry — the renderer pins px
+    // inline at build time, so a live re-pin of every axis would be a bigger
+    // seam than the pattern-shape remounts that already exist (DES-6).
+    const mode = stageMode();
+    const narrow = mode !== "desktop";
+    const geo = narrow ? NARROW_GEOMETRY[lane] : QUADRANT_GEOMETRY[lane];
+
     const pitched = pattern.kind === "pitched";
     const rowLabels = pitched
       ? pitchedLabels(lane as Exclude<LaneId, "drums">, pattern).labels
@@ -430,7 +505,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       ? pitchedLabels(lane as Exclude<LaneId, "drums">, pattern).degrees
       : [];
     const steps = pattern.bars * 16;
-    const geo = QUADRANT_GEOMETRY[lane];
+    // (mode-aware preset chosen above — MB-1)
 
     const readFrame = (): PlayheadFrame | null => {
       const snap = session.transport.snapshot;
@@ -456,6 +531,15 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       gapPx: geo.gapPx,
       labelPx: geo.labelPx,
       fillRailPx: geo.fillRailPx,
+      // MB-1: narrow stages overlay the drums fill rail over the cells
+      // (out of flow) so a 1-bar row fits; desktop stays inline (the
+      // refinement-2 law, byte-identical).
+      fillRailMode: narrow ? "overlay" : "inline",
+      // MB-1: the phone stage restores the v0 24 px editing rows (the single
+      // lane owns the viewport height; the page scrolls). Tablet keeps the
+      // renderer default (row track = cellPx, the quadrant law the
+      // refinement-4 fit then compresses).
+      rowHeightPx: mode === "phone" ? PHONE_ROW_PX : undefined,
       // LY-1: only the selected quadrant's grid starts editable.
       editable: activeLane() === lane,
       host: {
@@ -595,6 +679,8 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     // the quadrant's vertical row tracks flex within the 100dvh budget
     // (see fitQuadrantRows). The strip is this quadrant's own (queried
     // inside its lane-floor) so edit-tier toggles re-fit its budget.
+    // MB-1: the PHONE stage never registers — it scrolls by law, so there
+    // is no budget to fit (the guard in fitQuadrantRows is the twin).
     const surface: QuadrantSurface = {
       row: lane === "drums" || lane === "bass" ? 0 : 1,
       rowCount: rowLabels.length,
@@ -607,8 +693,10 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           .closest(".lane-floor")
           ?.querySelector<HTMLElement>(".lane-head-strip") ?? null,
     };
-    registerQuadrantSurface(surface);
-    onCleanup(() => unregisterQuadrantSurface(surface));
+    if (mode !== "phone") {
+      registerQuadrantSurface(surface);
+      onCleanup(() => unregisterQuadrantSurface(surface));
+    }
 
     // LY-1 quadrant state: flip editable when the selection moves. O(1) in
     // the renderer (tab stop + names); the rAF loop never restarts.
@@ -670,7 +758,10 @@ export default function LaneGrid(props: { lane: LaneId }) {
   });
   const key = () => {
     const p = pattern();
-    return p ? `${p.id}:${p.kind}:${p.bars}` : "none";
+    // MB-1: the stage mode rides the key — geometry is pinned at mount, so a
+    // phone↔tablet↔desktop crossing (rotation, window resize) remounts the
+    // grid surface with the right preset (the pattern-shape remount law).
+    return p ? `${p.id}:${p.kind}:${p.bars}:${stageMode()}` : "none";
   };
 
   // LY-1 pointer law: a click on any part of a VIEW-ONLY quadrant selects it

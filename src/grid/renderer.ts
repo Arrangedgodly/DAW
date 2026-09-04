@@ -146,6 +146,18 @@ export interface DomGridRendererOptions {
   readonly labelPx?: number;
   /** Fill-rail slot width (default 152; drums mountFillControl only). */
   readonly fillRailPx?: number;
+  /**
+   * MB-1 (mobile slice): where the drums fill-rail slot lives.
+   * "inline" (default — the desktop law): the stable-width slot sits BETWEEN
+   * the row label and the cells, and the playhead offset includes it.
+   * "overlay" (narrow stages — phone + tablet): the slot overlays the cells
+   * at label-left, OUT of flow (focus-revealed; MB-3 adds the touch reveal
+   * twin), so the cells start right after the label, the playhead offset is
+   * the label alone, and a 1-bar pattern fits the narrow viewport (the
+   * committed scrolling law's default view). The slot keeps its
+   * renderer-pinned width (the refinement-2 drift law).
+   */
+  readonly fillRailMode?: "inline" | "overlay";
   /** Start editable (default true). `setEditable` flips it live. */
   readonly editable?: boolean;
   /** Cell activated (click / Enter / Space) — owner writes the document. */
@@ -287,6 +299,8 @@ export class DomGridRenderer implements GridRenderer {
   private readonly labelPx: number;
   /** PX-3 fill-rail slot width (0 when no fill control is mounted). */
   private readonly fillPx: number;
+  /** MB-1: the fill-rail slot overlays the cells (narrow stages). */
+  private readonly fillOverlay: boolean;
   private readonly stepWidthPx: number;
   private readonly playheadLeftPx: number;
   /** Refinement-4: vertical row-track px (mutable — setRowHeight). */
@@ -314,7 +328,13 @@ export class DomGridRenderer implements GridRenderer {
     this.fillPx = opts.mountFillControl
       ? (opts.fillRailPx ?? GRID_FILL_RAIL_PX)
       : 0;
-    this.playheadLeftPx = this.labelPx + this.fillPx;
+    // MB-1: overlay mode only exists where a fill control is mounted (drums).
+    this.fillOverlay =
+      !!opts.mountFillControl && (opts.fillRailMode ?? "inline") === "overlay";
+    // The playhead offset always matches where the CELLS actually start:
+    // inline = label + fill slot; overlay = the label alone (the overlay is
+    // out of flow, so the cells begin right after the label).
+    this.playheadLeftPx = this.labelPx + (this.fillOverlay ? 0 : this.fillPx);
     this.editable = opts.editable ?? true;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.build();
@@ -342,7 +362,12 @@ export class DomGridRenderer implements GridRenderer {
       const rowEl = document.createElement("div");
       rowEl.className = "grid-row";
       rowEl.setAttribute("role", "row");
-      rowEl.style.contain = "layout style paint";
+      // MB-1: paint containment would CLIP the out-of-flow fill overlay to
+      // the row box — layout+style containment is enough for narrow drums
+      // rows (the overlay needs to paint at its own height).
+      rowEl.style.contain = this.fillOverlay
+        ? "layout style"
+        : "layout style paint";
 
       const label = document.createElement("div");
       label.className = "row-label";
@@ -405,6 +430,14 @@ export class DomGridRenderer implements GridRenderer {
         fill.setAttribute("role", "gridcell");
         fill.dataset.row = String(row);
         fill.style.width = `${this.fillPx}px`;
+        if (this.fillOverlay) {
+          // MB-1 overlay: anchored at label-left over the cells; the row
+          // becomes its positioning context (grid-body would otherwise win)
+          // and the slot paints as a floating chassis (see grid.css).
+          fill.classList.add("is-overlay");
+          fill.style.left = `${this.labelPx}px`;
+          rowEl.style.position = "relative";
+        }
         rowEl.append(fill); // label → fill rail → cells (appended next)
         this.opts.mountFillControl(row, fill);
       }

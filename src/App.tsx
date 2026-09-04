@@ -14,11 +14,12 @@ import Booth from "./components/Booth";
 import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
-import StageFloor from "./components/StageFloor";
+import StageFloor, { LaneSwitcher } from "./components/StageFloor";
 import Toasts from "./components/Toasts";
 import AudioStatus from "./components/AudioStatus";
 import SupportBanners from "./components/Banner";
 import { helpMode } from "./state/helpMode";
+import { stageMode } from "./state/selection";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
 import "./styles/grid.css";
@@ -43,13 +44,38 @@ void initPersistence().catch((error) => {
 
 export default function App() {
   return (
-    <div class="app" data-help-mode={helpMode() ? "on" : "off"}>
+    <div
+      class="app"
+      data-help-mode={helpMode() ? "on" : "off"}
+      data-stage={stageMode()}
+    >
       <SupportBanners />
-      <Booth />
-      <main class="stage" aria-label="Stage floor">
-        <PatternRail />
-        <StageFloor />
-      </main>
+      {/* MB-1 (mobile slice): the committed phone law — sticky chrome +
+          scrolling grid. At phone width the booth + lane switcher +
+          condensed rail form ONE pinned group (position: sticky inside the
+          scrolling document) and the single-lane stage below scrolls; the
+          desktop/tablet structure is the original shell, unchanged (m4). */}
+      <Show
+        when={stageMode() === "phone"}
+        fallback={
+          <>
+            <Booth />
+            <main class="stage" aria-label="Stage floor">
+              <PatternRail />
+              <StageFloor />
+            </main>
+          </>
+        }
+      >
+        <div class="phone-chrome">
+          <Booth />
+          <LaneSwitcher />
+          <PatternRail />
+        </div>
+        <main class="stage" aria-label="Stage floor">
+          <StageFloor />
+        </main>
+      </Show>
       <AudioStatus />
       <Toasts />
       {/* HP-1: the info region mounts ONLY while help mode is on (Show

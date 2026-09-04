@@ -78,3 +78,118 @@
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
 }
+
+/* ---------------------------------------------------------------------------
+ * MB-1 (mobile slice) — the responsive stage. All narrow-stage CSS keys off
+ * .app[data-stage] (set from the ONE stageMode signal in selection.ts, so
+ * the JS mode and the stylesheet can never drift). Desktop (≥1024) computes
+ * NOTHING from this block — the one-page law is byte-identical (m4).
+ *
+ * Phone law (town-hall mobile addendum): sticky chrome + scrolling grid.
+ * The page scrolls (height:auto shell), the chrome group pins, rows scroll
+ * vertically with the document, and 2/4-bar patterns scroll horizontally
+ * INSIDE the grid with a 1-bar default view.
+ * ------------------------------------------------------------------------- */
+
+/* The phone shell FLOWS: content may exceed the viewport and the document
+ * scrolls — that is the committed law (the one-page law is the DESKTOP law). */
+.app[data-stage="phone"] {
+  height: auto;
+  min-height: 100dvh;
+}
+
+.app[data-stage="phone"] .stage {
+  flex: none; /* the stage stacks after the pinned chrome, it never stretches */
+}
+
+/* The pinned chrome: transport + lane switcher + condensed rail as ONE
+ * sticky group (one shadow for the whole group — the booth's own floating
+ * layer is handed to the wrapper). Opaque ground so the grid scrolls under
+ * it cleanly. */
+.phone-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-ground);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 25%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 60%);
+}
+
+.phone-chrome .booth {
+  position: static; /* the wrapper owns the stick */
+  z-index: auto;
+  box-shadow: none;
+  border-bottom: none;
+}
+
+/*
+ * Phone-booth condensation (recorded MB-1 decision): the SAME controls on a
+ * tighter chassis — gaps 24/16 → 12/8, padding 24/12 → 12/8 (the world's own
+ * spacing scale, no new vocabulary). At 360×844 the wrapped booth otherwise
+ * spends ~390 px of chrome (measured), crowding the grid toward the
+ * majority-of-viewport line the plan's return-to-Town-Hall flag watches.
+ */
+.phone-chrome .booth {
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* The single-lane stage: one floor, full width. */
+.app[data-stage="phone"] .stage-floors {
+  display: block;
+  max-width: none;
+  padding: var(--space-3) var(--space-2) var(--space-5);
+}
+
+/* Tablet (768–1024): the quadrant stage stays 2×2 at the narrow geometry;
+ * only the outer gutter tightens so a 1-bar row fits a quadrant. The
+ * refinement-4 flex fit owns the vertical one-page budget. */
+.app[data-stage="tablet"] .stage-floors {
+  padding: var(--space-3) var(--space-3) var(--space-4);
+}
+
+/* MB-1: the LANE SWITCHER (phone only) — tabs = the four lanes. The ACTIVE
+ * tab carries the lit-button law (lane-hue fill, 2px hue border,
+ * ink-on-fill glyph); inactive tabs are outline chassis controls. */
+.lane-switcher {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.lane-switch-tab {
+  flex: 1 1 0;
+  min-height: 36px;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.lane-switch-tab[data-lane="drums"] {
+  --lane-hue: var(--color-lane-drums);
+}
+.lane-switch-tab[data-lane="bass"] {
+  --lane-hue: var(--color-lane-bass);
+}
+.lane-switch-tab[data-lane="chords"] {
+  --lane-hue: var(--color-lane-chords);
+}
+.lane-switch-tab[data-lane="lead"] {
+  --lane-hue: var(--color-lane-lead);
+}
+
+.lane-switch-tab[aria-selected="true"] {
+  background: var(--lane-hue);
+  border-color: color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+  color: var(--color-ink-on-fill); /* the Ink Law: near-black on lane fills */
+}
+
+.lane-switch-tab:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}

@@ -74,8 +74,10 @@ import "../../src/styles/base.css";
 // ?raw source feeds the anti-rot scan (Vite raw imports — bundled at test
 // build time; no fs access needed in the browser page). HP-2 widened the
 // scan beyond HP-1's eight: the deferred ScalePopover internals plus the
-// failure chrome (toasts, banners, audio-resume) now register too.
+// failure chrome (toasts, banners, audio-resume) now register too — and
+// MB-1's phone lane switcher (StageFloor became a registering component).
 import boothSrc from "../../src/components/Booth.tsx?raw";
+import stageFloorSrc from "../../src/components/StageFloor.tsx?raw";
 import laneHeaderSrc from "../../src/components/LaneHeader.tsx?raw";
 import laneGridSrc from "../../src/components/LaneGrid.tsx?raw";
 import euclidFillSrc from "../../src/components/EuclidFill.tsx?raw";
@@ -519,6 +521,7 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
 
 const SOURCES = [
   boothSrc,
+  stageFloorSrc,
   laneHeaderSrc,
   laneGridSrc,
   euclidFillSrc,

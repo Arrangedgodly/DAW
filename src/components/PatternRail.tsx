@@ -108,8 +108,10 @@ import {
   type CueSweep,
 } from "../interaction/drag";
 import {
+  activeLane,
   activePatterns,
   selectPattern,
+  stageMode,
   toggleViewMode,
   viewMode,
 } from "../state/selection";
@@ -1048,7 +1050,21 @@ export default function PatternRail(): JSX.Element {
           {viewMode() === "chain" ? "COLLAPSE TO PATTERN" : "EXPAND TO CHAIN"}
         </button>
       </div>
-      <For each={RAIL_ROWS}>{(lane) => <LaneRail lane={lane} />}</For>
+      {/*
+        MB-1 (mobile slice) — the CONDENSED PHONE RAIL, the recorded
+        production decision: at phone width the rail shows ONLY the active
+        lane's row (lane name + tiles + the + append + the one PAT trigger —
+        the refinement-6 distill is exactly what a 390 px chrome wants), and
+        the rail head (title + COLLAPSE/EXPAND toggle) hides: the one-lane
+        stage IS the focused view at phone width. Tiles scroll horizontally
+        inside their strip (chrome height stays stable while pinned); every
+        tile law — quantized switch, sweep cue, sounding follow, cues,
+        rename — is per-lane state and works unchanged on the visible row.
+        Tablet and desktop render the full four-row rail (m4 byte-identity).
+      */}
+      <For each={stageMode() === "phone" ? [activeLane()] : RAIL_ROWS}>
+        {(lane) => <LaneRail lane={lane} />}
+      </For>
     </section>
   );
 }
