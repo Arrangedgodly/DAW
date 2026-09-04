@@ -74,6 +74,7 @@ import {
   setLaneChain,
 } from "../../src/state/store";
 import { activePatterns, selectLane } from "../../src/state/selection";
+import { setHelpMode } from "../../src/state/helpMode";
 import { getSession } from "../../src/engine/session";
 import { clearToasts } from "../../src/state/toasts";
 import { getAutosaveController, initPersistence } from "../../src/persist/boot";
@@ -894,6 +895,325 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         } catch {
           /* best-effort restore */
         }
+      }
+    },
+    120_000,
+  );
+});
+
+// ===========================================================================
+// 4 — MB-4 (mobile slice): the touch EXTENSION of the edge-state table
+// (synthetic half — rows dispatch events can express, at the PHONE stage
+// 390×844; the trusted-CDP half — touchCancel derivation, two-finger CDP,
+// long-press menus, scroll-cancel, rotation — lives in
+// tests/browser/mobile-resilience.test.tsx §5/§2 with the CDP harness).
+//
+// | #  | Touch edge state                              | Law                    |
+// |----|-----------------------------------------------|------------------------|
+// | T1 | pointercancel (touch) mid create-drag        | preview cleared, 0     |
+// |    |                                               | commits, 0 history     |
+// | T2 | pointercancel (touch) mid edge-resize        | bar geometry restored  |
+// | T3 | pointercancel (touch) mid drums paint        | preview cleared, 0     |
+// |    |                                               | commits, 0 auditions   |
+// | T4 | pointercancel (touch) mid rail sweep         | no cue commit, no      |
+// |    |                                               | stuck sweep preview    |
+// | T5 | SECOND touch pointer mid-gesture             | ignored entirely; the  |
+// |    |                                               | first commits ONCE     |
+// | T6 | MOUSE pointerdown mid TOUCH gesture (hybrid  | ignored; the touch     |
+// |    | mouse+touch device)                          | gesture completes once |
+// | T7 | help mode ON + tap = inspect AND activate;   | gesture COMPLETES      |
+// |    | help toggled MID touch-gesture (HP-1 law     | cleanly; the info      |
+// |    | carries over, MB-3's tap model)              | region shows the       |
+// |    |                                               | tapped control         |
+// ===========================================================================
+
+describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () => {
+  /** One touch-typed pointer event (synthetic — no capture, but the app's
+   * container listeners still consume it; `te` mirrors the suite's `pe`). */
+  function te(
+    el: Element,
+    type: string,
+    x: number,
+    y: number,
+    pointerId = 7,
+    isPrimary = true,
+  ): boolean {
+    return el.dispatchEvent(
+      new PointerEvent(type, {
+        pointerId,
+        pointerType: "touch",
+        isPrimary,
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+      }),
+    );
+  }
+
+  it(
+    "touch-typed cancels (create/resize/paint/sweep), second touch, hybrid mouse, help-mode carry-over — the phone stage",
+    { timeout: 120_000 },
+    async () => {
+      await page.viewport(390, 844);
+      const { cleanup } = mountApp();
+      let bootDb: ProjectDb | null = null;
+      let snapshotRows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
+
+      const session = getSession();
+      const origAudition = session.audition;
+      const auditions: Array<{ lane: string }> = [];
+      session.audition = (laneId, x) => {
+        auditions.push({ lane: laneId });
+        return origAudition.call(session, laneId, x);
+      };
+
+      const previews = () =>
+        document.querySelectorAll(".note-run.is-drag-preview").length;
+      const cellPreviews = () =>
+        document.querySelectorAll(".cell[data-preview]").length;
+      const historyDepth = () =>
+        docStore.temporal.getState().pastStates.length;
+
+      try {
+        await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
+        bootDb = await openRawProjectDb("bitbounce");
+        snapshotRows = await bootDb.allRecords();
+        loadDocument(createFreshProjectDocument());
+        await waitFor(
+          () =>
+            document
+              .querySelector(".app")
+              ?.getAttribute("data-stage") === "phone",
+          5000,
+          "phone stage",
+        );
+        selectLane("bass");
+        await waitFor(
+          () =>
+            document.querySelector(".lane-floor")?.dataset.lane === "bass",
+          3000,
+          "bass stage",
+        );
+        expect(bassNotes()).toHaveLength(0);
+
+        // -- T1: pointercancel (touch) mid create-drag ----------------------
+        const s2 = cellAt("bass", 0, 2);
+        const s5 = cellAt("bass", 0, 5);
+        const c2 = center(s2);
+        const c5 = center(s5);
+        const depth0 = historyDepth();
+        te(s2, "pointerdown", c2.x, c2.y);
+        te(s5, "pointermove", c5.x, c5.y);
+        expect(previews()).toBe(1);
+        expect(cellPreviews()).toBe(4);
+        te(s5, "pointercancel", c5.x, c5.y);
+        expect(bassNotes()).toHaveLength(0); // no partial commit
+        expect(previews()).toBe(0); // no stuck preview
+        expect(cellPreviews()).toBe(0);
+        expect(historyDepth()).toBe(depth0); // no history corruption
+        // Stray late events after the cancel stay dead.
+        te(s5, "pointermove", c5.x, c5.y);
+        te(s5, "pointerup", c5.x, c5.y);
+        expect(bassNotes()).toHaveLength(0);
+        expect(previews()).toBe(0);
+
+        // -- T2: pointercancel (touch) mid edge-resize ----------------------
+        // Place a 2-step note by touch tap first (unmoved press → gate law).
+        te(s2, "pointerdown", c2.x, c2.y);
+        te(s2, "pointerup", c2.x, c2.y);
+        await waitFor(
+          () => bassNotes().length === 1,
+          2000,
+          "touch tap placed the gate-default note",
+        );
+        const run = document.querySelector(
+          '.lane-floor[data-lane="bass"] .note-run',
+        ) as HTMLElement;
+        const runRect0 = run.getBoundingClientRect().width;
+        const edge = run.querySelector(".note-edge") as HTMLElement;
+        const ec = { x: run.getBoundingClientRect().right - 1, y: c2.y };
+        te(edge, "pointerdown", ec.x, ec.y);
+        const cells0 = cellAt("bass", 0, 0).parentElement as HTMLElement;
+        const row0 = cells0.getBoundingClientRect();
+        const stepW = center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
+        te(cells0, "pointermove", row0.left + 5.5 * stepW, c2.y);
+        expect(run.getBoundingClientRect().width).toBeGreaterThan(runRect0);
+        te(cells0, "pointercancel", row0.left + 5.5 * stepW, c2.y);
+        expect(bassNotes()[0]!.length).toBe(2); // unchanged
+        const runAfter = document.querySelector(
+          '.lane-floor[data-lane="bass"] .note-run',
+        ) as HTMLElement;
+        expect(runAfter.getBoundingClientRect().width).toBe(runRect0);
+
+        // -- T7a: help mode ON + touch TAP = inspect AND activate (MB-3's
+        // tap model): the note is removed by the anchor tap AND the info
+        // region shows the tapped grid's entry.
+        setHelpMode(true);
+        await waitFor(
+          () => !!document.querySelector(".info-view"),
+          3000,
+          "info view mounted",
+        );
+        te(s2, "pointerdown", c2.x, c2.y);
+        te(s2, "pointerup", c2.x, c2.y);
+        // Synthetic pointer events derive no click — dispatch the bare click
+        // the real touch pipeline would deliver after touchend (the MB-3 tap
+        // model's inspect half rides the CLICK observer).
+        s2.click();
+        await waitFor(
+          () => bassNotes().length === 0,
+          3000,
+          "T7a: the tap activated (anchor removed) while help mode is on",
+        );
+        await waitFor(
+          () =>
+            (document.querySelector(".info-view-title")?.textContent ?? "")
+              .toUpperCase()
+              .includes("BASS GRID"),
+          3000,
+          "T7a: the same tap inspected (info region shows the grid)",
+        );
+        setHelpMode(false);
+
+        // -- T7b: help mode toggled MID touch-gesture → completes cleanly ---
+        te(s2, "pointerdown", c2.x, c2.y);
+        te(s5, "pointermove", c5.x, c5.y);
+        expect(previews()).toBe(1);
+        setHelpMode(true); // the HP-1 mid-gesture contract, under touch
+        expect(previews()).toBe(1); // the gesture still owns its preview
+        te(s5, "pointerup", c5.x, c5.y);
+        expect(bassNotes()).toEqual([{ degree: 0, start: 2, length: 4 }]);
+        expect(previews()).toBe(0); // completed cleanly
+        setHelpMode(false);
+
+        // -- T5: SECOND touch pointer mid-gesture → ignored ------------------
+        const before5 = bassNotes().length;
+        const s8 = cellAt("bass", 0, 8);
+        const s10 = cellAt("bass", 0, 10);
+        const s12 = cellAt("bass", 0, 12);
+        const c8 = center(s8);
+        te(s8, "pointerdown", c8.x, c8.y, 7, true); // finger 1 (primary)
+        te(s10, "pointermove", center(s10).x, center(s10).y, 7, true);
+        // Finger 2 lives and dies entirely inside the gesture (non-primary).
+        te(s12, "pointerdown", center(s12).x, center(s12).y, 8, false);
+        te(s12, "pointermove", center(s12).x, center(s12).y, 8, false);
+        te(s12, "pointerup", center(s12).x, center(s12).y, 8, false);
+        te(s12, "pointercancel", center(s12).x, center(s12).y, 8, false);
+        expect(bassNotes().length).toBe(before5); // nothing from finger 2
+        te(s10, "pointermove", center(s10).x, center(s10).y, 7, true);
+        te(s10, "pointerup", center(s10).x, center(s10).y, 7, true);
+        expect(bassNotes().length).toBe(before5 + 1); // exactly one note
+        expect(bassNotes().some((n) => n.start === 8)).toBe(true);
+
+        // -- T6: MOUSE pointerdown mid TOUCH gesture (hybrid device) ---------
+        // A mouse pointer IS primary — the armed-gesture guard is the law
+        // that must hold (a touch laptop user's palm taps the trackpad).
+        // Steps 12–14 are free (T7b's note spans 2–5, T5's spans 8–10).
+        const before6 = bassNotes().length;
+        te(s12, "pointerdown", center(s12).x, center(s12).y, 7, true); // touch
+        te(cellAt("bass", 0, 13), "pointermove", center(cellAt("bass", 0, 13)).x, center(cellAt("bass", 0, 13)).y, 7, true);
+        expect(previews()).toBe(1);
+        pe(cellAt("bass", 0, 14), "pointerdown", center(cellAt("bass", 0, 14)).x, center(cellAt("bass", 0, 14)).y, 3);
+        pe(cellAt("bass", 0, 14), "pointerup", center(cellAt("bass", 0, 14)).x, center(cellAt("bass", 0, 14)).y, 3);
+        expect(bassNotes().length).toBe(before6); // the mouse press was ignored
+        te(cellAt("bass", 0, 13), "pointerup", center(cellAt("bass", 0, 13)).x, center(cellAt("bass", 0, 13)).y, 7, true);
+        expect(bassNotes().length).toBe(before6 + 1); // the touch gesture commits
+        expect(bassNotes().some((n) => n.start === 12)).toBe(true);
+
+        // Undo integrity for the touch rows: the last committed gesture
+        // (T6's touch create at step 12) reverts with ONE undo — checked
+        // HERE, before the drums/rail rows add their own history entries.
+        const depthNow = historyDepth();
+        const { undo } = await import("../../src/state/store");
+        undo();
+        expect(bassNotes().some((n) => n.start === 12)).toBe(false); // reverted
+        expect(historyDepth()).toBe(depthNow - 1);
+
+        // -- T3: pointercancel (touch) mid drums paint -----------------------
+        selectLane("drums");
+        await waitFor(
+          () =>
+            document.querySelector(".lane-floor")?.dataset.lane === "drums",
+          3000,
+          "drums stage",
+        );
+        const d0 = cellAt("drums", 0, 0);
+        const d3 = cellAt("drums", 0, 3);
+        const aud1 = auditions.length;
+        te(d0, "pointerdown", center(d0).x, center(d0).y);
+        te(d3, "pointermove", center(d3).x, center(d3).y);
+        expect(cellPreviews()).toBe(4);
+        te(d3, "pointercancel", center(d3).x, center(d3).y);
+        const drums0 = docStore.getState().doc.patterns.drums[0];
+        expect(
+          drums0?.kind === "drums" && drums0.steps.kick.every((s) => !s),
+          "T3: paint cancelled, nothing on",
+        ).toBe(true);
+        expect(cellPreviews()).toBe(0);
+        expect(auditions.length).toBe(aud1); // zero auditions from the cancel
+
+        // -- T4: pointercancel (touch) mid rail sweep ------------------------
+        // (at phone the rail renders ONLY the active lane's row — drums.)
+        const drumsChain = () => docStore.getState().doc.songChain.drums;
+        addPattern("drums", 1, "B");
+        setLaneChain("drums", ["drums-1", "drums-2", "drums-1"]);
+        appendChainSlot("drums", "drums-2");
+        await waitFor(
+          () => drumsChain().length === 4,
+          2000,
+          "rail chain extended",
+        );
+        const tile = (slot: number): HTMLElement => {
+          const tiles = document.querySelectorAll(
+            '.rail-row[data-lane="drums"] .rail-tile',
+          );
+          const el = tiles[slot];
+          if (!el) throw new Error(`missing rail tile ${slot}`);
+          return el as HTMLElement;
+        };
+        const rail = document.querySelector(".rail") as HTMLElement;
+        const selectionBefore = activePatterns().drums;
+        te(tile(0), "pointerdown", center(tile(0)).x, center(tile(0)).y, 7);
+        te(tile(1), "pointermove", center(tile(1)).x, center(tile(1)).y, 7);
+        te(tile(2), "pointermove", center(tile(2)).x, center(tile(2)).y, 7);
+        await waitFor(
+          () =>
+            document.querySelectorAll('.rail-tile[data-cue-preview]').length >
+            0,
+          2000,
+          "T4: sweep preview armed",
+        );
+        te(rail, "pointercancel", center(tile(2)).x, center(tile(2)).y, 7);
+        expect(activePatterns().drums).toBe(selectionBefore); // no commit
+        expect(
+          document.querySelectorAll('.rail-tile[data-cue-preview]'),
+        ).toHaveLength(0); // no stuck sweep preview
+        // A stray late move+up after the cancel stays dead.
+        te(tile(3), "pointermove", center(tile(3)).x, center(tile(3)).y, 7);
+        te(tile(3), "pointerup", center(tile(3)).x, center(tile(3)).y, 7);
+        expect(activePatterns().drums).toBe(selectionBefore);
+      } finally {
+        setHelpMode(false);
+        session.audition = origAudition;
+        void import("../../src/engine/session")
+          .then(({ getSession: g }) => g().transport.stop?.())
+          .catch(() => {});
+        cleanup();
+        try {
+          await getAutosaveController()?.stop();
+          if (bootDb) {
+            const ids = new Set(snapshotRows.map((r) => r.id));
+            const current = await bootDb.allRecords();
+            for (const row of snapshotRows) await bootDb.putRecord(row);
+            for (const row of current) {
+              if (!ids.has(row.id)) await bootDb.deleteRecord(row.id);
+            }
+          }
+        } catch {
+          /* best-effort restore */
+        }
+        await page.viewport(1440, 900); // the suite's convention viewport
       }
     },
     120_000,
