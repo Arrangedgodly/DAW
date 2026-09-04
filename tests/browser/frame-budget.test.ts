@@ -47,9 +47,53 @@
  *       must still land far inside the stall, and no audio-asset fetch may
  *       happen on the boot→play path at all (lazy = on explicit preset
  *       selection, and even then never blocking).
+ *
+ * MB-5 (mobile slice M17, town-hall m5 "performance at mobile scale
+ * documented and gated") extends the same harness to the PHONE stage at
+ * 390×844 (MB-1's single-lane stage: one lane floor, the lane switcher, the
+ * condensed rail, sticky chrome — the page scrolls):
+ *   (m-a) PHONE FRAME BUDGET — ≥95% of frames < 33.4 ms while ALL FOUR lanes
+ *         play dense 4-bar chains (the audio state is viewport-independent)
+ *         and the phone edits + scrolls: cell toggles, vertical page scroll
+ *         under the sticky chrome (repaint law), and horizontal grid scroll
+ *         (scroll is the phone law, so it is budgeted, not assumed), in the
+ *         densest phone-realistic state — sample-backed sounds on, an FX
+ *         device on every lane, sustained note-runs rendering, the euclid
+ *         fill overlay REVEALED (the FILL toggle — phone/tablet only), help
+ *         mode off.
+ *   (m-b) DRAG STORMS AT PHONE WIDTH — the four TH-4 (b) gesture storms
+ *         (drag-create preview, edge resize, drums paint, rail cue sweep)
+ *         during playback at 390×844 keep the same laws: frame budget,
+ *         per-move block + median budgets, zero non-preview DOM mutations
+ *         mid-gesture (commit-on-release).
+ *   (m-c) VOICE/LAZY-CONTENT AT MOBILE — selecting a sample-backed sound
+ *         MID-PLAYBACK fires the lazy content chunk + fetch + decode OFF the
+ *         critical path: the frame budget holds while the decode lands,
+ *         playback never stops, and no audio-asset fetch happened before the
+ *         selection (no eager fetch on the mobile path). Voice budget
+ *         UNCHANGED by mobile: 8 voices/lane, 32 total (the sample host
+ *         mirrors the worklet pool — asserted against the engine constants;
+ *         the audio graph has no viewport branch).
+ *
+ * HONESTY CAVEAT (reduced expectations, documented in perf-budget.md §9):
+ * CI Chromium runs on desktop-class hardware EMULATING the 390×844 viewport.
+ * These gates catch REGRESSIONS (layout thrash, reactive playheads, blocking
+ * decodes at the phone paint load) — they are NOT a device-class verdict for
+ * mid-tier Android Chrome; real-device verification stays with the user's
+ * R12-style human session, and low-end Android perf stays on the Strange
+ * risk register. Tolerances follow the TH-4 approach: the 33.4 ms ratio is
+ * HARD, liveness counts are load-robust (≥2/s).
  */
 
 import { describe, expect, it } from "vitest";
+// MB-5 (m-c): the voice budget is UNCHANGED by mobile — pinned against the
+// engine constants the app runs (8/lane on BOTH hosts → 32 total). The audio
+// graph has no viewport branch (src/audio + engineBridge never read the
+// stage mode), so this import is the engine's law, not a test-local copy.
+import {
+  SAMPLE_VOICES_PER_LANE,
+  VOICES_PER_LANE,
+} from "../../src/audio/voiceEngine";
 
 const FRAME_BUDGET_MS = 33.4; // ~30 fps floor — HARD bound
 const FRAME_PASS_RATIO = 0.95;
@@ -70,6 +114,12 @@ const MEDIAN_MOVE_BUDGET_MS = 8; // median dispatch must sit far below a frame
 const CONTENT_STALL_MS = 4000; // simulated same-origin asset fetch/decode stall
 const PAINT_BUDGET_MS = 3000; // first paint must beat the stall comfortably
 const PLAY_BUDGET_MS = 3000; // PLAY → transport running must beat it too
+
+// MB-5 (iteration-2 mobile slice) — the phone stage viewport (m1's committed
+// Android-Chrome target; MB-1's responsive stage keys off it).
+const PHONE_W = 390;
+const PHONE_H = 844;
+const PHONE_WINDOW_MS = 2000; // per-window measurement inside (m-a)
 
 // The production bundle built by tests/browser/globalSetup.ts. The glob is
 // resolved by vite at transform time; the hashed name changes per build.
@@ -266,6 +316,140 @@ async function clickPlayAndWait(
     "transport never started",
   );
   return performance.now() - t0;
+}
+
+// ---------------------------------------------------------------------------
+// Shared gesture-storm machinery (TH-4 (b) at 1440×900; MB-5 (m-b) reuses the
+// exact laws at 390×844 — one law, two viewports)
+// ---------------------------------------------------------------------------
+
+/**
+ * Commit-on-release = no layout thrash: while the pointer MOVES, the
+ * only legal DOM mutations are renderer-local previews (data-preview
+ * attrs, the dashed preview bar, the resize width, cue-preview attrs)
+ * plus the always-running non-gesture loops: playback UI (playhead
+ * transform, trigger glow classes, the booth's direct-DOM readout —
+ * textContent writes surface as childList on the LED spans) and the
+ * debounced persistence UI (.save-indicator state, fired from earlier
+ * legitimate RELEASE commits). Anything else — a store-driven sync
+ * (aria-selected/data-on cell flips), a rail rebuild, a focus shuffle — is
+ * a mid-gesture write and FAILS the gate.
+ */
+function allowedMutation(m: MutationRecord): boolean {
+  const t = m.target as Element;
+  if (m.type === "attributes") {
+    const a = m.attributeName;
+    if (a === "style")
+      return (
+        t.classList.contains("grid-playhead") ||
+        t.classList.contains("note-run")
+      );
+    if (a === "class") return t.classList.contains("cell");
+    if (a === "data-preview") return t.classList.contains("cell");
+    if (a === "data-cue-preview") return t.classList.contains("rail-tile");
+    if (a === "data-active") return t.classList.contains("booth-beat-led");
+    if (a === "data-status" || a === "aria-label" || a === "title")
+      return t.classList.contains("save-indicator");
+    return false;
+  }
+  if (m.type === "childList") {
+    if (t.classList?.contains("note-runs") === true) return true;
+    // The booth rAF readout writes textContent (node replacement).
+    return (
+      t.classList?.contains("booth-led") === true ||
+      t.classList?.contains("booth-sr") === true
+    );
+  }
+  if (m.type === "characterData") {
+    const p = (m.target as CharacterData).parentElement;
+    return (
+      p !== null &&
+      (p.closest(".booth") !== null || p.closest(".save-indicator") !== null)
+    );
+  }
+  return false;
+}
+
+function describeMutation(m: MutationRecord): string {
+  const t = m.target as Element;
+  const name =
+    m.type === "attributes"
+      ? `@${m.attributeName}`
+      : m.type === "childList"
+        ? "childList"
+        : "text";
+  const tag = t.tagName ? t.tagName.toLowerCase() : "#text";
+  return `${m.type}${name} on ${tag}.${String(t.className ?? "").slice(0, 50)}`;
+}
+
+interface StormWindowResult {
+  readonly intervals: number[];
+  readonly moveBlocks: number[];
+}
+
+/**
+ * One observed gesture window: MutationObserver over the whole app document
+ * for the move phase (disconnected BEFORE the release — commits are legal),
+ * STORM_MOVES_PER_FRAME un-coalesced synthetic moves per rAF frame, each
+ * dispatch timed synchronously. `suite` only names the console line
+ * ("TH-4" / "MB-5") — the laws are identical.
+ */
+async function runStormWindow(
+  win: IframeWindow,
+  doc: () => Document,
+  violations: string[],
+  suite: string,
+  label: string,
+  begin: () => void,
+  move: (i: number) => PointerEvent,
+  moveTarget: () => Element,
+  finish: () => void,
+  sample: () => void,
+): Promise<StormWindowResult> {
+  const observer = new win.MutationObserver((records) => {
+    for (const m of records)
+      if (!allowedMutation(m) && violations.length < 25)
+        violations.push(describeMutation(m));
+  });
+  observer.observe(doc().documentElement, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  begin();
+  const intervals: number[] = [];
+  const moveBlocks: number[] = [];
+  await new Promise<void>((resolve) => {
+    let i = 0;
+    let last = performance.now();
+    const start = last;
+    const frame = () => {
+      const now = performance.now();
+      intervals.push(now - last);
+      last = now;
+      for (let k = 0; k < STORM_MOVES_PER_FRAME; k++) {
+        const t0 = performance.now();
+        moveTarget().dispatchEvent(move(i++));
+        moveBlocks.push(performance.now() - t0);
+      }
+      sample();
+      if (now - start < STORM_WINDOW_MS) requestAnimationFrame(frame);
+      else resolve();
+    };
+    requestAnimationFrame(frame);
+  });
+  observer.disconnect(); // stop BEFORE the release: commits are legal
+  finish();
+  const sortedMoves = [...moveBlocks].sort((a, b) => a - b);
+  console.log(
+    `[${suite} storm ${label}] frames=${intervals.length} ` +
+      `over33.4ms=${intervals.filter((d) => d >= FRAME_BUDGET_MS).length} ` +
+      `moves=${moveBlocks.length} ` +
+      `worstMove=${Math.max(...moveBlocks).toFixed(2)}ms ` +
+      `medianMove=${sortedMoves[Math.floor(sortedMoves.length / 2)].toFixed(2)}ms`,
+  );
+  return { intervals, moveBlocks };
 }
 
 // ---------------------------------------------------------------------------
@@ -832,7 +1016,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         await clickPlayAndWait(app);
         await sleep(500);
 
-        // --- storm machinery -------------------------------------------------
+        // --- storm machinery (module-scope runStormWindow; MB-5 reuses it) --
         const allIntervals: number[] = [];
         const allMoveBlocks: number[] = [];
         const violations: string[] = [];
@@ -843,122 +1027,29 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           paintPreviewCells: false,
           cuePreview: false,
         };
-
-        /**
-         * Commit-on-release = no layout thrash: while the pointer MOVES, the
-         * only legal DOM mutations are renderer-local previews (data-preview
-         * attrs, the dashed preview bar, the resize width, cue-preview attrs)
-         * plus the always-running non-gesture loops: playback UI (playhead
-         * transform, trigger glow classes, the booth's direct-DOM readout —
-         * textContent writes surface as childList on the LED spans) and the
-         * debounced persistence UI (.save-indicator state, fired from earlier
-         * legitimate RELEASE commits). Anything else — a store-driven sync
-         * (aria-selected/data-on flips), a rail rebuild, a focus shuffle — is
-         * a mid-gesture write and FAILS the gate.
-         */
-        const allowedMutation = (m: MutationRecord): boolean => {
-          const t = m.target as Element;
-          if (m.type === "attributes") {
-            const a = m.attributeName;
-            if (a === "style")
-              return (
-                t.classList.contains("grid-playhead") ||
-                t.classList.contains("note-run")
-              );
-            if (a === "class") return t.classList.contains("cell");
-            if (a === "data-preview") return t.classList.contains("cell");
-            if (a === "data-cue-preview")
-              return t.classList.contains("rail-tile");
-            if (a === "data-active")
-              return t.classList.contains("booth-beat-led");
-            if (a === "data-status" || a === "aria-label" || a === "title")
-              return t.classList.contains("save-indicator");
-            return false;
-          }
-          if (m.type === "childList") {
-            if (t.classList?.contains("note-runs") === true) return true;
-            // The booth rAF readout writes textContent (node replacement).
-            return (
-              t.classList?.contains("booth-led") === true ||
-              t.classList?.contains("booth-sr") === true
-            );
-          }
-          if (m.type === "characterData") {
-            const p = (m.target as CharacterData).parentElement;
-            return (
-              p !== null &&
-              (p.closest(".booth") !== null ||
-                p.closest(".save-indicator") !== null)
-            );
-          }
-          return false;
-        };
-        const describeMutation = (m: MutationRecord): string => {
-          const t = m.target as Element;
-          const name =
-            m.type === "attributes"
-              ? `@${m.attributeName}`
-              : m.type === "childList"
-                ? "childList"
-                : "text";
-          const tag = t.tagName ? t.tagName.toLowerCase() : "#text";
-          return `${m.type}${name} on ${tag}.${String(t.className ?? "").slice(0, 50)}`;
-        };
-
-        const runStormWindow = async (
+        const storm = (
           label: string,
           begin: () => void,
           move: (i: number) => PointerEvent,
           moveTarget: () => Element,
           finish: () => void,
           sample: () => void,
-        ): Promise<void> => {
-          const observer = new app.win.MutationObserver((records) => {
-            for (const m of records)
-              if (!allowedMutation(m) && violations.length < 25)
-                violations.push(describeMutation(m));
+        ): Promise<void> =>
+          runStormWindow(
+            app.win,
+            doc,
+            violations,
+            "TH-4",
+            label,
+            begin,
+            move,
+            moveTarget,
+            finish,
+            sample,
+          ).then((r) => {
+            allIntervals.push(...r.intervals);
+            allMoveBlocks.push(...r.moveBlocks);
           });
-          observer.observe(doc().documentElement, {
-            attributes: true,
-            childList: true,
-            subtree: true,
-            characterData: true,
-          });
-          begin();
-          const intervals: number[] = [];
-          const moveBlocks: number[] = [];
-          await new Promise<void>((resolve) => {
-            let i = 0;
-            let last = performance.now();
-            const start = last;
-            const frame = () => {
-              const now = performance.now();
-              intervals.push(now - last);
-              last = now;
-              for (let k = 0; k < STORM_MOVES_PER_FRAME; k++) {
-                const t0 = performance.now();
-                moveTarget().dispatchEvent(move(i++));
-                moveBlocks.push(performance.now() - t0);
-              }
-              sample();
-              if (now - start < STORM_WINDOW_MS) requestAnimationFrame(frame);
-              else resolve();
-            };
-            requestAnimationFrame(frame);
-          });
-          observer.disconnect(); // stop BEFORE the release: commits are legal
-          finish();
-          allIntervals.push(...intervals);
-          allMoveBlocks.push(...moveBlocks);
-          const sortedMoves = [...moveBlocks].sort((a, b) => a - b);
-          console.log(
-            `[TH-4 storm ${label}] frames=${intervals.length} ` +
-              `over33.4ms=${intervals.filter((d) => d >= FRAME_BUDGET_MS).length} ` +
-              `moves=${moveBlocks.length} ` +
-              `worstMove=${Math.max(...moveBlocks).toFixed(2)}ms ` +
-              `medianMove=${sortedMoves[Math.floor(sortedMoves.length / 2)].toFixed(2)}ms`,
-          );
-        };
 
         // Storm 1 — drag-create preview (bass, editable quadrant).
         {
@@ -968,7 +1059,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           const c = center(press);
           const cells = press.parentElement!.getBoundingClientRect();
           const w = stepWidth(lane);
-          await runStormWindow(
+          await storm(
             "drag-create preview",
             () => press.dispatchEvent(pe("pointerdown", c.x, c.y)),
             (i) => {
@@ -1008,7 +1099,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           const noteStart = Number(edge.dataset.start);
           const runEl = edge.parentElement as HTMLElement;
           const widths = new Set<string>();
-          await runStormWindow(
+          await storm(
             "edge-resize",
             () => edge.dispatchEvent(pe("pointerdown", c.x, c.y)),
             (i) => {
@@ -1050,7 +1141,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
           const c = center(press);
           const cells = press.parentElement!.getBoundingClientRect();
           const w = stepWidth("drums");
-          await runStormWindow(
+          await storm(
             "drums paint",
             () => press.dispatchEvent(pe("pointerdown", c.x, c.y)),
             (i) => {
@@ -1088,7 +1179,7 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
             Array.from(bassRow.querySelectorAll(".rail-tile"));
           const t0 = drumsTiles()[0]!;
           const c0 = center(t0);
-          await runStormWindow(
+          await storm(
             "rail sweep",
             () => t0.dispatchEvent(pe("pointerdown", c0.x, c0.y)),
             (i) => {
@@ -1284,5 +1375,1114 @@ describe("TH-4 (d) lazy-content budget (built app, simulated asset stall)", () =
       }
     },
     90_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// MB-5 (m5) — mobile frame budget (built app, 390×844 phone stage)
+//
+// The TH-4 measurement approach at the committed phone viewport (MB-1's
+// stage: ONE lane floor renders — the audio state is viewport-independent,
+// so all four lanes still play). HONESTY CAVEAT (documented in perf-budget.md
+// §9): CI Chromium on desktop-class hardware EMULATES the viewport; these
+// gates catch REGRESSIONS, not device class — real mid-tier Android
+// verification stays with the user's R12-style session.
+// ---------------------------------------------------------------------------
+
+describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
+  it(
+    "(m-a) playing + editing + scroll keep ≥95% frames < 33.4 ms in the densest phone-realistic state (4-bar chains, sample sounds, FX on every lane, sustained runs, euclid fill overlay revealed); help off; voices as budgeted (≥16 sustained)",
+    { timeout: 240_000 },
+    async () => {
+      const app = await bootBuiltApp({ width: PHONE_W, height: PHONE_H });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const floor = (lane: string): HTMLElement =>
+          $(`.lane-floor[data-lane="${lane}"]`);
+        const cellAt = (lane: string, row: number, step: number): HTMLElement =>
+          $(
+            `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+          );
+        const key = (el: Element, k: string): void => {
+          el.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        };
+        const stepWidth = (lane: string): number => {
+          const a = cellAt(lane, 0, 0).getBoundingClientRect();
+          const b = cellAt(lane, 0, 1).getBoundingClientRect();
+          return b.left - a.left;
+        };
+
+        // Phone stage preconditions (MB-1's law): switcher, ONE floor, the
+        // demo chain, help mode OFF (the HP-1 zero-cost baseline, TH-4 (c)).
+        await poll(
+          () => $(".app").getAttribute("data-stage") === "phone",
+          5_000,
+          "data-stage=phone at 390×844",
+        );
+        await poll(
+          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          5_000,
+          "demo chain tiles (phone boot signal)",
+        );
+        expect(doc().querySelectorAll(".lane-switch-tab")).toHaveLength(4);
+        expect(doc().querySelectorAll(".lane-grid")).toHaveLength(1);
+        expect(doc().querySelector(".help-backdrop")).toBeNull();
+        expect(doc().querySelector(".info-view")).toBeNull();
+
+        /** Switch the phone stage to a lane (the switcher IS selection).
+         * Poll conditions never throw (a throw inside the poll's setTimeout
+         * strands the promise) — query, don't `$`. */
+        const switchLane = async (lane: string): Promise<void> => {
+          ($(`.lane-switch-tab[data-lane="${lane}"]`) as HTMLElement).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(".lane-grid").length === 1 &&
+              doc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
+                lane &&
+              doc().querySelector(
+                `.lane-floor[data-lane="${lane}"] .cell[data-row="0"][data-step="0"]`,
+              ) !== null,
+            4_000,
+            `${lane} phone stage (single floor + cells)`,
+          );
+        };
+
+        /** Synthetic drag-create through the REAL gesture path (IN-2 law). */
+        const dragCreate = (
+          lane: string,
+          row: number,
+          start: number,
+          end: number,
+        ): void => {
+          const el = cellAt(lane, row, start);
+          const r = el.getBoundingClientRect();
+          const y = r.top + r.height / 2;
+          const cells = el.parentElement!.getBoundingClientRect();
+          const w = stepWidth(lane);
+          const pe = (type: string, stepFloat: number): void => {
+            el.dispatchEvent(
+              new PointerEvent(type, {
+                pointerId: 1,
+                isPrimary: true,
+                button: 0,
+                pointerType: "mouse",
+                clientX: cells.left + (stepFloat + 0.5) * w,
+                clientY: y,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          };
+          pe("pointerdown", start);
+          for (let s = start + 2; s <= end; s += 3) pe("pointermove", s);
+          pe("pointerup", end);
+        };
+
+        /** The active lane's rail row carries ONE PAT trigger (refinement-6). */
+        const add4Bar = async (lane: string): Promise<void> => {
+          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
+          $(".rail-tools-trigger").click();
+          await poll(
+            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
+            2_000,
+            `${lane} PAT menu open`,
+          );
+          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
+          await poll(
+            () => {
+              const n = floor(lane).querySelectorAll(".cell").length;
+              return n > 0 && n % 64 === 0;
+            },
+            5_000,
+            `${lane} 4-bar phone grid rendered`,
+          );
+          (
+            $(
+              `button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
+            ) as HTMLElement
+          ).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 5,
+            2_000,
+            `${lane} dense pattern appended`,
+          );
+        };
+
+        /** Drop the four demo chain slots: the chain = the dense pattern. */
+        const stripDemoSlots = async (lane: string): Promise<void> => {
+          for (let i = 0; i < 4; i++) {
+            const tile = $(`.rail-row[data-lane="${lane}"] .rail-tile`);
+            (tile as HTMLElement).focus();
+            key(tile, "Delete");
+            await poll(
+              () =>
+                doc().querySelectorAll(
+                  `.rail-row[data-lane="${lane}"] .rail-tile`,
+                ).length ===
+                4 - i,
+              2_000,
+              `${lane} demo chain slot ${i} removed`,
+            );
+          }
+        };
+
+        /** Sustained voices covering step 4 (chords stack 3 voices/note). */
+        const voicesAt4 = (lane: string): number => {
+          let voices = 0;
+          for (const edge of doc().querySelectorAll<HTMLElement>(
+            `.lane-floor[data-lane="${lane}"] .note-edge`,
+          )) {
+            const start = Number(edge.dataset.start);
+            const length = Number(edge.dataset.length);
+            if (start <= 4 && 4 < start + length)
+              voices += lane === "chords" ? 3 : 1;
+          }
+          return voices;
+        };
+
+        /** Step the lane's sound (real stepper → audition + lazy prime).
+         * Null-tolerant reads: the header settles with the lane swap. */
+        const stepSoundTo = async (
+          lane: string,
+          kind: "preset" | "kit",
+          target: string,
+        ): Promise<void> => {
+          const nextSel = `button[aria-label="Next ${kind} for ${lane.toUpperCase()}"]`;
+          const valueSel = `[aria-label="${lane.toUpperCase()} sound"] .head-ctl-value`;
+          for (let i = 0; i < 30; i++) {
+            const value = doc().querySelector(valueSel);
+            const next = doc().querySelector<HTMLButtonElement>(nextSel);
+            if (value?.textContent?.trim() === target) return;
+            if (next) next.click();
+            await sleep(80);
+          }
+          throw new Error(`${lane} ${kind} never reached ${target}`);
+        };
+
+        // --- Dense 4-bar content per lane (the phone way: switch → edit) ----
+        // bass: 7 sustained long notes.
+        await switchLane("bass");
+        await add4Bar("bass");
+        for (const row of [0, 2, 4, 6, 8, 10, 12])
+          dragCreate("bass", row, 0, 31);
+        await poll(
+          () => floor("bass").querySelectorAll(".note-run").length >= 7,
+          3_000,
+          "bass sustained notes committed",
+        );
+        await stripDemoSlots("bass");
+        await stepSoundTo("bass", "preset", "SUB DROP"); // PS-4 sample voice
+
+        // chords: 2 full-length triads → 6 sustained voices.
+        await switchLane("chords");
+        await add4Bar("chords");
+        dragCreate("chords", 0, 0, 63);
+        dragCreate("chords", 2, 0, 63);
+        await poll(
+          () => floor("chords").querySelectorAll(".note-run").length >= 2,
+          3_000,
+          "chords sustained notes committed",
+        );
+        await stripDemoSlots("chords");
+        await stepSoundTo("chords", "preset", "PURE TONE");
+
+        // lead: 4 sustained long notes (the densest phone grid: 14 rows).
+        await switchLane("lead");
+        await add4Bar("lead");
+        for (const row of [7, 9, 11, 13]) dragCreate("lead", row, 0, 31);
+        await poll(
+          () => floor("lead").querySelectorAll(".note-run").length >= 4,
+          3_000,
+          "lead sustained notes committed",
+        );
+        await stripDemoSlots("lead");
+        await stepSoundTo("lead", "preset", "PHASER UP");
+
+        // drums (stays reachable for window B): the densest realistic kit
+        // load + one FX device through the real console (the demo ships the
+        // other three).
+        //
+        // GATE-INTEGRITY NOTE (found live, recorded): the v0 drums cell
+        // toggle is POOL-WIDE (read = ANY pattern of the lane, write = EVERY
+        // pattern) and a step write past a pattern's own length fails
+        // validateProject (sparse-array holes → codec reject → the click
+        // throws and lands NOTHING). With the demo's 1-bar patterns in the
+        // pool, clicks at steps ≥17 throw and steps 0–15 obey the pool-wide
+        // read (a demo-hit cell reads "on" and the click turns it OFF — an
+        // invisible no-op). The honest dense setup strips the four demo
+        // patterns from the POOL first (the PAT menu's RM tool — tile Delete
+        // only edits the chain), leaving the fresh 4-bar as the lane's only
+        // pattern: every click then lands ON, in-pattern, in-length.
+        await switchLane("drums");
+        await add4Bar("drums");
+        const removeViaMenu = async (): Promise<void> => {
+          const label = "Remove DRUMS selected pattern";
+          ($(".rail-tools-trigger") as HTMLElement).click();
+          await poll(
+            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
+            2_000,
+            "drums PAT menu (pool remove)",
+          );
+          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
+          await poll(
+            () => !doc().querySelector(".rail-tools-menu"),
+            2_000,
+            "PAT menu closes after pool remove",
+          );
+        };
+        const drumsTiles = () =>
+          doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`);
+        for (let i = 0; i < 4; i++) {
+          // Select the first (demo) tile, then remove it from the pool.
+          (drumsTiles()[0] as HTMLElement).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
+                .length ===
+              5 - i,
+            2_000,
+            `drums demo tile ${i} selected`,
+          );
+          await removeViaMenu();
+        }
+        await poll(
+          () => drumsTiles().length === 1,
+          2_000,
+          "drums pool = the dense 4-bar alone (chain followed it)",
+        );
+        for (const row of [0, 1, 2, 3, 4, 5])
+          for (const step of [16, 24, 32, 40, 48, 56, 60])
+            cellAt("drums", row, step).click();
+        await poll(
+          () =>
+            floor("drums").querySelectorAll('.cell[data-on="true"]').length >=
+            40,
+          3_000,
+          "drums dense hits committed",
+        );
+        // (No chain strip needed: the pool removals took the demo chain
+        // occurrences with them — the chain IS the dense pattern.)
+        await stepSoundTo("drums", "kit", "808 CLASSIC");
+        const drumsFx = $(".head-fx") as HTMLElement;
+        drumsFx.click();
+        await poll(
+          () => doc().querySelector('.fx-strip[data-lane="drums"]') !== null,
+          2_000,
+          "drums fx console",
+        );
+        ($(".fx-add-btn") as HTMLElement).click();
+        await poll(
+          () => doc().querySelector(".fx-add-menu") !== null,
+          2_000,
+          "fx add menu",
+        );
+        (doc().querySelectorAll(".fx-add-item")[0] as HTMLElement).click();
+        await poll(
+          () =>
+            doc().querySelectorAll('.fx-strip[data-lane="drums"] .fx-mod')
+              .length === 1,
+          2_000,
+          "drums fx device",
+        );
+        drumsFx.click(); // close — measurement state has no open overlays
+
+        // --- Structural preconditions ---------------------------------------
+        // FX on every lane (the demo ships bass/chords/lead; drums just got
+        // one). At phone the header renders only for the ACTIVE lane, so the
+        // per-lane check happens while that lane is displayed — the chain
+        // lives in the document, so the state is lane-independent.
+        const fxLanes: Record<string, boolean> = {
+          bass: false,
+          chords: false,
+          lead: false,
+          drums: false,
+        };
+        const voices: Record<string, number> = {};
+        for (const lane of ["bass", "chords", "lead", "drums"] as const) {
+          await switchLane(lane);
+          const label =
+            ($(".head-fx") as HTMLElement).getAttribute("aria-label") ?? "";
+          fxLanes[lane] = label.includes("device");
+          voices[lane] = voicesAt4(lane);
+        }
+        for (const [lane, ok] of Object.entries(fxLanes))
+          expect(ok, `${lane} FX chain active`).toBe(true);
+        expect(voices.bass, "bass sustained voices").toBeGreaterThanOrEqual(7);
+        expect(voices.chords, "chords sustained voices").toBeGreaterThanOrEqual(
+          6,
+        );
+        expect(voices.lead, "lead sustained voices").toBeGreaterThanOrEqual(4);
+        expect(
+          voices.bass + voices.chords + voices.lead,
+          "total sustained voices at step 4 (m5: voices as budgeted)",
+        ).toBeGreaterThanOrEqual(16);
+
+        // --- Window A: LEAD displayed (densest grid + sustained runs) -------
+        // Playing + editing (cell toggles away from the runs) + VERTICAL page
+        // scroll under the sticky chrome (the repaint law).
+        await clickPlayAndWait(app);
+        await sleep(700);
+
+        const measureWindow = (
+          windowMs: number,
+          editCells: () => HTMLElement[],
+          scrollTick: (frameIdx: number) => void,
+          probe: () => void,
+        ): Promise<{
+          intervals: number[];
+          editBlocks: number[];
+          playheadMoves: number;
+        }> =>
+          new Promise((resolve) => {
+            const intervals: number[] = [];
+            const editBlocks: number[] = [];
+            let playheadMoves = 0;
+            let lastTransform = "";
+            let edits = 0;
+            let last = performance.now();
+            const start = last;
+            let frameIdx = 0;
+            const frame = () => {
+              const now = performance.now();
+              intervals.push(now - last);
+              last = now;
+              const cells = editCells();
+              if (cells.length > 0) {
+                // Two real DOM cell clicks per frame — the fast-editor worst
+                // case through click delegation → store → bridge → recompile
+                // → renderer.sync, measured as a synchronous block.
+                const t0 = performance.now();
+                for (let k = 0; k < 2; k++)
+                  cells[(edits * 37) % cells.length]!.click();
+                edits += 2;
+                editBlocks.push(performance.now() - t0);
+              }
+              scrollTick(frameIdx++);
+              const ph = doc().querySelector<HTMLElement>(".grid-playhead");
+              if (ph) {
+                const t = ph.style.transform;
+                if (t && t !== lastTransform) {
+                  lastTransform = t;
+                  playheadMoves++;
+                }
+              }
+              probe();
+              if (now - start < windowMs) requestAnimationFrame(frame);
+              else resolve({ intervals, editBlocks, playheadMoves });
+            };
+            requestAnimationFrame(frame);
+          });
+
+        const chromeTopMax = (): number =>
+          Math.abs($(".phone-chrome").getBoundingClientRect().top);
+
+        // LEAD: the document must scroll (rows are the phone law).
+        await switchLane("lead");
+        const de = () => doc().documentElement;
+        const maxScrollY = () => Math.max(0, de().scrollHeight - PHONE_H);
+        expect(
+          maxScrollY(),
+          "the tall lane document scrolls at 390×844 (scroll is budgeted, not assumed)",
+        ).toBeGreaterThan(0);
+        const runsA = () => floor("lead").querySelectorAll(".note-run").length;
+        const runCountMin = { v: Infinity };
+        // Re-queried per frame (the TH-1 convention): never hold stale
+        // element references across store-driven re-renders. Rows 1/3/5 at
+        // steps 40+ are the run-free zone — the sustained bars at rows
+        // 7/9/11/13 stay untouched while edits land.
+        const leadCells = (): HTMLElement[] => {
+          const out: HTMLElement[] = [];
+          for (const row of [1, 3, 5])
+            for (const step of [40, 44, 48, 52, 56, 60])
+              out.push(
+                ...Array.from(
+                  doc().querySelectorAll<HTMLElement>(
+                    `.lane-floor[data-lane="lead"] .cell[data-row="${row}"][data-step="${step}"]`,
+                  ),
+                ),
+              );
+          return out;
+        };
+        let scrolledA = false;
+        const winA = await measureWindow(
+          PHONE_WINDOW_MS,
+          () => leadCells(),
+          (i) => {
+            app.win.scrollTo(0, i % 50 < 25 ? maxScrollY() : 0);
+            if (maxScrollY() > 0 && app.win.scrollY > 0) scrolledA = true;
+          },
+          () => {
+            runCountMin.v = Math.min(runCountMin.v, runsA());
+          },
+        );
+        const chromeDevA = chromeTopMax();
+        console.log(
+          `[MB-5 phone window A lead] frames=${winA.intervals.length} ` +
+            `over33.4ms=${winA.intervals.filter((d) => d >= FRAME_BUDGET_MS).length} ` +
+            `playheadMoves=${winA.playheadMoves} edits=${winA.editBlocks.length} ` +
+            `noteRunsMin=${runCountMin.v === Infinity ? 0 : runCountMin.v} ` +
+            `maxScrollY=${maxScrollY()} scrolled=${scrolledA} ` +
+            `chromeTopDev=${chromeDevA.toFixed(2)}px`,
+        );
+
+        // --- Window B: DRUMS displayed + the euclid FILL overlay REVEALED ---
+        // Playing + editing (drum hits) + HORIZONTAL grid scroll (4-bar law).
+        await switchLane("drums");
+        ($(".head-fill-toggle") as HTMLElement).click();
+        await poll(
+          () =>
+            Number.parseFloat(
+              getComputedStyle($(".row-fill.is-overlay")).opacity,
+            ) >= 0.99,
+          2_000,
+          "euclid fill overlay revealed (FILL toggle)",
+        );
+        const gridScroll = (): HTMLElement =>
+          $(".lane-grid-scroll") as HTMLElement;
+        expect(
+          gridScroll().scrollWidth,
+          "4-bar drums h-scrolls INSIDE the grid (the phone law)",
+        ).toBeGreaterThan(gridScroll().clientWidth);
+        const fillOpacityMin = { v: Infinity };
+        const drumCells = (): HTMLElement[] => {
+          const out: HTMLElement[] = [];
+          for (const row of [0, 1, 2, 3, 4, 5])
+            for (const step of [40, 44, 48, 52, 56, 60])
+              out.push(
+                ...Array.from(
+                  doc().querySelectorAll<HTMLElement>(
+                    `.lane-floor[data-lane="drums"] .cell[data-row="${row}"][data-step="${step}"]`,
+                  ),
+                ),
+              );
+          return out;
+        };
+        let scrolledB = false;
+        const winB = await measureWindow(
+          PHONE_WINDOW_MS,
+          () => drumCells(),
+          (i) => {
+            const g = gridScroll();
+            const max = g.scrollWidth - g.clientWidth;
+            g.scrollLeft = i % 50 < 25 ? max : 0;
+            if (g.scrollLeft > 0) scrolledB = true;
+          },
+          () => {
+            const o = Number.parseFloat(
+              getComputedStyle($(".row-fill.is-overlay")).opacity,
+            );
+            fillOpacityMin.v = Math.min(fillOpacityMin.v, o);
+          },
+        );
+        // The single-lane law held through the whole window (one snapshot is
+        // the invariant — nothing at phone ever mounts a second grid).
+        expect(doc().querySelectorAll(".lane-grid")).toHaveLength(1);
+        const chromeDevB = chromeTopMax();
+        console.log(
+          `[MB-5 phone window B drums+fill] frames=${winB.intervals.length} ` +
+            `over33.4ms=${winB.intervals.filter((d) => d >= FRAME_BUDGET_MS).length} ` +
+            `playheadMoves=${winB.playheadMoves} edits=${winB.editBlocks.length} ` +
+            `fillOpacityMin=${fillOpacityMin.v.toFixed(2)} ` +
+            `hScrolled=${scrolledB} chromeTopDev=${chromeDevB.toFixed(2)}px`,
+        );
+
+        // --- Budgets (pooled across both windows — one law) ------------------
+        const all = [...winA.intervals, ...winB.intervals];
+        const sorted = [...all].sort((a, b) => a - b);
+        const over = all.filter((d) => d >= FRAME_BUDGET_MS);
+        const allEdits = [...winA.editBlocks, ...winB.editBlocks];
+        const worstEdit = Math.max(...allEdits);
+        console.log(
+          `[MB-5 phone budget] frames=${all.length} over33.4ms=${over.length} ` +
+            `max=${sorted[sorted.length - 1].toFixed(1)}ms ` +
+            `p95=${sorted[Math.floor(all.length * 0.95)].toFixed(1)}ms ` +
+            `median=${sorted[Math.floor(all.length / 2)].toFixed(1)}ms ` +
+            `edits=${allEdits.length} worstEditBlock=${worstEdit.toFixed(2)}ms ` +
+            `sustainedVoices=${JSON.stringify(voices)}`,
+        );
+
+        expect(app.playBtn().textContent).toBe("STOP");
+        expect(all.length).toBeGreaterThan((2 * PHONE_WINDOW_MS) / 50); // rAF alive across both windows
+        expect(
+          over.length / all.length,
+          `${over.length}/${all.length} phone frames ≥ ${FRAME_BUDGET_MS} ms ` +
+            `(max ${sorted[sorted.length - 1].toFixed(1)} ms)`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        for (const w of [winA, winB])
+          expect(w.playheadMoves).toBeGreaterThanOrEqual(
+            (PHONE_WINDOW_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC,
+          );
+        expect(
+          worstEdit,
+          `worst phone edit block ${worstEdit.toFixed(1)} ms`,
+        ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
+        // The phone laws really exercised: scroll happened (both axes),
+        // the runs kept rendering, the overlay stayed revealed, chrome pinned.
+        expect(scrolledA, "vertical page scroll ran during playback").toBe(
+          true,
+        );
+        expect(scrolledB, "horizontal grid scroll ran during playback").toBe(
+          true,
+        );
+        expect(
+          runCountMin.v,
+          "sustained note-runs kept rendering through the edit window",
+        ).toBeGreaterThanOrEqual(4);
+        expect(
+          fillOpacityMin.v,
+          "the euclid fill overlay stayed revealed through window B",
+        ).toBeGreaterThanOrEqual(0.99);
+        expect(
+          Math.max(chromeDevA, chromeDevB),
+          "sticky chrome stayed pinned through every scroll",
+        ).toBeLessThanOrEqual(1.5);
+      } finally {
+        await app.teardown();
+      }
+    },
+    240_000,
+  );
+
+  it(
+    "(m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture",
+    { timeout: 240_000 },
+    async () => {
+      const app = await bootBuiltApp({ width: PHONE_W, height: PHONE_H });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const floor = (lane: string): HTMLElement =>
+          $(`.lane-floor[data-lane="${lane}"]`);
+        const cellAt = (lane: string, row: number, step: number): HTMLElement =>
+          $(
+            `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+          );
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const center = (el: Element): { x: number; y: number } => {
+          const r = el.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        };
+        const pe = (type: string, x: number, y: number): PointerEvent =>
+          new PointerEvent(type, {
+            pointerId: 1,
+            isPrimary: true,
+            button: 0,
+            pointerType: "mouse",
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            cancelable: true,
+          });
+        const stepWidth = (lane: string): number => {
+          const a = cellAt(lane, 0, 0).getBoundingClientRect();
+          const b = cellAt(lane, 0, 1).getBoundingClientRect();
+          return b.left - a.left;
+        };
+        const switchLane = async (lane: string): Promise<void> => {
+          ($(`.lane-switch-tab[data-lane="${lane}"]`) as HTMLElement).click();
+          await poll(
+            () =>
+              doc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
+                lane &&
+              doc().querySelector(
+                `.lane-floor[data-lane="${lane}"] .cell[data-row="0"][data-step="0"]`,
+              ) !== null,
+            4_000,
+            `${lane} phone stage`,
+          );
+        };
+
+        await poll(
+          () => $(".app").getAttribute("data-stage") === "phone",
+          5_000,
+          "data-stage=phone",
+        );
+        await poll(
+          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          5_000,
+          "demo chain tiles",
+        );
+        expect(doc().querySelector(".help-backdrop")).toBeNull();
+        expect(doc().querySelector(".info-view")).toBeNull();
+
+        // --- setup: dense 4-bar bass grid + two resize-target notes ---------
+        await switchLane("bass");
+        ($(".rail-tools-trigger") as HTMLElement).click();
+        await poll(
+          () =>
+            doc().querySelector(
+              'button[aria-label="Add 4-bar pattern to BASS"]',
+            ) !== null,
+          2_000,
+          "bass PAT menu",
+        );
+        (
+          $('button[aria-label="Add 4-bar pattern to BASS"]') as HTMLElement
+        ).click();
+        await poll(
+          () => floor("bass").querySelectorAll(".cell").length % 64 === 0,
+          5_000,
+          "bass 4-bar grid",
+        );
+        for (const row of [0, 2] as const) {
+          const el = cellAt("bass", row, 0);
+          const c = center(el);
+          const cells = el.parentElement!.getBoundingClientRect();
+          const w = stepWidth("bass");
+          el.dispatchEvent(pe("pointerdown", c.x, c.y));
+          for (let s = 3; s <= 19; s += 4)
+            el.dispatchEvent(
+              pe("pointermove", cells.left + (s + 0.5) * w, c.y),
+            );
+          el.dispatchEvent(pe("pointerup", cells.left + 19.5 * w, c.y));
+        }
+        await poll(
+          () => floor("bass").querySelectorAll(".note-run").length >= 2,
+          3_000,
+          "bass resize-target notes committed",
+        );
+
+        // PLAY first: the storms must hold DURING PLAYBACK (TH-4 (b) law).
+        await clickPlayAndWait(app);
+        await sleep(500);
+
+        const allIntervals: number[] = [];
+        const allMoveBlocks: number[] = [];
+        const violations: string[] = [];
+        const saw: Record<string, boolean> = {
+          createPreviewBar: false,
+          createPreviewCells: false,
+          resizeWidthChanges: false,
+          paintPreviewCells: false,
+          cuePreview: false,
+        };
+        const storm = (
+          label: string,
+          begin: () => void,
+          move: (i: number) => PointerEvent,
+          moveTarget: () => Element,
+          finish: () => void,
+          sample: () => void,
+        ): Promise<void> =>
+          runStormWindow(
+            app.win,
+            doc,
+            violations,
+            "MB-5",
+            label,
+            begin,
+            move,
+            moveTarget,
+            finish,
+            sample,
+          ).then((r) => {
+            allIntervals.push(...r.intervals);
+            allMoveBlocks.push(...r.moveBlocks);
+          });
+
+        // Storm 1 — drag-create preview (bass, the phone's editing lane).
+        {
+          const lane = "bass";
+          const row = 4;
+          const press = cellAt(lane, row, 0);
+          const c = center(press);
+          const cells = press.parentElement!.getBoundingClientRect();
+          const w = stepWidth(lane);
+          await storm(
+            "drag-create preview @390",
+            () => press.dispatchEvent(pe("pointerdown", c.x, c.y)),
+            (i) => {
+              const stepFloat = 2 + ((i * 3) % 40);
+              return pe("pointermove", cells.left + (stepFloat + 0.5) * w, c.y);
+            },
+            () => press,
+            () =>
+              press.dispatchEvent(pe("pointerup", cells.left + 10.5 * w, c.y)),
+            () => {
+              if (doc().querySelector(".note-run.is-drag-preview"))
+                saw.createPreviewBar = true;
+              if (
+                floor(lane).querySelector('.cell[data-preview="true"]') !== null
+              )
+                saw.createPreviewCells = true;
+            },
+          );
+          await poll(
+            () =>
+              floor(lane).querySelector(`.note-edge[data-row="${row}"]`) !==
+              null,
+            2_000,
+            "phone storm-created note committed on release",
+          );
+        }
+
+        // Storm 2 — edge resize (the row-0 note from setup).
+        {
+          const lane = "bass";
+          const edge = $(
+            `.lane-floor[data-lane="${lane}"] .note-edge[data-row="0"]`,
+          );
+          const c = center(edge);
+          const cells = edge.closest(".row-cells")!.getBoundingClientRect();
+          const w = stepWidth(lane);
+          const noteStart = Number(edge.dataset.start);
+          const runEl = edge.parentElement as HTMLElement;
+          const widths = new Set<string>();
+          await storm(
+            "edge-resize @390",
+            () => edge.dispatchEvent(pe("pointerdown", c.x, c.y)),
+            (i) => {
+              const endStep = noteStart + 4 + ((i * 2) % 22);
+              return pe("pointermove", cells.left + (endStep + 0.5) * w, c.y);
+            },
+            () => edge,
+            () =>
+              edge.dispatchEvent(
+                pe("pointerup", cells.left + (noteStart + 12 + 0.5) * w, c.y),
+              ),
+            () => {
+              widths.add(runEl.style.width);
+              if (widths.size >= 2) saw.resizeWidthChanges = true;
+            },
+          );
+          await poll(
+            () =>
+              (
+                floor(lane).querySelector(".note-length-live")?.textContent ??
+                ""
+              ).startsWith("LENGTH"),
+            2_000,
+            "phone resize announcement after release commit",
+          );
+        }
+
+        // Storm 3 — drums paint (switch OUTSIDE any observed move window).
+        await switchLane("drums");
+        {
+          const row = 1;
+          const press = cellAt("drums", row, 2);
+          const c = center(press);
+          const cells = press.parentElement!.getBoundingClientRect();
+          const w = stepWidth("drums");
+          await storm(
+            "drums paint @390",
+            () => press.dispatchEvent(pe("pointerdown", c.x, c.y)),
+            (i) => {
+              const step = 2 + ((i * 2) % 12);
+              return pe("pointermove", cells.left + (step + 0.5) * w, c.y);
+            },
+            () => press,
+            () =>
+              press.dispatchEvent(pe("pointerup", cells.left + 10.5 * w, c.y)),
+            () => {
+              if (
+                floor("drums").querySelector('.cell[data-preview="true"]') !==
+                null
+              )
+                saw.paintPreviewCells = true;
+            },
+          );
+          await poll(
+            () =>
+              floor("drums").querySelectorAll<HTMLElement>(
+                '.cell[data-row="1"][data-on="true"]',
+              ).length >= 4,
+            2_000,
+            "phone painted hits committed on release",
+          );
+        }
+
+        // Storm 4 — rail cue sweep across the CONDENSED rail's tiles (the
+        // phone rail is the active lane's single row, inside the sticky
+        // chrome; aim at tiles visible in the strip so the hit-test resolves
+        // a real tile, never a gap).
+        {
+          const row = $('.rail-row[data-lane="drums"]');
+          const strip = row.parentElement as HTMLElement;
+          const visibleTiles = (): HTMLElement[] => {
+            const sr = strip.getBoundingClientRect();
+            const list = Array.from(
+              row.querySelectorAll<HTMLElement>(".rail-tile"),
+            ).filter((t) => {
+              const r = t.getBoundingClientRect();
+              return r.left >= sr.left - 1 && r.right <= sr.right + 1;
+            });
+            return list.length >= 2
+              ? list
+              : [row.querySelector<HTMLElement>(".rail-tile")!];
+          };
+          const t0 = visibleTiles()[0]!;
+          const c0 = center(t0);
+          await storm(
+            "rail sweep @390",
+            () => t0.dispatchEvent(pe("pointerdown", c0.x, c0.y)),
+            (i) => {
+              const tiles = visibleTiles();
+              const tile = tiles[(i * 3) % tiles.length]!;
+              const c = center(tile);
+              return pe("pointermove", c.x, c.y);
+            },
+            () => t0,
+            () => {
+              const target = visibleTiles()[0]!;
+              const c = center(target);
+              t0.dispatchEvent(pe("pointerup", c.x, c.y));
+            },
+            () => {
+              if (doc().querySelector("[data-cue-preview]") !== null)
+                saw.cuePreview = true;
+            },
+          );
+          await poll(
+            () =>
+              doc().querySelector('.rail-tile[data-state="pending"]') !== null,
+            4_000,
+            "phone pending switch after sweep commit (quantized)",
+          );
+        }
+
+        // --- Budgets (the TH-4 (b) laws, unchanged at phone width) ----------
+        expect(allIntervals.length).toBeGreaterThan((STORM_WINDOW_MS / 50) * 3);
+        const over = allIntervals.filter((d) => d >= FRAME_BUDGET_MS);
+        const sorted = [...allIntervals].sort((a, b) => a - b);
+        expect(
+          over.length / allIntervals.length,
+          `${over.length}/${allIntervals.length} phone storm frames ≥ ${FRAME_BUDGET_MS} ms`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+
+        const worstMove = Math.max(...allMoveBlocks);
+        expect(
+          worstMove,
+          `worst phone pointermove dispatch ${worstMove.toFixed(1)} ms`,
+        ).toBeLessThan(MOVE_BLOCK_BUDGET_MS);
+        const sortedMoves = [...allMoveBlocks].sort((a, b) => a - b);
+        const medianMove = sortedMoves[Math.floor(sortedMoves.length / 2)];
+        expect(
+          medianMove,
+          `median phone pointermove dispatch ${medianMove.toFixed(2)} ms`,
+        ).toBeLessThan(MEDIAN_MOVE_BUDGET_MS);
+        console.log(
+          `[MB-5 storm totals @390] frames=${allIntervals.length} ` +
+            `over33.4ms=${over.length} moves=${allMoveBlocks.length} ` +
+            `max=${sorted[sorted.length - 1].toFixed(1)}ms ` +
+            `worstMove=${worstMove.toFixed(2)}ms medianMove=${medianMove.toFixed(2)}ms`,
+        );
+
+        expect(
+          violations,
+          `non-preview DOM mutations mid-gesture at phone (store writes = layout thrash):\n${violations.join("\n")}`,
+        ).toEqual([]);
+        expect(saw.createPreviewBar, "phone drag-create preview bar").toBe(
+          true,
+        );
+        expect(saw.createPreviewCells, "phone drag-create preview cells").toBe(
+          true,
+        );
+        expect(saw.resizeWidthChanges, "phone resize preview width").toBe(true);
+        expect(saw.paintPreviewCells, "phone paint preview cells").toBe(true);
+        expect(saw.cuePreview, "phone rail sweep preview").toBe(true);
+        expect(app.playBtn().textContent).toBe("STOP");
+      } finally {
+        await app.teardown();
+      }
+    },
+    240_000,
+  );
+
+  it(
+    "(m-c) lazy sample decode mid-playback stays off the critical path; zero eager audio-asset fetch at phone; voice budget unchanged (8/lane, 32 total)",
+    { timeout: 120_000 },
+    async () => {
+      // Voice budget (m5 "voices as budgeted"): UNCHANGED by mobile — the
+      // worklet pool and the native sample host both cap at 8/lane → 32
+      // total across four lanes; the audio graph has no viewport branch
+      // (verified: src/audio + engineBridge never read the stage mode), so
+      // this is the whole law, pinned against the engine's own constants.
+      expect(VOICES_PER_LANE).toBe(8);
+      expect(SAMPLE_VOICES_PER_LANE).toBe(VOICES_PER_LANE);
+
+      // Instrument (do NOT stall — real same-origin OGGs, real decodes): the
+      // law under test is that the fetch/decode fired by a MID-PLAYBACK
+      // sample-sound selection never blocks the frame loop or the transport.
+      const AUDIO_ASSET =
+        /\/assets\/content[/-]|\.ogg(?:$|\?)|\.oga(?:$|\?)|\.mp3(?:$|\?)|\.wav(?:$|\?)|\.flac(?:$|\?)/i;
+      const fetched: string[] = [];
+      let decodeCalls = 0;
+      const app = await bootBuiltApp({
+        width: PHONE_W,
+        height: PHONE_H,
+        beforeWrite: (win) => {
+          const origFetch = win.fetch.bind(win);
+          win.fetch = ((
+            input: RequestInfo | URL,
+            init?: RequestInit,
+          ): Promise<Response> => {
+            const url =
+              typeof input === "string"
+                ? input
+                : input instanceof URL
+                  ? input.href
+                  : input.url;
+            if (AUDIO_ASSET.test(url)) fetched.push(url);
+            return origFetch(url, init);
+          }) as typeof win.fetch;
+        },
+        audioProtoHook: (proto) => {
+          // Count every decode, delegate to the real one (no stall — the
+          // law under test is WHERE the decode runs, not how slow it is).
+          const origDecode = proto.decodeAudioData as (
+            this: unknown,
+            ...args: unknown[]
+          ) => Promise<AudioBuffer>;
+          proto.decodeAudioData = function (
+            this: unknown,
+            ...args: unknown[]
+          ): Promise<AudioBuffer> {
+            decodeCalls++;
+            return origDecode.apply(this, args);
+          };
+        },
+      });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        await poll(
+          () => $(".app").getAttribute("data-stage") === "phone",
+          5_000,
+          "data-stage=phone",
+        );
+        await poll(
+          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          5_000,
+          "demo chain tiles",
+        );
+        expect(doc().querySelector(".help-backdrop")).toBeNull();
+
+        // Switch to BASS (the editing lane), PLAY the synth demo.
+        ($(`.lane-switch-tab[data-lane="bass"]`) as HTMLElement).click();
+        await poll(
+          () =>
+            doc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
+            "bass",
+          2_000,
+          "bass phone stage",
+        );
+        await clickPlayAndWait(app);
+        await new Promise((r) => setTimeout(r, 500));
+
+        // Lazy law at phone: NOTHING fetched before the explicit selection.
+        expect(
+          fetched,
+          "audio-asset fetches on the phone boot/play path (eager = regression)",
+        ).toEqual([]);
+
+        // Measure a 3 s window; ~10 frames in, step the bass preset to the
+        // PS-4 sample voice (SUB DROP) — the lazy content chunk + fetch +
+        // decode fire MID-PLAYBACK, all observed inside the window.
+        const next = $(
+          'button[aria-label="Next preset for BASS"]',
+        ) as HTMLButtonElement;
+        const value = $('[aria-label="BASS sound"] .head-ctl-value');
+        const intervals: number[] = [];
+        const clickBlocks: number[] = [];
+        let playheadMoves = 0;
+        let lastTransform = "";
+        await new Promise<void>((resolve) => {
+          let stepped = false;
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            if (!stepped) {
+              const t0 = performance.now();
+              if (value.textContent?.trim() === "SUB DROP") {
+                stepped = true;
+              } else {
+                next.click(); // one real stepper click per frame
+              }
+              clickBlocks.push(performance.now() - t0);
+            }
+            const ph = doc().querySelector<HTMLElement>(".grid-playhead");
+            if (ph) {
+              const t = ph.style.transform;
+              if (t && t !== lastTransform) {
+                lastTransform = t;
+                playheadMoves++;
+              }
+            }
+            if (now - start < 3000) requestAnimationFrame(frame);
+            else resolve();
+          };
+          requestAnimationFrame(frame);
+        });
+
+        // The decode is async — it may land just after the window; poll.
+        await poll(
+          () => decodeCalls >= 1,
+          5_000,
+          "lazy decode fired after the mid-playback sample selection",
+        );
+
+        const sorted = [...intervals].sort((a, b) => a - b);
+        const over = intervals.filter((d) => d >= FRAME_BUDGET_MS);
+        console.log(
+          `[MB-5 lazy decode @390] frames=${intervals.length} ` +
+            `over33.4ms=${over.length} max=${sorted[sorted.length - 1].toFixed(1)}ms ` +
+            `median=${sorted[Math.floor(intervals.length / 2)].toFixed(1)}ms ` +
+            `stepperClicks=${clickBlocks.length} ` +
+            `worstClickBlock=${Math.max(...clickBlocks).toFixed(2)}ms ` +
+            `decodeCalls=${decodeCalls} audioFetches=${fetched.length} ` +
+            `preset=${value.textContent?.trim()}`,
+        );
+
+        // Budgets: the decode fired mid-playback and the frames held.
+        expect(value.textContent?.trim()).toBe("SUB DROP");
+        expect(fetched.length, "the lazy fetch actually fired").toBeGreaterThan(
+          0,
+        );
+        expect(app.playBtn().textContent).toBe("STOP"); // transport survived
+        expect(intervals.length).toBeGreaterThan(3000 / 50);
+        expect(
+          over.length / intervals.length,
+          `${over.length}/${intervals.length} frames ≥ ${FRAME_BUDGET_MS} ms while the lazy decode landed mid-playback`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        expect(playheadMoves).toBeGreaterThanOrEqual(
+          3 * MIN_PLAYHEAD_MOVES_PER_SEC,
+        );
+        const worstClick = Math.max(...clickBlocks);
+        expect(
+          worstClick,
+          `worst stepper click block ${worstClick.toFixed(1)} ms (a blocking decode would blow past 50 ms)`,
+        ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
+      } finally {
+        await app.teardown();
+      }
+    },
+    120_000,
   );
 });

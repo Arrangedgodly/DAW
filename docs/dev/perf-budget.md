@@ -6,7 +6,9 @@ town-hall hero claims, v0 acceptance criterion 7, plan TH-4). Latency and
 frame budgets are the product's feel — these are contracts, not aspirations.
 Every measured value below was re-derived from a fresh build + gate run on
 2026-09-03 (refinement-5 audit), and each number states its method. No
-measured value exceeds its budget as of that run.
+measured value exceeds its budget as of that run. The §9 mobile numbers are
+from the 2026-09-04 MB-5 gate run (their own method + date stated
+in-section).
 
 ## 1. Audio timing — "notes audible within ±2 ms of musical time"
 
@@ -260,6 +262,96 @@ subscriptions:
 - The v0 keyboard-shortcuts overlay (KEYS ?) is a SEPARATE surface: closed
   by default, mounts only on demand — already compliant.
 
+## 9. Mobile scale (MB-5, iteration-2 mobile slice — m5 "performance at
+## mobile scale documented and gated")
+
+The committed phone target is Android Chrome at 390×844 (town-hall mobile
+addendum; MB-1's single-lane stage: one lane floor renders, the lane
+switcher + condensed rail + booth stay sticky, the page scrolls). The
+desktop budgets above are unchanged; this section extends the same laws to
+the phone stage in `tests/browser/frame-budget.test.ts` ("MB-5 mobile
+frame budget", built app in a 390×844 iframe).
+
+- **(m-a) Phone frame budget**: ≥95% of frame intervals < 33.4 ms while all
+  four lanes play dense 4-BAR chains (the audio state is
+  viewport-independent) and the phone stage edits + scrolls — two 2 s
+  windows: LEAD displayed (the densest phone grid: 14 rows × 64 steps with
+  sustained note-runs rendering, cell-toggle edits, VERTICAL page scroll
+  under the sticky chrome) and DRUMS displayed with the euclid FILL overlay
+  REVEALED (the phone/tablet-only reveal) + HORIZONTAL grid scroll (the
+  4-bar law). The densest phone-realistic state: sample-backed sounds on
+  (SUB DROP / PURE TONE / PHASER UP / 808 CLASSIC — the PS-4 sample voices
+  through the native host), an FX device on every lane, help mode off, and
+  ≥16 sustained voices sounding (m5 "voices as budgeted": 7 bass + 2×3
+  chords + 4 lead = 17, asserted from the note bars at a sampled step).
+  Playhead liveness ≥2 distinct transforms/s per window (the load-robust
+  HW-4 count); every edit batch blocks < 50 ms; sticky chrome pinned
+  (|top| ≤ 1.5 px) through every scroll, both axes really scrolled
+  (asserted).
+- **(m-b) Drag storms at phone width**: the four TH-4 (b) gestures —
+  drag-create preview, edge resize, drums paint, rail cue sweep — during
+  playback at 390×844 keep the TH-4 (b) laws unchanged: ≥95% frames
+  < 33.4 ms, every dispatched pointermove < 50 ms, median < 8 ms, and ZERO
+  non-preview DOM mutations mid-gesture (the shared mutation filter; the
+  storm machinery is the same module-scope code, one law at two viewports).
+  The rail sweep aims at tiles visible in the condensed rail's strip.
+- **(m-c) Voice/lazy-content at mobile**: selecting a sample-backed sound
+  MID-PLAYBACK (the real stepper, one click per frame until the sample
+  preset lands) fires the lazy content chunk + same-origin fetch + decode
+  OFF the critical path: the frame budget holds through the decode window,
+  playback never stops, the worst stepper-click block stays < 50 ms, and
+  the decode genuinely fired (counted through a delegating
+  `decodeAudioData` prototype patch). Zero audio-asset fetches on the
+  boot→play path before the selection (no eager fetch on the mobile path —
+  TH-4 (d)'s law re-pinned at phone width). **Voice budget UNCHANGED by
+  mobile**: `VOICES_PER_LANE = 8` and `SAMPLE_VOICES_PER_LANE = 8` (32
+  total across four lanes) asserted in-gate against the engine constants;
+  the audio graph has no viewport branch (src/audio + engineBridge never
+  read the stage mode — the phone renders FEWER grids, the voice engine is
+  identical).
+- Local measured (2026-09-04, MB-5; M1-class macOS arm64, headless Chromium
+  151 via the playwright 1.62.1 pin, same method family as §2 — the
+  `[MB-5 …]` console lines of the gate itself):
+  **(m-a)** 243 frames / 4 s (≈60 fps), **0 frames ≥ 33.4 ms**, max
+  21.3 ms, p95 19.1 ms, median 16.6 ms; 243 edits, worst edit block
+  11.9 ms; playhead 122/122 and 121/121 per window; 17 sustained voices;
+  chrome-top deviation 0.00 px mid-scroll. **(m-b)** 364 storm frames,
+  0 over 33.4 ms, 1456 moves, worst dispatch 1.50 ms (per-gesture worsts
+  0.6–1.5 ms), median 0.20 ms, zero non-preview mutations.
+  **(m-c)** 181 frames / 3 s decode window, 0 over 33.4 ms, max 20.6 ms,
+  median 16.6 ms, worst stepper-click block 1.30 ms, 1 fetch + 1 decode
+  observed mid-playback, transport never stopped.
+- Teeth (red/green, scratch-reverted, each restored green): a layout-thrash
+  loop in the renderer's rAF (alternating min-height write + offsetHeight
+  read per cell per frame) collapses (m-a) to 75/86 frames ≥ 33.4 ms
+  (ratio 0.87 — RED, the exact budget assertion); a non-preview DOM write
+  per pointermove redds (m-b) as `attributes@data-thrash on
+  div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
+  at boot redds (m-c) as `audio-asset fetches on the phone boot/play
+  path` (the lazy law).
+- **Honesty caveat (the reduced-expectations stance, by design)**: CI
+  Chromium runs on desktop-class hardware EMULATING the 390×844 viewport.
+  These gates catch REGRESSIONS at the phone paint/edit load — layout
+  thrash, reactive playheads, blocking decodes, mid-gesture store writes —
+  they are NOT a device-class verdict for mid-tier Android Chrome (mobile
+  SoC big.LITTLE scheduling, thermal throttling, mobile GPU compositing,
+  and real touch-event delivery are not simulated). Real-device
+  verification stays with the user's R12-style human session, and low-end
+  Android perf remains the Strange-register risk item. Thresholds follow
+  the TH-4 tolerance approach precisely because of this: the 33.4 ms ratio
+  is HARD and CI-stable; liveness counts are load-robust (≥2/s).
+- Gate-integrity note found live while building (m-a), recorded for
+  follow-up (NOT fixed here — changing TH-4 (a)'s setup would change its
+  documented §2a numbers): the v0 drums cell toggle is POOL-WIDE (read =
+  any pattern of the lane, write = every pattern), and a step write past a
+  pattern's own length fails `validateProject` (sparse-array holes). With
+  the demo's 1-bar patterns in the pool, TH-4 (a)'s `clickCells` at steps
+  ≥ 24 throw validation errors that its (data-on-unasserted) setup silently
+  absorbs — its dense drums quadrant is sparser than intended (its own
+  assertions still hold; the frame numbers stand as measured). The MB-5
+  gate strips the demo patterns from the drums POOL first (the PAT menu's
+  pool-remove) so every dense click lands in-pattern, in-length.
+
 ## Harness notes (D8/RES-7)
 
 - Browser project: Vitest browser mode, playwright provider, Chromium pinned
@@ -268,7 +360,8 @@ subscriptions:
   `workers: 1`; Chromium launched with
   `--autoplay-policy=no-user-gesture-required`; page viewport pinned to the
   1280×800 tested minimum (refinement-4), the frame-budget (a) quadrant gate
-  mounts its own 1440×900 iframe.
+  mounts its own 1440×900 iframe, and the MB-5 mobile gate mounts its own
+  390×844 iframe (the phone stage keys off the iframe's own viewport).
 - Offline renders preload the full event list before `startRendering()`
   (day-one contract) plus a settle delay for worklet message delivery.
 - Node/jsdom can never assert audio (jsdom Web Audio open since 2020, #2900).
