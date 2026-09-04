@@ -44,6 +44,16 @@
  * target is Android Chrome, whose overlay scrollbars take no layout width
  * — a classic desktop scrollbar would lay the phone out 15 px narrower
  * than the committed 390/360).
+ *
+ * CI touch-gate fix (first Linux-CI run of this gate): TAPS dispatch
+ * through `Input.synthesizeTapGesture` (gestureSourceType "touch") — the
+ * browser's own tap gesture, so tap disambiguation and CLICK finalization
+ * run in the real gesture pipeline. Raw `dispatchTouchEvent` taps lost
+ * their trailing click on CI's headless-Linux build when the tap followed
+ * a pointer-capturing drag (the stopped rail sweep): ~20 taps into the
+ * 390 pass, the sweep-committed PROJECTS tap's click never fired and the
+ * popover poll timed out. Drags/paints/sweeps stay raw — they gate the
+ * app's pointer-stream handlers, not click synthesis.
  */
 
 import { describe, expect, it } from "vitest";
@@ -204,14 +214,14 @@ async function bootPhone(
       const first = map(pts[0]!.x, pts[0]!.y);
       await c.send("Input.dispatchTouchEvent", {
         type: "touchStart",
-        touchPoints: [{ x: first.x, y: first.y }],
+        touchPoints: [{ x: first.x, y: first.y, id: 1 }],
       });
       for (let i = 1; i < pts.length; i++) {
         await sleep(holdMs);
         const p = map(pts[i]!.x, pts[i]!.y);
         await c.send("Input.dispatchTouchEvent", {
           type: "touchMove",
-          touchPoints: [{ x: p.x, y: p.y }],
+          touchPoints: [{ x: p.x, y: p.y, id: 1 }],
         });
       }
       await sleep(holdMs);
@@ -236,10 +246,24 @@ async function bootPhone(
         await sleep(40);
       }
     };
+    /** One trusted TAP through the browser's own gesture pipeline —
+     *  `Input.synthesizeTapGesture` runs the REAL tap disambiguation and
+     *  click finalization (raw dispatchTouchEvent's trailing click is a
+     *  desktop-mouse heuristic headless builds don't guarantee — the first
+     *  Linux-CI run lost the tap-after-a-captured-drag this way).
+     *  gestureSourceType "touch" keeps the input class honest. */
     const tap = async (el: Element): Promise<void> => {
       await reveal(el);
       const r = el.getBoundingClientRect();
-      await touch([{ x: r.left + r.width / 2, y: r.top + r.height / 2 }], 40);
+      const p = map(r.left + r.width / 2, r.top + r.height / 2);
+      await c.send("Input.synthesizeTapGesture", {
+        x: p.x,
+        y: p.y,
+        duration: 50,
+        tapCount: 1,
+        gestureSourceType: "touch",
+      });
+      await sleep(120);
     };
     /** A touch line across one row-box (iframe-client coords relative). */
     const touchLine = async (
@@ -397,14 +421,7 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         // Tap place: the gate-default note appears at the tapped cell…
         const placeRow = emptyRow();
         const placeCell = placeRow.querySelectorAll(".cell")[4]! as HTMLElement;
-        await reveal(placeCell);
-        {
-          const r = placeCell.getBoundingClientRect();
-          await touch(
-            [{ x: r.left + r.width / 2, y: r.top + r.height / 2 }],
-            40,
-          );
-        }
+        await tap(placeCell);
         await poll(
           () => runsIn(placeRow) === 1,
           4_000,
@@ -418,13 +435,7 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
           "the placed note starts at the tapped cell",
         ).toBeLessThanOrEqual(2);
         // …and the anchor tap removes it (place/remove both by touch).
-        {
-          const r = placeCell.getBoundingClientRect();
-          await touch(
-            [{ x: r.left + r.width / 2, y: r.top + r.height / 2 }],
-            40,
-          );
-        }
+        await tap(placeCell);
         await poll(
           () => runsIn(placeRow) === 0,
           4_000,
@@ -756,7 +767,7 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
     { timeout: 240_000 },
     async () => {
       const app = await bootPhone(360, 800);
-      const { $, $$, idoc, tap, reveal, touch, touchLine } = app;
+      const { $, $$, idoc, tap, reveal, touchLine } = app;
       try {
         await poll(
           () => $(".app").getAttribute("data-stage") === "phone",
@@ -804,26 +815,13 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         };
         const placeRow = emptyRow();
         const cell4 = placeRow.querySelectorAll(".cell")[4]! as HTMLElement;
-        await reveal(cell4);
-        {
-          const r = cell4.getBoundingClientRect();
-          await touch(
-            [{ x: r.left + r.width / 2, y: r.top + r.height / 2 }],
-            40,
-          );
-        }
+        await tap(cell4);
         await poll(
           () => placeRow.querySelectorAll(".note-run").length === 1,
           4_000,
           "tap place at 360",
         );
-        {
-          const r = cell4.getBoundingClientRect();
-          await touch(
-            [{ x: r.left + r.width / 2, y: r.top + r.height / 2 }],
-            40,
-          );
-        }
+        await tap(cell4);
         await poll(
           () => placeRow.querySelectorAll(".note-run").length === 0,
           4_000,

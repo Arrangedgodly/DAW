@@ -44,6 +44,17 @@
  * pipeline, so touch-action genuinely arbitrates). The two together cover
  * both halves of the discrimination; MB-4 owns the full pointercancel
  * edge table under touch.
+ *
+ * CI touch-gate fix (first Linux-CI run of this gate): TAPS now dispatch
+ * through `Input.synthesizeTapGesture` (gestureSourceType "touch") — the
+ * browser's own tap gesture, the same gesture-pipeline guarantee the
+ * scroll half already rides. Raw `dispatchTouchEvent` taps proved to lose
+ * their CLICK finalization on CI's headless-Linux build when the tap
+ * immediately follows a pointer-capturing drag (the rail sweep): the
+ * pointer stream lands, but the synthesized-mouse click heuristic drops
+ * the click, so `onClick` controls (PLAY) never fire — macOS builds
+ * always synthesized it. Drags/sweeps/paints stay raw by design: they
+ * gate the app's pointer-stream handlers and need no click synthesis.
  */
 
 import { describe, expect, it } from "vitest";
@@ -139,13 +150,13 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
           const first = pts[0]!;
           await c.send("Input.dispatchTouchEvent", {
             type: "touchStart",
-            touchPoints: [{ x: first.x, y: first.y }],
+            touchPoints: [{ x: first.x, y: first.y, id: 1 }],
           });
           for (let i = 1; i < pts.length; i++) {
             await sleep(holdMs);
             await c.send("Input.dispatchTouchEvent", {
               type: "touchMove",
-              touchPoints: [{ x: pts[i]!.x, y: pts[i]!.y }],
+              touchPoints: [{ x: pts[i]!.x, y: pts[i]!.y, id: 1 }],
             });
           }
           await sleep(holdMs);
@@ -161,9 +172,23 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
           el(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        const tapEl = async (target: Element): Promise<void> => {
+        /** One trusted TAP through the browser's own gesture pipeline —
+         *  `Input.synthesizeTapGesture` runs the REAL tap disambiguation
+         *  and click finalization (raw dispatchTouchEvent's trailing click
+         *  is a desktop-mouse heuristic headless builds don't guarantee —
+         *  the first Linux-CI run lost taps-after-a-captured-drag this
+         *  way). gestureSourceType "touch" keeps the input class honest. */
+        const tapEl = async (target: Element, tapCount = 1): Promise<void> => {
           const r = target.getBoundingClientRect();
-          await touch([map(r.left + r.width / 2, r.top + r.height / 2)], 40);
+          const p = map(r.left + r.width / 2, r.top + r.height / 2);
+          await c.send("Input.synthesizeTapGesture", {
+            x: p.x,
+            y: p.y,
+            duration: 50,
+            tapCount,
+            gestureSourceType: "touch",
+          });
+          await sleep(120);
         };
         /** A touch line across one row-box, in client coords relative to it. */
         const rowLine = (
@@ -308,7 +333,16 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         // (chain slot 0 or the selection) can never equal that target, so
         // the switch request is never a same-pattern no-op (the flake
         // class this avoids: pending only appears for a REAL switch).
-        const patternC = addPattern("drums", 1, "P3");
+        // The third pattern is TWO bars (≠ the 1-bar slots): the engine
+        // then defers the switch to the next CHAIN-ITERATION boundary
+        // ("iteration" mode — IM-7), so the pending stays observable for
+        // ~a full iteration. A 1-bar target lands at the very next slot
+        // boundary, which the ~1.5 s delivery horizon can already see —
+        // the pending then lands within ~120 ms of the request and the
+        // assertions below (kept byte-identical) race it. Play-from-stop
+        // anchors the iteration at step 0, so the sweep's request always
+        // lands early-iteration.
+        const patternC = addPattern("drums", 2, "P3");
         appendChainSlot("drums", patternC);
         await waitFor(
           () => document.querySelectorAll(".rail-tile").length >= 4,
@@ -355,9 +389,9 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         );
 
         // ---- 5. DBLTAP RENAME TWIN ------------------------------------------
-        await tapEl(tiles()[0]!);
-        await sleep(80);
-        await tapEl(tiles()[0]!);
+        // One synthesized double-tap gesture (tapCount 2): the browser's own
+        // double-tap disambiguation + dblclick finalization.
+        await tapEl(tiles()[0]!, 2);
         await waitFor(
           () => !!document.querySelector(".rail-tools-menu .rail-edit"),
           4000,
