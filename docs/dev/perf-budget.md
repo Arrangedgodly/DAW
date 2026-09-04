@@ -278,8 +278,7 @@ subscriptions:
   by default, mounts only on demand — already compliant.
 
 ## 9. Mobile scale (MB-5, iteration-2 mobile slice — m5 "performance at
-
-## mobile scale documented and gated")
+mobile scale documented and gated")
 
 The committed phone target is Android Chrome at 390×844 (town-hall mobile
 addendum; MB-1's single-lane stage: one lane floor renders, the lane
@@ -342,7 +341,7 @@ frame budget", built app in a 390×844 iframe).
   read per cell per frame) collapses (m-a) to 75/86 frames ≥ 33.4 ms
   (ratio 0.87 — RED, the exact budget assertion); a non-preview DOM write
   per pointermove redds (m-b) as `attributes@data-thrash on
-div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
+  div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
   at boot redds (m-c) as `audio-asset fetches on the phone boot/play
 path` (the lazy law).
 - **Honesty caveat (the reduced-expectations stance, by design)**: CI

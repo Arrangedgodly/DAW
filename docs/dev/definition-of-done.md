@@ -69,12 +69,10 @@ ledger audit (keyboard.md §ledger: every entry re-verified against the
 shipping tests; no unrecorded v0-journey change exists; the iteration-2 e2e
 `tests/browser/e2e-iteration2.test.ts` is additive). The DoD for any
 POST-iteration-2 interaction work remains: new gestures add a coverage row
-
-- keyboard path + ledger entry before the journey tests change.
++ keyboard path + ledger entry before the journey tests change.
 
 ## 6. Mobile slice DoD (iteration-2 town-hall addendum ACs m1–m5; MB-6's
-
-## consolidated matrix, 2026-09-04 — the M17 record)
+consolidated matrix, 2026-09-04 — the M17 record)
 
 Every mobile acceptance clause has a standing gate in the blocking browser
 job. A mobile-affecting change is done when this matrix is green, desktop
