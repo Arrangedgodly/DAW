@@ -445,9 +445,15 @@ export class DomGridRenderer implements GridRenderer {
           // flow, nothing depends on it (playheadLeftPx ignores it in overlay
           // mode), and the phone target law sizes the chassis to its CONTENT
           // (44 px steppers ≈ 300 px, wider than the 220 px inline slot;
-          // grid.css owns the width + viewport clamp).
+          // grid.css owns the width + scrollport clamp).
+          // MB-3 fix (verifier m2-3): --fill-left publishes this anchor to
+          // CSS so the overlay's max-width can clamp against the SCROLLPORT
+          // (its overflow clip), not the viewport — the published var and
+          // the inline left are one law, pinned in the same breath (the
+          // label-pin precedent).
           fill.classList.add("is-overlay");
           fill.style.left = `${this.labelPx}px`;
+          fill.style.setProperty("--fill-left", `${this.labelPx}px`);
           rowEl.style.position = "relative";
         } else {
           fill.style.width = `${this.fillPx}px`;

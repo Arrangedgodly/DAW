@@ -78,10 +78,19 @@ async function bootIframe(
   iframe.style.height = `${h}px`;
   document.body.appendChild(iframe);
   const win = iframe.contentWindow!;
-  await new Promise<void>((resolve) => {
-    const req = win.indexedDB.deleteDatabase("bitbounce");
-    req.onsuccess = req.onerror = req.onblocked = () => resolve();
-  });
+  // MB-3 fix (verifier m2-2, gate integrity): the pre-boot wipe must
+  // GENUINELY complete. The old `onblocked → resolve` silently no-ops when
+  // another same-origin connection holds the DB (prior suites' leftovers)
+  // and the "first-run" gate then measures a RESTORED boot — an
+  // order-dependent pass. DA-3's teardown precedent: retry the blocked wipe
+  // (20 × 100 ms), then fail LOUD — a first-run gate that cannot honestly
+  // boot first-run must redden, not pass.
+  try {
+    await wipeOrigin(win);
+  } catch (err) {
+    iframe.remove();
+    throw err;
+  }
   const doc0 = iframe.contentDocument!;
   doc0.open();
   doc0.write(`<!doctype html><html><head>
@@ -107,6 +116,37 @@ async function bootIframe(
   // phone-mode boot signal.
   await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
   return { iframe, win, $, $$, idoc };
+}
+
+/**
+ * MB-3 fix: wipe the shared-origin DB, tolerating TRANSIENT blocks (DA-3's
+ * teardown precedent: connections from dying iframes close asynchronously).
+ * One request, observed: a `blocked` delete STAYS pending (it completes the
+ * moment the last blocker closes), and issuing ANOTHER delete while one is
+ * blocked queues behind it forever — so the grace window watches the SAME
+ * request and fails LOUD when the block outlives it. The wipe never
+ * silently degrades into a restored boot; that is the gate's honesty.
+ */
+async function wipeOrigin(win: Window): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    let blocked = false;
+    const grace = setTimeout(() => {
+      if (blocked)
+        reject(
+          new Error(
+            "bootIframe wipe stayed blocked for 3 s — the first-run boot is not honest",
+          ),
+        );
+    }, 3_000);
+    const req = win.indexedDB.deleteDatabase("bitbounce");
+    req.onsuccess = req.onerror = () => {
+      clearTimeout(grace);
+      resolve();
+    };
+    req.onblocked = () => {
+      blocked = true;
+    };
+  });
 }
 
 /** R14 teardown: close live connections, then wipe the shared-origin DB. */
@@ -380,6 +420,16 @@ describe("MB-1 responsive stage (built app)", () => {
           5_000,
           "data-stage=phone",
         );
+        // MB-3 fix (verifier m2-2): the chrome budget below is a FIRST-RUN
+        // law — prove the boot itself is first-run, deterministically. The
+        // PX-1 PLAY nudge arms only when boot CREATED the demo (no saved
+        // projects); a silently-restored boot carries no nudge, so a wiped
+        // gate that quietly measured a restored boot now reds HERE instead
+        // of passing on the wrong state.
+        expect(
+          $(".booth-btn-play").classList.contains("booth-nudge"),
+          "the boot is genuinely FIRST-RUN (PX-1 nudge armed)",
+        ).toBe(true);
         // The page never h-scrolls at the tightest phone width.
         expect(idoc().documentElement.scrollWidth).toBeLessThanOrEqual(W);
 
@@ -625,6 +675,46 @@ describe("MB-1 responsive stage (built app)", () => {
             iframe.contentDocument!.documentElement.scrollHeight <= 800,
           5_000,
           "desktop one page after rotation",
+        );
+      } finally {
+        await teardown(iframe);
+      }
+    },
+  );
+
+  it(
+    "bootIframe wipe integrity: a blocked wipe waits out transient blockers, then fails LOUD (DA-3 precedent)",
+    { timeout: 60_000 },
+    async () => {
+      // MB-3 fix tooth: hold the origin's DB connection open from THIS
+      // document — a deleteDatabase under it fires `blocked` and can never
+      // complete while it is held. The pre-boot wipe must retry (it does,
+      // briefly) and then THROW rather than silently resolving into a
+      // restored-boot "first-run" gate (the verifier's order-dependent
+      // pass-mechanism, closed).
+      const held = await new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open("bitbounce");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      try {
+        await expect(bootIframe(360, 800)).rejects.toThrow(
+          /wipe stayed blocked/,
+        );
+      } finally {
+        held.close();
+      }
+      // Released, the retry path recovers: a normal first-run boot completes
+      // (and the nudge reasserts the honest state).
+      const { iframe, $ } = await bootIframe(360, 800);
+      try {
+        await poll(
+          () => $(".app").getAttribute("data-stage") === "phone",
+          5_000,
+          "phone after unblock",
+        );
+        expect($(".booth-btn-play").classList.contains("booth-nudge")).toBe(
+          true,
         );
       } finally {
         await teardown(iframe);

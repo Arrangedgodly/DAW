@@ -141,7 +141,16 @@
   background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
   border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
   border-radius: 4px;
-  width: 5ch;
+  /* MB-3 fix (verifier m2-2): pinned px, NOT 5ch. The LED face ships with
+   * font-display: optional — a cold first-run lays `ch` out on whichever mono
+   * face is available at first paint (measured: 66px deployed vs 55px with
+   * no custom faces), and optional faces NEVER swap-reflow, so the input's
+   * width — and with it the phone booth's wrap count — depended on the font
+   * race (first-run 360×800 chrome measured 405px = 50.6%, busting MB-1's
+   * hard <50% gate; steady 357px). 66px is the deployed steady content width
+   * (byte-identical desktop/tablet); the phone override in app.css takes the
+   * tighter 44px so the tempo group keeps its row at 360. */
+  width: 66px;
   text-align: center;
   padding: 2px 0;
   -moz-appearance: textfield;

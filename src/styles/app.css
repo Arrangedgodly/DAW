@@ -190,6 +190,22 @@
 }
 
 /*
+ * MB-3 fix (verifier m2-2): the phone tempo input takes the TIGHT pin. The
+ * base 66px is the desktop/tablet steady width, but at 360 the tempo group
+ * (46 stepper + input + 46 stepper + label) only keeps its shared row with
+ * the swing group while the input is ≤ ~50px painted — at 66-68px the row
+ * wraps and the booth gains a sixth row (291px booth = 405px chrome = 50.6%
+ * of the viewport, busting MB-1's hard <50% gate at true 360×800). 44px of
+ * content still holds the worst 3-digit tempo in every face of the --font-led
+ * chain (max 39.6px at IBM Plex Mono metrics) — the flanking ≥44 steppers
+ * remain the equivalent adjustment controls (the recorded WCAG 2.5.5
+ * exemption in accessibility.md §8).
+ */
+.app[data-stage="phone"] .phone-chrome .booth-led-input {
+  width: 44px;
+}
+
+/*
  * Sliders cannot carry pseudo elements — their ≥44 hit box is the input's
  * own height with the row reclaimed by negative block margins (the painted
  * 4 px track + 10 px thumb stay centered and byte-identical; only the

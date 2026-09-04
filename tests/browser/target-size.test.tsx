@@ -218,6 +218,98 @@ async function auditSelector(
   }
 }
 
+/**
+ * MB-3 fix (verifier m2-3) — FULL hit-box reachability inside the strip's
+ * overflow clip, at the true boundary. elementFromPoint is the truth: a
+ * control whose painted box pokes past `.lane-grid-scroll`'s clip is only
+ * PARTIALLY usable when the strip cannot scroll (the out-of-flow overlay
+ * contributes no scrollWidth — the verifier's 38 px-of-44 SET finding on
+ * 2-digit-readout rows). For every euclid overlay control, on every row:
+ *   (a) the painted box lives inside the scrollport's clip box;
+ *   (b) elementsFromPoint at the box's 4 corners + 4 edge midpoints (1 px
+ *       inset — the true boundary, where a clip cuts) resolves to the
+ *       control or a descendant — nothing covers it, nothing clips it;
+ *   (c) the overlay's WIDTH LAW clamps against the SCROLLPORT, not the
+ *       viewport: resolved max-width + the overlay's left offset within the
+ *       scroll ≤ clientWidth. The old `100vw` law passed (a)+(b) only in a
+ *       harness whose strip runs a few px wider than the phone page (the
+ *       committed gate's miss) — (c) pins the law itself.
+ */
+async function auditOverlayReachability(): Promise<void> {
+  const strip = document.querySelector(".lane-grid-scroll") as HTMLElement;
+  if (!strip) throw new Error("inventory selector matches nothing: .lane-grid-scroll");
+  const clip = strip.getBoundingClientRect();
+  const fills = Array.from(document.querySelectorAll(".row-fill.is-overlay"));
+  if (fills.length === 0)
+    throw new Error("inventory selector matches nothing: .row-fill.is-overlay");
+  const chromeEl = document.querySelector(".phone-chrome") as HTMLElement | null;
+  for (const fill of fills) {
+    const row = fill.closest(".grid-row")?.querySelector(".row-label")?.textContent ?? "?";
+    // The strip scrolls with the page under the STICKY chrome — bring the
+    // row into the open before probing (the horizontal clip law is
+    // scroll-independent; vertical occlusion is the page's own scroll
+    // state, not a target-law violation). "Center" can still park the
+    // chassis's top line under the pinned rail — nudge it below.
+    (fill as HTMLElement).scrollIntoView({ block: "center", inline: "center" });
+    await raf();
+    const chromeBottom = chromeEl ? chromeEl.getBoundingClientRect().bottom : 0;
+    if (fill.getBoundingClientRect().top < chromeBottom + 4) {
+      window.scrollBy(
+        0,
+        fill.getBoundingClientRect().top - chromeBottom - 8,
+      );
+      await raf();
+    }
+    // (c) the width law: max-width + left offset inside the scroll content.
+    const fr = fill.getBoundingClientRect();
+    const leftInScroll = fr.left - clip.left + strip.scrollLeft;
+    const maxW = Number.parseFloat(getComputedStyle(fill).maxWidth);
+    if (
+      !Number.isFinite(maxW) ||
+      maxW + leftInScroll > strip.clientWidth + 0.5
+    ) {
+      throw new Error(
+        `[euclid overlay · ${row}] width law busts the scrollport: max-width ${maxW}px + left ${leftInScroll.toFixed(1)}px > clientWidth ${strip.clientWidth}px (the clamp must derive from the strip's clip, not 100vw)`,
+      );
+    }
+    // (a)+(b) every control box: inside the clip, and owning its boundary.
+    for (const btn of Array.from(fill.querySelectorAll("button"))) {
+      const r = btn.getBoundingClientRect();
+      const label = btn.getAttribute("aria-label") ?? btn.className;
+      if (
+        r.left < clip.left - 0.5 ||
+        r.right > clip.right + 0.5 ||
+        r.top < clip.top - 0.5 ||
+        r.bottom > clip.bottom + 0.5
+      ) {
+        throw new Error(
+          `[euclid ${label} · ${row}] painted box [${r.left.toFixed(1)},${r.right.toFixed(1)}] leaves the scrollport clip [${clip.left.toFixed(1)},${clip.right.toFixed(1)}] — the hit box cannot be fully reached`,
+        );
+      }
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const probes: Array<[number, number]> = [
+        [r.left + 1, r.top + 1],
+        [r.right - 1, r.top + 1],
+        [r.left + 1, r.bottom - 1],
+        [r.right - 1, r.bottom - 1],
+        [cx, r.top + 1],
+        [cx, r.bottom - 1],
+        [r.left + 1, cy],
+        [r.right - 1, cy],
+      ];
+      for (const [x, y] of probes) {
+        if (!hitBelongs(btn, x, y)) {
+          const stolen = document.elementFromPoint(x, y);
+          throw new Error(
+            `[euclid ${label} · ${row}] boundary probe (${x.toFixed(1)},${y.toFixed(1)}) resolves ${stolen ? describeHit(stolen) : "nothing"} — the box's edge is clipped or covered, not fully reachable`,
+          );
+        }
+      }
+    }
+  }
+}
+
 function logTable(rows: AuditRow[], where: string): void {
   console.log(
     `[MB-3 target audit · ${where}]\n` +
@@ -242,6 +334,12 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
       let snapshotRows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
       try {
         await page.viewport(390, 844);
+        // MB-3 fix (verifier m2-1): every section now PROVES its viewport —
+        // the committed "360×800" half ran at 390 and logged 390 numbers.
+        expect(
+          window.innerWidth,
+          "the audit viewport is truly 390×844",
+        ).toBe(390);
         await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
         bootDb = await openRawProjectDb("bitbounce");
         snapshotRows = await bootDb.allRecords();
@@ -274,6 +372,20 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
               cancelable: true,
             }),
           );
+
+        // --- steady-state chrome budget at the true 390 --------------------
+        // (The FIRST-RUN twin of this law is MB-1's built-app gate — a wiped
+        // IDB, the PX-1 demo boot. The tempo input's px pin makes first-run
+        // and steady lay out the SAME booth, so both gates now agree.)
+        await raf();
+        const chrome390 = $(".phone-chrome").getBoundingClientRect();
+        console.log(
+          `[MB-3 chrome budget · 390×844 steady] chrome ${chrome390.height.toFixed(1)} px (${((chrome390.height / 844) * 100).toFixed(1)}% of viewport)`,
+        );
+        expect(
+          chrome390.height,
+          "390×844 steady chrome under half the viewport",
+        ).toBeLessThan(844 / 2);
 
         // ================= 390×844 — the full inventory =================
         const rows: AuditRow[] = [];
@@ -368,6 +480,29 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             { exempt: true },
           ),
         );
+        // MB-3 fix tooth-law (verifier m2-2): the input's BOX must be
+        // font-metric-independent. `width: 5ch` resolved against whichever
+        // mono face was available at first layout (measured 66px deployed /
+        // 55px fallback-metrics) and — the LED face ships font-display:
+        // optional, which never swaps after first paint — a cold first-run
+        // kept the wider face and flipped the phone booth's wrap count
+        // (405px chrome at true 360×800, busting MB-1's hard <50% gate).
+        // The px pin makes the box identical under any face.
+        {
+          const pin = $(".booth-led-input");
+          const pinW = pin.getBoundingClientRect().width;
+          const clone = pin.cloneNode() as HTMLElement;
+          clone.style.visibility = "hidden";
+          clone.style.position = "absolute";
+          pin.after(clone); // same scope (the phone-chrome pin applies in-place)
+          clone.style.fontFamily = "ui-monospace, monospace";
+          const cloneW = clone.getBoundingClientRect().width;
+          clone.remove();
+          expect(
+            cloneW,
+            "tempo input box must be font-metric-independent (5ch reflowed the first-run phone booth past the chrome gate)",
+          ).toBe(pinW);
+        }
         rows.push(
           await auditControl(
             $('[data-help="save.status"]'),
@@ -385,6 +520,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           rows,
         );
         rows.push(await auditControl($(".row-fill-apply"), "euclid SET"));
+        // MB-3 fix (verifier m2-3): every overlay control box FULLY
+        // reachable at the scrollport's clip boundary (all six rows).
+        await auditOverlayReachability();
         click(".head-fill-toggle");
         await new Promise((r) => setTimeout(r, 350));
 
@@ -629,6 +767,11 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await page.viewport(390, 844);
 
         // ================= 360×800 — the tight viewport ===================
+        // MB-3 fix (verifier m2-1): this section now runs at TRUE 360×800 —
+        // the committed gate resized back to 390 here and logged 390 numbers
+        // under a "360×800" label (tabs painted 91px = the 390 width; the
+        // "chrome 356.5px at 360×800" record was a 390 measurement).
+        await page.viewport(360, 800);
         await waitFor(
           () =>
             document.querySelector(".app")?.getAttribute("data-stage") ===
@@ -636,6 +779,11 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           3000,
           "phone again at 360×800",
         );
+        await raf();
+        expect(
+          window.innerWidth,
+          "the tight audit viewport is truly 360×800",
+        ).toBe(360);
         selectLane("drums"); // the FILL toggle + kit stepper need the drums lane
         await waitFor(
           () =>
@@ -645,7 +793,10 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           3000,
           "drums stage at 360×800",
         );
-        // Chrome budget re-pin (MB-1's hard law — the target law moved it).
+        // Chrome budget re-pin (MB-1's hard law — the target law moved it),
+        // measured at the TRUE tight viewport. Steady state here; the
+        // FIRST-RUN twin is MB-1's built-app gate, and the tempo input's px
+        // pin is exactly what makes the two boots agree.
         const chrome = $(".phone-chrome").getBoundingClientRect();
         console.log(
           `[MB-3 chrome budget · 360×800] chrome ${chrome.height.toFixed(1)} px (${((chrome.height / 800) * 100).toFixed(1)}% of viewport) · usable ${(800 - chrome.height).toFixed(1)} px (${(((800 - chrome.height) / 800) * 100).toFixed(1)}%)`,
@@ -657,6 +808,29 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           800 - chrome.height,
           "usable stage height ≥ 40%",
         ).toBeGreaterThanOrEqual(800 * 0.4);
+
+        // --- euclid overlay at the tight width --------------------------------
+        // The clamp-bite adaptation: the ctl wraps and SET drops to its own
+        // line (a full-width commit bar) — every control on every row must
+        // still be FULLY reachable inside the strip's clip.
+        click(".head-fill-toggle");
+        await new Promise((r) => setTimeout(r, 350));
+        const rows360Fill: AuditRow[] = [];
+        await auditSelector(
+          ".row-fill.is-overlay .head-step-btn",
+          "euclid stepper (360)",
+          rows360Fill,
+        );
+        await auditSelector(
+          ".row-fill.is-overlay .row-fill-apply",
+          "euclid SET (360)",
+          rows360Fill,
+        );
+        await auditOverlayReachability();
+        logTable(rows360Fill, "360×800 fill");
+        click(".head-fill-toggle");
+        await new Promise((r) => setTimeout(r, 350));
+
         // Core inventory re-audit at the tight width.
         const rows360: AuditRow[] = [];
         rows360.push(await auditControl($(".booth-btn-play"), "booth PLAY"));

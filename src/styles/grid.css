@@ -273,19 +273,83 @@
  * open the rows make room (one extra margin — the grid grows downward and
  * the page scrolls; closing packs them back). Reveal-time layout only: the
  * closed state is byte-identical.
+ *
+ * MB-3 fix (verifier m2-3 — the SET clip): the clamp is now the SCROLLPORT,
+ * not the viewport. The old `100vw` law sized the overlay against the page
+ * while `.lane-grid-scroll`'s overflow clip cuts ~13 px earlier — on 2-digit
+ * readout rows the chassis ran to x=388 past the clip at x=377 and the strip
+ * CANNOT scroll (the out-of-flow overlay contributes no scrollWidth), so the
+ * last 6 px of SET's 44 px box were unreachable (38 px usable). The scroller
+ * becomes an inline-size QUERY CONTAINER and the overlay's max-width derives
+ * from 100cqw minus its renderer-pinned --fill-left anchor minus one gutter
+ * — the chassis can never poke past the clip it is hit-tested against, at
+ * any phone width. Internal layout ADAPTS when the clamp bites (360 px):
+ * the ctl wraps and SET drops to its own line (the scale popover's
+ * full-width commit vocabulary), the row-gap keeps the two lines apart, and
+ * the container query below widens the reveal spread for the taller
+ * (two-line ~96 px) chassis. Phone-scoped only: tablet's fixed 220 px
+ * overlay and the desktop inline rail are untouched (byte-identical, m4).
  */
+.app[data-stage="phone"] .lane-grid-scroll {
+  container-type: inline-size;
+}
+
 .app[data-stage="phone"] .row-fill.is-overlay {
   width: max-content;
-  max-width: calc(100vw - 2 * var(--space-3));
+  /* border-box: the clamp caps the CHASSIS (content + padding + border),
+   * so the painted box itself — not just its content — stays inside the
+   * clip it is hit-tested against. */
+  box-sizing: border-box;
+  max-width: calc(100cqw - var(--fill-left, 60px) - var(--space-3));
+}
+
+/* The clamp-bite adaptation (recorded phone condensations): the decorative
+ * E tag hides (the "4/16" readout + dashed preview + SET carry the euclid
+ * identity; the tag returns on desktop/tablet), the readout's ch floor
+ * drops to 2 (rotation values are ≤2 digits), and the ctl/stepper gutters
+ * take the 2 px end of the world's spacing scale so the one-line chassis
+ * fits the 390 scrollport with ~15 px of slack. */
+.app[data-stage="phone"] .row-fill-ctl {
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  row-gap: var(--space-2);
+}
+
+.app[data-stage="phone"] .row-fill-tag {
+  display: none;
+}
+
+.app[data-stage="phone"] .row-fill .row-fill-value {
+  min-width: 2ch;
+}
+
+.app[data-stage="phone"] .row-fill-step {
+  gap: var(--space-1);
 }
 
 .app[data-stage="phone"] .row-fill-apply {
   height: 44px;
   min-width: 44px;
+  /* Grows ONLY on its own wrapped line (an unwrapped line has no leftover
+   * space — the box is max-content) — SET becomes the full-width commit
+   * bar, the scale popover's own action vocabulary. */
+  flex-grow: 1;
 }
 
 .app[data-stage="phone"] .lane-grid-scroll.fill-rails-open .grid-row {
   margin-bottom: 34px; /* 24 px track + 34 ≥ the ~50 px chassis */
+}
+
+/* The wrapped (two-line) chassis needs the wider spread. Breakpoint: the
+ * wrap first bites when the scrollport's clientWidth falls under ~348 px
+ * (ctl content ≈ 273 + the 76 px of anchor/gutters/padding); 355 covers it
+ * with readout-flash slack, and the 390 scrollport (364 px) stays clear.
+ * (Same specificity as the 34 px base + later in the sheet, so a matched
+ * container wins cleanly.) */
+@container (max-width: 355px) {
+  .app[data-stage="phone"] .lane-grid-scroll.fill-rails-open .grid-row {
+    margin-bottom: 80px; /* 24 px track + 80 ≥ the ~96 px two-line chassis */
+  }
 }
 
 .row-fill-ctl {
