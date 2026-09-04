@@ -1,4 +1,4 @@
-# Keyboard Interaction Spec (v2 — IN-1)
+# Keyboard Interaction Spec (v3 — KL-1)
 
 The complete keyboard map for Bitbounce. Contract sources: ARIA APG grid
 pattern (res-1 — roving tabindex, arrow navigation, grid roles) and the
@@ -8,7 +8,10 @@ Iteration-2 law (town-hall assumption, I2-*): **pointer drags NEVER replace
 keyboard paths — both are required.** Every gesture IN-2/IN-3 build for the
 pointer has a key-for-key equivalent in this spec, and every state change a
 drag can produce is announced identically when driven by keyboard
-(drag-equivalent announcements, docs/dev/accessibility.md §7).
+(drag-equivalent announcements, docs/dev/accessibility.md §7). The
+iteration-3 carry (town-hall I3-*): every NEW surface — OCT transpose,
+register window scroll, pattern resize, the changed rail `+` — has the same
+key-for-key law (§ v3 delta at the bottom).
 
 **Version status.** v2 extends the shipped v0 map (DA-1/DA-3) for the
 iteration-2 quadrant layout and note model. Sections marked
@@ -31,6 +34,19 @@ that v2 supersedes say so
 inline and the deliberate v0-journey changes are recorded in the ledger at
 the bottom (regression rule: journey updates only
 alongside deliberate UX changes).
+
+**v3 (KL-1, iteration 3 — SPEC, not yet implemented).** The §"v3 delta"
+at the bottom of this file extends the v2 map for the iteration-3 surfaces
+(town-hall §Iteration 3, decisions I3-a..f; schema v3 landed by SV-1:
+powers-of-two pattern vocabulary 1..128, per-pitched-lane `octave` −3..+3,
+`loopBars` retired behind the engine-side compat derivation). Sections
+marked **[v3 · spec — lands with BC-1/RC-1/LL-1/LL-2]** are the CONTRACT
+those tasks implement and gate; until a task lands, the v2 law above stays
+the shipping behavior. The v3 supersessions of v2/v0 text are marked inline
+(the v2 precedent), and the deliberate v2-journey changes are recorded in
+the v2 → v3 ledger inside the delta — the rail-`+` semantics change (I3-a)
+is THE one deliberate journey change iteration 3 plans (the plan's
+regression rule names it).
 
 ## Focus model — regions and tab stops
 
@@ -209,7 +225,10 @@ steps`; spanned: `note continues`; empty: v0 name. Resize steps announce
 
 v0 rail law unchanged: ←/→ rove tiles, Enter/Space trigger a quantized
 switch on the focused tile, Delete/Backspace removes the slot, F2 renames,
-`l` edits the cue, `+` appends. The multi-clip drag (one gesture across N
+`l` edits the cue, `+` appends. **[v3: the ACTION behind rail `+` changes —
+it creates a NEW blank next-letter pattern instead of re-appending the
+selected one (I3-a); see §v3 delta "Rail `+` = new blank clip".]** The
+multi-clip drag (one gesture across N
 clips queues exactly those N, identical pending/quantized semantics as
 clicking individually — one queued switch per touched lane) gets this
 keyboard path (LIVE: the pointer sweep and this range commit share one
@@ -248,7 +267,10 @@ sweep extends):
 
 Rail-local keys (DES-6, unchanged): ←/→ rove tiles, Enter/Space trigger a
 quantized switch, Delete/Backspace removes the chain slot, F2 renames, `l`
-edits the cue, `+` appends a slot.
+edits the cue, `+` appends a slot. **[v3: `+` now appends a slot holding a
+NEW blank next-letter pattern — the key, the button, and the announcement
+all change meaning together (I3-a); DUP (`d` + the PAT menu) becomes the
+ONLY duplication path. See §v3 delta.]**
 
 ## Transport — unchanged v0
 
@@ -368,9 +390,10 @@ These browser / screen-reader keys are NEVER intercepted anywhere:
 - Tab / Shift+Tab — region traversal (only tabindex roving, never swallowed)
 - the screen-reader virtual-cursor pass-through keys (quick-nav keys,
   browse-mode letter navigation) — letter shortcuts (`n`, `d`, `r`, `i`, `?`,
-  `l`) only fire on real keydown targets that are NOT text-entry elements,
-  and are skipped whenever an assistive-tech modifier is held; ARIA grid
-  roles keep the SR cursor in application mode inside grids
+  `l`; v3 adds `o`, `b`, `p`) only fire on real keydown targets that are NOT
+  text-entry elements, and are skipped whenever an assistive-tech modifier
+  is held; ARIA grid roles keep the SR cursor in application mode inside
+  grids
 - Ctrl/Cmd+C, V, X, A, F, L, T, W, R — clipboard/browser shortcuts untouched
 - F1–F12 except F2 (rename, DES-6 — standard grid rename key per APG)
 - browser zoom (Ctrl+/-/0), devtools (F12, Ctrl+Shift+I/J/C)
@@ -383,7 +406,12 @@ range extension, and note-length edits all clamp at their bounds. The
 playhead wraps (the loop), but focus never does — a wrapped cursor a
 screen-reader user cannot predict is worse than a hard edge. PageUp at the
 first quadrant stays there; Ctrl+→ at the last beat stays; `-` at length
-0.25 stays; Shift+↑ at the top lane row stays.
+0.25 stays; Shift+↑ at the top lane row stays. **[v3 amendment, recorded:
+the row-arrows' clamp domain grows from the VISIBLE rows to the full row
+MANIFEST (the register window follows focus — §v3 delta "Register window
+scroll"); the no-wrap law itself is unchanged — clamp-at-hard-edge still
+governs every axis, and the window-scroll keys add two more clamped axes
+(manifest bounds + the focus-anchor law).]**
 
 ## Coverage review (AC: no keyboard path missing for any new gesture)
 
@@ -564,7 +592,7 @@ coordinates; every action begins from a focused element.
 | 9   | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE                | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip                                                                                                                   |
 | 10  | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value                                                                                                                                 |
 | 11  | Rail: focus tile 1 → `→`×3 → `Enter`                                                 | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing                                                                                                                                            |
-| 12  | `Space` (stop) → `Enter` on PAT → `Enter` on DUP → focus last tile → `+` → `Escape`  | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle). [refinement-6 ledger #5: DUP lives in the row's PAT menu — one extra `Enter` opens it; `d` remains the menu-free twin] |
+| 12  | `Space` (stop) → `Enter` on PAT → `Enter` on DUP → focus last tile → `+` → `Escape`  | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle). [refinement-6 ledger #5: DUP lives in the row's PAT menu — one extra `Enter` opens it; `d` remains the menu-free twin] [v3 · spec — BC-1 will journal this step's delta: under I3-a the final `+` creates a NEW blank next-letter pattern (appended + selected + announced `PATTERN <L> CREATED · <n> BAR · APPENDED`), not a re-append of the selected pattern] |
 | 13  | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI                                  | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam)                                                                                                           |
 | 14  | `Enter` NEW … then reopen popover → `Escape`                                         | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button                                                                                                            |
 
@@ -590,3 +618,346 @@ each FX param commit rebuilds the module DOM (Solid For reference diff), so a
 60 Hz slider drag recreates the module nodes every tick. Values stay correct
 and engine ramps are unaffected (AudioParam path), but DES-7 should consider
 keying modules by identity to avoid per-tick DOM churn.
+
+---
+
+# v3 delta (KL-1 — iteration 3: OCT, window scroll, resize, blank `+`, position law)
+
+Spec for the iteration-3 interaction surfaces, per town-hall §Iteration 3
+(I3-a..f) and the schema-v3 ground SV-1 landed (powers-of-two pattern
+vocabulary 1·2·4·8·16·32·64·128; per-pitched-lane `octave` field −3..+3,
+canonical-empty at 0 — schema.ts:296-303, 406-415; `loopBars` retired behind
+the engine-side compat derivation until LL-2's deliberate basis swap).
+**Everything in this delta is SPEC until its owning task lands** — the
+implementing tasks are BC-1 (rail `+`), RC-1 (OCT + register windows +
+manifest scroll), LL-1 (vocabulary + resize + extent), LL-2 (per-lane
+playhead/position basis); their browser gates assert these laws verbatim.
+The v2 laws above (one-Tab-stop regions, roving groups, no-wrap,
+text-entry guards, the exclusion list, drag-equivalent announcements)
+govern every new surface unchanged unless a supersession is recorded here.
+
+## v3 focus model — the new controls join the ESTABLISHED regions
+
+No new regions, no new Tab-stop shapes — every v3 control is a native
+control inside an existing one-Tab-stop/roving region:
+
+| New control                                            | Region it joins                                                                                                                     | Tab/arrows                                                                                             | Owning task |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------- |
+| OCT − / OCT + + register readout (pitched lanes)        | Quadrant control strip (LaneHeader) — the always-operable COMPACT row, ALL FOUR quadrants ("tweak any lane without switching"; LaneHeader.tsx:1-27) | native buttons + value span (the preset/kit + gate stepper pattern); `]`/`[` quadrant keys keep working from among them | RC-1        |
+| LENGTH stepper (resize) in the PAT popover              | Pattern rail — tools popover while open (the REN/+1B/DUP/RM vocabulary; PatternRail.tsx:599-660)                                     | native buttons; popover laws unchanged (focus first control on open, Escape closes + refocuses trigger) | LL-1        |
+| Register window scroll                                 | Lane grid (selected quadrant) — NOT a control: two grid keys on the focused cell (§ below)                                          | grid-map keys, grid scope only                                                                        | RC-1        |
+| Per-lane playhead position query (`p`)                  | none — an on-demand announcement through the stage status region (selection.ts:120-137), never a focusable thing                    | n/a                                                                                                    | LL-2        |
+
+- The strip placement decision (COMPACT row, all four quadrants) follows the
+  always-operable law: dropping the BASS an octave while editing LEAD must
+  not require a quadrant switch — same reason VOLUME/MUTE/SOLO live there.
+  Drums carries NO OCT control (the drum voice model has no pitch
+  resolution — schema.ts:40-46); its strip stays exactly as today.
+- Every new control registers help text (the HP-2 coverage law — the gate
+  FAILS on unregistered or stale controls) and updates on focus while help
+  mode is ON (the HP-1 focus-driven law). Help-mode pass-through applies:
+  `o`/`b`/`p` fire normally while the mode is on; nothing traps.
+- Escape order: NO new consumers. The LENGTH stepper lives inside the PAT
+  popover and consumes Escape through the existing popover law; window
+  scroll and `p` consume nothing (view-state reads/writes only).
+
+## Register controls — per-lane OCT −/+ [v3 · spec — lands with RC-1]
+
+Per-lane octave transpose writes the v3 `octave` field (one octave per
+press, clamped −3..+3): the session recompiles the lane live (audible),
+the ONE compiler carries it into WAV/MIDI, undo family `octave:<lane>`.
+Pitched lanes only.
+
+| Path                                    | Action                                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `o` (global, pattern-ops family)        | active lane OCTAVE **+1** (pitched; guards below)                                                         |
+| Shift+`o` (global)                      | active lane OCTAVE **−1**                                                                                 |
+| Tab → OCT − / OCT + button → Enter      | same actions on THAT lane's strip (any quadrant, no switch needed — the always-operable law)               |
+| pointer click on OCT − / OCT +          | the pointer twin — same funnel, same announcements (E5 law: no announcement may depend on pointer events) |
+
+- **Key-scope/guard law (identical to `n`/`d`/`r`/`i`):** fires only on real
+  keydown targets that are NOT text-entry elements
+  (KeyboardShortcuts.tsx:28-43 `isTextEntry`), skipped whenever an
+  assistive-tech modifier is held (the exclusion list — `o` joined it above).
+  The global keys act on the ACTIVE (selected) lane; the strip buttons act
+  on THEIR lane. The announcement names the lane either way — never "octave
+  changed" unqualified.
+- **Announcements (a11y gate E8).** One funnel announces value + clamp
+  through the strip's local `aria-live=polite` value span (the gate-stepper
+  pattern), and the register readout keeps the value as text at all times:
+  `LEAD OCTAVE +1` · `BASS OCTAVE −2` · `CHORDS OCTAVE 0`. At the domain
+  clamp the press is a NO-OP that still announces the limit:
+  `LEAD OCTAVE +3 · AT LIMIT` / `BASS OCTAVE −3 · AT LIMIT` (never a silent
+  no-op — a screen-reader user must hear why nothing changed). On drums
+  (global key only): `DRUMS HAS NO OCTAVE`.
+- **The register readout law.** The readout beside the buttons exposes the
+  current octave as TEXT in the accessible tree at all times (never
+  color/position alone — D9). If RC-1 models the readout as a slider-style
+  widget it MUST carry `aria-valuetext` with the same signed text
+  (`OCTAVE +1`); the announcement texts above are identical either way
+  (the load-bearing law; the widget role is RC-1's production choice).
+- **Undo.** Held-key repeats are ONE undo gesture (`octave:<lane>`
+  coalescing — the note-resize discrete-commit precedent: keys are discrete
+  commits, coalesced like a drag).
+- **Transpose ≠ audition.** An OCT press does NOT re-audition the focused
+  note (no machine-gun law, same reasoning as note resize); the live
+  recompile IS the audible confirmation while playing, and the announcement
+  carries it when stopped.
+- **Help/info interaction.** Focusing OCT −/+ in help mode shows its entry;
+  the entry MUST say the control changes SOUND (transposes the lane's
+  register) — wording is PX-4's, the requirement that the entry distinguish
+  SOUND-changing transpose from VIEW-only window scroll (below) is KL-1's
+  (the Professor X conflation fence, keyboard side — a11y gate E9).
+
+## Register window scroll — the visible row window [v3 · spec — lands with RC-1]
+
+Every pitched lane's grid shows the SAME one-octave window by default
+(I3-c; equal-by-default across fresh + demo + migrated projects, ZERO
+document churn — the window is VIEW state on the selection.ts two-tier law,
+never a document field, never undo history). The full row manifest stays
+reachable: bass/lead carry ~2 octaves of rows (store.ts:81-104
+`expandDefaultGrids`), chords one, drums six pieces.
+
+- **Construction law (for RC-1):** the full row manifest stays in the DOM
+  (rows are bounded by the manifest — tens, not thousands); the window is a
+  SCROLL POSITION of the quadrant's grid body (internal scroll — the
+  one-page law is a page law, not a pane law; the phone scrolling-grid
+  precedent). LP-1's windowing owns the COLUMN axis only — vertical
+  windowing would violate the reachability law below (focus must be able to
+  rest on any manifest row).
+- **Arrow rows walk the FULL manifest (no-wrap amendment, recorded above):
+  ↑/↓ clamp at the manifest's first/last row — the manifest is the hard
+  edge now, not the window.** When focus would cross the window edge, the
+  window scrolls the MINIMAL amount that keeps the focused row visible
+  (scroll-into-view, `block:"nearest"` semantics) — the v0 carry-clamp
+  instinct applied to the view, not the cursor. Drums grids (manifest ≤
+  window) never scroll; their arrows behave exactly as today.
+- **Grid names carry the window (E3 precedent — state in text):** pitched
+  grid accessible names append the visible range while the manifest exceeds
+  the window: `<LANE> grid · EDITING · ROWS 8–14 OF 14` (VIEW ONLY twin
+  unchanged); when the whole manifest is visible the range is omitted
+  (today's name, byte-identical — the fresh/demo default for chords/drums).
+
+| Key (on a focused cell, selected quadrant's grid) | Action                                                                                         |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Shift+`↑` / Shift+`↓`                             | scroll the visible window ONE OCTAVE up/down — VIEW ONLY: no document write, no undo, no audition, focus does not move |
+
+- **The focus-anchor law.** The window may never scroll the focused row out
+  of view: Shift+↑/↓ clamp BOTH at the manifest bounds AND at the last
+  position that keeps the focused row visible. To see further, move focus
+  first (↑/↓) — the anchor is teachable and predictable ("the cursor holds
+  the window"), and it makes "focus is always visible" true by construction
+  (E2's law, extended to the windowed grid). At either clamp the press is a
+  no-op that announces the edge.
+- **Announcements (E9 — the conflation fence).** Window scrolls announce
+  through the grid-local `aria-live=polite` span with VIEW wording that
+  names the newly visible rows: `VIEW DOWN ONE OCTAVE · ROWS <labelFirst>–<labelLast>`
+  (row labels are the grid's own — pitch names for pitched lanes); at a
+  clamp: `VIEW AT TOP · ROWS <a>–<b>` / `VIEW AT BOTTOM · ROWS <a>–<b>`.
+  THE LAW: window-scroll announcements must say VIEW and the OCT
+  announcements must say OCTAVE — a screen-reader user must be able to tell
+  "the lane transposed" from "the window moved" with eyes closed. Window
+  scroll never auditions, never writes the store, never announces as
+  transpose; OCT never scrolls the window (it changes which ROWS SOUND,
+  not which rows are shown).
+- **Pointer twin.** Wheel/drag scrolling of the grid body scrolls the same
+  window (same clamps; the focus-anchor law bounds only the KEYS — a
+  pointer scroll may move the view off the focused row, sighted users track
+  it visually; the next focus move snaps the window back per the
+  scroll-into-view law). No announcement fires for passive pointer scroll
+  (nothing changed in the document or the focus — announcing every wheel
+  tick would be spam); the window is always readable from the grid's name.
+- **Phone/tablet:** the phone stage already renders one lane with an
+  internally scrolling grid (the MB-1 precedent) — the window laws there
+  are RC-1's mobile-half concern, riding m1–m5 regression; no new phone
+  keys are spec'd (Shift+arrows are grid keys and work wherever a grid is
+  focused).
+
+## Pattern resize — LENGTH in bars [v3 · spec — lands with LL-1]
+
+Pattern LENGTH is the only length control (I3-e — no decoupled loop knob,
+ever). The vocabulary is the schema picklist 1·2·4·8·16·32·64·128; resize
+exists after create through BOTH the PAT menu and the keys below. Policy
+(the Hulk resolution, fixed): grow ALWAYS proceeds; shrink proceeds only
+when NO note would be lost past the new end; otherwise REFUSE — typed
+refusal + announcement naming the blocking note. There is no override
+gesture in v3 (silent truncation is the rejected alternative; an
+"override and delete" path would be a new journey change and must return
+to the ledger first).
+
+| Path                                        | Action                                                                                                           |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `b` (global, pattern-ops family)            | resize the active lane's SELECTED pattern ONE VOCABULARY STEP BIGGER (1→2→…→128; at 128: limit no-op announcing `PATTERN B · 128 BARS · AT LIMIT`) |
+| Shift+`b` (global)                          | one vocabulary step SMALLER (128→…→1; refuse-on-loss law applies; at 1: limit no-op announcing `PATTERN B · 1 BAR · AT LIMIT`) |
+| PAT menu LENGTH − / LENGTH + → per press    | same ladder on the menu's pattern (the selected one); the stepper OWNS ITS LIFECYCLE inside the popover (stays open across presses — the rename-field precedent; Escape/close still exits with focus returned to the trigger) |
+| pointer on the same buttons                 | the pointer twin — one commit funnel, identical announcements (E5)                                                 |
+
+- **Guards:** identical to `o` (text-entry guard, AT-modifier skip; `b`/`p`
+  joined the exclusion list above). Works on drums patterns too (drum rows
+  resize with the pattern — `applyEuclidFill`'s array law is
+  length-parametric).
+- **Success announcements (E10):** through the lane's rail status region:
+  `PATTERN B · 8 BARS` (grow or clean shrink), with the value span in the
+  menu reading `LENGTH <n> BARS` per press. Undo: ONE undoable edit per
+  resize (family `resize:<lane>:<pattern>` per LL-1); the global keys are
+  discrete commits (the note-resize precedent).
+- **The refusal announcement (E10 — never silent, never truncating):**
+  `CANNOT SHRINK PATTERN B TO 4 BARS · <ROW LABEL> NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST`.
+  The blocking note is named DETERMINISTICALLY: the note with the greatest
+  end (`start + length`); ties broken by latest start (the focused-note
+  determinism law, IN-2). Both paths (menu button, `b` key, pointer)
+  produce this SAME text through the same funnel.
+- **Focus law after a successful resize:** the grid remounts (the
+  `${p.id}:${p.kind}:${p.bars}` key — LaneGrid.tsx:788, the G9 seam). If
+  focus was IN that grid, it lands on the CARRIED cell — same row, step
+  clamped to the new extent's last step (the v0 carry-clamp law); if focus
+  was anywhere else (e.g. `b` pressed from the rail), focus never moves —
+  the announcement carries the change (the no-yank law).
+- **Extent law:** the grid extent follows the selected pattern's real bars
+  (E7 `currentPatternFor` → bars → columns) through LP-1's windowing seam;
+  keyboard nav over 2048 columns is O(1) focus math (G8) — Home/End/beat
+  jump keep their exact meanings at any length.
+
+## Rail `+` = new blank clip [v3 · spec — lands with BC-1]
+
+I3-a, THE deliberate journey change of iteration 3 (the plan's regression
+rule names this ledger entry):
+
+1. **Rail `+` creates a NEW blank pattern** — next-letter label via the
+   addPattern naming (A,B,C…Z,P27+ — PatternRail.tsx:588-592), appended to
+   the lane's chain, selected, immediately editable. Default bars =
+   addPattern's existing default (1 — BC-1 records the production
+   decision). This applies to BOTH trigger shapes together: the row's `+`
+   button (PatternRail.tsx:896-904, whose aria-label changes from "Append …
+   selected pattern" to new-clip wording that says NEW) and the rail-local
+   `+`/`=` key on a focused tile (PatternRail.tsx:786-791).
+2. **DUP is the ONLY duplicator** — unchanged in behavior: the PAT menu's
+   DUP button and the global `d` key duplicate the selected pattern and
+   select the copy (v0 law). Its ledger line is updated to SAY so (this
+   entry); no new key, no new announcement, no journey step beyond what
+   BC-1 journals for `+`.
+3. **Announcement (E11):** creation announces through the lane's rail
+   status region: `PATTERN B CREATED · 1 BAR · APPENDED` (letter =
+   the actual label; bars pluralized; the appended+selected state rides the
+   same line — one announcement, not three).
+4. **Focus law:** the rail-local `+` key lands focus on the new tile (the
+   DA-3 focus-after-edit law — the appended slot); the `+` button keeps
+   focus on itself (native click; a mid-tweak is never yanked). The
+   selected-quadrant grid remounts to the new blank pattern (extent = its
+   bars); if focus was in that grid… it cannot be (both `+` paths are
+   rail-scoped), so no carry is spec'd — the grid remount leaves focus in
+   the rail by construction.
+5. **Help text:** the rail-append registry entry (`data-help="rail.append"`)
+   and the button's accessible name must say NEW BLANK CLIP — the HP-2
+   coverage gate fails on stale text (BC-1's plan line).
+
+## Position & playhead at unequal cycle lengths [v3 · spec — lands with LL-2]
+
+The engine poly-loops (each lane wraps independently at its chain total —
+schema-v3-seams.md F11); LL-2 re-bases playhead/position/one-shot from the retired `loopBars`
+field to per-lane chain totals / one LCM cycle. What the SR user hears:
+
+- **The booth readout is the GLOBAL clock: BAR.BEAT.STEP within the FULL
+  LCM CYCLE (= the longest lane under powers-of-two — I3-d).** The readout
+  (Booth.tsx:137-183) and the beat announcement (`BAR n · BEAT n`, on beat
+  change only) keep their exact mechanism and format; only the wrap modulus
+  grows to the LCM cycle. At equal cycle lengths this is byte-identical to
+  today (the compat law — zero drift until LL-2's deliberate swap). Rationale
+  (the recorded KL-1 decision, plan LL-2 risk row): ONE stable global
+  reference; "BAR 3" must mean the same thing everywhere; the longest lane's
+  wraps align with it by construction.
+- **Lane wraps are NOT announced globally — they ride the EXISTING per-lane
+  rail status regions.** A shorter lane switching patterns mid-cycle is the
+  poly-loop signal, and the mechanism already exists (active-pattern
+  announcements per lane). No new live region, no per-wrap stage
+  announcement (a four-lane poly-loop would spam the stage region — the
+  spam fence). Announcement RATE therefore differs per lane by design; that
+  asymmetry is information, not noise.
+- **`p` (global, NEW — the SR playhead twin):** sighted users see four
+  playheads sweeping at different cycle lengths (the playhead itself is
+  aria-hidden visual decoration — docs/dev/accessibility.md §1/§4); `p` is
+  the on-demand readout.
+  Announces through the stage status region (selection.ts:120-137):
+  `POSITION BAR 12 OF 64 · BASS BAR 4 OF 4` — global cycle position, then
+  the ACTIVE lane's position within ITS cycle; when every lane shares one
+  cycle length the lane half is omitted (`POSITION BAR 3 OF 4`). While
+  stopped: the parked positions, same format. Guards: identical to `o`/`b`.
+  `p` reads state only — no document write, no focus move, nothing
+  consumed (it can never interfere with an Escape order or a drag).
+- **One-shot (LOOP off):** plays exactly ONE full LCM cycle then parks
+  (I3-d) — the booth readout freezes at the park position; no new
+  announcement is spec'd (the transport state is already carried by PLAY's
+  aria-pressed and the readout text).
+
+## v3 coverage review (AC: no keyboard path missing for any new gesture)
+
+| New gesture (pointer/world)                                    | Keyboard path (this spec)                                                                     | Owning task |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
+| Rail `+` button creates a blank next-letter clip                | rail-local `+`/`=` key — same action, same announcement                                       | BC-1        |
+| DUP a pattern (now the only duplication path)                   | global `d` (unchanged) + PAT menu DUP (unchanged)                                             | BC-1 (ledger only) |
+| Click OCT − / OCT + to transpose a lane                        | global `o` / Shift+`o` (active lane) + Tab→button→Enter on any lane's strip                   | RC-1        |
+| Wheel/drag-scroll the register window                          | Shift+`↑` / Shift+`↓` on a focused cell (view-only, clamped, announced)                       | RC-1        |
+| Reach rows outside the default window                          | ↑/↓ walk the full manifest; the window follows focus (scroll-into-view law)                   | RC-1        |
+| PAT menu LENGTH stepper resize                                 | global `b` / Shift+`b` (ladder steps) + the stepper buttons themselves                        | LL-1        |
+| Refuse a lossy shrink (refuse-by-default)                      | same refusal + announcement from every path (menu, keys, pointer — one funnel)                | LL-1 / HL-1 |
+| Watch per-lane playheads sweep at unequal cycles               | `p` on-demand position announcement + existing per-lane rail status (wrap) announcements      | LL-2        |
+| Read the global position during a long cycle                   | booth readout (unchanged mechanism, LCM basis) + `p`                                          | LL-2        |
+
+No gesture in the iteration-3 brief lacks a keyboard row. The E7 contract
+law carries: new gesture proposals during production must add a row here
+(or land a binding) before they ship — this table is the gate BC-1/RC-1/
+LL-1/LL-2 are reviewed against.
+
+## v2 → v3 journey-change ledger (the regression-rule record)
+
+1. **Rail `+` semantics change (I3-a — THE one deliberate journey change
+   this iteration, named in the plan).** v0/v2 `+` (button + rail-local
+   key) re-appended the SELECTED pattern (`appendChainSlot`,
+   PatternRail.tsx:896-904, 786-791); v3 creates a NEW blank next-letter
+   pattern (appended + selected + editable, announced
+   `PATTERN <L> CREATED · <n> BAR · APPENDED`). DUP (`d` + PAT menu)
+   unchanged — now the ONLY duplicator, its ledger line updated to say so
+   (§ above). **BC-1 journals the journey deltas** (the rule): DA-3 step 12
+   (keyboard-journey-full) — the post-DUP `+` asserts the new tile's
+   next-letter label + the creation announcement; pattern-rail tests move
+   with it; the rail-append aria-label/help-text updates ride the HP-2
+   coverage gate.
+2. **Row-clamp domain grows to the manifest + window follows focus**
+   (RC-1): an AMENDMENT, not a binding change — ↑/↓ still clamp at a hard
+   edge (the manifest bound replaces the visible-rows bound, identical in
+   every project whose manifest fits the window, incl. all fresh/demo
+   chords/drums grids). No journey step changes (journeys that walk rows
+   reach the same cells); the no-wrap amendment is recorded in §Wrap rules.
+3. **New bindings (additive, none replaces a v0/v2 binding):** global
+   `o`/Shift+`o` (OCT transpose), global `b`/Shift+`b` (pattern resize
+   ladder), global `p` (position query), grid Shift+`↑`/Shift+`↓`
+   (register window scroll). All letter keys join the text-entry/AT-modifier
+   guard family (exclusion list updated above).
+4. **Position readout re-bases to the LCM cycle (LL-2, deliberate):** the
+   booth BAR.BEAT.STEP wrap modulus moves from the retired `loopBars` to
+   the full LCM cycle — byte-identical while all lanes share one cycle
+   length (the compat law); unequal cycles are NEW behavior (longer readout
+   span + the `p` lane detail). LL-2 journals the basis swap with its
+   per-lane sweep gates (J12's browser laws update there); no journey step
+   changes until PX-4's poly-loop demo content (journaled in PX-4 if a
+   journey adopts it).
+5. Everything else in the v2 map — one-Tab-stop regions, view-only
+   quadrant laws, the note model keys, rail multi-clip cueing, transport,
+   undo guards, help mode, FX console, the phone switcher, the exclusion
+   list, no-wrap — carries into v3 unchanged except as recorded above.
+
+## Where things live (v3 additions — for the implementing tasks)
+
+- Register window state (per-lane window offset): `src/state/selection.ts`
+  (the two-tier law — ephemeral signal, never document, never undo)
+- OCT store action (`setLaneOctave`, clamp + undo family `octave:<lane>`)
+  and resize action (`resizePattern`, refusal path + family
+  `resize:<lane>:<pattern>`): `src/state/store.ts` (RC-1 / LL-1)
+- Global keys `o`/`b`/`p`: `src/components/KeyboardShortcuts.tsx` (the
+  `isTextEntry` + AT-modifier guard family, :28-43)
+- Grid window-scroll keys + scroll-into-view: `src/grid/renderer.ts`
+  keydown (the grid-key scope) + `src/grid/keynav.ts` (window math is pure
+  and unit-testable — clamp + focus-anchor live here)
+- Announcements: strip value span + rail per-lane status + stage status
+  region (selection.ts:120-137) — the E8–E12 gate list in
+  docs/dev/accessibility.md §9 names each assertion when it lands
