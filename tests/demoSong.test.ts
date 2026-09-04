@@ -231,10 +231,10 @@ describe("PX-1 boot contract", () => {
   });
 });
 
-describe("PX-1 golden: canonical demo bytes", () => {
+describe("PX-1 golden: canonical demo bytes (SV-1: renamed -v3 — loopBars key dropped, composition unchanged)", () => {
   it("matches the manifest SHA-256 + byteLength (deterministic factory)", () => {
     expectGolden(
-      "codec/demo-project-canonical-v2",
+      "codec/demo-project-canonical-v3",
       new TextEncoder().encode(encode(doc)),
     );
   });

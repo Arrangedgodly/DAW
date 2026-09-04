@@ -9,6 +9,7 @@ import {
 } from "../src/document/migrate";
 import {
   createDefaultProject,
+  deriveLoopBarsCompat,
   pitchedCellAt,
   resolveGateSteps,
 } from "../src/document/schema";
@@ -24,9 +25,14 @@ import {
   v1DefaultProjectText,
   v1DemoProjectText,
 } from "./v1Project";
+import {
+  boundaryV2ProjectText,
+  v2DefaultProjectText,
+  v2DemoProjectText,
+} from "./v2Project";
 
 describe("migration framework", () => {
-  it("v2 (current) docs pass through untouched", () => {
+  it("v3 (current) docs pass through untouched", () => {
     const doc = JSON.parse(JSON.stringify(createDefaultProject())) as Record<
       string,
       unknown
@@ -34,9 +40,9 @@ describe("migration framework", () => {
     expect(migrate(doc)).toEqual(doc);
   });
 
-  it("production registry ships exactly the 1→2 note-model migration", () => {
-    expect(Object.keys(MIGRATIONS)).toEqual(["1"]);
-    expect(LATEST_SCHEMA_VERSION).toBe(2);
+  it("production registry ships exactly the 1→2 note-model and 2→3 widening migrations", () => {
+    expect(Object.keys(MIGRATIONS)).toEqual(["1", "2"]);
+    expect(LATEST_SCHEMA_VERSION).toBe(3);
   });
 
   it("refuses docs with no integer version >= 1", () => {
@@ -47,7 +53,7 @@ describe("migration framework", () => {
   });
 
   it("refuses future versions", () => {
-    expect(() => migrate({ version: 3, name: "x" })).toThrow(
+    expect(() => migrate({ version: 4, name: "x" })).toThrow(
       /newer than supported/,
     );
   });
@@ -316,14 +322,21 @@ describe("v1 → v2 (SC-1): the note-model migration", () => {
     }
   });
 
-  it("carries everything else verbatim (name, transport, FX, cues, chains, drums)", () => {
+  it("carries everything else verbatim (name, transport minus loopBars, FX, cues, chains, drums)", () => {
     const before = JSON.parse(v1DemoProjectText()) as Record<string, unknown>;
     const after = decode(v1DemoProjectText()) as unknown as Record<
       string,
       unknown
     >;
     expect(after["name"]).toBe(before["name"]);
-    expect(after["transport"]).toEqual(before["transport"]);
+    // v3 (SV-1): the retired field drops somewhere along the 1→2→3 walk;
+    // every SURVIVING transport member is carried verbatim.
+    const { loopBars: _drop, ...v1Transport } = before[
+      "transport"
+    ] as Record<string, unknown>;
+    void _drop;
+    expect(after["transport"]).toEqual(v1Transport);
+    expect("loopBars" in (after["transport"] as object)).toBe(false);
     expect(after["chainCues"]).toEqual(before["chainCues"]);
     expect(after["songChain"]).toEqual(before["songChain"]);
     expect(after["lanes"]).toEqual(before["lanes"]);
@@ -392,5 +405,122 @@ describe("v1 → v2 (SC-1): the note-model migration", () => {
     const migrated = doc.patterns.bass[0];
     if (migrated.kind !== "pitched") throw new Error("expected pitched");
     expect(migrated.notes).toEqual([{ degree: 0, start: 0, length: 2 }]);
+  });
+});
+
+describe("v2 → v3 (SV-1): the long-loop widening migration", () => {
+  it("migrates a v2 default project to EXACTLY the shipped v3 default (deep equal)", () => {
+    const migrated = decode(v2DefaultProjectText());
+    expect(migrated).toEqual(createDefaultProject());
+    expect(migrated.version).toBe(3);
+  });
+
+  it("migrates the v2 WELCOME SONG demo to EXACTLY the shipped v3 demo (byte equal)", () => {
+    const migrated = decode(v2DemoProjectText());
+    expect(encode(migrated)).toBe(encode(createDemoProject()));
+  });
+
+  it("the v2 bytes themselves are the pre-SV-1 canonical form (loopBars re-added by the fixture, nothing else)", () => {
+    // The fixture only re-stamps version + loopBars over the live v3 doc,
+    // so this pins that the v2 SOURCE texts did not churn with v3: they are
+    // exactly what a v2 app would have saved for the same content.
+    const v2 = JSON.parse(v2DefaultProjectText()) as Record<string, unknown>;
+    expect(v2["version"]).toBe(2);
+    expect((v2["transport"] as Record<string, unknown>)["loopBars"]).toBe(1);
+    const v3 = JSON.parse(JSON.stringify(createDefaultProject())) as Record<
+      string,
+      unknown
+    >;
+    const { loopBars: _drop, ...v2Transport } = v2[
+      "transport"
+    ] as Record<string, unknown>;
+    void _drop;
+    expect(v2Transport).toEqual(v3["transport"]);
+  });
+
+  it("LOSSLESS BY CONSTRUCTION: decode → encode round-trips every v2 fixture byte-stably", () => {
+    for (const text of [
+      v2DefaultProjectText(),
+      v2DemoProjectText(),
+      boundaryV2ProjectText(),
+    ]) {
+      const once = decode(text);
+      expect(once.version).toBe(3);
+      expect(decode(encode(once))).toEqual(once);
+    }
+  });
+
+  it("drops transport.loopBars wherever it appears — including out-of-picklist values (permissive, no rejection class)", () => {
+    // A v2 doc with loopBars 3 was invalid v2; v3 has no field to validate,
+    // so the drop is total and strict v3 validation passes. There is
+    // deliberately NO rejection class (v2's [1,2,4] ⊂ the v3 vocabulary).
+    const base = JSON.parse(v2DefaultProjectText()) as Record<string, unknown>;
+    (base["transport"] as Record<string, unknown>)["loopBars"] = 3;
+    const migrated = decode(JSON.stringify(base));
+    expect("loopBars" in migrated.transport).toBe(false);
+    expect(migrated.transport).toEqual(createDefaultProject().transport);
+  });
+
+  it("v2 docs with loopBars 2/4 migrate with the paired pattern bars intact (engine basis re-derives the same value)", () => {
+    const doc = decode(boundaryV2ProjectText()); // 4-bar patterns + loopBars 4
+    for (const lane of ["drums", "bass", "lead"] as const) {
+      expect(doc.patterns[lane][0]!.bars).toBe(4);
+    }
+    // The compat derivation reproduces the retired field's value engine-side.
+    expect(deriveLoopBarsCompat(doc)).toBe(4);
+  });
+
+  it("v2 boundary-note values survive unchanged (widening is a no-op on v2-legal values)", () => {
+    const doc = decode(boundaryV2ProjectText());
+    const bass = doc.patterns.bass[0];
+    if (bass.kind !== "pitched") throw new Error("expected pitched");
+    expect(bass.notes).toEqual([
+      { degree: 0, start: 0, length: 128 },
+      { degree: 6, start: 63, length: 0.25 },
+    ]);
+    const drums = doc.patterns.drums[0];
+    if (drums.kind !== "drums") throw new Error("expected drums");
+    expect(drums.steps.kick).toHaveLength(64);
+    expect(drums.steps.kick[63]).toBe(true);
+  });
+
+  it("PERMISSIVE-WIDEN: a v2 doc with out-of-v2-vocab bars (invalid in v2) migrates and validates as v3", () => {
+    const base = JSON.parse(boundaryV2ProjectText()) as Record<string, unknown>;
+    const patterns = base["patterns"] as Record<string, unknown>;
+    (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 8;
+    // v2's picklist would have rejected 8; the migration carries it verbatim
+    // and the widened v3 vocabulary accepts it (no laundering guard needed —
+    // the value was only ever invalid because the vocabulary was smaller).
+    const migrated = decode(JSON.stringify(base));
+    expect(migrated.patterns.bass[0]!.bars).toBe(8);
+  });
+
+  it("does not inject the octave field (canonical-empty law for pre-v3 docs)", () => {
+    const migrated = decode(v2DefaultProjectText());
+    for (const lane of migrated.lanes) {
+      expect("octave" in lane).toBe(false);
+    }
+    expect(encode(migrated)).not.toContain("octave");
+  });
+
+  it("a v2 doc whose transport is malformed reaches typed validation rejection (no untyped crash)", () => {
+    const base = JSON.parse(v2DefaultProjectText()) as Record<string, unknown>;
+    base["transport"] = null;
+    expect(() => decode(JSON.stringify(base))).toThrow(
+      ProjectValidationError,
+    );
+    const noTransport = JSON.parse(
+      v2DefaultProjectText(),
+    ) as Record<string, unknown>;
+    delete noTransport["transport"];
+    expect(() => decode(JSON.stringify(noTransport))).toThrow(
+      ProjectValidationError,
+    );
+  });
+
+  it("v1 sources walk the full ladder 1→2→3 (one parse path, LATEST stamp)", () => {
+    const migrated = decode(v1DefaultProjectText());
+    expect(migrated.version).toBe(3);
+    expect(migrated).toEqual(createDefaultProject());
   });
 });

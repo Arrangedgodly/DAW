@@ -45,11 +45,15 @@ const T = {
   save: 6_000,
 };
 
-/** Demo transport math (edits in this journey never touch bpm/loopBars). */
+/**
+ * Demo export math (edits in this journey never touch bpm). SV-1 (J11): the
+ * retired loopBars field never sized the export — the LCM law does (4 x 1-bar
+ * demo chains => a 4-bar export); FRAMES_PER_BAR is per ONE bar and the
+ * toast's bar count carries the cycle length.
+ */
 const DEMO_BPM = 112;
-const DEMO_LOOP_BARS = 1;
-const EXPECTED_FRAMES =
-  DEMO_LOOP_BARS * 4 * ((EXPORT_SAMPLE_RATE * 60) / DEMO_BPM);
+const FRAMES_PER_BAR = 4 * ((EXPORT_SAMPLE_RATE * 60) / DEMO_BPM);
+const EXPECTED_FRAMES = FRAMES_PER_BAR;
 
 function poll(
   cond: () => boolean | Promise<boolean>,

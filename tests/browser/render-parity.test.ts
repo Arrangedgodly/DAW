@@ -84,7 +84,6 @@ function projectTwoIterations(withFx: boolean): ProjectDocument {
   lead.bars = 2;
   if (lead.kind !== "pitched") throw new Error("expected pitched lead");
   lead.notes = [{ degree: 3, start: 0, length: 2 }];
-  doc.transport = { ...doc.transport, loopBars: 2 };
   return doc;
 }
 

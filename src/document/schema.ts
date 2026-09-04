@@ -26,6 +26,35 @@ import type { ModeName } from "./scales";
  * (I2-3/I2-4). Drums patterns stay row-step booleans. v1 documents migrate
  * losslessly through the ONE parse path (codec → migrate → validate).
  *
+ * SCHEMA v3 (SV-1, iteration 3 — the long-loop world, I3-d):
+ * - The pattern-bars vocabulary widens from [1,2,4] to the powers-of-two
+ *   picklist [1,2,4,8,16,32,64,128] (`PATTERN_BAR_VOCABULARY`). Purely
+ *   additive: every v2 document validates unchanged.
+ * - NOTE-BOUND LAW (the exact bound law, per the SC-1 header precedent):
+ *   `Note.start ≤ 2047` and `Note.length ≤ 2048` bound notes to the full
+ *   128-bar step space (2048 sixteenth steps); per-pattern placement is still
+ *   bound SEMANTICALLY by the pattern's own width (`start < bars × 16`,
+ *   validate.ts — the two-layer law: schema bounds the space, the pattern
+ *   bounds the placement). `start + length` may overrun the pattern end
+ *   exactly as v1 gate overhang did (loops wrap).
+ * - NEW optional per-lane `octave` register transpose on PITCHED lanes only
+ *   (i3-2; integer −3..+3, canonical-empty at 0 — omitted, the lane-mix
+ *   law). Drums carry no octave: the drum voice model has no pitch
+ *   resolution (`noteParamsFor` takes no midi). The absolute MIDI 0..127
+ *   clamp is the CONSUMER's law (RC-1's OCT −/+ writes + compile-side
+ *   clamping at degree/pitch limits) — the schema cannot know the preset's
+ *   `pitchRange.octaveBase`, so it bounds only the offset domain.
+ * - The persisted `transport.loopBars` field RETIRES (no UI writer ever
+ *   existed). v3 documents must NOT carry it (strict). Through the compat
+ *   window the engine derives the transport basis engine-side
+ *   (`deriveLoopBarsCompat` below, SE-1 E5); LL-1/LL-2 replace it with the
+ *   two independent laws — grid extent = the edited pattern's real bars,
+ *   playhead/one-shot basis = per-lane chain totals / one LCM cycle.
+ * - Migration v2→v3 (migrate.ts) is lossless by construction: bars widening
+ *   is a no-op (v2's [1,2,4] ⊂ the v3 vocabulary — permissive-widen, no
+ *   rejection class) and the loopBars drop has a defined re-derive rule
+ *   (the compat derivation). Goldens committed BEFORE any UI depends on v3.
+ *
  * NOTE-MODEL DECISION (production-owned, per the town-hall iteration-2
  * disposition table — recorded here as the plan requires):
  * - Length unit = STEPS at 0.25-step granularity (`NOTE_LENGTH_GRANULARITY`).
@@ -55,7 +84,7 @@ import type { ModeName } from "./scales";
  *   (compile.ts, exportMidi.ts, renderer, store toggles) keep behaving
  *   byte-identically until SC-2 consumes notes natively.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const PITCH_CLASS_NAMES = [
   "C",
@@ -123,14 +152,16 @@ export type LaneOverrides = Readonly<Partial<Record<LaneId, ScaleConfig>>>;
 export interface Transport {
   readonly bpm: number;
   readonly swing: number;
-  readonly loopBars: LoopBars;
   readonly metronome: boolean;
 }
 export const TransportSchema = v.strictObject({
   bpm: v.pipe(v.number(), v.minValue(MIN_BPM), v.maxValue(MAX_BPM)),
   swing: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
-  loopBars: v.picklist([1, 2, 4]),
   metronome: v.boolean(),
+  // v3 (SV-1): `loopBars` RETIRED. A v3 document carrying it is rejected
+  // (strict) — migrate v2→v3 drops it; the engine basis derives engine-side
+  // (deriveLoopBarsCompat) through the compat window, then LL-2 re-bases to
+  // per-lane chain totals / one LCM cycle.
 });
 
 // ---------------------------------------------------------------------------
@@ -261,6 +292,15 @@ export interface PitchedLane {
   readonly volume?: number;
   readonly mute?: boolean;
   readonly solo?: boolean;
+  /**
+   * v3 (i3-2, SV-1): per-lane register transpose in octaves, integer
+   * MIN_LANE_OCTAVE..MAX_LANE_OCTAVE. Canonical-empty at 0 (omitted — the
+   * lane-mix law; every pre-v3 document stays byte-identical). PITCHED lanes
+   * only: the drum voice model has no pitch resolution. The absolute MIDI
+   * 0..127 clamp is the consumer's law (RC-1 writes/compiles clamped at
+   * degree/pitch limits); the schema bounds the offset domain.
+   */
+  readonly octave?: number;
 }
 
 export type Lane = DrumsLane | PitchedLane;
@@ -323,6 +363,38 @@ export function documentLaneMixGains(doc: ProjectDocument): number[] {
   return mixes.map((_, i) => laneMixGain(mixes, i));
 }
 
+/**
+ * v3 COMPAT DERIVATION (SV-1, SE-1 seam E5 — the loopBars retirement
+ * bridge): `min(4, max pattern bars in the doc)`, derived ENGINE-side (the
+ * engineBridge pushes it into the transport; the renderer reads the
+ * transport snapshot, so zero renderer change). Reproduces every v0.1
+ * engine value for every shipped doc class — default/demo 1, every
+ * fingerprint/reference doc (loopBars paired with equal-or-smaller max
+ * pattern bars: 1-bar refs, the 2-bar/4-bar hand-built browser fixtures).
+ *
+ * RECORDED DIVERGENCE CLASS (the log's named deviation): a doc whose v2
+ * `transport.loopBars` was BELOW min(4, max pattern bars) sweeps a WIDER
+ * basis under the derivation — playhead/one-shot only. This includes
+ * UI-authored docs created by adding a 2B/4B pattern via the rail ADD
+ * surface (persisted loopBars stayed 1 — no writer ever existed; SE-1's
+ * "hand-authored only" reachability note is corrected in the SV-1 log
+ * entry). Exports are unaffected either way (the LCM path, seam F6); no
+ * golden or fingerprint pins the class.
+ *
+ * An empty-patterns doc derives 1 (the v0.1 default). LL-2 RETIRES this
+ * derivation entirely (per-lane chain totals / one LCM cycle become the
+ * basis) — do not build on it past that boundary.
+ */
+export function deriveLoopBarsCompat(doc: ProjectDocument): LoopBars {
+  let max = 1;
+  for (const lane of LANE_IDS) {
+    for (const pattern of doc.patterns[lane]) {
+      if (pattern.bars > max) max = pattern.bars;
+    }
+  }
+  return (max > 4 ? 4 : max) as LoopBars;
+}
+
 const LaneCommon = {
   gate: LaneGateSchema,
   fxChain: v.pipe(v.array(FxDeviceSchema), v.maxLength(MAX_FX_PER_LANE)),
@@ -331,21 +403,34 @@ const LaneCommon = {
   solo: v.optional(v.boolean()),
 };
 
+/** v3 lane `octave` register-offset domain (i3-2; see PitchedLane.octave). */
+export const MIN_LANE_OCTAVE = -3;
+export const MAX_LANE_OCTAVE = 3;
+export const LaneOctaveSchema = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(MIN_LANE_OCTAVE),
+  v.maxValue(MAX_LANE_OCTAVE),
+);
+
 export const LaneSchema = v.variant("id", [
   v.strictObject({ id: v.literal("drums"), kitId: v.string(), ...LaneCommon }),
   v.strictObject({
     id: v.literal("bass"),
     presetId: v.string(),
+    octave: v.optional(LaneOctaveSchema),
     ...LaneCommon,
   }),
   v.strictObject({
     id: v.literal("chords"),
     presetId: v.string(),
+    octave: v.optional(LaneOctaveSchema),
     ...LaneCommon,
   }),
   v.strictObject({
     id: v.literal("lead"),
     presetId: v.string(),
+    octave: v.optional(LaneOctaveSchema),
     ...LaneCommon,
   }),
 ]);
@@ -381,10 +466,13 @@ export interface PitchedRow {
 export const NOTE_LENGTH_GRANULARITY = 0.25;
 export const MIN_NOTE_LENGTH = 0.25;
 /**
- * Longest note. The worst v1 case is a max steps-gate (64) plus every
- * remaining cell as sustain (63) on a 4-bar pattern = 127; 128 bounds it.
+ * Longest note (v3, SV-1): the full 128-bar step space — one note may span
+ * the entire widened pattern space (2048 steps; start ≤ 2047 + overhang law
+ * below). v2's 128 bounded the worst 4-bar case (max steps-gate 64 + 63
+ * sustains); v3 bounds it at the vocabulary ceiling instead. Per-pattern
+ * placement stays the semantic layer's law (start < bars × 16, validate.ts).
  */
-export const MAX_NOTE_LENGTH = 128;
+export const MAX_NOTE_LENGTH = 2048;
 
 /**
  * One pitched note (v2): a scale-degree voice sounding from `start` for
@@ -408,7 +496,10 @@ const NoteDegree = v.pipe(
 );
 export const NoteSchema = v.strictObject({
   degree: NoteDegree,
-  start: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(63)),
+  // v3 (SV-1): the start bound lifts to the 128-bar step space (2048 steps,
+  // indices 0..2047). The two-layer law: this bounds the SPACE; the pattern's
+  // own width (start < bars × 16) still binds placement semantically.
+  start: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(2047)),
   length: v.pipe(
     v.number(),
     v.minValue(MIN_NOTE_LENGTH),
@@ -416,8 +507,14 @@ export const NoteSchema = v.strictObject({
   ),
 });
 
-export type PatternBars = 1 | 2 | 4;
-const PatternBarsSchema = v.picklist([1, 2, 4]);
+/**
+ * v3 (SV-1, I3-d): pattern length vocabulary — powers of two, 1..128 bars
+ * (STEPS_PER_BAR = 16 ⇒ up to 2048 steps per pattern). Purely additive over
+ * v2's [1,2,4]; the picklist IS the type (a resize may only walk this list).
+ */
+export const PATTERN_BAR_VOCABULARY = [1, 2, 4, 8, 16, 32, 64, 128] as const;
+export type PatternBars = (typeof PATTERN_BAR_VOCABULARY)[number];
+const PatternBarsSchema = v.picklist(PATTERN_BAR_VOCABULARY);
 
 export interface DrumPattern {
   readonly kind: "drums";
@@ -859,10 +956,13 @@ export function createDefaultProject(): ProjectDocument {
   return {
     name: "Untitled",
     version: SCHEMA_VERSION,
-    // loopBars 1 matches the default single-bar patterns (IM-6: the persisted
-    // loopBars is now authoritative in the engine bridge, so it must agree
-    // with the shipped grid extent).
-    transport: { bpm: 120, swing: 0, loopBars: 1, metronome: false },
+    // v3 (SV-1): no loopBars — the IM-6 "agrees with the grid extent"
+    // invariant is replaced by two independent laws: grid extent follows the
+    // edited pattern's real bars (LL-1) and the playhead/one-shot basis
+    // follows per-lane chain totals / one LCM cycle (LL-2). Through the
+    // compat window the engine derives the basis (deriveLoopBarsCompat);
+    // with all-1-bar default patterns that is 1 — v0.1 behavior exactly.
+    transport: { bpm: 120, swing: 0, metronome: false },
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,
     lanes: [

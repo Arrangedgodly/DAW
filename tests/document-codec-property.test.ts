@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  DECODE_MAX_CHARS,
   canonicalize,
   contentHash,
   decode,
@@ -19,6 +20,7 @@ import {
 import {
   DRUM_PIECES,
   LANE_IDS,
+  PATTERN_BAR_VOCABULARY,
   type FxDevice,
   type Note,
   type SampleProvenanceEntry,
@@ -107,7 +109,6 @@ function generateProject(rng: Rng): ProjectDocument {
   doc.transport = {
     bpm: range(rng, 60, 200),
     swing: quantize(rng(), 4),
-    loopBars: pick(rng, [1, 2, 4]),
     metronome: rng() < 0.5,
   };
   doc.scale = { root: range(rng, 0, 11), mode: pick(rng, MODE_NAMES) };
@@ -128,13 +129,18 @@ function generateProject(rng: Rng): ProjectDocument {
         ? { unit: "steps", value: pick(rng, [0.25, 0.5, 1, 2, 4, 8]) }
         : { unit: "seconds", value: quantize(rng() * 4, 100) };
   }
-  // Randomize pattern content (SC-1 v2): drums flip steps; pitched patterns
-  // get random on-grid notes across their row manifests.
+  // Randomize pattern content (SC-1 v2 notes; SV-1 v3 bars): drums flip
+  // steps; pitched patterns get random on-grid notes across their row
+  // manifests. SV-1 (J7): pattern bars pick from the FULL v3 powers-of-two
+  // vocabulary (arrays/notes rebuilt at the pattern's real width — the
+  // generator never leans on the old 1-bar default).
   for (const laneId of LANE_IDS) {
     for (const pattern of doc.patterns[laneId]) {
+      pattern.bars = pick(rng, [1, 2, 4, 8, 16, 32, 64, 128]);
       const len = pattern.bars * 16;
       if (pattern.kind === "drums") {
         for (const piece of DRUM_PIECES) {
+          pattern.steps[piece] = new Array(len).fill(false);
           for (let i = 0; i < len; i++)
             if (rng() < 0.3) pattern.steps[piece][i] = !pattern.steps[piece][i];
         }
@@ -153,6 +159,14 @@ function generateProject(rng: Rng): ProjectDocument {
         notes.sort((a, b) => a.degree - b.degree || a.start - b.start);
         pattern.notes = notes;
       }
+    }
+  }
+  // SV-1 (i3-2): some pitched lanes carry an octave transpose (nonzero only —
+  // 0 is the canonical-empty form the writer law omits; both states occur,
+  // asserted in generator sanity below).
+  for (const lane of doc.lanes) {
+    if (lane.id !== "drums" && rng() < 0.25) {
+      lane.octave = pick(rng, [-3, -2, -1, 1, 2, 3]);
     }
   }
   // PS-3: most projects are synth-only (canonical-empty — field omitted);
@@ -243,6 +257,21 @@ describe("generator sanity", () => {
       expect(Object.keys(doc.sampleProvenance!).length).toBeGreaterThan(0);
     }
   });
+
+  it("SV-1: the full v3 bars vocabulary and both octave states occur across seeds", () => {
+    const barsSeen = new Set<number>();
+    for (const doc of CASES)
+      for (const lane of LANE_IDS)
+        for (const p of doc.patterns[lane]) barsSeen.add(p.bars);
+    expect([...barsSeen].sort((a, b) => a - b)).toEqual([
+      ...PATTERN_BAR_VOCABULARY,
+    ]);
+    const withOctave = CASES.filter((doc) =>
+      doc.lanes.some((l) => l.octave !== undefined),
+    );
+    expect(withOctave.length).toBeGreaterThan(0);
+    expect(withOctave.length).toBeLessThan(N_PROJECTS);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -259,10 +288,25 @@ describe("property: v1 documents decode through the migration (SC-1)", () => {
       const v1 = JSON.parse(JSON.stringify(doc)) as Record<string, unknown>;
       v1["version"] = 1;
       const patterns = v1["patterns"] as Record<string, unknown>;
+      // Drums: re-pick v1-legal bars and re-fit the step arrays (the v3
+      // generator may have widened them past the v1 vocabulary).
+      for (const p of patterns["drums"] as Record<string, unknown>[]) {
+        const bars = pick(rng, [1, 2, 4]);
+        p["bars"] = bars;
+        const steps = p["steps"] as Record<string, boolean[]>;
+        for (const piece of Object.keys(steps)) {
+          steps[piece] = Array.from(
+            { length: 16 * bars },
+            (_, i) => steps[piece]![i] ?? false,
+          );
+        }
+      }
       for (const lane of ["bass", "chords", "lead"] as const) {
         patterns[lane] = (patterns[lane] as Record<string, unknown>[]).map(
           (p) => {
-            const bars = p["bars"] as number;
+            // v1-legal bars only ([1,2,4] — the v1 picklist; the v3 generator
+            // may have widened the pattern, so the v1 CORPUS re-picks).
+            const bars = pick(rng, [1, 2, 4]);
             const degrees = (p["rowDegrees"] as number[]) ?? [
               0, 1, 2, 3, 4, 5, 6,
             ];
@@ -273,13 +317,13 @@ describe("property: v1 documents decode through the migration (SC-1)", () => {
                 return roll < 0.12 ? 1 : roll < 0.22 ? 2 : 0;
               }),
             }));
-            return { ...p, rows };
+            return { ...p, bars, rows };
           },
         );
       }
       const text = canonicalize(v1);
       const migrated = decode(text);
-      expect(migrated.version).toBe(2);
+      expect(migrated.version).toBe(3);
       // Every v1 note-on became exactly one note.
       for (const lane of ["bass", "chords", "lead"] as const) {
         const v1Patterns = patterns[lane] as Record<string, unknown>[];
@@ -301,4 +345,165 @@ describe("property: v1 documents decode through the migration (SC-1)", () => {
       expect(decode(encode(migrated))).toEqual(migrated);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// SV-1: v3 boundary shapes (the widened bound law) + the codec-cap
+// measurement that sized the 4 MB raise (D5).
+// ---------------------------------------------------------------------------
+
+describe("property: v3 boundary shapes (SV-1)", () => {
+  function boundaryDoc(): ProjectDocument {
+    const doc: ProjectDocument = JSON.parse(
+      JSON.stringify(createDefaultProject()),
+    );
+    doc.patterns.bass = [
+      {
+        kind: "pitched",
+        id: "bass-1",
+        name: "A",
+        bars: 128,
+        rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+        notes: [
+          { degree: 0, start: 2047, length: 2048 }, // both ceilings at once
+          { degree: 1, start: 64, length: 0.25 }, // past v2's 63 bound
+          { degree: 2, start: 2046, length: 2 }, // 0.25-grid neighbor
+        ],
+      },
+    ];
+    doc.patterns.lead = [
+      {
+        kind: "pitched",
+        id: "lead-1",
+        name: "A",
+        bars: 8,
+        rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+        notes: [{ degree: 3, start: 127, length: 128 }],
+      },
+    ];
+    doc.patterns.drums = [
+      {
+        kind: "drums",
+        id: "drums-1",
+        name: "A",
+        bars: 128,
+        steps: Object.fromEntries(
+          DRUM_PIECES.map((piece) => [piece, new Array(2048).fill(false)]),
+        ) as (typeof doc.patterns.drums)[number]["steps"],
+      },
+    ];
+    doc.patterns.drums[0]!.steps.kick[2047] = true;
+    return doc;
+  }
+
+  it("the 2047/2048 boundary doc validates and round-trips losslessly", () => {
+    const doc = boundaryDoc();
+    const text = encode(doc);
+    const back = decode(text);
+    expect(back).toEqual(doc);
+    expect(encode(back)).toBe(text); // canonical stability at the boundary
+  });
+
+  it("out-of-bound neighbors reject typed", () => {
+    // start 128 on an 8-bar pattern sits OUTSIDE the pattern (width = 128 —
+    // the semantic layer's binder; the schema's 2047 only bounds the SPACE).
+    const outside = boundaryDoc();
+    outside.patterns.lead = [
+      {
+        ...outside.patterns.lead[0]!,
+        notes: [{ degree: 3, start: 128, length: 1 }],
+      },
+    ];
+    expect(() => decode(encode(outside))).toThrow();
+
+    const over = boundaryDoc();
+    over.patterns.bass = [
+      {
+        ...over.patterns.bass[0]!,
+        notes: [{ degree: 0, start: 2048, length: 1 }], // over the space bound
+      },
+    ];
+    expect(() => decode(encode(over))).toThrow();
+  });
+});
+
+describe("SV-1 codec-cap measurement (D5 — the 4 MB raise's demand)", () => {
+  /**
+   * The synthetic worst case from the plan's sizing anchor: a dense 128-bar
+   * 4-lane canonical doc — ONE pattern per lane, maximally dense (a note on
+   * every step of every row; every drum step on), 3 max-FX per lane. This
+   * measured 2,693,153 chars under the OLD 1 MB cap, which is what demanded
+   * the raise to 4 MB (see codec.ts for the full measurement record).
+   */
+  function maximallyDenseV3Doc(): ProjectDocument {
+    const doc: ProjectDocument = JSON.parse(
+      JSON.stringify(createDefaultProject()),
+    );
+    const maxFx: FxDevice[] = [
+      {
+        type: "filter",
+        bypassed: false,
+        params: { kind: "bandpass", cutoffHz: 20000, q: 18 },
+      },
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 64, feedback: 0.95, mix: 1 },
+      },
+      { type: "reverb", bypassed: false, params: { size: 1, mix: 1 } },
+    ];
+    for (const lane of doc.lanes) lane.fxChain = maxFx;
+    doc.patterns.drums = [
+      {
+        kind: "drums",
+        id: "drums-1",
+        name: "A",
+        bars: 128,
+        steps: Object.fromEntries(
+          DRUM_PIECES.map((piece) => [piece, new Array(2048).fill(true)]),
+        ) as (typeof doc.patterns.drums)[number]["steps"],
+      },
+    ];
+    for (const lane of ["bass", "lead"] as const) {
+      doc.patterns[lane] = [
+        {
+          kind: "pitched",
+          id: `${lane}-1`,
+          name: "A",
+          bars: 128,
+          rowDegrees: Array.from({ length: 14 }, (_, d) => d),
+          notes: Array.from({ length: 14 * 2048 }, (_, i) => ({
+            degree: Math.floor(i / 2048),
+            start: i % 2048,
+            length: 1,
+          })),
+        },
+      ];
+    }
+    doc.patterns.chords = [
+      {
+        kind: "pitched",
+        id: "chords-1",
+        name: "A",
+        bars: 128,
+        rowDegrees: Array.from({ length: 7 }, (_, d) => d),
+        notes: Array.from({ length: 7 * 2048 }, (_, i) => ({
+          degree: Math.floor(i / 2048),
+          start: i % 2048,
+          length: 1,
+        })),
+      },
+    ];
+    return doc;
+  }
+
+  it("the maximally dense legal v3 doc stays under the cap (silent growth trips CI)", () => {
+    const text = encode(maximallyDenseV3Doc());
+    // The demand for the raise, pinned: the worst case exceeds the OLD cap…
+    expect(text.length).toBeGreaterThan(1_048_576);
+    // …and fits the new one with headroom (4 MB = 4,194,304).
+    expect(text.length).toBeLessThan(DECODE_MAX_CHARS);
+    // And it is a REAL document: decode round-trips it losslessly.
+    expect(decode(text).patterns.bass[0]!.bars).toBe(128);
+  });
 });

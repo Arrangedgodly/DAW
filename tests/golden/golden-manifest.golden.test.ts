@@ -27,6 +27,11 @@ import {
   v1DefaultProjectText,
   v1DemoProjectText,
 } from "../v1Project";
+import {
+  boundaryV2ProjectText,
+  v2DefaultProjectText,
+  v2DemoProjectText,
+} from "../v2Project";
 import { decode } from "../../src/document/codec";
 import { expectGolden, __forTests_setManifestPath } from "./golden";
 import {
@@ -53,18 +58,24 @@ const manifest = JSON.parse(
 /** The real bytes each HARD golden pins (same producers as the golden tests). */
 function realBytesFor(name: string): Uint8Array {
   switch (name) {
-    case "codec/default-project-canonical-v2":
+    case "codec/default-project-canonical-v3":
       return new TextEncoder().encode(encode(createDefaultProject()));
-    case "codec/demo-project-canonical-v2":
+    case "codec/demo-project-canonical-v3":
       return new TextEncoder().encode(encode(createDemoProject()));
-    case "migrate/v1-default-to-v2":
+    case "migrate/v1-default-to-v3":
       return new TextEncoder().encode(encode(decode(v1DefaultProjectText())));
-    case "migrate/v1-demo-to-v2":
+    case "migrate/v1-demo-to-v3":
       return new TextEncoder().encode(encode(decode(v1DemoProjectText())));
-    case "migrate/v1-sustain-heavy-to-v2":
+    case "migrate/v1-sustain-heavy-to-v3":
       return new TextEncoder().encode(
         encode(decode(sustainHeavyV1ProjectText())),
       );
+    case "migrate/v2-default-to-v3":
+      return new TextEncoder().encode(encode(decode(v2DefaultProjectText())));
+    case "migrate/v2-demo-to-v3":
+      return new TextEncoder().encode(encode(decode(v2DemoProjectText())));
+    case "migrate/v2-boundary-to-v3":
+      return new TextEncoder().encode(encode(decode(boundaryV2ProjectText())));
     case "wav/encoder-stereo-2frame-v1":
       return encodeWav16(
         [new Float32Array([0, 0.5]), new Float32Array([-1, 1])],

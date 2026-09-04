@@ -129,7 +129,7 @@ export function validateProject(input: unknown): ProjectDocument {
     );
   }
   return canonicalizeSampleProvenance(
-    canonicalizeCues(normalizeProject(doc)),
+    canonicalizeLaneOctaves(canonicalizeCues(normalizeProject(doc))),
   );
 }
 
@@ -295,6 +295,28 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
       ? { ...doc, chainCues: null }
       : doc;
   return changed ? { ...doc, chainCues: next } : doc;
+}
+
+/**
+ * Canonicalize lane octave (v3, SV-1): `octave: 0` is the canonical empty
+ * form — pitched lanes carrying an explicit 0 have the key stripped (the
+ * lane-mix / chainCues / provenance law: default documents stay
+ * byte-stable whatever path authored them). Identity-preserving when
+ * nothing changes; drums never carry the field (strict schema).
+ */
+export function canonicalizeLaneOctaves(
+  doc: ProjectDocument,
+): ProjectDocument {
+  let changed = false;
+  const lanes = doc.lanes.map((lane) => {
+    if (lane.id === "drums" || lane.octave === undefined || lane.octave !== 0)
+      return lane;
+    changed = true;
+    const { octave: _drop, ...rest } = lane;
+    void _drop;
+    return rest as typeof lane;
+  });
+  return changed ? { ...doc, lanes } : doc;
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DRUM_PIECES,
   LANE_IDS,
+  PATTERN_BAR_VOCABULARY,
   createDefaultProject,
   type ProjectDocument,
 } from "../src/document/schema";
@@ -43,8 +44,8 @@ const TRANSFORMS: ReadonlyArray<
     (d) => ((d["transport"] as Record<string, unknown>)["swing"] = -0.1),
   ],
   [
-    "invalid loopBars 3",
-    (d) => ((d["transport"] as Record<string, unknown>)["loopBars"] = 3),
+    "v3: retired transport key loopBars (strict reject)",
+    (d) => ((d["transport"] as Record<string, unknown>)["loopBars"] = 1),
   ],
   [
     "metronome not boolean",
@@ -66,7 +67,7 @@ const TRANSFORMS: ReadonlyArray<
       });
     },
   ],
-  ["wrong schema version literal", (d) => (d["version"] = 3)],
+  ["wrong schema version literal", (d) => (d["version"] = 99)],
   [
     "unknown mode name",
     (d) => ((d["scale"] as Record<string, unknown>)["mode"] = "aeolian-exotic"),
@@ -122,7 +123,57 @@ const TRANSFORMS: ReadonlyArray<
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
       const bass = (patterns["bass"] as Record<string, unknown>[])[0];
-      (bass["notes"] as unknown[]).push({ degree: 0, start: 0, length: 200 });
+      (bass["notes"] as unknown[]).push({ degree: 0, start: 0, length: 2100 });
+    },
+  ],
+  [
+    "v3 note: start above the 2047 space bound",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+      (bass["notes"] as unknown[]).push({ degree: 0, start: 2048, length: 1 });
+    },
+  ],
+  [
+    "v3 bars: 3 is not in the powers-of-two vocabulary",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 3;
+    },
+  ],
+  [
+    "v3 bars: 5 is not in the powers-of-two vocabulary",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 5;
+    },
+  ],
+  [
+    "v3 bars: 96 is not in the powers-of-two vocabulary",
+    (d) => {
+      const patterns = d["patterns"] as Record<string, unknown>;
+      (patterns["drums"] as Record<string, unknown>[])[0]!["bars"] = 96;
+    },
+  ],
+  [
+    "v3 octave: +4 above the register domain",
+    (d) => {
+      const lanes = d["lanes"] as Record<string, unknown>[];
+      lanes[1]!["octave"] = 4;
+    },
+  ],
+  [
+    "v3 octave: non-integer",
+    (d) => {
+      const lanes = d["lanes"] as Record<string, unknown>[];
+      lanes[2]!["octave"] = 1.5;
+    },
+  ],
+  [
+    "v3 octave: drums lane carries the pitched-only field",
+    (d) => {
+      const lanes = d["lanes"] as Record<string, unknown>[];
+      lanes[0]!["octave"] = 1;
     },
   ],
   [
@@ -416,6 +467,95 @@ describe("validateProject (strict)", () => {
     for (const bad of [null, 42, "nope", [], true]) {
       expect(() => validateProject(bad)).toThrow(ProjectValidationError);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SV-1: schema v3 — vocabulary widening, note-bound law, octave field, and
+// the loopBars retirement's zero-churn proof.
+// ---------------------------------------------------------------------------
+
+describe("validateProject schema v3 (SV-1)", () => {
+  it("accepts every pattern-bars vocabulary member (powers of two to 128)", () => {
+    for (const bars of [1, 2, 4, 8, 16, 32, 64, 128]) {
+      const doc = clone(createDefaultProject());
+      (doc["patterns"] as Record<string, unknown>)["bass"] = [
+        {
+          kind: "pitched",
+          id: "bass-1",
+          name: "A",
+          bars,
+          rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+          notes: [{ degree: 0, start: 0, length: 1 }],
+        },
+      ];
+      const out = validateProject(doc);
+      expect(out.patterns.bass[0]!.bars, `bars ${bars}`).toBe(bars);
+    }
+  });
+
+  it("the picklist IS the exported vocabulary constant", () => {
+    expect([1, 2, 4, 8, 16, 32, 64, 128]).toEqual([
+      ...PATTERN_BAR_VOCABULARY,
+    ]);
+  });
+
+  it("note bounds: start 2047 + length 2048 valid on a 128-bar pattern; 2048 start rejected", () => {
+    const wide = clone(createDefaultProject());
+    (wide["patterns"] as Record<string, unknown>)["bass"] = [
+      {
+        kind: "pitched",
+        id: "bass-1",
+        name: "A",
+        bars: 128,
+        rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+        notes: [
+          { degree: 0, start: 2047, length: 2048 }, // both ceilings at once
+          { degree: 1, start: 64, length: 0.25 }, // > v2's 63 bound, legal in v3
+        ],
+      },
+    ];
+    expect(() => validateProject(wide)).not.toThrow();
+
+    const over = clone(wide);
+    (
+      ((over["patterns"] as Record<string, unknown>)["bass"] as Record<
+        string,
+        unknown
+      >[])[0]!["notes"] as unknown[]
+    ).push({ degree: 2, start: 2048, length: 1 });
+    expect(() => validateProject(over)).toThrow(ProjectValidationError);
+  });
+
+  it("per-pattern width still binds placement: start 16 on a 1-bar pattern rejected (two-layer law)", () => {
+    const doc = clone(createDefaultProject());
+    const patterns = doc["patterns"] as Record<string, unknown>;
+    const bass = (patterns["bass"] as Record<string, unknown>[])[0];
+    (bass["notes"] as unknown[]).push({ degree: 0, start: 16, length: 1 });
+    expect(() => validateProject(doc)).toThrow(ProjectValidationError);
+  });
+
+  it("octave: −3 and +3 accepted on pitched lanes; 0 canonicalizes to the omitted key", () => {
+    const doc = clone(createDefaultProject());
+    const lanes = doc["lanes"] as Record<string, unknown>[];
+    lanes[1]!["octave"] = -3;
+    lanes[3]!["octave"] = 3;
+    lanes[2]!["octave"] = 0; // canonical-empty form
+    const out = validateProject(doc);
+    const bassOut = out.lanes.find((l) => l.id === "bass")!;
+    const chordsOut = out.lanes.find((l) => l.id === "chords")!;
+    const leadOut = out.lanes.find((l) => l.id === "lead")!;
+    expect(bassOut.octave).toBe(-3);
+    expect(leadOut.octave).toBe(3);
+    expect("octave" in chordsOut).toBe(false); // stripped: byte-stable law
+  });
+
+  it("v3 default carries no loopBars and no octave (byte-stable canonical empty)", () => {
+    const doc = createDefaultProject();
+    expect("loopBars" in doc.transport).toBe(false);
+    expect(encode(doc)).not.toContain("loopBars");
+    expect(encode(doc)).not.toContain("octave");
+    expect(doc.version).toBe(3);
   });
 });
 

@@ -117,8 +117,45 @@ function migrateV1ToV2(doc: Record<string, unknown>): Record<string, unknown> {
   return { ...doc, version: 2, patterns: nextPatterns };
 }
 
-/** Production registry. 1→2 = the SC-1 note-model migration. */
-export const MIGRATIONS: MigrationRegistry = { 1: migrateV1ToV2 };
+/**
+ * v2 → v3 (SV-1, iteration 3): the long-loop widening. Purely additive +
+ * one field drop — lossless by construction:
+ * - Pattern bars: the vocabulary [1,2,4] ⊂ [1,2,4,8,16,32,64,128]; patterns
+ *   carry over verbatim (no rewriting, permissive-widen — a v2 document
+ *   with out-of-v2-vocab bars, invalid in v2, now validates; there is
+ *   deliberately NO rejection class, the SC-1 permissive-widen precedent).
+ * - Note bounds: start ≤ 63 ⊂ start ≤ 2047, length ≤ 128 ⊂ length ≤ 2048;
+ *   no note is touched.
+ * - `octave` (new, optional, canonical-empty at 0): v2 documents never
+ *   carry it; migration does not inject it (byte-stability law).
+ * - `transport.loopBars` DROPS with a defined re-derive rule: through the
+ *   compat window the engine derives the basis engine-side
+ *   (`deriveLoopBarsCompat`, schema.ts — SE-1 E5). Any loopBars value
+ *   (including out-of-picklist ones from invalid v2 docs) is dropped the
+ *   same way — v3 has no such field to launder.
+ * A structurally absent/malformed `transport` passes through untouched;
+ * strict validation then rejects it typed (the migration adds nothing).
+ */
+function migrateV2ToV3(doc: Record<string, unknown>): Record<string, unknown> {
+  const transport = doc["transport"];
+  if (
+    transport === undefined ||
+    transport === null ||
+    typeof transport !== "object" ||
+    Array.isArray(transport)
+  ) {
+    return { ...doc, version: 3 };
+  }
+  const { loopBars: _drop, ...rest } = transport as Record<string, unknown>;
+  void _drop;
+  return { ...doc, version: 3, transport: rest };
+}
+
+/** Production registry. 1→2 = SC-1 note model; 2→3 = SV-1 long-loop widening. */
+export const MIGRATIONS: MigrationRegistry = {
+  1: migrateV1ToV2,
+  2: migrateV2ToV3,
+};
 
 export const LATEST_SCHEMA_VERSION = SCHEMA_VERSION;
 

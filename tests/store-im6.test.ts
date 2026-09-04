@@ -27,6 +27,7 @@ import {
   undo,
 } from "../src/state/store";
 import { effectiveScale } from "../src/document/scales";
+import { MAX_NOTE_LENGTH } from "../src/document/schema";
 import { MODE_INTERVALS } from "../src/document/scales";
 
 function doc() {
@@ -116,8 +117,15 @@ describe("transport persistence", () => {
     setTransport({ swing: 0.4, metronome: true });
     expect(doc().transport.swing).toBe(0.4);
     expect(doc().transport.metronome).toBe(true);
-    setTransport({ loopBars: 4 });
-    expect(doc().transport.loopBars).toBe(4);
+    // v3 (SV-1): loopBars is retired from the document — the transport Pick
+    // has no such field (the engine basis derives engine-side; J5).
+    expect("loopBars" in doc().transport).toBe(false);
+    expect(() =>
+      setTransport({ loopBars: 4 } as unknown as Parameters<
+        typeof setTransport
+      >[0]),
+    ).toThrow();
+    expect(doc().transport).toEqual({ bpm: 143, swing: 0.4, metronome: true });
   });
 
   it("rejects out-of-range bpm", () => {
@@ -226,10 +234,18 @@ describe("note-edit actions (SC-2)", () => {
 
   it("addNote snaps lengths to the 0.25 grid and clamps to schema bounds", () => {
     addNote("lead", "lead-1", { degree: 0, start: 0, length: 2.3 }); // → 2.25
-    addNote("lead", "lead-1", { degree: 1, start: 0, length: 999 }); // → 128
+    // v3 (SV-1): the ceiling widened to the 128-bar space — a 999-step
+    // length is INSIDE the bound now, so only a truly over-cap length clamps.
+    addNote("lead", "lead-1", { degree: 1, start: 0, length: 999 });
     addNote("lead", "lead-1", { degree: 2, start: 0, length: 0.1 }); // → 0.25
+    addNote("lead", "lead-1", { degree: 3, start: 0, length: 9999 });
     // Notes stay sorted by (degree, start).
-    expect(leadPattern().notes.map((n) => n.length)).toEqual([2.25, 128, 0.25]);
+    expect(leadPattern().notes.map((n) => n.length)).toEqual([
+      2.25,
+      999,
+      0.25,
+      MAX_NOTE_LENGTH,
+    ]);
   });
 
   it("addNote refuses unknown patterns and degrees outside the row manifest", () => {
@@ -328,7 +344,7 @@ describe("round-trip + deep undo", () => {
     setProjectScale({ root: 5, mode: "dorian" });
     setLaneScaleOverride("bass", { root: 7, mode: "minor" });
     setLaneGate("chords", { unit: "steps", value: 8 });
-    setTransport({ bpm: 96, swing: 0.22, loopBars: 2, metronome: true });
+    setTransport({ bpm: 96, swing: 0.22, metronome: true });
     setLaneSoundId("drums", "kit-808");
     const dup = duplicatePattern("lead", "lead-1");
     renamePattern("lead", dup, "COPY");
@@ -346,7 +362,6 @@ describe("round-trip + deep undo", () => {
     expect(doc().transport).toEqual({
       bpm: 96,
       swing: 0.22,
-      loopBars: 2,
       metronome: true,
     });
   });

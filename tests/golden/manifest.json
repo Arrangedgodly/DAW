@@ -39,30 +39,30 @@
         "loopSamples": 88200
       }
     },
-    "codec/default-project-canonical-v2": {
-      "note": "Canonical JSON codec bytes of createDefaultProject() (HW-1). Pins the .bitbounce save format: field order, key naming, no-whitespace canonicalization. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: regenerated for schema v2 (pitched patterns = rowDegrees + notes; version 2).",
-      "sha256": "93139e556a13e39d3a2747c0a89e6af12d84bb0de7822fb891d059058f40ad14",
-      "byteLength": 1632
+    "codec/default-project-canonical-v3": {
+      "note": "Canonical JSON codec bytes of createDefaultProject() (HW-1). Pins the .bitbounce save format: field order, key naming, no-whitespace canonicalization. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: schema v2. SV-1: regenerated for schema v3 (version 3; transport drops the retired loopBars key).",
+      "sha256": "a57b1e94aa3a8c174ed3e14f8929d7e2920f98daa735dd34e3643942b5a1f180",
+      "byteLength": 1619
     },
-    "codec/demo-project-canonical-v2": {
-      "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: regenerated for schema v2 notes (same composition; lengths = the migration law).",
-      "sha256": "76367d53a382f5e9cf24e87f86f9217363b108ab93cb7ee7445b508cde17abef",
-      "byteLength": 6887
+    "codec/demo-project-canonical-v3": {
+      "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: v2 notes. SV-1: regenerated for schema v3 (transport drops loopBars; composition unchanged).",
+      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
+      "byteLength": 6874
     },
-    "migrate/v1-default-to-v2": {
-      "note": "SC-1 migration fixture: canonical v2 bytes of decode(v1 default-project bytes). The v1 text is the v1 cell-row shape; migrating it must equal the shipped v2 default exactly. Pins the migration law; mismatch = hard failure.",
-      "sha256": "93139e556a13e39d3a2747c0a89e6af12d84bb0de7822fb891d059058f40ad14",
-      "byteLength": 1632
+    "migrate/v1-default-to-v3": {
+      "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 default-project bytes) — the walk now continues v2→v3 (loopBars drops). Migrating the v1 text must equal the shipped v3 default exactly. Pins the migration law; mismatch = hard failure.",
+      "sha256": "a57b1e94aa3a8c174ed3e14f8929d7e2920f98daa735dd34e3643942b5a1f180",
+      "byteLength": 1619
     },
-    "migrate/v1-demo-to-v2": {
-      "note": "SC-1 migration fixture: canonical v2 bytes of decode(v1 WELCOME SONG bytes). The demo is the only sustain-marker-heavy shipped project — its 6-step-gate chord pads must migrate to 15-step notes. Pins the duration-preserving law; mismatch = hard failure.",
-      "sha256": "76367d53a382f5e9cf24e87f86f9217363b108ab93cb7ee7445b508cde17abef",
-      "byteLength": 6887
+    "migrate/v1-demo-to-v3": {
+      "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 WELCOME SONG bytes) — the walk now continues v2→v3 (loopBars drops). The demo is the only sustain-marker-heavy shipped project — its 6-step-gate chord pads must migrate to 15-step notes. Pins the duration-preserving law; mismatch = hard failure.",
+      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
+      "byteLength": 6874
     },
-    "migrate/v1-sustain-heavy-to-v2": {
-      "note": "SC-1 migration fixture: canonical v2 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps). Pins the quantization corner; mismatch = hard failure.",
-      "sha256": "dfd3123147108d5d0ac8115d9f7fd780f45f7cf05028b6460a88b55614d8fd5e",
-      "byteLength": 1907
+    "migrate/v1-sustain-heavy-to-v3": {
+      "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps); the walk continues v2→v3 (loopBars drops). Pins the quantization corner; mismatch = hard failure.",
+      "sha256": "f4620d41ce2757c149602e9b202a8e6c8b020eb4b7a7a7623e4d5ac54ec38c4b",
+      "byteLength": 1894
     },
     "wav/reference-export-mix-fp-v1": {
       "note": "SHA-256 of the exported .wav FILE bytes for the full-FX reference project WITH a non-default lane mix (drums muted, lead volume 0.75) — the HW-5 export-mix canary: WAV export applies volume/mute/solo through the render pipeline (the coordinator resolution recorded at LY-1 verification). Environment-pinned like the unmixed export fp (samples come from Chromium): mismatch is a console DRIFT warning, never a CI failure. The hard audio-law proofs (exact-silence windows, solo = complementary mute, volume linearity) live in tests/browser/render-mix.test.ts.",
@@ -75,6 +75,21 @@
         "sampleRate": 44100,
         "loopSamples": 88200
       }
+    },
+    "migrate/v2-default-to-v3": {
+      "note": "SV-1 migration fixture: canonical v3 bytes of decode(v2 default-project bytes). The v2 text is the pre-SV-1 on-disk form (version 2 + transport.loopBars re-added over the live doc); migrating it must equal the shipped v3 default exactly — the lossless-widening law. Mismatch = hard failure.",
+      "sha256": "a57b1e94aa3a8c174ed3e14f8929d7e2920f98daa735dd34e3643942b5a1f180",
+      "byteLength": 1619
+    },
+    "migrate/v2-demo-to-v3": {
+      "note": "SV-1 migration fixture: canonical v3 bytes of decode(v2 WELCOME SONG bytes) — the v2 text is exactly the pre-SV-1 demo save (version 2 + loopBars). Must equal the shipped v3 demo exactly. Mismatch = hard failure.",
+      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
+      "byteLength": 6874
+    },
+    "migrate/v2-boundary-to-v3": {
+      "note": "SV-1 migration fixture: canonical v3 bytes of decode(hand-authored v2 boundary neighbor) — 4-bar patterns (the v2 ceiling), notes at the v2 bounds (start 63, length 128), loopBars 4 paired with the bars. Every v2-boundary value must survive unchanged; only loopBars drops. Mismatch = hard failure.",
+      "sha256": "96ffdcf3e15c1c5e878d1790c1e712358061da5aefe2c0012e87681ea38b87a3",
+      "byteLength": 3455
     }
   }
 }

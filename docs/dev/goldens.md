@@ -101,6 +101,29 @@ refresh. If you add a NEW golden, add its note in the same commit.
   determinism) live in `tests/browser/render-mix.test.ts`; the MIDI half
   (notes complete regardless of mix) is pinned in
   `tests/exportMidi.test.ts` §"HW-5".
+- **2026-09-04 — SV-1 (schema v3 long-loop widening).** Deliberate format
+  change: `SCHEMA_VERSION` 2→3, pattern-bars vocabulary widened to the
+  powers-of-two picklist [1,2,4,8,16,32,64,128], note bounds lifted to
+  start ≤ 2047 / length ≤ 2048, optional per-lane `octave` field, and the
+  persisted `transport.loopBars` RETIRED. Renamed + regenerated:
+  `codec/default-project-canonical-v3` (`a57b1e94…`, 1619 B — was 1632:
+  exactly the 13-byte `"loopBars":1,` key dropped) and
+  `codec/demo-project-canonical-v3` (`76475955…`, 6874 B — was 6887, same
+  −13 law). The v1 migration fixtures re-pinned as `migrate/v1-{default,
+  demo,sustain-heavy}-to-v3` (the walk now continues v2→v3; final bytes
+  changed by the same loopBars drop — `v1-default-to-v3` still byte-equals
+  the shipped v3 default golden, the SC-1 identity law preserved). THREE
+  NEW hard goldens pin v2→v3 itself: `migrate/v2-default-to-v3`
+  (`a57b1e94…` — equals the shipped v3 default exactly), `migrate/v2-demo-
+  to-v3` (`76475955…` — equals the demo), and `migrate/v2-boundary-to-v3`
+  (`96ffdcf3…`, 3455 B — 4-bar patterns + start-63/length-128 notes +
+  loopBars 4: every v2-boundary value survives, only loopBars drops). NOT
+  regenerated, deliberately (zero-drift law, J3): `midi/reference-project-
+  v1`, `wav/encoder-stereo-2frame-v1`, and the render/export fingerprints —
+  the export path never consumed loopBars (LCM law) and the engine basis is
+  reproduced by the compat derivation; verified zero DRIFT warnings in the
+  browser runs. v2 source texts live in `tests/v2Project.ts` (re-stamp
+  version + loopBars over the live docs = exactly the pre-SV-1 bytes).
 
 ## Review discipline
 

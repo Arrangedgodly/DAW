@@ -272,8 +272,11 @@ export function createDemoProject(): ProjectDocument {
   return {
     name: "WELCOME SONG",
     version: SCHEMA_VERSION,
-    // loopBars 1 matches the 1-bar patterns (IM-6: must agree with the grid).
-    transport: { bpm: 112, swing: 0.2, loopBars: 1, metronome: false },
+    // v3 (SV-1): no loopBars — the retired field's engine basis derives
+    // engine-side (deriveLoopBarsCompat; all-1-bar demo patterns → 1, the
+    // v0.1 value exactly). LL-1/LL-2 replace the IM-6 agreement invariant
+    // with the extent/chain-basis laws.
+    transport: { bpm: 112, swing: 0.2, metronome: false },
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,
     lanes: [

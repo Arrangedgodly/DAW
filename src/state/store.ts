@@ -696,9 +696,9 @@ export function setLaneScaleOverride(
 // Transport (persisted to the document; engineBridge syncs the session)
 // ---------------------------------------------------------------------------
 
-/** Patch bpm/swing/loopBars/metronome in the document. Slider drags coalesce. */
+/** Patch bpm/swing/metronome in the document. Slider drags coalesce. */
 export function setTransport(
-  patch: Partial<Pick<Transport, "bpm" | "swing" | "loopBars" | "metronome">>,
+  patch: Partial<Pick<Transport, "bpm" | "swing" | "metronome">>,
 ): void {
   const doc = docStore.getState().doc;
   commit(

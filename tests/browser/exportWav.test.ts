@@ -67,7 +67,6 @@ function twoIterationProject(): ProjectDocument {
     { degree: 3, start: 0, length: 2 },
     { degree: 3, start: 16, length: 2 },
   ];
-  doc.transport = { ...doc.transport, loopBars: 2 };
   return doc;
 }
 

@@ -18,6 +18,7 @@ import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
 import { getDrumKit, getPreset, sampleRefsForSound } from "../audio/presets";
 import {
   type LaneId,
+  deriveLoopBarsCompat,
   effectiveLaneMix,
   type ProjectDocument,
 } from "../document/schema";
@@ -133,12 +134,20 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
   }
 }
 
-/** Transport parameters persisted in the document drive the session. */
+/**
+ * Transport parameters persisted in the document drive the session. v3
+ * (SV-1, SE-1 E5): the transport's loop basis is the COMPAT DERIVATION
+ * `deriveLoopBarsCompat(doc)` = min(4, max pattern bars) — the retired
+ * persisted field's value reproduced engine-side (the renderer reads the
+ * transport snapshot, so zero renderer change; see schema.ts for the
+ * recorded divergence class). LL-2 re-bases this to per-lane chain totals /
+ * one LCM cycle and deletes the derivation.
+ */
 function syncTransport(doc: ProjectDocument, session: Session): void {
   session.setBpm(doc.transport.bpm);
   session.setSwingAmount(doc.transport.swing);
   session.setMetronome(doc.transport.metronome);
-  session.transport.setLoopBars(doc.transport.loopBars);
+  session.transport.setLoopBars(deriveLoopBarsCompat(doc));
 }
 
 /** Connect the store to the session; returns the unsubscribe function. */
@@ -156,7 +165,16 @@ export function connectStoreToEngine(
   return docStore.subscribe((state, prev) => {
     const doc = state.doc;
     if (doc === prev.doc) return;
-    if (doc.transport !== prev.doc.transport) syncTransport(doc, session);
+    // The derived loop basis follows PATTERN bars (not just the transport
+    // object): a bars-widening pattern edit must re-push the transport even
+    // though doc.transport is untouched. The derivation is value-compared,
+    // so note edits and same-bars changes never re-push (no spurious
+    // setLoopBars churn).
+    if (
+      doc.transport !== prev.doc.transport ||
+      deriveLoopBarsCompat(doc) !== deriveLoopBarsCompat(prev.doc)
+    )
+      syncTransport(doc, session);
     const scaleChanged =
       doc.scale !== prev.doc.scale ||
       doc.laneOverrides !== prev.doc.laneOverrides;

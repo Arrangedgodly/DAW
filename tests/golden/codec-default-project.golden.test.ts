@@ -1,13 +1,15 @@
 /**
  * Golden: canonical codec bytes of createDefaultProject() (HW-1).
  * Pure TS → deterministic bytes; pinned via SHA-256 manifest.
+ * SV-1: renamed -v3 (regenerated for schema v3 — the transport drops the
+ * retired loopBars key; every other byte unchanged).
  */
 import { describe, expect, it } from "vitest";
 import { encode } from "../../src/document/codec";
 import { createDefaultProject } from "../../src/document/schema";
 import { expectGolden } from "./golden";
 
-const GOLDEN_NAME = "codec/default-project-canonical-v2";
+const GOLDEN_NAME = "codec/default-project-canonical-v3";
 
 function canonicalDefaultProjectBytes(): Uint8Array {
   return new TextEncoder().encode(encode(createDefaultProject()));

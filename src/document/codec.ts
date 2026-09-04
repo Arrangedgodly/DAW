@@ -90,13 +90,25 @@ export class DecodeError extends Error {
 }
 
 /**
- * Hard cap on canonical text size at the codec layer (1 MB). This is a second
- * layer below MF-3's 10 MB File-size guard: even a small File (or a hostile
- * IndexedDB row / autosave string) cannot push a mega-string through the
- * parser. The largest real doc (4 lanes × 3 max-FX × 4-bar patterns) is a few
- * hundred KB; 1 MB leaves ample headroom while bounding parse work.
+ * Hard cap on canonical text size at the codec layer (4 MB, SV-1 v3). This is
+ * a second layer below MF-3's 10 MB File-size guard: even a small File (or a
+ * hostile IndexedDB row / autosave string) cannot push a mega-string through
+ * the parser. SV-1 MEASURED the dense-128-bar world before raising (was 1 MB,
+ * sized when the vocabulary capped at 4 bars):
+ * - maximally dense legal v3 doc (one 128-bar pattern per lane, a note on
+ *   every step of every row, 3 max-FX per lane): 2,693,153 chars ≈ 2.63 MB
+ *   — EXCEEDS the old 1 MB cap, so the raise was demanded;
+ * - musically dense neighbor (one full row per pitched lane + full drums):
+ *   287,457 chars ≈ 281 KB;
+ * - half density (every 2nd step, every row): 1,384,450 chars ≈ 1.32 MB.
+ * 4 MB = 1.56× headroom over the measured worst case while staying 2.5×
+ * under the 10 MB file guard. Deliberate policy line: patterns-per-lane are
+ * unbounded, so no finite cap covers every legal doc — a CHAIN of several
+ * dense 128-bar patterns can still exceed 4 MB and is rejected (degenerate
+ * authoring; recorded for SV-2's guard pins). The guard stack scales by
+ * construction: the depth pre-scan and op-counting are linear in input.
  */
-export const DECODE_MAX_CHARS = 1_048_576;
+export const DECODE_MAX_CHARS = 4_194_304;
 
 /**
  * Hard cap on JSON nesting depth. JSON.parse itself has NO depth limit — a

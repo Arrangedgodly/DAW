@@ -39,7 +39,12 @@ describe("IN-2 pure note-edit math", () => {
     expect(snapSpanLength(1.2)).toBe(1.25);
     expect(snapSpanLength(0.1)).toBe(MIN_NOTE_LENGTH);
     expect(snapSpanLength(0)).toBe(MIN_NOTE_LENGTH);
-    expect(snapSpanLength(1000)).toBe(MAX_NOTE_LENGTH);
+    // v3 (SV-1, J8): the ceiling widened to the 128-bar step space. Boundary
+    // neighbors pin it exactly: 2047.75 is in-bounds, 2048.25 clamps to 2048.
+    expect(snapSpanLength(2047.75)).toBe(2047.75);
+    expect(snapSpanLength(1000)).toBe(1000); // v2's ceiling is mid-range now
+    expect(snapSpanLength(2048.25)).toBe(MAX_NOTE_LENGTH);
+    expect(snapSpanLength(5000)).toBe(MAX_NOTE_LENGTH);
     expect(snapSpanLength(-3)).toBe(MIN_NOTE_LENGTH);
   });
 
@@ -132,7 +137,7 @@ describe("IN-2 pure note-edit math", () => {
     expect(resizeBy(MIN_NOTE_LENGTH, -1)).toBe(MIN_NOTE_LENGTH); // floor no-op
     expect(resizeBy(MIN_NOTE_LENGTH, -0.25)).toBe(MIN_NOTE_LENGTH);
     expect(resizeBy(MAX_NOTE_LENGTH, 1)).toBe(MAX_NOTE_LENGTH); // ceiling no-op
-    expect(resizeBy(127.75, 0.25)).toBe(MAX_NOTE_LENGTH);
+    expect(resizeBy(MAX_NOTE_LENGTH - 0.25, 0.25)).toBe(MAX_NOTE_LENGTH);
   });
 
   // -- drag-create gesture -----------------------------------------------------
@@ -160,7 +165,11 @@ describe("IN-2 pure note-edit math", () => {
     expect(resizeDragCommit(d)).toBe(4.5);
     d = resizeDragMove(d, 4.1); // never below the 0.25 floor
     expect(d.length).toBe(MIN_NOTE_LENGTH);
+    // v3 ceiling (2048): lengths are pointer − start; a far pointer clamps
+    // at the widened cap (start 4 → 4996 raw → 2048).
     d = resizeDragMove(d, 500);
+    expect(d.length).toBe(496);
+    d = resizeDragMove(d, 5000);
     expect(d.length).toBe(MAX_NOTE_LENGTH);
   });
 

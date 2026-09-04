@@ -222,9 +222,10 @@ function extremesDoc(): ProjectDocument {
       denseLead.push({ degree: degrees[r]!, start: s, length: 1 });
     }
   }
+  // SV-1: no loopBars key — the transport basis is derived engine-side
+  // (min(4, max pattern bars) = 4 for this 4-bar doc, the old value exactly).
   return {
     ...base,
-    transport: { ...base.transport, loopBars: 4 },
     patterns: {
       ...base.patterns,
       bass: [{ ...bass0, bars: 4, notes: bassNotes }],

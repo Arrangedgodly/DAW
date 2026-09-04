@@ -77,6 +77,7 @@ import {
   LANE_IDS,
   type LaneId,
   type ProjectDocument,
+  deriveLoopBarsCompat,
   documentLaneMixGains,
 } from "../document/schema";
 
@@ -132,7 +133,10 @@ export function lcm(a: number, b: number): number {
 
 /**
  * Export loop length in steps: LCM over lanes with a non-empty chain.
- * Empty list → transport loopBars × 16 (transport loop semantics fallback).
+ * Empty list → the v3 compat derivation × 16 (the retired transport
+ * loopBars fallback, re-based engine-side at SV-1; degenerate all-empty
+ * docs only — resolveChainPatterns falls back to first-pattern otherwise,
+ * so real exports always take the LCM path, i3-5).
  */
 export function computeLoopSteps(
   laneChainSteps: readonly number[],
@@ -256,7 +260,7 @@ export async function renderProjectToBuffer(
   const schedules = LANE_IDS.map((lane) => laneScheduleFor(doc, lane, groove));
   const loopSteps = computeLoopSteps(
     schedules.map((s) => s?.chainSteps ?? 0),
-    doc.transport.loopBars,
+    deriveLoopBarsCompat(doc), // v3: the retired loopBars fallback, derived
   );
   const loopSamples = Math.round(
     loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,

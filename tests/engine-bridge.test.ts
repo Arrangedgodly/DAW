@@ -32,6 +32,8 @@ interface FakeSession {
   swing: number;
   metronome: boolean;
   loopBars: number;
+  /** SV-1: how many times the transport basis was pushed (churn teeth). */
+  setLoopBarsCalls: number;
   compiles: LaneId[];
   setLaneSchedule(lane: LaneId, schedule: LaneSchedule): void;
   setLaneSound(lane: LaneId, id: string): void;
@@ -57,6 +59,7 @@ function fakeSession(): FakeSession {
     swing: -1,
     metronome: false,
     loopBars: -1,
+    setLoopBarsCalls: 0,
     compiles: [],
     setLaneSchedule(lane, schedule) {
       s.schedules.set(lane, schedule);
@@ -87,6 +90,7 @@ function fakeSession(): FakeSession {
     transport: {
       setLoopBars(bars) {
         s.loopBars = bars;
+        s.setLoopBarsCalls++;
       },
       snapshot: { bpm: 120, swing: 0 },
     },
@@ -108,7 +112,10 @@ describe("connectStoreToEngine", () => {
     disconnect();
 
     expect(s.bpm).toBe(120);
-    expect(s.loopBars).toBe(1); // persisted loopBars is authoritative
+    // SV-1 (J6): the derived loop basis is authoritative through the compat
+    // window — the default's all-1-bar patterns derive 1 (the retired
+    // persisted field's value, engine-side).
+    expect(s.loopBars).toBe(1);
     expect(s.sounds["drums"]).toBe("kit-default");
     expect(s.sounds["lead"]).toBe("preset-lead-1");
     // Pitched lanes got their effective scale (project default C minor).
@@ -167,12 +174,36 @@ describe("connectStoreToEngine", () => {
     const s = fakeSession();
     const disconnect = connectStoreToEngine(s as unknown as Session);
     s.compiles.length = 0;
-    setTransport({ bpm: 150, loopBars: 2 });
+    setTransport({ bpm: 150 });
     expect(s.bpm).toBe(150);
-    expect(s.loopBars).toBe(2);
+    expect(s.loopBars).toBe(1); // unchanged transport object basis: still 1
     expect(new Set(s.compiles)).toEqual(
       new Set(["drums", "bass", "chords", "lead"]),
     );
+    disconnect();
+  });
+
+  it("SV-1 compat derivation: pattern-bars edits re-push the derived loop basis (E5)", () => {
+    const s = fakeSession();
+    const disconnect = connectStoreToEngine(s as unknown as Session);
+    s.setLoopBarsCalls = 0;
+
+    // Widening the vocabulary through the store: a 2-bar pattern derives 2.
+    addPattern("drums", 2, "B");
+    expect(s.loopBars).toBe(2);
+    // The derivation CLAMPS at 4 through the compat window (the transport
+    // LoopBars type stays 1|2|4 until LL-2 re-bases it).
+    addPattern("lead", 8, "B");
+    expect(s.loopBars).toBe(4);
+    // …and stays 4 at the vocabulary ceiling.
+    addPattern("bass", 128, "B");
+    expect(s.loopBars).toBe(4);
+
+    // Content-only edits do NOT re-push (value-compared derivation — no
+    // spurious setLoopBars churn on note toggles).
+    const callsBefore = s.setLoopBarsCalls;
+    togglePitchedCell("bass", 0, 0);
+    expect(s.setLoopBarsCalls).toBe(callsBefore);
     disconnect();
   });
 
