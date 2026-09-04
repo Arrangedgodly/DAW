@@ -191,6 +191,20 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
           5_000,
           "demo cues",
         );
+        // Refinement-7 gate-environment correction (recorded): the boot-time
+        // one-page check below can run while the pixel webfonts are still
+        // landing — and the quadrant-budget fit LAWFULLY refuses to compress
+        // on provisional metrics (refinement-4's fontsFinal guard), then
+        // needs one more rAF after fonts.final to run, so the page honestly
+        // reads ~825 px for the first ~100 ms of a cold boot. SETTLE before
+        // asserting (the same convention this gate's §D 1440 resize and
+        // quadrant-layout §1b already use); verified pre-existing on the
+        // parent tree — not a refinement-7 behavior change.
+        await poll(
+          () => fits(MIN_W, MIN_H),
+          5_000,
+          "boot fit settles (fonts final + budget fit)",
+        );
 
         /** Measured-evidence log (the perf-gate precedent): what the density
          *  laws actually measured this run. */

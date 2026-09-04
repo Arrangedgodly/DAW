@@ -141,7 +141,10 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   tracked at every task in production-log.md. 64.31 ≤ 300 KB — 21% of
   budget. Later same-day drift (measured 2026-09-03, refinement-6 — the
   rail pattern-tools popover, same method): initial JS 64.65 KB gz, CSS
-  13.13 KB gz (+0.34 / +0.04; 22% of budget). Vite's own build report
+  13.13 KB gz (+0.34 / +0.04; 22% of budget). Later still (measured
+  2026-09-03, refinement-7 — the rail sounding-follow ledger + read seam
+  and the flag/booth polish, same method): initial JS 65.01 KB gz, CSS
+  13.16 KB gz (+0.36 / +0.03; 22% of budget). Vite's own build report
   prints slightly different gzip figures
   (e.g. 66.41 KB initial) because it uses its default gzip settings, not
   -9; the gate's numbers above are the contract.

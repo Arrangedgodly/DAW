@@ -12,7 +12,13 @@
  * Click a tile while playing → quantized switch request (engineBridge.
  * requestPatternSwitch); the tile shows PENDING (from session.
  * getPendingSwitch via subscribeSwitches) until the boundary lands, then
- * ACTIVE. While stopped a click only selects the pattern for editing (the
+ * follows the sounding state. Refinement-7 (critique P2-3 / deferred #14,
+ * the HW-5 observation): the ACTIVE tile is the slot SOUNDING now — the
+ * follow advances naturally with each lane's chain position during playback
+ * (session.getSoundingPattern, audible-time accurate) and parks on the last
+ * slot that sounded while stopped; before anything has sounded it falls
+ * back to the switch-target state (getActivePattern, IM-7 semantics
+ * untouched). While stopped a click only selects the pattern for editing (the
  * grid follows the selection — collapse/expand never loses your place).
  *
  * IN-3 multi-clip cueing: ONE pointer gesture sweeping across N tiles cues
@@ -120,7 +126,7 @@ registerHelp([
   {
     id: "rail.tile",
     title: "CHAIN TILE",
-    text: "One slot in this lane's song chain. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
+    text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
   },
   {
     id: "rail.append",
@@ -177,6 +183,85 @@ const [cueSummary, setCueSummary] = createSignal("");
  * row's toolbox closes the first.
  */
 const [toolsLane, setToolsLane] = createSignal<LaneId | null>(null);
+
+/**
+ * Refinement-7 (critique P2-3 / deferred #14 — the HW-5 observation): the
+ * SOUNDING follow. The rail's active tile tracks each lane's chain position
+ * during playback by AUDIBLE time (session.getSoundingPattern — a per-lane
+ * ledger stamped with the absolute audio-clock time each slot starts
+ * sounding), so NATURAL chain advance lights the slot that is actually
+ * sounding; getActivePattern keeps its IM-7 switch/schedule-build semantics
+ * as the fallback (before anything has sounded). ONE rAF loop for the whole
+ * rail, started/stopped on transport transitions, writing only when a lane's
+ * pattern actually CHANGES — never a 60 Hz re-render (the playhead law);
+ * stopped parks on the last-sounded slot (one final read).
+ */
+const [sounding, setSounding] = createSignal<{
+  readonly [L in LaneId]: string | null;
+}>({ drums: null, bass: null, chords: null, lead: null });
+let followFrame = 0;
+/**
+ * TH-4(b) zero-mid-gesture-mutations law: while a pointer gesture is ARMED
+ * (button held — a strict superset of every drag window, rail or grid), the
+ * follow commits NOTHING to the DOM; its tile/aria writes would be
+ * non-preview mid-gesture mutations (the exact class the frame-budget storm
+ * gate polices). The rAF loop keeps ticking as a no-op and the follow
+ * converges on the FIRST FRAME after release — a freeze of one gesture's
+ * length, never a dropped state.
+ */
+let heldPointers = 0;
+
+function pollSounding(): void {
+  const prev = sounding();
+  const next = { ...prev };
+  let changed = false;
+  for (const lane of RAIL_ROWS) {
+    const id = session.getSoundingPattern(lane);
+    if (id !== prev[lane]) {
+      next[lane] = id;
+      changed = true;
+    }
+  }
+  if (changed) setSounding(next);
+}
+
+/** (Re)align the follow loop with the transport: rAF while playing, one
+ *  parked read while stopped. Idempotent — safe on every transport emit. */
+function syncSoundingFollow(): void {
+  cancelAnimationFrame(followFrame);
+  if (session.transport.snapshot.playing) {
+    const tick = () => {
+      if (heldPointers === 0) pollSounding();
+      followFrame = requestAnimationFrame(tick);
+    };
+    tick();
+  } else {
+    pollSounding();
+  }
+}
+
+/**
+ * Count pressed primary pointers at the WINDOW capture level (sees every
+ * gesture surface, including renderer-captured grid drags). Returns the
+ * uninstall function (mount-scoped — test hygiene).
+ */
+function watchHeldPointers(): () => void {
+  const down = (e: PointerEvent): void => {
+    if (e.button === 0) heldPointers++;
+  };
+  const up = (e: PointerEvent): void => {
+    if (e.button === 0 && heldPointers > 0) heldPointers--;
+  };
+  window.addEventListener("pointerdown", down, true);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("pointercancel", up, true);
+  return () => {
+    window.removeEventListener("pointerdown", down, true);
+    window.removeEventListener("pointerup", up, true);
+    window.removeEventListener("pointercancel", up, true);
+    heldPointers = 0;
+  };
+}
 
 let railEl: HTMLElement | undefined;
 let sweepPointerId = -1;
@@ -440,7 +525,20 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     });
   });
 
+  const selectedId = () => activePatterns()[props.lane];
+
+  /**
+   * Refinement-7: the lane's sounding pattern (the follow), falling back to
+   * the switch-target state (getActivePattern) before anything has sounded
+   * — identical to the pre-follow behavior in that window.
+   */
+  const activeFollow = (): string | null =>
+    sounding()[props.lane] ?? session.getActivePattern(props.lane);
+
   // Event-driven announcements (Daredevil: pending/active states announced).
+  // Refinement-7: the "now <pattern>" line follows the SOUNDING slot too —
+  // natural chain advance announces exactly like a landed switch (the
+  // critique's fix: "follow natural chain advance … and announce").
   createEffect(() => {
     void switchVersion();
     const pending = session.getPendingSwitch(props.lane);
@@ -449,12 +547,10 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     else if (session.hasPendingSchedule(props.lane)) {
       setAnnounce(structurePendingAnnouncement(LANE_NAMES[props.lane]));
     } else {
-      const active = session.getActivePattern(props.lane);
+      const active = activeFollow();
       setAnnounce(active ? `${LANE_NAMES[props.lane]}: now ${active}` : "");
     }
   });
-
-  const selectedId = () => activePatterns()[props.lane];
 
   /** IN-3: the pointer-sweep preview for one tile ("target" = will cue). */
   const sweepPreview = (tile: RailTile): string | undefined => {
@@ -473,7 +569,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   const stateFor = (tile: RailTile) => {
     void switchVersion();
     return tileState(tile, {
-      activePatternId: session.getActivePattern(props.lane),
+      activePatternId: activeFollow(),
       pending: session.getPendingSwitch(props.lane),
       structurePending: structurePending(),
       selectedPatternId: selectedId(),
@@ -896,11 +992,21 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 
 export default function PatternRail(): JSX.Element {
   onMount(() => {
+    // Refinement-7: keep the sounding follow aligned with the transport
+    // (every coarse snapshot emit — start/stop are the load-bearing ones),
+    // and freeze its commits while a pointer gesture is armed (TH-4(b)).
+    const unsubFollow = session.subscribe(() => syncSoundingFollow());
+    const unwatchPointers = watchHeldPointers();
+    syncSoundingFollow();
     // Ephemeral gesture state must never leak across mounts (test hygiene).
     onCleanup(() => {
+      unsubFollow();
+      unwatchPointers();
+      cancelAnimationFrame(followFrame);
       setCueSweep(null);
       setRailRange(null);
       setToolsLane(null);
+      setSounding({ drums: null, bass: null, chords: null, lead: null });
       sweepPointerId = -1;
       sweepCaptured = false;
     });

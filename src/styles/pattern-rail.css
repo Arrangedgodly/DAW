@@ -185,12 +185,16 @@
   );
 }
 
-/* Pending stays STATIC (token law 4: no infinite pulses) — hatch + flag. */
+/* Pending stays STATIC (token law 4: no infinite pulses) — hatch + flag.
+ * Refinement-7 (critique P3 / detector undersized-ui-text): the flag glyph
+ * renders at the world's own label floor — 10px Silkscreen-system minimum
+ * (DESIGN.md Label type) — up from 8px, the one within-world size-law slip. */
 .rail-tile-flag {
   position: absolute;
   top: 2px;
   right: 4px;
-  font-size: 8px;
+  font-size: 10px;
+  line-height: 1;
   color: var(--color-ink);
 }
 

@@ -133,6 +133,21 @@ function sameStructure(a: LaneSchedule, b: LaneSchedule): boolean {
 }
 
 /**
+ * Refinement-7 (critique P2-3 / deferred #14 — the HW-5 observation): one
+ * sounding-ledger entry per lane, stamped with the ABSOLUTE AUDIO-CLOCK time
+ * a chain slot's first step sounds. Delivery runs a horizon AHEAD of
+ * audibility and lastDeliveredStep is a session-lifetime high-water mark, so
+ * the rail's active-tile follow looks entries up against ctx.currentTime
+ * instead: the tile lights when the slot SOUNDS, not when the engine hands
+ * it over (transport-accurate), and never disturbs scheduling — IM-7 switch
+ * and schedule-build semantics are untouched.
+ */
+interface SoundingEntry {
+  readonly at: number;
+  readonly patternId: string;
+}
+
+/**
  * Rewrite `byStep` so `slot` plays `pattern`'s events at the slot's position
  * (in-place slot substitution — same step count by construction).
  */
@@ -249,6 +264,20 @@ export class Session {
       setIntervalFn: opts.setIntervalFn,
       clearIntervalFn: opts.clearIntervalFn,
     });
+    // Refinement-7: a stop CANCELS every event still inside the audible
+    // future (transport.stop → cancelScheduledEvents). Truncate the sounding
+    // ledgers at the stop moment so the rail follow parks on the last slot
+    // that actually sounded — time keeps flowing past the cancelled stamps,
+    // so the lookup alone could not tell "sounded" from "cancelled". (The
+    // IN-4 auto-stop is a no-op here: everything compiled has sounded.)
+    this.transport.subscribe((snap) => {
+      if (snap.playing) return;
+      const now = this.engine.getContext().currentTime;
+      for (const ledger of this.soundingLedger) {
+        while (ledger.length > 0 && ledger[ledger.length - 1]!.at > now)
+          ledger.pop();
+      }
+    });
   }
 
   /**
@@ -274,6 +303,10 @@ export class Session {
       // requests past slot 0). Same law as the while-stopped schedule push.
       for (const pb of this.lanePlayback) pb.anchorStep = 0;
       this.lastDeliveredStep = -1;
+      // Refinement-7: the sounding ledger is per-play too — a fresh play's
+      // follow starts at the chain's slot 0 (imminent entry), never parked on
+      // the previous play's last-sounded slot.
+      for (const ledger of this.soundingLedger) ledger.length = 0;
       if (this.lanePlayback.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
@@ -419,6 +452,12 @@ export class Session {
   private switchListeners = new Set<(lane: LaneId) => void>();
   /** Highest global step already handed to the voice engines. */
   private lastDeliveredStep = -1;
+  /**
+   * Refinement-7: per-lane sounding ledger (see SoundingEntry). Appended in
+   * deliverLaneEvents whenever the lane's delivery crosses into a different
+   * chain segment; pruned to one audible-past anchor + the audible future.
+   */
+  private soundingLedger: SoundingEntry[][] = [];
 
   getPendingSwitch(lane: LaneId): PendingSwitchSnapshot | null {
     const pb = this.lanePlayback[LANE_IDS.indexOf(lane)];
@@ -432,6 +471,28 @@ export class Session {
   /** Pattern id the lane's active slot plays (post-switch state). */
   getActivePattern(lane: LaneId): string | null {
     return this.lanePlayback[LANE_IDS.indexOf(lane)]?.activePatternId ?? null;
+  }
+
+  /**
+   * Refinement-7: the pattern this lane is SOUNDING at the audio clock's now
+   * (the rail active-tile source). While playing: the latest entry that has
+   * become audible — or, before the first step sounds (the pre-roll), the
+   * imminent first entry, so the slot about to sound reads active. While
+   * stopped: parks on the last pattern that actually sounded; null before
+   * any playback (callers fall back to getActivePattern). Entries scheduled
+   * but cancelled by a stop (still in the audible future) never read.
+   */
+  getSoundingPattern(lane: LaneId): string | null {
+    const ledger = this.soundingLedger[LANE_IDS.indexOf(lane)];
+    if (!ledger || ledger.length === 0) return null;
+    const now = this.engine.getContext().currentTime;
+    let sounding: SoundingEntry | null = null;
+    for (const entry of ledger) {
+      if (entry.at <= now) sounding = entry;
+      else break;
+    }
+    if (sounding) return sounding.patternId;
+    return this.transport.snapshot.playing ? ledger[0]!.patternId : null;
   }
 
   /** Observe pending-switch changes (request/apply/cancel); unsubscribing. */
@@ -740,6 +801,22 @@ export class Session {
           (((step - pb.anchorStep) % pb.schedule.chainSteps) +
             pb.schedule.chainSteps) %
           pb.schedule.chainSteps;
+        // Refinement-7: record the sounding slot for the rail follow. The
+        // entry carries this tick's AUDIBLE time (delivery runs ahead), so
+        // the ledger can be read time-accurately against ctx.currentTime.
+        const seg = pb.schedule.segments.find(
+          (s) => local >= s.startStep && local < s.startStep + s.steps,
+        );
+        if (seg) {
+          const ledger = (this.soundingLedger[i] ??= []);
+          const last = ledger[ledger.length - 1];
+          if (!last || last.patternId !== seg.patternId)
+            ledger.push({ at: when, patternId: seg.patternId });
+          // Prune: one audible-past anchor + the audible future is all the
+          // lookup ever needs (bounded across arbitrarily long playback).
+          const now = this.engine.getContext().currentTime;
+          while (ledger.length > 1 && ledger[1]!.at <= now) ledger.shift();
+        }
         const events = pb.schedule.byStep.get(local);
         if (events)
           host.sendEvents(

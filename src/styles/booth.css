@@ -4,6 +4,17 @@
  * one glow layer ≤3px as decoration over fill+border state coding.
  */
 
+/*
+ * Refinement-7 (critique P3 / detector cramped-padding ×3): every control
+ * group carries a vertical inset (the --space-1 token, the world's 2px-base
+ * spacing law) so labels/controls never sit flush against the group's own
+ * box edge. The matching negative block margin hands the inset straight
+ * back to the layout — the groups' MARGIN boxes (what the flex chassis
+ * measures, at ANY wrap count: the booth wraps to two lines at both
+ * committed viewports) are byte-identical to pre-inset, so the chassis's
+ * outer height, the one-page budget, the 1280×800 quadrant fit, and the
+ * committed 1440×900 scale are all untouched.
+ */
 .booth {
   position: sticky;
   top: 0;
@@ -23,6 +34,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  padding: var(--space-1) 0;
+  margin-block: calc(-1 * var(--space-1));
 }
 
 .booth-group-slider {
