@@ -103,10 +103,12 @@ escape hatch.
 
 ## Privacy: local-first, forever
 
-Bitbounce makes zero network calls while you use it — the Content-Security-Policy
-literally forbids them (`connect-src 'none'`). No accounts, no analytics, no
-cloud. Projects live in your browser's IndexedDB and leave only as files you
-explicitly export. The full stance: [docs/dev/privacy.md](docs/dev/privacy.md).
+Bitbounce never calls a third party while you use it — the
+Content-Security-Policy forbids it (`connect-src 'self'`: the only network is
+fetching Bitbounce's own bundled sound files, and even that is optional and
+lazy). No accounts, no analytics, no cloud. Projects live in your browser's
+IndexedDB and leave only as files you explicitly export. The full stance:
+[docs/dev/privacy.md](docs/dev/privacy.md).
 
 **Browsers:** desktop Chromium (Chrome, Edge) is the target; Firefox is
 best-effort; Safari gets a warn-and-attempt banner. Mobile: Android Chrome.
