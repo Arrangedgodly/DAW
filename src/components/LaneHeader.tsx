@@ -55,7 +55,8 @@ import { helpMode } from "../state/helpMode";
 import { helpOpen } from "../state/helpOverlay";
 import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
-import { activeLane } from "../state/selection";
+import { activeLane, stageMode } from "../state/selection";
+import { fillRailsOpen, toggleFillRails } from "../state/fillRails";
 import { registerHelp, type HelpEntry } from "../help/registry";
 import { LANE_NAMES, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
@@ -110,6 +111,17 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
       title: `${n} FX`,
       text: `Opens ${n}'s effect rack: up to three devices in a row, reorderable, bypassable in one click.`,
     },
+    // MB-2 (mobile slice): the drums-only, narrow-stages-only fill-rails
+    // reveal — the touch/mouse twin of the desktop hover reveal.
+    ...(lane === "drums"
+      ? [
+          {
+            id: "lane.drums.fill",
+            title: "DRUMS FILL RAILS",
+            text: "Shows every drum row's E fill rail over its pads (no hover on touch — this is the reveal). SET in a rail to spread that row's hits evenly; the button or Escape hides the rails again.",
+          },
+        ]
+      : []),
   ];
 }
 
@@ -535,6 +547,27 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             </span>
           </Show>
         </button>
+
+        {/* MB-2 (mobile slice): the FILL reveal — drums lane, NARROW stages
+            only (phone + tablet render the fill rails as the MB-1 overlay;
+            hover reveals nothing on touch, so the strip toggle is the
+            reveal). Desktop never renders it — the inline rail keeps its
+            hover/focus reveal and the desktop law stays byte-identical
+            (m4). One action: show/hide every row's rail; the steppers were
+            always tab stops, so keyboard reachability is unchanged. */}
+        <Show when={props.lane === "drums" && stageMode() !== "desktop"}>
+          <button
+            type="button"
+            class="head-mix-btn head-fill-toggle"
+            classList={{ "is-on": fillRailsOpen() }}
+            data-help="lane.drums.fill"
+            aria-pressed={fillRailsOpen()}
+            aria-label={`Euclidean fill rails over the ${LANE_NAMES[props.lane]} rows`}
+            onClick={() => toggleFillRails()}
+          >
+            FILL
+          </button>
+        </Show>
       </div>
 
       {/* FX console overlay: only the selected quadrant can open it (the

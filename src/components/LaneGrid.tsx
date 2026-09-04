@@ -69,6 +69,7 @@ import {
   selectQuadrantFromPointer,
 } from "../state/gridFocus";
 import { closeFxConsole, fxConsoleLane } from "../state/fxConsole";
+import { closeFillRails, fillRailsOpen } from "../state/fillRails";
 import { noteEditAt, type Span } from "../interaction/drag";
 import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
@@ -581,6 +582,18 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         closeFxConsole();
         return true;
       },
+      // MB-2 (mobile slice): Escape first closes the fill-rails reveal (the
+      // narrow-stage row-local overlay state) — drums only; pitched lanes
+      // own no fill rails and pass the keystroke on untouched.
+      ...(lane === "drums"
+        ? {
+            onEscapeFillRails: () => {
+              if (!fillRailsOpen()) return false;
+              closeFillRails();
+              return true;
+            },
+          }
+        : {}),
       onToggle: (row, step) => {
         selectLane(lane); // selection follows the latest grid interaction
         if (lane === "drums") {
@@ -703,6 +716,17 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     createEffect(() => {
       rendererRef?.setEditable(activeLane() === lane);
     });
+
+    // MB-2 (mobile slice): the fill-rails reveal — the drums grid's overlay
+    // slots show/hide with the strip FILL toggle (grid.css keys off this
+    // class; desktop never carries .is-overlay slots, so the class is
+    // visually inert there and the desktop law stays byte-identical).
+    if (lane === "drums") {
+      const scrollHost = container;
+      createEffect(() => {
+        scrollHost?.classList.toggle("fill-rails-open", fillRailsOpen());
+      });
+    }
 
     // DA-1 cross-lane focus: consume requests addressed to THIS quadrant and
     // move DOM focus + roving tabindex to the carried cell (clamped by the

@@ -184,6 +184,14 @@ export interface DomGridRendererOptions {
    */
   readonly onEscapeCovered?: () => boolean;
   /**
+   * MB-2 (mobile slice): consulted BEFORE onEscapeCovered — returns true
+   * when the fill-rails reveal (the narrow-stage overlay state, innermost
+   * row-local surface) consumes the keystroke. The owner closes the
+   * reveal; one consumer per keystroke (keyboard.md v2 Escape order:
+   * row-local surfaces before the console cover before the region pop).
+   */
+  readonly onEscapeFillRails?: () => boolean;
+  /**
    * PX-3 (drums only): mount a per-row fill control into the row's dedicated
    * rail slot. Called once per row during build; the owner renders its own
    * framework UI into `el` and owns that subtree's lifecycle.
@@ -733,6 +741,14 @@ export class DomGridRenderer implements GridRenderer {
     }
 
     if (e.key === "Escape") {
+      // MB-2: the fill-rails reveal is the innermost row-local surface —
+      // close it before the console cover / region-head pop consider the
+      // keystroke (one consumer per Escape).
+      if (this.opts.onEscapeFillRails?.()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       // Refinement-1: an overlay covering this grid (the FX console) owns
       // the Escape first — close it, skip the region-head pop this
       // keystroke, and stop the page-level consumer from double-handling.

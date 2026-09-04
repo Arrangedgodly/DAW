@@ -106,6 +106,8 @@ import {
   cueSweepMove,
   cueSweepMoved,
   type CueSweep,
+  isDoubleTap,
+  type TapRecord,
 } from "../interaction/drag";
 import {
   activeLane,
@@ -652,6 +654,42 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   };
 
   /**
+   * MB-2 (mobile slice): the dblclick TAP TWINS under touch input. A touch
+   * pointerup on an UNMOVED press records the tap; a second tap on the same
+   * target inside the isDoubleTap window/radius fires exactly the actions
+   * the dblclick handlers own — cue line → cue edit, tile → rename. This is
+   * the belt-and-braces twin: Android Chrome usually synthesizes dblclick
+   * from a double-tap once the tile's touch-action pans are pinned, but a
+   * double-tap-zoom that consumes the second tap would eat it — the twin
+   * makes rename/cue-edit double-tap-proof on real digitizers. The two
+   * paths cannot double-fire an action: both invoke the same idempotent
+   * signal writes (open menu / set the editing state), and the native
+   * clicks of both taps run exactly as they always did before a dblclick.
+   */
+  let lastTileTap: TapRecord | null = null;
+  const onTileTapUp = (e: PointerEvent, tile: RailTile) => {
+    if (e.pointerType !== "touch") return;
+    const sweep = cueSweep();
+    if (sweep && cueSweepMoved(sweep)) return; // a sweep is a drag, not a tap
+    const onCue = Boolean(
+      (e.target as Element | null)?.closest?.(".rail-tile-cue"),
+    );
+    const tap: TapRecord = {
+      x: e.clientX,
+      y: e.clientY,
+      time: e.timeStamp,
+      target: `${props.lane}:${tile.slot}${onCue ? ":cue" : ""}`,
+    };
+    if (isDoubleTap(lastTileTap, tap)) {
+      lastTileTap = null; // the pair is consumed by the dbltap
+      if (onCue) setEditing({ kind: "cue", slot: tile.slot });
+      else beginRename();
+      return;
+    }
+    lastTileTap = tap;
+  };
+
+  /**
    * DA-3: chain edits rebuild the tile row (For reference diff), which drops
    * focus to <body>. After an edit, land focus on the tile now occupying
    * `slot` — or the new last tile when the edit appended one.
@@ -811,6 +849,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               tabindex={tile.slot === focusedSlot() ? 0 : -1}
               aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
               onFocus={() => setFocusedSlot(tile.slot)}
+              onPointerUp={(e) => onTileTapUp(e, tile)}
               onClick={() => {
                 // IN-3: pointer-driven commits swallow their trailing click.
                 if (suppressTileClick) return;

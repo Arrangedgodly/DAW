@@ -137,6 +137,10 @@
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   color: var(--color-ink);
+  /* MB-2: a non-interactive origin — swipes from the lane name keep the
+   * browser's default panning (the phone strip h-scrolls from here). */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .rail-tiles {
@@ -160,6 +164,16 @@
   cursor: pointer;
   font: var(--text-value);
   white-space: nowrap;
+  /* MB-2 (mobile slice): the tile gesture-vs-scroll law — a touch that
+   * starts on a tile may become the horizontal cue SWEEP (IN-3), so
+   * `pan-y` reserves the horizontal axis for the app while vertical pans
+   * still scroll the page (the sticky chrome's strip h-scrolls from the
+   * row's non-tile gutters). Long-press raises no text selection; the
+   * inline editors inside restore text selection below. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .rail-tile:hover {
@@ -366,6 +380,11 @@
   border-radius: 3px;
   padding: var(--space-1) var(--space-2);
   width: 9ch;
+  /* MB-2: the tile's gesture-surface user-select must not inherit into the
+   * inline editors — text entry stays selectable/editable on touch. */
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* ---- FOCUS view: collapse-to-pattern. Rail slims to the active tiles (the

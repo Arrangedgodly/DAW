@@ -42,6 +42,10 @@ import {
   cueSweepCommit,
   cueSweepMove,
   cueSweepMoved,
+  DBLTAP_RADIUS_PX,
+  DBLTAP_WINDOW_MS,
+  isDoubleTap,
+  type TapRecord,
 } from "../src/interaction/drag";
 import type { LaneId } from "../src/document/schema";
 import type { PendingSwitchSnapshot } from "../src/engine/session";
@@ -590,5 +594,56 @@ describe("IN-3 cue sweep (pointer gesture) — pure reducers", () => {
     sweep = cueSweepMove(sweep, "drums", 2);
     sweep = cueSweepMove(sweep, "drums", 1);
     expect(cueSweepCommit(sweep, RAIL_ROWS)).toEqual([{ lane: "drums", slot: 1 }]);
+  });
+});
+
+describe("MB-2 dbltap twins (touch) — pure decision", () => {
+  const tap = (
+    target: string,
+    time: number,
+    x = 100,
+    y = 100,
+  ): TapRecord => ({ x, y, time, target });
+
+  it("two taps on the same target inside the window+radius are a dbltap", () => {
+    const first = tap("drums:1", 1_000);
+    expect(isDoubleTap(null, first)).toBe(false); // no predecessor
+    expect(isDoubleTap(first, tap("drums:1", 1_200, 112, 108))).toBe(true);
+  });
+
+  it("different targets never pair (tile vs its cue line are separate targets)", () => {
+    const first = tap("drums:1", 1_000);
+    expect(isDoubleTap(first, tap("drums:1:cue", 1_200))).toBe(false);
+    expect(isDoubleTap(first, tap("bass:1", 1_200))).toBe(false);
+  });
+
+  it("outside the time window it is two taps, not a dbltap", () => {
+    const first = tap("drums:1", 1_000);
+    expect(
+      isDoubleTap(first, tap("drums:1", 1_000 + DBLTAP_WINDOW_MS + 1)),
+    ).toBe(false);
+    expect(
+      isDoubleTap(first, tap("drums:1", 1_000 + DBLTAP_WINDOW_MS)),
+    ).toBe(true); // the boundary itself pairs
+  });
+
+  it("outside the radius (a finger drags away) it is not a dbltap", () => {
+    const first = tap("drums:1", 1_000, 0, 0);
+    const dx = DBLTAP_RADIUS_PX; // exactly on the circle
+    expect(isDoubleTap(first, tap("drums:1", 1_100, dx, 0))).toBe(true);
+    expect(
+      isDoubleTap(first, tap("drums:1", 1_100, dx + 1, 0)),
+    ).toBe(false);
+  });
+
+  it("a consumed pair resets: the third tap starts a fresh pair", () => {
+    // The rail nulls the record after firing — the next two taps must pair
+    // again (rename, then rename again later, never a stale triple).
+    const first = tap("drums:1", 1_000);
+    expect(isDoubleTap(first, tap("drums:1", 1_200))).toBe(true);
+    expect(isDoubleTap(null, tap("drums:1", 1_400))).toBe(false); // reset
+    expect(isDoubleTap(tap("drums:1", 1_400), tap("drums:1", 1_600))).toBe(
+      true,
+    );
   });
 });

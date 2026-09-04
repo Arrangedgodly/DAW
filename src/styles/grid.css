@@ -112,6 +112,13 @@
   /* Labels are info-critical → warm white on ground (ink rule 2). */
   color: color-mix(in srgb, var(--color-ink) 78%, var(--color-ground));
   padding-right: var(--space-3);
+  /* MB-2: the label is a deliberate NON-interactive origin — touch swipes
+   * that start here keep the browser's default panning in BOTH axes (the
+   * strip h-scrolls a 2/4-bar pattern from here, the page scrolls
+   * vertically from anywhere), and long-press raises no text selection. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .row-cells {
@@ -139,6 +146,19 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
   cursor: pointer;
+  /* MB-2 (mobile slice): the gesture-vs-scroll law. A touch that STARTS on
+   * a cell may become a horizontal edit gesture (drag-create, drums paint)
+   * — `pan-y` reserves the horizontal axis for the app while VERTICAL
+   * panning stays the browser's (the page scrolls; the armed gesture gets
+   * pointercancel per IN-4 and cancels cleanly). Swipes that must scroll
+   * the strip horizontally start on the labels/gutters (touch-action
+   * auto). Mouse pointers are unaffected by touch-action (m4). */
+  touch-action: pan-y;
+  /* Long-press on a gesture surface must not raise text selection /
+   * callouts — the gesture owns the pointer (IN-4 contextmenu law). */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* View-only cells are not clickable — the quadrant select handles clicks. */
@@ -230,7 +250,8 @@
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
 }
 
-.row-fill.is-overlay:focus-within {
+.row-fill.is-overlay:focus-within,
+.lane-grid-scroll.fill-rails-open .row-fill.is-overlay {
   opacity: 1;
   pointer-events: auto;
 }
@@ -332,7 +353,10 @@
   right: 0;
   width: min(5px, 100%);
   cursor: ew-resize;
-  touch-action: none;
+  /* MB-2: the cell law, not `none` — the edge gesture is horizontal, so the
+   * horizontal axis is reserved for the resize while vertical pans still
+   * scroll the page (pointercancel cancels the resize cleanly, IN-4). */
+  touch-action: pan-y;
   pointer-events: auto;
 }
 

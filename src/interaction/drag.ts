@@ -292,3 +292,43 @@ export function cueSweepCommit(
   }
   return targets;
 }
+
+// ---------------------------------------------------------------------------
+// MB-2 (mobile slice): touch TAP TWINS — the dblclick gestures under touch
+// input. Pure decision helpers; the rail feeds real pointerup coordinates.
+// ---------------------------------------------------------------------------
+
+/**
+ * One recorded touch tap: viewport coords + the interaction clock (ms) + a
+ * caller-defined target identity ("lane:slot" — or "lane:slot:cue" when the
+ * tap landed on the tile's cue line, which owns its OWN edit action).
+ */
+export interface TapRecord {
+  readonly x: number;
+  readonly y: number;
+  readonly time: number;
+  readonly target: string;
+}
+
+/** Two taps within this many ms count as a dbltap (the platform convention). */
+export const DBLTAP_WINDOW_MS = 400;
+/** ...and within this many px (fingers land imprecisely). */
+export const DBLTAP_RADIUS_PX = 40;
+
+/**
+ * True when `next` completes a double-tap on the same target as `prev`:
+ * same target identity, inside the time window, inside the radius. The
+ * touch twin of the browser's dblclick — callers run it only for TOUCH
+ * pointers, so a mouse dblclick can never double-fire the action.
+ */
+export function isDoubleTap(
+  prev: TapRecord | null,
+  next: TapRecord,
+): boolean {
+  if (!prev) return false;
+  if (prev.target !== next.target) return false;
+  if (next.time - prev.time > DBLTAP_WINDOW_MS) return false;
+  const dx = next.x - prev.x;
+  const dy = next.y - prev.y;
+  return Math.sqrt(dx * dx + dy * dy) <= DBLTAP_RADIUS_PX;
+}

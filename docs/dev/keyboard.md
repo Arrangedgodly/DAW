@@ -278,6 +278,18 @@ Arrows on the steppers adjust pulses/rotation natively (real buttons);
 Enter on SET commits the painted row; Escape cancels the preview. No
 additional bindings — the fill controls are plain focusable buttons.
 
+**MB-2 (mobile slice) — the narrow-stage reveal.** On phone + tablet the
+fill rails are the MB-1 OVERLAY (hover reveals nothing on touch), so the
+drums strip carries a `FILL` toggle (edit row, next to FX — drums lane,
+narrow stages ONLY; desktop keeps the inline hover/focus rail byte-identical,
+m4): Tab + Enter shows every row's rail over its pads; the same toggle or a
+grid Escape hides them. The steppers were ALWAYS tab stops — focusing one
+still reveals its row (`:focus-within`), so keyboard reachability is
+unchanged by construction. Escape order gain (one consumer per keystroke):
+with the rails shown, a grid Escape closes them BEFORE the FX console
+cover and the region-head pop (the rails are the innermost row-local
+surface).
+
 ## Help mode (info view) [v2 · live since HP-1]
 
 Ableton-style info view (I2-6), SEPARATE from the keyboard-shortcut overlay
@@ -325,9 +337,10 @@ closable only by clicking another quadrant:
 - **Escape order on this surface** (one consumer per keystroke): KEYS modal
   → help mode (cancel-first, HP-1) → inline edits / popovers / menus (the
   add menu's own Escape, the scale popover, the projects panel — each
-  consumes via stopPropagation) → **the FX console closes** → region-head
-  pops. Pinned end-to-end by help-mode.test.tsx §6 (mode → menu → console
-  on one surface) and fx-console-trusted.test.tsx.
+  consumes via stopPropagation) → **the narrow-stage fill-rails reveal
+  closes (MB-2, drums, only while shown)** → **the FX console closes** →
+  region-head pops. Pinned end-to-end by help-mode.test.tsx §6 (mode →
+  menu → console on one surface) and fx-console-trusted.test.tsx.
 - **Focus law on close.** Focus never moves unless closing would strand it:
   it stays put when Escape fires from outside the console; it lands on the
   strip's FX entry when focus rested INSIDE the console (CLOSE button or

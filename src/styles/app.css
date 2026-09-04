@@ -193,3 +193,32 @@
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
 }
+
+/* ---------------------------------------------------------------------------
+ * MB-2 (mobile slice) — the TOUCH INPUT LAW (globals; per-surface gesture
+ * laws live with their surfaces: grid.css cells/edges, pattern-rail.css
+ * tiles). Touch pointers get the platform's tap contract everywhere:
+ * `manipulation` on every button/select (no 300 ms tap delay, no
+ * double-tap zoom — taps fire exactly once), panning stays native so the
+ * page/strip still scroll from any control. Gesture SURFACES that need a
+ * reserved axis (cells, note edges, rail tiles) override with their own
+ * `touch-action` (higher specificity — pan-y there). Range sliders own
+ * their drag completely (`none`) so a thumb drag can never become a page
+ * scroll. user-select:none on buttons kills long-press text selection on
+ * gesture-adjacent chrome; text inputs keep their native selectability.
+ * Mouse pointers are untouched by touch-action — the desktop law is
+ * byte-identical (m4).
+ * ------------------------------------------------------------------------- */
+
+button,
+select,
+[role="tab"],
+[role="switch"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input[type="range"] {
+  touch-action: none;
+}
