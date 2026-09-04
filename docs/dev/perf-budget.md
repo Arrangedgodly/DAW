@@ -76,6 +76,21 @@ viewport:
   rendering window): **241 frames / 4 s (≈60 fps), 0 frames ≥ 33.4 ms, max
   20.1 ms, p95 18.7 ms, median 16.6 ms**; playhead moved on 241/241 frames
   in ALL FOUR quadrants; 17 sustained voices at the sampled step.
+  Re-measured 2026-09-04 (MB-6 — the setup-integrity fix below landed):
+  **241 frames / 4 s, 0 ≥ 33.4 ms, max 19.6 ms, p95 18.7 ms, median
+  16.6 ms**, playheads 241/241 ×4, 17 sustained voices — statistically
+  unchanged: the dense drums' painted hits are composited cells, not
+  layout.
+- **MB-6 setup-integrity correction (this §2a's own gate, closed
+  2026-09-04):** the original setup's drums `clickCells` at steps ≥ 16
+  silently failed (see §9's gate-integrity note) — the measured runs above
+  were made on a drums quadrant ~4× sparser than intended (steps 0/8 only).
+  The fix (pool-strip before the clicks, MB-5's PAT-menu approach) makes
+  every one of the 48 intended hits land and the gate now ASSERTS the
+  density self-checkingly (`48/48 painted hits`); the frame-law numbers
+  were re-measured after the fix and stand as documented — the law and its
+  threshold are unchanged, and the gate is now measuring what it always
+  claimed.
 - Teeth (red/green, TH-4 evidence): a literal layout-thrash loop injected
   into the renderer's rAF (write+read per cell per frame) collapses to
   18 frames / 4 s with median 251 ms and FAILS the ratio; swapping the
@@ -263,6 +278,7 @@ subscriptions:
   by default, mounts only on demand — already compliant.
 
 ## 9. Mobile scale (MB-5, iteration-2 mobile slice — m5 "performance at
+
 ## mobile scale documented and gated")
 
 The committed phone target is Android Chrome at 390×844 (town-hall mobile
@@ -326,9 +342,9 @@ frame budget", built app in a 390×844 iframe).
   read per cell per frame) collapses (m-a) to 75/86 frames ≥ 33.4 ms
   (ratio 0.87 — RED, the exact budget assertion); a non-preview DOM write
   per pointermove redds (m-b) as `attributes@data-thrash on
-  div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
+div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
   at boot redds (m-c) as `audio-asset fetches on the phone boot/play
-  path` (the lazy law).
+path` (the lazy law).
 - **Honesty caveat (the reduced-expectations stance, by design)**: CI
   Chromium runs on desktop-class hardware EMULATING the 390×844 viewport.
   These gates catch REGRESSIONS at the phone paint/edit load — layout
@@ -341,16 +357,18 @@ frame budget", built app in a 390×844 iframe).
   the TH-4 tolerance approach precisely because of this: the 33.4 ms ratio
   is HARD and CI-stable; liveness counts are load-robust (≥2/s).
 - Gate-integrity note found live while building (m-a), recorded for
-  follow-up (NOT fixed here — changing TH-4 (a)'s setup would change its
-  documented §2a numbers): the v0 drums cell toggle is POOL-WIDE (read =
-  any pattern of the lane, write = every pattern), and a step write past a
-  pattern's own length fails `validateProject` (sparse-array holes). With
-  the demo's 1-bar patterns in the pool, TH-4 (a)'s `clickCells` at steps
-  ≥ 24 throw validation errors that its (data-on-unasserted) setup silently
-  absorbs — its dense drums quadrant is sparser than intended (its own
-  assertions still hold; the frame numbers stand as measured). The MB-5
-  gate strips the demo patterns from the drums POOL first (the PAT menu's
-  pool-remove) so every dense click lands in-pattern, in-length.
+  follow-up — **RESOLVED in MB-6 (2026-09-04)**: the v0 drums cell toggle
+  is POOL-WIDE (read = any pattern of the lane, write = every pattern),
+  and a step write past a pattern's own length fails `validateProject`
+  (sparse-array holes). With the demo's 1-bar patterns in the pool,
+  TH-4 (a)'s `clickCells` at steps ≥ 24 threw validation errors that its
+  (data-on-unasserted) setup silently absorbed — its dense drums quadrant
+  was sparser than intended (its own assertions still held; the frame
+  numbers stood as measured, and were re-measured after the fix — §2a).
+  The MB-5 gate stripped the demo patterns from the drums POOL first (the
+  PAT menu's pool-remove); MB-6 ported the same setup to TH-4 (a) AND made
+  it self-checking (the gate now asserts 48/48 intended painted hits, so
+  the setup can never silently degrade again).
 
 ## Harness notes (D8/RES-7)
 

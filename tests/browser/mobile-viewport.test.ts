@@ -1,6 +1,9 @@
 /**
  * MB-1 browser gate — the responsive stage on the REAL BUILT APP (town-hall
- * mobile addendum m1 layout half + m4; the plan's AC):
+ * mobile addendum m1 layout half + m4; the plan's AC). MB-6 consolidates:
+ * this file is the m1 VIEWPORT gate of the final mobile matrix — the m1
+ * touch half, m2/m3 targets+hoverless, m5 resilience, and m5 perf ride their
+ * own gates, indexed in docs/dev/definition-of-done.md §6 (the MB-6 record).
  *
  * 1. PHONE 390×844 — the committed model: lane switcher (tabs) IS quadrant
  *    selection (drives selection.activeLane, `NOW EDITING <LANE>`
@@ -30,6 +33,23 @@
  *
  * Synthetic-input honesty (the suite's law): synthetic keydowns run the
  * app's handlers; native-button activation = focus + Enter + click.
+ *
+ * MB-6 hardening (the coordinator-assigned load flake, state.md/production-
+ * log.md "MB-4 worker"/"MB-5 worker"): the first-run CHROME BUDGET at
+ * 360×800 flaked under sustained machine load (~5–9) with `expected 413 <
+ * 400` while passing solo. MEASURED root cause (not the suspected settle/
+ * font race — the 413 is a STABLE settled height): headed desktop Chromium
+ * may render CLASSIC scrollbars, and the phone document scrolls — a 15 px
+ * scrollbar steals layout width from the iframe (clientWidth 345 at a 360
+ * iframe), and the booth then lawfully wraps one row taller. The committed
+ * phone target is ANDROID CHROME (overlay scrollbars — zero layout width),
+ * so the boot iframe now pins `scrollbar-width: none` (the target's
+ * scrollbar layout, same class as the emulated viewport itself) and the
+ * chrome-budget measurement additionally waits for document.fonts.ready +
+ * a dimension-stable chrome box (three consecutive equal samples) so it
+ * only ever asserts the SETTLED boot state. The LAW is untouched: <50% of
+ * the viewport stays <50% (400 at 360×800), and the first-run proof (PX-1
+ * nudge) is unchanged.
  */
 
 import { describe, expect, it } from "vitest";
@@ -95,7 +115,21 @@ async function bootIframe(
   doc0.open();
   doc0.write(`<!doctype html><html><head>
 <meta charset="UTF-8" />
-<link rel="stylesheet" href="${cssKey.replace("/dist/", "/")}" />
+<link rel="stylesheet" href="${cssKey.replace("/dist/", "/")}"/>
+<style>
+/* MB-6 hardening (the REAL mechanism behind the documented load flake —
+ * measured, not guessed: "expected 413 < 400" was a STABLE height, not a
+ * settle race): headed desktop Chromium may render CLASSIC scrollbars, and
+ * the phone document scrolls — a 15 px scrollbar steals layout width from
+ * the iframe's 360/390 (clientWidth 375/345 measured), and the booth then
+ * wraps one row taller: a stable 413 px chrome at what is actually a 345 px
+ * layout. The committed phone target is ANDROID CHROME, whose scrollbars
+ * are OVERLAY (zero layout width) — the phone stage must lay out at the
+ * committed width. scrollbar-width:none emulates the target's scrollbar
+ * layout exactly like the emulated viewport itself (perf-budget §9's
+ * stance); the page still scrolls (the sticky-chrome laws scroll it). */
+html { scrollbar-width: none; }
+</style>
 </head><body><div id="root"></div>
 <script type="module" src="${bundleKey.replace("/dist/", "/")}"></script>
 </body></html>`);
@@ -164,6 +198,46 @@ async function teardown(iframe: HTMLIFrameElement): Promise<void> {
       await new Promise((r) => setTimeout(r, 100));
     }
   }
+}
+
+/**
+ * MB-6 hardening — the FONT-SETTLED chrome height (the documented load
+ * flake: `expected 413 < 400` at load ~5–9, green solo). The webfaces land
+ * asynchronously (a swap/optional mix); a booth measured on provisional
+ * metrics can honestly read one wrap-row taller until they do, and machine
+ * load stretches that window past any fixed sleep. The helper waits for
+ * `document.fonts.ready` and then polls until the chrome box's height is
+ * dimension-stable (three consecutive samples within 0.5 px) — the state
+ * the phone HOLDS, which is what the <50% law governs. No assertion is
+ * weakened: the returned height faces the caller's unchanged threshold.
+ */
+async function settledChromeHeight(
+  idoc: () => Document,
+  get: () => HTMLElement | null,
+  timeoutMs = 5_000,
+): Promise<number> {
+  try {
+    await idoc().fonts.ready;
+  } catch {
+    /* fonts API unavailable — the stability poll below still applies */
+  }
+  const t0 = performance.now();
+  let stable = 0;
+  let last = -1;
+  let height = -1;
+  while (performance.now() - t0 < timeoutMs) {
+    const box = get();
+    height = box ? box.getBoundingClientRect().height : -1;
+    if (height >= 0 && Math.abs(height - last) < 0.5) {
+      stable++;
+      if (stable >= 3) return height;
+    } else {
+      stable = 0;
+    }
+    last = height;
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  return height;
 }
 
 describe("MB-1 responsive stage (built app)", () => {
@@ -449,8 +523,14 @@ describe("MB-1 responsive stage (built app)", () => {
         // The usable-grid budget (the return-to-Town-Hall flag as a hard
         // law): sticky chrome must NOT eat the majority of the viewport, and
         // the visible stage below it stays a usable editing area (≥ 40% of
-        // the viewport height).
-        const chromeH = $(".phone-chrome").getBoundingClientRect().height;
+        // the viewport height). MB-6 hardening: the height is measured at
+        // FONT/SETTLED truth (the documented load flake — a provisional-
+        // metrics booth reads one wrap-row taller until the webfaces land;
+        // under load that window outlived the old fixed settle). The law
+        // itself is byte-identical: <50% stays <50%.
+        const chromeH = await settledChromeHeight(idoc, () =>
+          idoc().querySelector<HTMLElement>(".phone-chrome"),
+        );
         expect(chromeH, "chrome under half the viewport").toBeLessThan(H / 2);
         expect(H - chromeH, "usable stage height").toBeGreaterThanOrEqual(
           H * 0.4,

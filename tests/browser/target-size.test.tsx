@@ -71,7 +71,56 @@ async function waitFor(
   throw new Error(`${what} never met within budget`);
 }
 
-const raf = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+const raf = () =>
+  new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
+/**
+ * MB-6 hardening (the coordinator-assigned SNARE load flake —
+ * state.md/production-log.md "MB-4 worker"/"MB-5 worker"). MEASURED root
+ * causes (see auditOverlayReachability for the full record): (1) the clip
+ * box went stale under per-fill page scrolling (fixed there), and (2) a
+ * classic desktop scrollbar could lay the phone out 15 px narrower than the
+ * committed width (fixed by the scrollbar-width pin). This helper adds the
+ * remaining discipline: geometry audits wait for `document.fonts.ready`
+ * and dimension-stable polls, so they measure the settled layout the phone
+ * actually holds — never a mid-swap transient. Assertion strength is
+ * UNCHANGED: the full 44×44 reachability laws (clip containment + boundary
+ * probes + the width law) face the same thresholds as before.
+ */
+async function fontsSettled(): Promise<void> {
+  try {
+    await document.fonts.ready;
+  } catch {
+    /* fonts API unavailable — the stability polls below still apply */
+  }
+  await raf();
+}
+
+/**
+ * Wait until `sample()` returns a dimension-stable value (three consecutive
+ * samples within 0.5 of each other) — the settled-truth poll for geometry
+ * that legitimately moves while fonts/reveal layouts land.
+ */
+async function settleValue(
+  sample: () => number,
+  timeoutMs = 5_000,
+): Promise<number> {
+  const t0 = Date.now();
+  let stable = 0;
+  let last = Number.NaN;
+  while (Date.now() - t0 < timeoutMs) {
+    const v = sample();
+    if (Math.abs(v - last) < 0.5) {
+      stable++;
+      if (stable >= 3) return v;
+    } else {
+      stable = 0;
+    }
+    last = v;
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  return sample();
+}
 
 interface AuditRow {
   name: string;
@@ -237,14 +286,52 @@ async function auditSelector(
  */
 async function auditOverlayReachability(): Promise<void> {
   const strip = document.querySelector(".lane-grid-scroll") as HTMLElement;
-  if (!strip) throw new Error("inventory selector matches nothing: .lane-grid-scroll");
-  const clip = strip.getBoundingClientRect();
+  if (!strip)
+    throw new Error("inventory selector matches nothing: .lane-grid-scroll");
   const fills = Array.from(document.querySelectorAll(".row-fill.is-overlay"));
   if (fills.length === 0)
     throw new Error("inventory selector matches nothing: .row-fill.is-overlay");
-  const chromeEl = document.querySelector(".phone-chrome") as HTMLElement | null;
+  const chromeEl = document.querySelector(
+    ".phone-chrome",
+  ) as HTMLElement | null;
+  // MB-6 hardening (the SNARE load flake) — TWO measured mechanisms, both
+  // fixed measurement-side (assertions byte-identical):
+  //
+  // (1) STALE CLIP under page scroll: the clip box was captured ONCE for
+  //     the whole walk while each fill's `scrollIntoView({block:"center"})`
+  //     scrolls the PAGE (delta measured up to 202 px) — the per-fill
+  //     boxes were then compared against a clip from a different scroll
+  //     position (the reproduced failure: SNARE btn y[376..420] vs a stale
+  //     clip starting at y=397 — an artifact, the box was inside the
+  //     strip's actual clip at y[269..897] all along). The clip is now
+  //     re-captured FRESH after each fill's scroll+nudge settle, so the
+  //     containment law compares boxes and clip from the same layout
+  //     instant.
+  // (2) CLASSIC-SCROLLBAR WIDTH THEFT (the same measured mechanism as
+  //     MB-1's 360 chrome flake): headed desktop Chromium may render a
+  //     15 px classic scrollbar on the scrolling tester page, laying the
+  //     phone out at 375/345 instead of the committed 390/360 — past the
+  //     euclid overlay's 355 px container-query boundary, two-digit
+  //     readout rows wrap to the two-line chassis mid-audit. The audit
+  //     pins `scrollbar-width: none` (the Android-Chrome overlay-scrollbar
+  //     layout — the committed phone target) for its duration, so the
+  //     audited geometry is the committed width's geometry.
+  const overlaySignature = (): number => {
+    let sum = 0;
+    for (const el of [
+      ...fills,
+      ...fills.flatMap((f) => Array.from(f.querySelectorAll("button"))),
+    ]) {
+      const r = el.getBoundingClientRect();
+      sum += Math.round(r.left + r.top + r.width + r.height);
+    }
+    return sum;
+  };
+  await settleValue(overlaySignature);
   for (const fill of fills) {
-    const row = fill.closest(".grid-row")?.querySelector(".row-label")?.textContent ?? "?";
+    const row =
+      fill.closest(".grid-row")?.querySelector(".row-label")?.textContent ??
+      "?";
     // The strip scrolls with the page under the STICKY chrome — bring the
     // row into the open before probing (the horizontal clip law is
     // scroll-independent; vertical occlusion is the page's own scroll
@@ -254,12 +341,14 @@ async function auditOverlayReachability(): Promise<void> {
     await raf();
     const chromeBottom = chromeEl ? chromeEl.getBoundingClientRect().bottom : 0;
     if (fill.getBoundingClientRect().top < chromeBottom + 4) {
-      window.scrollBy(
-        0,
-        fill.getBoundingClientRect().top - chromeBottom - 8,
-      );
+      window.scrollBy(0, fill.getBoundingClientRect().top - chromeBottom - 8);
       await raf();
     }
+    // MB-6 (mechanism 1): the clip is captured FRESH here — after this
+    // fill's scroll+nudge settle — so boxes and clip come from the same
+    // layout instant (a page scroll between capture and compare was the
+    // reproduced flake).
+    const clip = strip.getBoundingClientRect();
     // (c) the width law: max-width + left offset inside the scroll content.
     const fr = fill.getBoundingClientRect();
     const leftInScroll = fr.left - clip.left + strip.scrollLeft;
@@ -283,7 +372,7 @@ async function auditOverlayReachability(): Promise<void> {
         r.bottom > clip.bottom + 0.5
       ) {
         throw new Error(
-          `[euclid ${label} · ${row}] painted box [${r.left.toFixed(1)},${r.right.toFixed(1)}] leaves the scrollport clip [${clip.left.toFixed(1)},${clip.right.toFixed(1)}] — the hit box cannot be fully reached`,
+          `[euclid ${label} · ${row}] painted box x[${r.left.toFixed(1)},${r.right.toFixed(1)}] y[${r.top.toFixed(1)},${r.bottom.toFixed(1)}] leaves the scrollport clip x[${clip.left.toFixed(1)},${clip.right.toFixed(1)}] y[${clip.top.toFixed(1)},${clip.bottom.toFixed(1)}] — the hit box cannot be fully reached`,
         );
       }
       const cx = r.left + r.width / 2;
@@ -334,12 +423,19 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
       let snapshotRows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
       try {
         await page.viewport(390, 844);
+        // MB-6 hardening (mechanism 2, see auditOverlayReachability): pin
+        // the Android-Chrome OVERLAY-scrollbar layout for the audit — a
+        // classic 15 px scrollbar on the scrolling tester page would lay
+        // the phone out at 375/345 instead of the committed 390/360 (past
+        // the euclid 355 px container-query boundary and into the booth's
+        // extra-wrap regime). The tester page still scrolls; restored in
+        // the finally below.
+        document.documentElement.style.scrollbarWidth = "none";
         // MB-3 fix (verifier m2-1): every section now PROVES its viewport —
         // the committed "360×800" half ran at 390 and logged 390 numbers.
-        expect(
-          window.innerWidth,
-          "the audit viewport is truly 390×844",
-        ).toBe(390);
+        expect(window.innerWidth, "the audit viewport is truly 390×844").toBe(
+          390,
+        );
         await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
         bootDb = await openRawProjectDb("bitbounce");
         snapshotRows = await bootDb.allRecords();
@@ -377,13 +473,18 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         // (The FIRST-RUN twin of this law is MB-1's built-app gate — a wiped
         // IDB, the PX-1 demo boot. The tempo input's px pin makes first-run
         // and steady lay out the SAME booth, so both gates now agree.)
-        await raf();
-        const chrome390 = $(".phone-chrome").getBoundingClientRect();
+        // MB-6 hardening: measured at FONT/SETTLED truth (see fontsSettled —
+        // the same provisional-metrics wrap race as MB-1's documented load
+        // flake); the <50% law is unchanged.
+        await fontsSettled();
+        const chrome390H = await settleValue(
+          () => $(".phone-chrome").getBoundingClientRect().height,
+        );
         console.log(
-          `[MB-3 chrome budget · 390×844 steady] chrome ${chrome390.height.toFixed(1)} px (${((chrome390.height / 844) * 100).toFixed(1)}% of viewport)`,
+          `[MB-3 chrome budget · 390×844 steady] chrome ${chrome390H.toFixed(1)} px (${((chrome390H / 844) * 100).toFixed(1)}% of viewport)`,
         );
         expect(
-          chrome390.height,
+          chrome390H,
           "390×844 steady chrome under half the viewport",
         ).toBeLessThan(844 / 2);
 
@@ -392,12 +493,14 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         // --- pinned chrome: booth (compact painted + hit straps) ---------
         rows.push(await auditControl($(".booth-btn-play"), "booth PLAY"));
         rows.push(await auditControl($(".booth-btn-loop"), "booth LOOP"));
-        rows.push(
-          await auditControl($(".booth-btn-metro"), "booth METRONOME"),
-        );
+        rows.push(await auditControl($(".booth-btn-metro"), "booth METRONOME"));
         rows.push(await auditControl($(".booth-btn-help"), "booth KEYS ?"));
         rows.push(await auditControl($(".booth-btn-info"), "booth INFO ?"));
-        await auditSelector(".phone-chrome .booth-step-btn", "booth tempo stepper", rows);
+        await auditSelector(
+          ".phone-chrome .booth-step-btn",
+          "booth tempo stepper",
+          rows,
+        );
         rows.push(
           await auditControl(
             $(".scale-chip-booth"),
@@ -468,7 +571,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         // --- exempt recorded: data targets + gesture affordances ---------
         rows.push(
           await auditControl(
-            $('.lane-floor[data-lane="drums"] .cell[data-row="0"][data-step="0"]'),
+            $(
+              '.lane-floor[data-lane="drums"] .cell[data-row="0"][data-step="0"]',
+            ),
             "grid cell (DATA TARGET — gesture laws)",
             { exempt: true },
           ),
@@ -533,7 +638,11 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           2000,
           "PAT menu open",
         );
-        await auditSelector(".rail-tools-menu .rail-tool", "PAT menu item", rows);
+        await auditSelector(
+          ".rail-tools-menu .rail-tool",
+          "PAT menu item",
+          rows,
+        );
         keyAt("Escape");
         await waitFor(
           () => document.querySelector(".rail-tools-menu") === null,
@@ -548,7 +657,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           2000,
           "lane scale popover open",
         );
-        await auditSelector(".scale-pop-root", "scale root", rows, { limit: 2 });
+        await auditSelector(".scale-pop-root", "scale root", rows, {
+          limit: 2,
+        });
         rows.push(await auditControl($(".scale-pop-mode"), "scale mode"));
         rows.push(await auditControl($(".scale-pop-commit"), "scale commit"));
         rows.push(await auditControl($(".scale-pop-detach"), "scale detach"));
@@ -591,14 +702,15 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           "fx console open",
         );
         rows.push(await auditControl($(".lane-fx-close"), "fx CLOSE"));
+        await auditSelector(".fx-strip .fx-mod-btn", "fx module button", rows);
         await auditSelector(
-          ".fx-strip .fx-mod-btn",
-          "fx module button",
+          ".fx-strip .fx-param-slider",
+          "fx param slider",
           rows,
+          {
+            limit: 2,
+          },
         );
-        await auditSelector(".fx-strip .fx-param-slider", "fx param slider", rows, {
-          limit: 2,
-        });
         rows.push(await auditControl($(".fx-add-btn"), "fx + ADD FX"));
         click('[data-help="fx.add"]');
         await waitFor(
@@ -653,7 +765,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         // ================= focus order (m2 small-surface half) ============
         const tabbables = Array.from(
           document.querySelectorAll<HTMLElement>(
-            'button, input, select, textarea, [tabindex]',
+            "button, input, select, textarea, [tabindex]",
           ),
         ).filter(
           (el) =>
@@ -682,9 +794,15 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           const sameRow = rb.top < ra.bottom && ra.top < rb.bottom;
           const what = `${describeHit(a)} → ${describeHit(b)}`;
           if (sameRow) {
-            expect(rb.left, `${what} breaks left-to-right order`).toBeGreaterThanOrEqual(ra.left - 2);
+            expect(
+              rb.left,
+              `${what} breaks left-to-right order`,
+            ).toBeGreaterThanOrEqual(ra.left - 2);
           } else {
-            expect(rb.top, `${what} breaks top-to-bottom order`).toBeGreaterThanOrEqual(ra.top - 2);
+            expect(
+              rb.top,
+              `${what} breaks top-to-bottom order`,
+            ).toBeGreaterThanOrEqual(ra.top - 2);
           }
         }
         // The coarse sequence: booth → switcher → rail → strip → grid (the
@@ -692,8 +810,8 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         const idxIn = (pred: (el: HTMLElement) => boolean): number =>
           tabbables.findIndex(pred);
         const boothIdx = idxIn((el) => el.closest(".booth") !== null);
-        const switcherIdx = idxIn((el) =>
-          el.closest(".lane-switcher") !== null,
+        const switcherIdx = idxIn(
+          (el) => el.closest(".lane-switcher") !== null,
         );
         const railIdx = idxIn((el) => el.closest(".rail") !== null);
         const stripIdx = idxIn((el) => el.closest(".lane-head-strip") !== null);
@@ -705,7 +823,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           ["strip", stripIdx],
           ["grid cell", gridIdx],
         ] as const) {
-          expect(idx, `a ${name} tabbable must exist`).toBeGreaterThanOrEqual(0);
+          expect(idx, `a ${name} tabbable must exist`).toBeGreaterThanOrEqual(
+            0,
+          );
         }
         expect(boothIdx).toBeLessThan(switcherIdx);
         expect(switcherIdx).toBeLessThan(railIdx);
@@ -787,25 +907,27 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         selectLane("drums"); // the FILL toggle + kit stepper need the drums lane
         await waitFor(
           () =>
-            document
-              .querySelector(".lane-floor")
-              ?.getAttribute("data-lane") === "drums",
+            document.querySelector(".lane-floor")?.getAttribute("data-lane") ===
+            "drums",
           3000,
           "drums stage at 360×800",
         );
         // Chrome budget re-pin (MB-1's hard law — the target law moved it),
         // measured at the TRUE tight viewport. Steady state here; the
         // FIRST-RUN twin is MB-1's built-app gate, and the tempo input's px
-        // pin is exactly what makes the two boots agree.
-        const chrome = $(".phone-chrome").getBoundingClientRect();
+        // pin is exactly what makes the two boots agree. MB-6 hardening:
+        // font/settled measurement (the provisional-metrics wrap race), the
+        // <50% + ≥40% laws unchanged.
+        await fontsSettled();
+        const chromeH = await settleValue(
+          () => $(".phone-chrome").getBoundingClientRect().height,
+        );
         console.log(
-          `[MB-3 chrome budget · 360×800] chrome ${chrome.height.toFixed(1)} px (${((chrome.height / 800) * 100).toFixed(1)}% of viewport) · usable ${(800 - chrome.height).toFixed(1)} px (${(((800 - chrome.height) / 800) * 100).toFixed(1)}%)`,
+          `[MB-3 chrome budget · 360×800] chrome ${chromeH.toFixed(1)} px (${((chromeH / 800) * 100).toFixed(1)}% of viewport) · usable ${(800 - chromeH).toFixed(1)} px (${(((800 - chromeH) / 800) * 100).toFixed(1)}%)`,
         );
-        expect(chrome.height, "chrome under half the viewport").toBeLessThan(
-          800 / 2,
-        );
+        expect(chromeH, "chrome under half the viewport").toBeLessThan(800 / 2);
         expect(
-          800 - chrome.height,
+          800 - chromeH,
           "usable stage height ≥ 40%",
         ).toBeGreaterThanOrEqual(800 * 0.4);
 
@@ -844,7 +966,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await auditSelector(".booth-range", "booth slider", rows360);
         await auditSelector(".lane-switch-tab", "switcher tab", rows360);
         await auditSelector(".rail-tile", "rail tile", rows360, { limit: 2 });
-        rows360.push(await auditControl($(".rail-tools-trigger"), "PAT trigger"));
+        rows360.push(
+          await auditControl($(".rail-tools-trigger"), "PAT trigger"),
+        );
         await auditSelector(
           '.lane-floor [aria-label^="Next kit"], .lane-floor [aria-label^="Next preset"]',
           "strip preset +",
@@ -862,12 +986,11 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             "strip FX",
           ),
         );
-        rows360.push(
-          await auditControl($(".head-fill-toggle"), "strip FILL"),
-        );
+        rows360.push(await auditControl($(".head-fill-toggle"), "strip FILL"));
         logTable(rows360, "360×800");
       } finally {
         clearToasts();
+        document.documentElement.style.scrollbarWidth = ""; // MB-6 pin off
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())
           .catch(() => {});

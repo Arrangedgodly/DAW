@@ -28,6 +28,45 @@ import { setHelpMode } from "../../src/state/helpMode";
 // from the REAL rendered palette, exactly as deployed.
 import "../../src/styles/base.css";
 
+async function waitFor(
+  predicate: () => boolean,
+  ms = 4000,
+  what = "condition",
+): Promise<void> {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((r) => setTimeout(r, 15));
+  }
+  throw new Error(`${what} never met within budget`);
+}
+
+/**
+ * MB-6 stabilization (the pre-existing transient this file inherited —
+ * flakes ~4/5 under load at the parent, green in isolation; the MB-3
+ * verifier filed it, state.md/production-log.md assign it to MB-6): the
+ * popover tests follow the phone-stage test, whose teardown restores the
+ * 1280×800 viewport. The STAGE-MODE flip is matchMedia-driven and lands
+ * asynchronously — under load the swap can process AFTER the next test has
+ * mounted and clicked, opening the popover inside the phone-branch Booth
+ * that the branch swap then DESTROYS (the fresh desktop Booth mounts with
+ * the popover closed → `.scale-pop` is null ~300 ms later → "expected null
+ * to be truthy"). Determinism, not assertion change: settle the app on the
+ * DESKTOP stage (the harness default this test always ran at) before the
+ * click, and wait for the popover to mount instead of a fixed sleep. The
+ * axe assertion set is byte-identical.
+ */
+async function settleDesktopStage(host: HTMLElement): Promise<void> {
+  await page.viewport(1280, 800);
+  await waitFor(
+    () => host.querySelector(".app")?.getAttribute("data-stage") === "desktop",
+    4000,
+    "desktop stage settled (no matchMedia flip in flight)",
+  );
+  // Let the swap's DOM land before anything queries it.
+  await new Promise((r) => setTimeout(r, 50));
+}
+
 /** Moderates accepted as deliberate for this UI (see docs/dev/accessibility.md). */
 const ACCEPTED_MODERATES = new Set<string>([
   // Best-practice heading order: the app is a single-screen instrument panel
@@ -147,11 +186,22 @@ describe("DA-2 axe-core gate", () => {
   it("booth scale popover open: dialog semantics clean", async () => {
     const { host, cleanup } = mount();
     try {
+      // MB-6 stabilization: settle the stage BEFORE querying/clicking the
+      // chip (a matchMedia branch swap in flight would destroy the Booth
+      // the popover opened in), then wait for the popover to actually
+      // mount — never a fixed sleep. Assertion set unchanged.
+      await settleDesktopStage(host);
       const chip = host.querySelector<HTMLButtonElement>(".scale-chip-booth")!;
       expect(chip).toBeTruthy();
       chip.click();
-      await new Promise((r) => setTimeout(r, 300));
-      expect(host.querySelector(".scale-pop")).toBeTruthy();
+      await waitFor(
+        () => host.querySelector(".scale-pop") !== null,
+        4000,
+        "scale popover mounted",
+      );
+      // axe-after-settle: let the onMount focus choreography land so the
+      // snapshot sees the popover's steady state.
+      await new Promise((r) => setTimeout(r, 150));
       expectClean(await runAxe(host), "scale popover open");
     } finally {
       cleanup();
@@ -161,6 +211,7 @@ describe("DA-2 axe-core gate", () => {
   it("help overlay open: modal dialog clean", async () => {
     const { host, cleanup } = mount();
     try {
+      await settleDesktopStage(host);
       const keys = host.querySelector<HTMLButtonElement>(".booth-btn-help")!;
       openHelp(keys);
       await new Promise((r) => setTimeout(r, 300));
@@ -180,6 +231,7 @@ describe("DA-2 axe-core gate", () => {
   it("help mode on (info view): status-region semantics clean", async () => {
     const { host, cleanup } = mount();
     try {
+      await settleDesktopStage(host);
       const info = host.querySelector<HTMLButtonElement>(".booth-btn-info")!;
       expect(info).toBeTruthy();
       info.click();

@@ -69,4 +69,55 @@ ledger audit (keyboard.md §ledger: every entry re-verified against the
 shipping tests; no unrecorded v0-journey change exists; the iteration-2 e2e
 `tests/browser/e2e-iteration2.test.ts` is additive). The DoD for any
 POST-iteration-2 interaction work remains: new gestures add a coverage row
-+ keyboard path + ledger entry before the journey tests change.
+
+- keyboard path + ledger entry before the journey tests change.
+
+## 6. Mobile slice DoD (iteration-2 town-hall addendum ACs m1–m5; MB-6's
+
+## consolidated matrix, 2026-09-04 — the M17 record)
+
+Every mobile acceptance clause has a standing gate in the blocking browser
+job. A mobile-affecting change is done when this matrix is green, desktop
+(m4) included:
+
+- **m1 layout + viewport** — `tests/browser/mobile-viewport.test.ts` (the
+  consolidated VIEWPORT gate on the built app): phone 390×844 + 360×800
+  (lane switcher IS selection, sticky chrome pinned mid-scroll, scrolling-
+  grid law, one-floor law, first-run chrome <50% at 360) · tablet 768×1024
+  (2×2 one page, narrow geometry) · desktop boundary 1024/1023 · live
+  rotation chain (phone → rotated phone → tablet → desktop) · boot-wipe
+  integrity tooth.
+- **m1 editing by touch** — `tests/browser/mobile-touch-trusted.test.tsx`
+  (the consolidated ACCEPTANCE gate: trusted CDP touch on the BUILT app at
+  BOTH phone viewports — the full committed editing model: transport,
+  switcher, tap place/remove, drag-create, edge-resize, drums paint, euclid
+  arm→SET, rail sweep (stopped + queued), preset, mix, FX, busy-guarded
+  exports, projects switch; core classes re-proven at 360) ·
+  `tests/browser/touch-gestures.test.tsx` (source-mounted per-gesture gate
+  with store assertions + the gesture-vs-scroll discrimination both
+  directions) — teeth: cells' `touch-action` reservation, the FILL reveal
+  rule, and the export busy-guard each proven red by scratch revert.
+- **m2 targets + m3 hoverless/help** — `tests/browser/target-size.test.tsx`
+  (≥44×44 hit-box audit at both phone widths, focus order, rotation
+  coherence, chrome-budget re-pin) · `tests/browser/help-touch.test.tsx`
+  (tap-to-inspect) · `tests/browser/axe-a11y.test.tsx` phone states ·
+  `tests/browser/help-coverage.test.tsx` phone pass; the law matrix + the
+  recorded exemptions live in `docs/dev/accessibility.md` §8.
+- **m4 desktop unchanged** — quadrant-layout 1440×900 + the entry-4
+  1280×800 one-page laws in the same browser battery; MB-3's byte-identity
+  proofs (PNG + computed geometry) are the deep record.
+- **m5 resilience + perf** — `tests/browser/mobile-resilience.test.tsx` +
+  the pointer-edge-states touch rows (rotation/visibility/unlock/
+  touch-cancel edges) · `tests/browser/frame-budget.test.ts` §9 gates
+  (phone frame budget, gesture storms at phone width, lazy decode
+  mid-playback, voice caps) with the documented CI-hardware honesty
+  caveat (`docs/dev/perf-budget.md` §9).
+- **Mobile-harness law (MB-6, measured):** phone-stage gates pin
+  `scrollbar-width: none` in their boot documents (the committed target is
+  Android Chrome, whose overlay scrollbars take NO layout width — a classic
+  desktop scrollbar steals 15 px and lays the phone out narrower than the
+  committed width, past the euclid 355 px container-query boundary and into
+  the booth's extra-wrap regime: the measured root cause of the MB-1 360
+  chrome-budget and MB-3 euclid-clip load flakes). Geometry assertions
+  wait for font-settled, dimension-stable layout; clip-vs-box comparisons
+  are captured in the same layout instant (no stale rects across scrolls).

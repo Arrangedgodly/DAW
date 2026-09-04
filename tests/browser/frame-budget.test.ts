@@ -783,10 +783,93 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         await stripDemoSlots("lead");
 
         // drums: last (stays the editable quadrant); hits on every piece.
+        // MB-6 setup-integrity fix (the MB-5 gate-integrity finding,
+        // coordinator-assigned to this task): the v0 drums cell toggle is
+        // POOL-WIDE (read = any pattern of the lane, write = EVERY pattern)
+        // and a step write past a pattern's own length fails validateProject
+        // (sparse-array holes → codec reject → the click throws and lands
+        // NOTHING). With the demo's 1-bar patterns still in the pool, the
+        // original `clickCells` at steps ≥ 16 threw silently — the
+        // dense-drums quadrant was ~4× sparser than intended (only steps
+        // 0/8 ever landed, and even those obeyed the pool-wide read against
+        // demo hits). The honest setup strips the four demo patterns from
+        // the POOL first (the PAT menu's RM tool — tile Delete only edits
+        // the CHAIN; MB-5's own phone-gate fix), leaving the fresh 4-bar as
+        // the lane's only pattern: every click then lands ON, in-pattern,
+        // in-length. The gate now ASSERTS the intended density (48/48
+        // painted hits), so the setup can never silently degrade again —
+        // and the chain needs no separate strip (the pool removals take
+        // the demo chain occurrences with them).
         await selectLane("drums");
         await add4Bar("drums");
+        const removeDrumsDemoPattern = async (): Promise<void> => {
+          const label = "Remove DRUMS selected pattern";
+          $(`.rail-row[data-lane="drums"] .rail-tools-trigger`).click();
+          await poll(
+            () =>
+              $(
+                `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
+              ) !== null,
+            2_000,
+            "drums PAT menu (pool remove)",
+          );
+          (
+            $(
+              `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
+            ) as HTMLButtonElement
+          ).click();
+          await poll(
+            () =>
+              doc().querySelector(
+                `.rail-row[data-lane="drums"] .rail-tools-menu`,
+              ) === null,
+            2_000,
+            "PAT menu closes after pool remove",
+          );
+        };
+        for (let i = 0; i < 4; i++) {
+          // Select the first (demo) tile, then remove it from the pool.
+          ($(`.rail-row[data-lane="drums"] .rail-tile`) as HTMLElement).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
+                .length ===
+              5 - i,
+            2_000,
+            `drums demo tile ${i} selected`,
+          );
+          await removeDrumsDemoPattern();
+        }
+        await poll(
+          () =>
+            doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
+              .length === 1,
+          2_000,
+          "drums pool = the dense 4-bar alone (chain followed it)",
+        );
+        // The grid follows the pool: back to the 4-bar shape (6 rows × 64)
+        // before the clicks — the intermediate removals left it 16-step.
+        await poll(
+          () => floor("drums").querySelectorAll(".cell").length === 6 * 64,
+          3_000,
+          "drums 4-bar grid displayed again after the pool strip",
+        );
+        // Deterministic click semantics: the pool-wide read now sees ONE
+        // pattern — the fresh 4-bar, empty except kick step 0 (the
+        // quadrant-select click above toggled it OFF against the demo's
+        // every-pattern kick[0] ON). Every one of the 48 clicks below
+        // therefore turns a cell ON.
         clickCells("drums", [0, 1, 2, 3, 4, 5], [0, 8, 16, 24, 32, 40, 48, 56]);
-        await stripDemoSlots("drums");
+        // The setup's own integrity tooth: 6 rows × 8 steps = 48 painted
+        // hits on the only (empty, 64-step) pattern — the intended density,
+        // self-checked (this is exactly what silently failed before).
+        await poll(
+          () =>
+            floor("drums").querySelectorAll('.cell[data-on="true"]').length >=
+            48,
+          3_000,
+          "drums dense hits committed (48/48 — the intended density)",
+        );
 
         // all-FX law (v0 criterion 7): drums gets one device through the real
         // FX console (the demo ships bass/chords/lead chains).
