@@ -54,6 +54,31 @@
  * 390 pass, the sweep-committed PROJECTS tap's click never fired and the
  * popover poll timed out. Drags/paints/sweeps stay raw — they gate the
  * app's pointer-stream handlers, not click synthesis.
+ *
+ * CI touch-gate fix R2 (run 33919576870 — the synthesizeTapGesture rerun
+ * stayed RED, probabilistically, at DIFFERENT tap sites while every drag/
+ * sweep/paint stream kept passing): that signature is a HIT-TESTING RACE,
+ * not an input-pipeline one. The tap coordinate is computed from geometry
+ * measured at time T while the phone UI is still reflowing (stage settle,
+ * chrome re-pin, vitest's iframe fit, webfont swap — the app ships
+ * font-display:swap faces), so on the slow 2-core CI runner the
+ * synthesized tap hit-tests STALE coordinates; a fast local machine
+ * finishes settling before the first measurement, which is why local runs
+ * never reproduce it. Taps therefore (1) SETTLE first — fonts ready plus
+ * the target box AND both iframe boxes dimension-stable across
+ * consecutive animation frames (the MB-6 hardening pattern); (2) VERIFY-
+ * THEN-RETRY-ONCE — the tap's expected effect is polled, and on a miss
+ * the geometry is RE-MEASURED (coordinates are never reused) and exactly
+ * ONE more tap fires. A user whose tap lands on a moving button taps
+ * again; the product law under test — "a tap on the control activates
+ * it" — is precisely what the second attempt re-tests with fresh
+ * coordinates. Unbounded retries would weaken the assertion; ONE
+ * re-measured retry de-flakes it honestly. Per-tap hit/miss is logged,
+ * and a failed tap's error carries miss diagnostics (elementFromPoint at
+ * the synthesized position + the target's rect at measure AND synthesis
+ * time), so a next CI failure would be diagnosable from the log alone.
+ * Test titles were also shortened to concise ones: CI's failure
+ * screenshots died with ENAMETOOLONG (Linux's 255-byte filename cap).
  */
 
 import { describe, expect, it } from "vitest";
@@ -81,6 +106,15 @@ function poll(
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** tapStable options: the effect a successful tap must produce (polled →
+ *  drives the ONE re-measured retry), the failure-narrative name, and the
+ *  verify budget (defaults to the old per-site poll budget of 4 s). */
+type TapOpts = {
+  effect?: () => boolean;
+  what?: string;
+  verifyMs?: number;
+};
+
 /** A deterministic first-run demo boot (PX-1) in a sized, scrollbar-pinned
  *  iframe, with the blob-download seam captured before the app loads. */
 async function bootPhone(
@@ -94,7 +128,7 @@ async function bootPhone(
   $$: <T extends Element>(sel: string) => T[];
   blobs: Array<{ type: string; size: number }>;
   reveal: (el: Element) => Promise<void>;
-  tap: (el: Element) => Promise<void>;
+  tapStable: (el: Element, opts?: TapOpts) => Promise<void>;
   touch: (
     pts: ReadonlyArray<{ x: number; y: number }>,
     holdMs?: number,
@@ -246,24 +280,114 @@ async function bootPhone(
         await sleep(40);
       }
     };
-    /** One trusted TAP through the browser's own gesture pipeline —
-     *  `Input.synthesizeTapGesture` runs the REAL tap disambiguation and
-     *  click finalization (raw dispatchTouchEvent's trailing click is a
-     *  desktop-mouse heuristic headless builds don't guarantee — the first
-     *  Linux-CI run lost the tap-after-a-captured-drag this way).
-     *  gestureSourceType "touch" keeps the input class honest. */
-    const tap = async (el: Element): Promise<void> => {
-      await reveal(el);
-      const r = el.getBoundingClientRect();
-      const p = map(r.left + r.width / 2, r.top + r.height / 2);
-      await c.send("Input.synthesizeTapGesture", {
-        x: p.x,
-        y: p.y,
-        duration: 50,
-        tapCount: 1,
-        gestureSourceType: "touch",
-      });
-      await sleep(120);
+    /** R2 SETTLE — geometry QUIET before any tap: the app document's fonts
+     *  settled (the app ships font-display:swap faces — a swap re-flows
+     *  text-bearing controls) and the target's box PLUS both iframe boxes
+     *  (the app iframe inside vitest's fit-scaled tester iframe) unchanged
+     *  across two consecutive animation frames. That is the state in which
+     *  a measured tap coordinate still points at the control when the
+     *  compositor hit-tests the synthesized gesture — the run-33919576870
+     *  signature was taps missing at DIFFERENT sites under BOTH dispatch
+     *  methods while every drag/sweep/paint stream passed, i.e. stale
+     *  coordinates on a still-reflowing slow runner, never reproduced on
+     *  a fast local machine. (The MB-6 hardening pattern: fonts.ready +
+     *  dimension-stable measurement.) */
+    const geometryQuiet = async (el: Element): Promise<void> => {
+      try {
+        await Promise.race([idoc().fonts.ready, sleep(1_500)]);
+      } catch {
+        /* fonts API unavailable — the stability poll below still applies */
+      }
+      const snap = (): string => {
+        const r = el.getBoundingClientRect();
+        const ir = iframe.getBoundingClientRect();
+        const fr = (window.frameElement as HTMLElement).getBoundingClientRect();
+        return `${r.left},${r.top},${r.width},${r.height}|${ir.left},${ir.top},${ir.width},${ir.height}|${fr.left},${fr.top},${fr.width},${fr.height}`;
+      };
+      for (let i = 0; i < 12; i++) {
+        const a = snap();
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        if (snap() === a) return;
+      }
+    };
+    /** Effect poll for verify-then-retry — returns a verdict, never throws
+     *  (tapStable owns the failure narrative + diagnostics). */
+    const effectMet = async (
+      effect: () => boolean,
+      ms: number,
+    ): Promise<boolean> => {
+      const t0 = performance.now();
+      while (performance.now() - t0 <= ms) {
+        if (effect()) return true;
+        await sleep(50);
+      }
+      return effect();
+    };
+    let tapSeq = 0;
+    /** R2 TAP — settle → FRESH measure → `Input.synthesizeTapGesture` →
+     *  verify the expected effect; on a miss, RE-MEASURE (coordinates are
+     *  never reused) and tap exactly ONCE more. A user whose tap lands on
+     *  a still-moving button taps again; the product law under test — "a
+     *  tap on the control activates it" — is precisely what the second
+     *  attempt re-tests with fresh geometry. ONE bounded retry (per-tap
+     *  hit/miss logged below); unbounded retries would weaken the gate.
+     *  `Input.synthesizeTapGesture` keeps round-1's gesture-pipeline tap
+     *  (real tap disambiguation + click finalization; gestureSourceType
+     *  "touch" keeps the input class honest). Every attempt records its
+     *  miss diagnostics — elementFromPoint at the synthesized position +
+     *  the target's rect at measurement AND synthesis time — so a failed
+     *  tap's error alone would diagnose a next CI failure. */
+    const tapStable = async (el: Element, opts: TapOpts = {}): Promise<void> => {
+      const id = `tap #${++tapSeq}${opts.what ? ` (${opts.what})` : ""}`;
+      const rect = (r: DOMRect): string =>
+        `${r.left.toFixed(1)},${r.top.toFixed(1)} ${r.width.toFixed(1)}×${r.height.toFixed(1)}`;
+      const oneAttempt = async (): Promise<string> => {
+        await reveal(el);
+        await geometryQuiet(el);
+        const rMeasure = el.getBoundingClientRect();
+        const ix = rMeasure.left + rMeasure.width / 2;
+        const iy = rMeasure.top + rMeasure.height / 2;
+        const p = map(ix, iy);
+        await c.send("Input.synthesizeTapGesture", {
+          x: p.x,
+          y: p.y,
+          duration: 50,
+          tapCount: 1,
+          gestureSourceType: "touch",
+        });
+        await sleep(120); // click finalization is async in the gesture pipeline
+        const rSynth = el.getBoundingClientRect();
+        const hit = idoc().elementFromPoint(ix, iy);
+        const hitDesc = hit
+          ? `<${hit.tagName.toLowerCase()} class="${hit.getAttribute("class") ?? ""}">`
+          : "null";
+        return `elementFromPoint@(${ix.toFixed(1)},${iy.toFixed(1)})=${hitDesc} target@measure=[${rect(rMeasure)}] target@synth=[${rect(rSynth)}] synthesized@page=(${p.x.toFixed(1)},${p.y.toFixed(1)})`;
+      };
+      if (!opts.effect) {
+        // Taps whose expected effect is a slow/negative outcome (the
+        // busy-guard-swallowed MIDI tap; the render-kicked MIDI export)
+        // keep the round-1 single attempt; their laws assert downstream.
+        await oneAttempt();
+        console.log(`[MB-6 ${id}] single attempt (no per-tap effect to verify)`);
+        return;
+      }
+      const verifyMs = opts.verifyMs ?? 4_000;
+      const firstDiag = await oneAttempt();
+      if (await effectMet(opts.effect, verifyMs)) {
+        console.log(`[MB-6 ${id}] HIT (attempt 1)`);
+        return;
+      }
+      console.log(
+        `[MB-6 ${id}] MISS on attempt 1 — one re-measured retry · ${firstDiag}`,
+      );
+      const secondDiag = await oneAttempt();
+      if (await effectMet(opts.effect, verifyMs)) {
+        console.log(`[MB-6 ${id}] HIT (attempt 2, after the re-measured retry)`);
+        return;
+      }
+      throw new Error(
+        `tap failed after ONE re-measured retry — ${opts.what ?? id}\n  attempt 1: ${firstDiag}\n  attempt 2: ${secondDiag}`,
+      );
     };
     /** A touch line across one row-box (iframe-client coords relative). */
     const touchLine = async (
@@ -289,7 +413,7 @@ async function bootPhone(
       $$,
       blobs,
       reveal,
-      tap,
+      tapStable,
       touch,
       touchLine,
       teardown: cleanup,
@@ -302,11 +426,14 @@ async function bootPhone(
 
 describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () => {
   it(
-    "390×844 — the full committed editing model succeeds by touch: transport · switcher · place/remove · drag-create · edge-resize · drums paint · euclid SET · sweep cue (stopped + queued) · preset · mix · FX · busy-guarded exports · projects switch",
+    // Short title on purpose: CI's failure screenshots died with
+    // ENAMETOOLONG (Linux 255-byte filename cap) on the old essay-length
+    // ones; the stage list lives in the header comment above.
+    "390×844 — the full editing model by touch",
     { timeout: 300_000 },
     async () => {
       const app = await bootPhone(390, 844);
-      const { $, $$, idoc, tap, reveal, touch, touchLine, blobs } = app;
+      const { $, $$, idoc, tapStable, reveal, touch, touchLine, blobs } = app;
       try {
         await poll(
           () => $(".app").getAttribute("data-stage") === "phone",
@@ -316,12 +443,10 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
 
         // ---- transport ------------------------------------------------------
         const playBtn = () => $(".booth-btn-play");
-        await tap(playBtn());
-        await poll(
-          () => playBtn().getAttribute("aria-pressed") === "true",
-          4_000,
-          "PLAY tap starts the transport",
-        );
+        await tapStable(playBtn(), {
+          effect: () => playBtn().getAttribute("aria-pressed") === "true",
+          what: "PLAY tap starts the transport",
+        });
         {
           // Playhead liveness (load-robust): distinct transforms over ~1s.
           const ph = () =>
@@ -373,22 +498,19 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
             "the swept-to tile engages (pending or landed: selected/active)",
           );
         }
-        await tap(playBtn());
-        await poll(
-          () => playBtn().getAttribute("aria-pressed") === "false",
-          4_000,
-          "STOP tap stops the transport",
-        );
+        await tapStable(playBtn(), {
+          effect: () => playBtn().getAttribute("aria-pressed") === "false",
+          what: "STOP tap stops the transport",
+        });
 
         // ---- switcher + tap place/remove (BASS) -----------------------------
-        await tap($('.lane-switch-tab[data-lane="bass"]'));
-        await poll(
-          () =>
+        await tapStable($('.lane-switch-tab[data-lane="bass"]'), {
+          effect: () =>
             $(".lane-floor").dataset.lane === "bass" &&
             $(".stage-status").textContent?.trim() === "NOW EDITING BASS",
-          3_000,
-          "switcher tap selects + announces BASS",
-        );
+          what: "switcher tap selects + announces BASS",
+          verifyMs: 3_000,
+        });
         // A deterministically EMPTY row (no note-runs painted): the demo
         // populates a few of the 14 rows — pick one it leaves alone. (The
         // keyed lane-floor remount can lag the announcement by a tick —
@@ -421,12 +543,10 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         // Tap place: the gate-default note appears at the tapped cell…
         const placeRow = emptyRow();
         const placeCell = placeRow.querySelectorAll(".cell")[4]! as HTMLElement;
-        await tap(placeCell);
-        await poll(
-          () => runsIn(placeRow) === 1,
-          4_000,
-          "touch tap places the gate-default note",
-        );
+        await tapStable(placeCell, {
+          effect: () => runsIn(placeRow) === 1,
+          what: "touch tap places the gate-default note",
+        });
         expect(
           Math.abs(
             placeRow.querySelector(".note-run")!.getBoundingClientRect().left -
@@ -435,12 +555,10 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
           "the placed note starts at the tapped cell",
         ).toBeLessThanOrEqual(2);
         // …and the anchor tap removes it (place/remove both by touch).
-        await tap(placeCell);
-        await poll(
-          () => runsIn(placeRow) === 0,
-          4_000,
-          "touch anchor tap removes the note",
-        );
+        await tapStable(placeCell, {
+          effect: () => runsIn(placeRow) === 0,
+          what: "touch anchor tap removes the note",
+        });
 
         // ---- drag-create (≥2 segments) + edge-resize (trim) ----------------
         const dragRow = emptyRow();
@@ -494,33 +612,25 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         {
           const valueSel = "[aria-label='BASS sound'] .head-ctl-value";
           const before = $(valueSel).textContent ?? "";
-          await tap($("[aria-label='Next preset for BASS']"));
-          await poll(
-            () => ($(valueSel).textContent ?? "") !== before,
-            4_000,
-            "preset stepper advances by touch tap",
-          );
+          await tapStable($("[aria-label='Next preset for BASS']"), {
+            effect: () => ($(valueSel).textContent ?? "") !== before,
+            what: "preset stepper advances by touch tap",
+          });
           const mute = $("[aria-label='Mute BASS']");
-          await tap(mute);
-          await poll(
-            () => mute.getAttribute("aria-pressed") === "true",
-            4_000,
-            "MUTE toggles on by touch tap",
-          );
-          await tap(mute);
-          await poll(
-            () => mute.getAttribute("aria-pressed") === "false",
-            4_000,
-            "MUTE toggles back off by touch tap",
-          );
+          await tapStable(mute, {
+            effect: () => mute.getAttribute("aria-pressed") === "true",
+            what: "MUTE toggles on by touch tap",
+          });
+          await tapStable(mute, {
+            effect: () => mute.getAttribute("aria-pressed") === "false",
+            what: "MUTE toggles back off by touch tap",
+          });
           const solo = $("[aria-label='Solo BASS']");
-          await tap(solo);
-          await poll(
-            () => solo.getAttribute("aria-pressed") === "true",
-            4_000,
-            "SOLO engages by touch tap",
-          );
-          await tap(solo);
+          await tapStable(solo, {
+            effect: () => solo.getAttribute("aria-pressed") === "true",
+            what: "SOLO engages by touch tap",
+          });
+          await tapStable(solo); // restore the demo state (single attempt)
           // Volume slider by touch: a thumb-anchored drag (the input owns
           // its drag — MB-2's global law). The thumb's x derives from the
           // input's own value; drag toward the far end so the change is
@@ -556,52 +666,42 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
 
         // ---- FX console by touch --------------------------------------------
         {
-          await tap($("[data-help='lane.bass.fx']"));
-          await poll(
-            () => idoc().querySelector(".fx-strip[data-lane='bass']") !== null,
-            4_000,
-            "FX console opens by touch tap",
-          );
+          await tapStable($("[data-help='lane.bass.fx']"), {
+            effect: () =>
+              idoc().querySelector(".fx-strip[data-lane='bass']") !== null,
+            what: "FX console opens by touch tap",
+          });
           const bypass = $$(".fx-strip[data-lane='bass'] .fx-bypass-btn")[0]!;
           const wasPressed = bypass.getAttribute("aria-pressed") === "true";
-          await tap(bypass);
-          await poll(
-            () =>
+          await tapStable(bypass, {
+            effect: () =>
               (bypass.getAttribute("aria-pressed") === "true") !== wasPressed,
-            4_000,
-            "FX bypass flips by touch tap",
-          );
-          await tap(bypass); // restore the demo state
+            what: "FX bypass flips by touch tap",
+          });
+          await tapStable(bypass); // restore the demo state (single attempt)
           const modCount = () =>
             $$(".fx-strip[data-lane='bass'] .fx-mod").length;
           const modsBefore = modCount();
-          await tap($(".fx-add-btn"));
-          await poll(
-            () => idoc().querySelector(".fx-add-menu") !== null,
-            4_000,
-            "FX add menu opens by touch",
-          );
-          await tap($$(".fx-add-item")[0]!);
-          await poll(
-            () => modCount() === modsBefore + 1,
-            4_000,
-            "FX device added by touch",
-          );
-          await tap($(".lane-fx-close"));
-          await poll(
-            () => idoc().querySelector(".fx-strip") === null,
-            4_000,
-            "FX console closes by touch",
-          );
+          await tapStable($(".fx-add-btn"), {
+            effect: () => idoc().querySelector(".fx-add-menu") !== null,
+            what: "FX add menu opens by touch",
+          });
+          await tapStable($$(".fx-add-item")[0]!, {
+            effect: () => modCount() === modsBefore + 1,
+            what: "FX device added by touch",
+          });
+          await tapStable($(".lane-fx-close"), {
+            effect: () => idoc().querySelector(".fx-strip") === null,
+            what: "FX console closes by touch",
+          });
         }
 
         // ---- drums paint + euclid arm→SET -----------------------------------
-        await tap($('.lane-switch-tab[data-lane="drums"]'));
-        await poll(
-          () => $(".lane-floor").dataset.lane === "drums",
-          3_000,
-          "drums stage by switcher tap",
-        );
+        await tapStable($('.lane-switch-tab[data-lane="drums"]'), {
+          effect: () => $(".lane-floor").dataset.lane === "drums",
+          what: "drums stage by switcher tap",
+          verifyMs: 3_000,
+        });
         const kickRow = (): HTMLElement =>
           $('.lane-floor[data-lane="drums"] .row-cells') as HTMLElement;
         const kickCell = (step: number): HTMLElement =>
@@ -632,8 +732,12 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         // Euclid: FILL reveal → stepper taps arm → SET commits the row.
         const fill0 = $('.lane-floor[data-lane="drums"] .row-fill');
         expect(getComputedStyle(fill0).opacity).toBe("0"); // hidden first
-        await tap($(".head-fill-toggle"));
-        await sleep(350); // the 120ms reveal ease settles
+        await tapStable($(".head-fill-toggle"), {
+          effect: () =>
+            Number.parseFloat(getComputedStyle(fill0).opacity) >= 0.99,
+          what: "FILL reveals the overlay rail",
+          verifyMs: 1_500, // the 120ms ease settles well inside this
+        });
         expect(
           Number.parseFloat(getComputedStyle(fill0).opacity),
           "FILL reveals the overlay rail",
@@ -644,9 +748,31 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         const setBtn = fill0.querySelector(
           ".row-fill-apply",
         ) as HTMLButtonElement;
-        await tap(plusBtn);
-        await tap(plusBtn);
-        await poll(() => !setBtn.disabled, 3_000, "stepper taps arm SET");
+        const pulsesNow = (): number =>
+          Number.parseInt(
+            (fill0.querySelector(".row-fill-value")?.textContent ?? "").split(
+              "/",
+            )[0] ?? "",
+            10,
+          );
+        {
+          // The unarmed overlay over a CUSTOM (hand-painted) row reads "—"
+          // (no euclid match to display); the FIRST + tap ARMS the session,
+          // turning the readout into "N/16" — that parseable readout is the
+          // landed-click evidence for this tap.
+          await tapStable(plusBtn, {
+            effect: () => Number.isFinite(pulsesNow()),
+            what: "fill stepper tap arms the overlay",
+          });
+        }
+        {
+          const p1 = pulsesNow();
+          await tapStable(plusBtn, {
+            effect: () => !setBtn.disabled && pulsesNow() === p1 + 1,
+            what: "stepper taps arm SET",
+            verifyMs: 3_000,
+          });
+        }
         const readout =
           fill0.querySelector(".row-fill-value")?.textContent ?? "";
         const pulses = Number.parseInt(readout.split("/")[0] ?? "", 10);
@@ -654,17 +780,19 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
           Number.isFinite(pulses) && pulses > 0,
           `readout parses pulses (got "${readout}")`,
         ).toBe(true);
-        await tap(setBtn);
-        await poll(
-          () =>
+        await tapStable(setBtn, {
+          effect: () =>
             $$('.lane-floor[data-lane="drums"] .cell[data-row="0"]').filter(
               (c) => c.dataset.on === "true",
             ).length === pulses,
-          4_000,
-          `SET taps the Euclidean row in (${pulses} painted hits — rotation-agnostic euclid count)`,
-        );
-        await tap($(".head-fill-toggle"));
-        await sleep(350);
+          what: `SET taps the Euclidean row in (${pulses} painted hits — rotation-agnostic euclid count)`,
+        });
+        await tapStable($(".head-fill-toggle"), {
+          effect: () =>
+            Number.parseFloat(getComputedStyle(fill0).opacity) <= 0.01,
+          what: "FILL hides the rails again",
+          verifyMs: 1_500,
+        });
         expect(
           Number.parseFloat(getComputedStyle(fill0).opacity),
           "FILL hides the rails again",
@@ -690,25 +818,24 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         }
 
         // ---- busy-guarded exports + projects switch --------------------------
-        await tap($("[data-help='projects.open']"));
-        await poll(
-          () => idoc().querySelector(".projects-pop") !== null,
-          4_000,
-          "projects popover opens by touch",
-        );
+        await tapStable($("[data-help='projects.open']"), {
+          effect: () => idoc().querySelector(".projects-pop") !== null,
+          what: "projects popover opens by touch",
+        });
         const wavBtn = () =>
           $(".projects-action[data-help='projects.wav']") as HTMLButtonElement;
         const midiBtn = () =>
           $(".projects-action[data-help='projects.midi']") as HTMLButtonElement;
-        await tap(wavBtn());
-        // The busy guard: while the render runs, the actions are disabled —
-        // a second tap (MIDI) is swallowed by the native disabled state.
-        await poll(
-          () => midiBtn().disabled,
-          4_000,
-          "export busy guard engages (actions disabled mid-render)",
-        );
-        await tap(midiBtn()); // swallowed (disabled)
+        await tapStable(wavBtn(), {
+          // The busy guard: while the render runs, the actions are disabled.
+          // A landed click disables them ~immediately (render-start state),
+          // so an unmet poll within the budget means the tap missed → the
+          // ONE re-measured retry. If the first tap DID land, the retry
+          // would fire at a disabled button and be swallowed — harmless.
+          effect: () => midiBtn().disabled,
+          what: "export busy guard engages (actions disabled mid-render)",
+        });
+        await tapStable(midiBtn()); // swallowed (disabled; no effect to verify)
         const toastSays = (text: string): boolean =>
           Array.from(idoc().querySelectorAll(".toast")).some((t) =>
             (t.textContent ?? "").includes(text),
@@ -717,7 +844,10 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         expect(blobs.length, "the swallowed MIDI tap produced no blob").toBe(1);
         expect(blobs[0]!.type).toBe("audio/wav");
         expect(blobs[0]!.size).toBeGreaterThan(44);
-        await tap(midiBtn());
+        // The MIDI export's own outcome is the 60s toast poll below; the tap
+        // keeps a single attempt (a re-tap mid-render would hit the busy
+        // guard's disabled state — the same swallow the law above proves).
+        await tapStable(midiBtn());
         await poll(
           () =>
             Array.from(idoc().querySelectorAll(".toast")).some((t) =>
@@ -730,31 +860,28 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         expect(blobs[1]!.type).toBe("audio/midi");
         // Projects switch: NEW by touch → the empty-project stage note;
         // then back to the WELCOME SONG row — the demo returns.
-        await tap($(".projects-action[data-help='projects.new']"));
-        await poll(
-          () => idoc().querySelector(".stage-hint") !== null,
-          6_000,
-          "NEW lands the empty-project stage note",
-        );
-        await tap($("[data-help='projects.open']"));
-        await poll(
-          () => idoc().querySelector(".projects-pop") !== null,
-          4_000,
-          "projects popover reopens",
-        );
+        await tapStable($(".projects-action[data-help='projects.new']"), {
+          effect: () => idoc().querySelector(".stage-hint") !== null,
+          what: "NEW lands the empty-project stage note",
+          verifyMs: 6_000,
+        });
+        await tapStable($("[data-help='projects.open']"), {
+          effect: () => idoc().querySelector(".projects-pop") !== null,
+          what: "projects popover reopens",
+        });
         const demoRow = $$(".projects-item").find(
           (r) =>
             r.querySelector(".projects-name")?.textContent === "WELCOME SONG",
         );
         expect(demoRow, "the WELCOME SONG row is listed").toBeTruthy();
-        await tap(demoRow!);
-        await poll(
-          () =>
+        await tapStable(demoRow!, {
+          effect: () =>
             idoc().querySelector(".stage-hint") === null &&
             $$(".rail-row .rail-tile").length >= 4,
-          6_000,
-          "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo's 4-slot chain returns)",
-        );
+          what:
+            "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo's 4-slot chain returns)",
+          verifyMs: 6_000,
+        });
       } finally {
         await app.teardown();
       }
@@ -763,11 +890,13 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
   );
 
   it(
-    "360×800 — the tight-viewport pass: every core gesture class + transport + steppers by touch",
+    // Short title on purpose (the ENAMETOOLONG fix); the stage list lives
+    // in the header comment.
+    "360×800 — core gesture classes + transport by touch",
     { timeout: 240_000 },
     async () => {
       const app = await bootPhone(360, 800);
-      const { $, $$, idoc, tap, reveal, touchLine } = app;
+      const { $, $$, idoc, tapStable, reveal, touchLine } = app;
       try {
         await poll(
           () => $(".app").getAttribute("data-stage") === "phone",
@@ -781,26 +910,21 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
 
         // Transport by touch.
         const playBtn = () => $(".booth-btn-play");
-        await tap(playBtn());
-        await poll(
-          () => playBtn().getAttribute("aria-pressed") === "true",
-          4_000,
-          "PLAY tap at 360",
-        );
-        await tap(playBtn());
-        await poll(
-          () => playBtn().getAttribute("aria-pressed") === "false",
-          4_000,
-          "STOP tap at 360",
-        );
+        await tapStable(playBtn(), {
+          effect: () => playBtn().getAttribute("aria-pressed") === "true",
+          what: "PLAY tap at 360",
+        });
+        await tapStable(playBtn(), {
+          effect: () => playBtn().getAttribute("aria-pressed") === "false",
+          what: "STOP tap at 360",
+        });
 
         // Switcher + tap place/remove on an empty row.
-        await tap($('.lane-switch-tab[data-lane="bass"]'));
-        await poll(
-          () => $(".lane-floor").dataset.lane === "bass",
-          3_000,
-          "switcher tap at 360",
-        );
+        await tapStable($('.lane-switch-tab[data-lane="bass"]'), {
+          effect: () => $(".lane-floor").dataset.lane === "bass",
+          what: "switcher tap at 360",
+          verifyMs: 3_000,
+        });
         const rows = () => $$(".lane-floor[data-lane='bass'] .row-cells");
         const emptyRow = (): HTMLElement =>
           rows().find(
@@ -815,18 +939,14 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         };
         const placeRow = emptyRow();
         const cell4 = placeRow.querySelectorAll(".cell")[4]! as HTMLElement;
-        await tap(cell4);
-        await poll(
-          () => placeRow.querySelectorAll(".note-run").length === 1,
-          4_000,
-          "tap place at 360",
-        );
-        await tap(cell4);
-        await poll(
-          () => placeRow.querySelectorAll(".note-run").length === 0,
-          4_000,
-          "tap remove at 360",
-        );
+        await tapStable(cell4, {
+          effect: () => placeRow.querySelectorAll(".note-run").length === 1,
+          what: "tap place at 360",
+        });
+        await tapStable(cell4, {
+          effect: () => placeRow.querySelectorAll(".note-run").length === 0,
+          what: "tap remove at 360",
+        });
 
         // Drag-create + edge-resize.
         const dragRow = emptyRow();
@@ -868,29 +988,24 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         {
           const valueSel = "[aria-label='BASS sound'] .head-ctl-value";
           const before = $(valueSel).textContent ?? "";
-          await tap($("[aria-label='Next preset for BASS']"));
-          await poll(
-            () => ($(valueSel).textContent ?? "") !== before,
-            4_000,
-            "preset stepper at 360",
-          );
+          await tapStable($("[aria-label='Next preset for BASS']"), {
+            effect: () => ($(valueSel).textContent ?? "") !== before,
+            what: "preset stepper at 360",
+          });
           const mute = $("[aria-label='Mute BASS']");
-          await tap(mute);
-          await poll(
-            () => mute.getAttribute("aria-pressed") === "true",
-            4_000,
-            "MUTE at 360",
-          );
-          await tap(mute);
+          await tapStable(mute, {
+            effect: () => mute.getAttribute("aria-pressed") === "true",
+            what: "MUTE at 360",
+          });
+          await tapStable(mute); // restore (single attempt)
         }
 
         // Drums paint + euclid SET (the wrapped commit line at 360).
-        await tap($('.lane-switch-tab[data-lane="drums"]'));
-        await poll(
-          () => $(".lane-floor").dataset.lane === "drums",
-          3_000,
-          "drums stage at 360",
-        );
+        await tapStable($('.lane-switch-tab[data-lane="drums"]'), {
+          effect: () => $(".lane-floor").dataset.lane === "drums",
+          what: "drums stage at 360",
+          verifyMs: 3_000,
+        });
         const kickRow = () =>
           $('.lane-floor[data-lane="drums"] .row-cells') as HTMLElement;
         const kickCell = (step: number): HTMLElement =>
@@ -911,8 +1026,12 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
           "drums paint at 360",
         );
         const fill0 = $('.lane-floor[data-lane="drums"] .row-fill');
-        await tap($(".head-fill-toggle"));
-        await sleep(350);
+        await tapStable($(".head-fill-toggle"), {
+          effect: () =>
+            Number.parseFloat(getComputedStyle(fill0).opacity) >= 0.99,
+          what: "FILL reveal at 360",
+          verifyMs: 1_500,
+        });
         expect(
           Number.parseFloat(getComputedStyle(fill0).opacity),
           "FILL reveal at 360",
@@ -923,8 +1042,11 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
         const setBtn = fill0.querySelector(
           ".row-fill-apply",
         ) as HTMLButtonElement;
-        await tap(plusBtn);
-        await poll(() => !setBtn.disabled, 3_000, "SET armed at 360");
+        await tapStable(plusBtn, {
+          effect: () => !setBtn.disabled,
+          what: "SET armed at 360",
+          verifyMs: 3_000,
+        });
         const pulses = Number.parseInt(
           (fill0.querySelector(".row-fill-value")?.textContent ?? "").split(
             "/",
@@ -932,16 +1054,14 @@ describe("MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1)", () =
           10,
         );
         expect(Number.isFinite(pulses) && pulses > 0).toBe(true);
-        await tap(setBtn);
-        await poll(
-          () =>
+        await tapStable(setBtn, {
+          effect: () =>
             $$('.lane-floor[data-lane="drums"] .cell[data-row="0"]').filter(
               (c) => c.dataset.on === "true",
             ).length === pulses,
-          4_000,
-          "euclid SET commits at 360 (wrapped commit line)",
-        );
-        await tap($(".head-fill-toggle"));
+          what: "euclid SET commits at 360 (wrapped commit line)",
+        });
+        await tapStable($(".head-fill-toggle")); // hide (single attempt)
 
         // Stopped sweep at the tight width.
         {

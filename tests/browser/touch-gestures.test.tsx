@@ -55,6 +55,31 @@
  * the click, so `onClick` controls (PLAY) never fire — macOS builds
  * always synthesized it. Drags/sweeps/paints stay raw by design: they
  * gate the app's pointer-stream handlers and need no click synthesis.
+ *
+ * CI touch-gate fix R2 (run 33919576870 — the synthesizeTapGesture rerun
+ * still failed, at a DIFFERENT tap site, while every drag/sweep/paint
+ * stream passed): the signature is a HIT-TESTING RACE, not an
+ * input-pipeline one — the tap coordinate is computed from geometry
+ * measured at time T while the phone UI is still reflowing (stage settle,
+ * chrome re-pin, vitest's iframe fit, webfont swap — the app ships
+ * font-display:swap faces), so on the slow 2-core CI runner the
+ * synthesized tap hit-tests STALE coordinates; a fast local machine
+ * finishes settling first, which is why local runs never reproduce it.
+ * Taps therefore (1) SETTLE first — fonts ready plus the target box AND
+ * the tester iframe's fit-box dimension-stable across consecutive
+ * animation frames; (2) VERIFY-THEN-RETRY-ONCE — the tap's expected
+ * effect is polled, and on a miss the geometry is RE-MEASURED
+ * (coordinates are never reused) and exactly ONE more tap fires. A user
+ * whose tap lands on a moving button taps again; the product law under
+ * test — "a tap on the control activates it" — is precisely what the
+ * second attempt re-tests with fresh coordinates. Unbounded retries
+ * would weaken the gate; ONE re-measured retry de-flakes it honestly.
+ * Per-tap hit/miss is logged, and a failed tap's error carries miss
+ * diagnostics (elementFromPoint at the synthesized position + the
+ * target's rect at measure AND synthesis time), so a next CI failure
+ * would be diagnosable from the log alone. Test title shortened too:
+ * CI's failure screenshots died with ENAMETOOLONG (Linux's 255-byte
+ * filename cap).
  */
 
 import { describe, expect, it } from "vitest";
@@ -98,7 +123,10 @@ function cancelCounter(): { count: () => number; stop: () => void } {
 
 describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
   it(
-    "tap place/remove · tap-drag create · edge resize · drums paint · sweep cue · dbltap rename · euclid reveal+SET · tap-vs-scroll both directions",
+    // Short title on purpose: CI's failure screenshots died with
+    // ENAMETOOLONG (Linux 255-byte filename cap) on the old essay-length
+    // one; the stage list lives in the header comment above.
+    "tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll",
     { timeout: 240_000 },
     async () => {
       // The phone stage (MB-1): <768 wide. The app is source-mounted (the
@@ -172,23 +200,117 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
           el(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        /** One trusted TAP through the browser's own gesture pipeline —
-         *  `Input.synthesizeTapGesture` runs the REAL tap disambiguation
-         *  and click finalization (raw dispatchTouchEvent's trailing click
-         *  is a desktop-mouse heuristic headless builds don't guarantee —
-         *  the first Linux-CI run lost taps-after-a-captured-drag this
-         *  way). gestureSourceType "touch" keeps the input class honest. */
-        const tapEl = async (target: Element, tapCount = 1): Promise<void> => {
-          const r = target.getBoundingClientRect();
-          const p = map(r.left + r.width / 2, r.top + r.height / 2);
-          await c.send("Input.synthesizeTapGesture", {
-            x: p.x,
-            y: p.y,
-            duration: 50,
-            tapCount,
-            gestureSourceType: "touch",
-          });
-          await sleep(120);
+        /** R2 SETTLE — geometry QUIET before any tap: fonts settled (the
+         *  app's font-display:swap faces re-flow text controls when they
+         *  land) and the target's box PLUS the tester iframe's fit-box
+         *  unchanged across two consecutive animation frames — the state
+         *  in which a measured coordinate still points at the control
+         *  when the compositor hit-tests the gesture. (The
+         *  run-33919576870 signature: taps missing at DIFFERENT sites
+         *  under BOTH input methods while every drag/sweep/paint stream
+         *  passed — stale coordinates on a still-reflowing slow runner;
+         *  a fast local machine settles before the first measurement.) */
+        const raf = (): Promise<void> =>
+          new Promise((r) => requestAnimationFrame(() => r()));
+        const geometryQuiet = async (target: Element): Promise<void> => {
+          try {
+            await Promise.race([document.fonts.ready, sleep(1_500)]);
+          } catch {
+            /* fonts API unavailable — the stability poll still applies */
+          }
+          const snap = (): string => {
+            const r = target.getBoundingClientRect();
+            const fr = frame.getBoundingClientRect();
+            return `${r.left},${r.top},${r.width},${r.height}|${fr.left},${fr.top},${fr.width},${fr.height}`;
+          };
+          for (let i = 0; i < 12; i++) {
+            const a = snap();
+            await raf();
+            if (snap() === a) return;
+          }
+        };
+        /** Effect poll for verify-then-retry — returns a verdict, never
+         *  throws (tapStable owns the failure narrative + diagnostics). */
+        const effectMet = async (
+          effect: () => boolean,
+          ms: number,
+        ): Promise<boolean> => {
+          const t0 = Date.now();
+          while (Date.now() - t0 <= ms) {
+            if (effect()) return true;
+            await sleep(50);
+          }
+          return effect();
+        };
+        let tapSeq = 0;
+        /** R2 TAP — settle → FRESH measure → `Input.synthesizeTapGesture`
+         *  → verify the expected effect; on a miss, RE-MEASURE
+         *  (coordinates are never reused) and tap exactly ONCE more. A
+         *  user whose tap lands on a still-moving button taps again; the
+         *  product law under test — "a tap on the control activates it" —
+         *  is precisely what the second attempt re-tests with fresh
+         *  geometry. ONE bounded retry (per-tap hit/miss logged);
+         *  unbounded retries would weaken the gate. The gesture-pipeline
+         *  tap itself is round-1's (real tap disambiguation + click
+         *  finalization; gestureSourceType "touch"). Every attempt
+         *  records its miss diagnostics — elementFromPoint at the
+         *  synthesized position + the target's rect at measurement AND
+         *  synthesis time — into the thrown error. */
+        const tapStable = async (
+          target: Element,
+          opts: {
+            tapCount?: number;
+            effect?: () => boolean;
+            what?: string;
+            verifyMs?: number;
+          } = {},
+        ): Promise<void> => {
+          const id = `tap #${++tapSeq}${opts.what ? ` (${opts.what})` : ""}`;
+          const rect = (r: DOMRect): string =>
+            `${r.left.toFixed(1)},${r.top.toFixed(1)} ${r.width.toFixed(1)}×${r.height.toFixed(1)}`;
+          const oneAttempt = async (): Promise<string> => {
+            await geometryQuiet(target);
+            const rMeasure = target.getBoundingClientRect();
+            const cx = rMeasure.left + rMeasure.width / 2;
+            const cy = rMeasure.top + rMeasure.height / 2;
+            const p = map(cx, cy);
+            await c.send("Input.synthesizeTapGesture", {
+              x: p.x,
+              y: p.y,
+              duration: 50,
+              tapCount: opts.tapCount ?? 1,
+              gestureSourceType: "touch",
+            });
+            await sleep(120); // click finalization is async in the pipeline
+            const rSynth = target.getBoundingClientRect();
+            const hit = document.elementFromPoint(cx, cy);
+            const hitDesc = hit
+              ? `<${hit.tagName.toLowerCase()} class="${hit.getAttribute("class") ?? ""}">`
+              : "null";
+            return `elementFromPoint@(${cx.toFixed(1)},${cy.toFixed(1)})=${hitDesc} target@measure=[${rect(rMeasure)}] target@synth=[${rect(rSynth)}] synthesized@page=(${p.x.toFixed(1)},${p.y.toFixed(1)})`;
+          };
+          if (!opts.effect) {
+            await oneAttempt();
+            console.log(`[MB-2 ${id}] single attempt (no per-tap effect to verify)`);
+            return;
+          }
+          const verifyMs = opts.verifyMs ?? 4_000;
+          const firstDiag = await oneAttempt();
+          if (await effectMet(opts.effect, verifyMs)) {
+            console.log(`[MB-2 ${id}] HIT (attempt 1)`);
+            return;
+          }
+          console.log(
+            `[MB-2 ${id}] MISS on attempt 1 — one re-measured retry · ${firstDiag}`,
+          );
+          const secondDiag = await oneAttempt();
+          if (await effectMet(opts.effect, verifyMs)) {
+            console.log(`[MB-2 ${id}] HIT (attempt 2, after the re-measured retry)`);
+            return;
+          }
+          throw new Error(
+            `tap failed after ONE re-measured retry — ${opts.what ?? id}\n  attempt 1: ${firstDiag}\n  attempt 2: ${secondDiag}`,
+          );
         };
         /** A touch line across one row-box, in client coords relative to it. */
         const rowLine = (
@@ -223,30 +345,25 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         );
 
         // ---- 1. SWITCHER TAP + TAP PLACE / REMOVE -------------------------
-        await tapEl(el('.lane-switch-tab[data-lane="bass"]'));
-        await waitFor(
-          () => el(".lane-floor").dataset.lane === "bass",
-          3000,
-          "bass stage via touch tap on the switcher",
-        );
+        await tapStable(el('.lane-switch-tab[data-lane="bass"]'), {
+          effect: () => el(".lane-floor").dataset.lane === "bass",
+          what: "bass stage via touch tap on the switcher",
+          verifyMs: 3_000,
+        });
 
         const anchor = cell("bass", 0, 2);
-        await tapEl(anchor);
-        await waitFor(
-          () =>
+        await tapStable(anchor, {
+          effect: () =>
             bassNotes().length === 1 &&
             bassNotes()[0]!.start === 2 &&
             bassNotes()[0]!.length === 2,
-          4000,
-          "touch tap places the gate-default note",
-        );
+          what: "touch tap places the gate-default note",
+        });
         expect(bassAuditions()).toBe(1); // placement auditions (v0 law)
-        await tapEl(anchor);
-        await waitFor(
-          () => bassNotes().length === 0,
-          4000,
-          "touch anchor tap removes the note",
-        );
+        await tapStable(anchor, {
+          effect: () => bassNotes().length === 0,
+          what: "touch anchor tap removes the note",
+        });
         expect(bassAuditions()).toBe(1); // removal never auditions
 
         // ---- 2. TAP-DRAG CREATE (≥2 segments) + EDGE RESIZE ----------------
@@ -279,12 +396,11 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         );
 
         // ---- 3. DRUMS PAINT -------------------------------------------------
-        await tapEl(el('.lane-switch-tab[data-lane="drums"]'));
-        await waitFor(
-          () => el(".lane-floor").dataset.lane === "drums",
-          3000,
-          "drums stage",
-        );
+        await tapStable(el('.lane-switch-tab[data-lane="drums"]'), {
+          effect: () => el(".lane-floor").dataset.lane === "drums",
+          what: "drums stage",
+          verifyMs: 3_000,
+        });
         const kickRow = cell("drums", 0, 0).parentElement!;
         await touch(
           rowLine(kickRow.getBoundingClientRect(), { x: 1 * 16 + 7, y: 12 }, { x: 5 * 16 + 7, y: 12 }),
@@ -364,12 +480,10 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
             ),
           );
         };
-        await tapEl(el(".booth-btn-play"));
-        await waitFor(
-          () => session.transport.snapshot.playing,
-          4000,
-          "transport playing after touch PLAY",
-        );
+        await tapStable(el(".booth-btn-play"), {
+          effect: () => session.transport.snapshot.playing,
+          what: "transport playing after touch PLAY",
+        });
         await sleep(150); // let the PLAY→STOP button reflow settle
         await sweepTiles(0, 3);
         await waitFor(
@@ -381,22 +495,19 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         expect(
           document.querySelector(".rail-cue-summary")?.textContent ?? "",
         ).toMatch(/QUEUED 1 LANES?/);
-        await tapEl(el(".booth-btn-play")); // STOP
-        await waitFor(
-          () => !session.transport.snapshot.playing,
-          4000,
-          "stopped",
-        );
+        await tapStable(el(".booth-btn-play"), {
+          effect: () => !session.transport.snapshot.playing,
+          what: "stopped",
+        });
 
         // ---- 5. DBLTAP RENAME TWIN ------------------------------------------
         // One synthesized double-tap gesture (tapCount 2): the browser's own
         // double-tap disambiguation + dblclick finalization.
-        await tapEl(tiles()[0]!, 2);
-        await waitFor(
-          () => !!document.querySelector(".rail-tools-menu .rail-edit"),
-          4000,
-          "dbltap opens the inline rename editor (the dblclick twin)",
-        );
+        await tapStable(tiles()[0]!, {
+          tapCount: 2,
+          effect: () => !!document.querySelector(".rail-tools-menu .rail-edit"),
+          what: "dbltap opens the inline rename editor (the dblclick twin)",
+        });
         await waitFor(
           () =>
             document.activeElement ===
@@ -423,8 +534,12 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         expect(getComputedStyle(fill0).opacity).toBe("0"); // hidden first
         const fillToggle = el(".head-fill-toggle");
         expect(fillToggle).toBeTruthy(); // drums, narrow stage — present
-        await tapEl(fillToggle);
-        await sleep(350); // the 120ms ease settles
+        await tapStable(fillToggle, {
+          effect: () =>
+            Number.parseFloat(getComputedStyle(fill0).opacity) >= 0.99,
+          what: "FILL reveals the overlay rail",
+          verifyMs: 1_500, // the 120ms ease settles well inside this
+        });
         expect(
           Number.parseFloat(getComputedStyle(fill0).opacity),
           "FILL reveals the overlay rail",
@@ -435,8 +550,31 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
           '[aria-label="More pulses for KICK fill"]',
         ) as HTMLElement;
         const setBtn = fill0.querySelector(".row-fill-apply") as HTMLElement;
-        await tapEl(plusBtn);
-        await tapEl(plusBtn);
+        const fillPulses = (): number =>
+          Number.parseInt(
+            (fill0.querySelector(".row-fill-value")?.textContent ?? "").split(
+              "/",
+            )[0] ?? "",
+            10,
+          );
+        {
+          // The unarmed overlay over a CUSTOM (hand-painted) row reads "—"
+          // (no euclid match to display); the FIRST + tap ARMS the session,
+          // turning the readout into "N/16" — that parseable readout is the
+          // landed-click evidence for this tap.
+          await tapStable(plusBtn, {
+            effect: () => Number.isFinite(fillPulses()),
+            what: "fill stepper tap arms the overlay",
+          });
+        }
+        {
+          const p1 = fillPulses();
+          await tapStable(plusBtn, {
+            effect: () => fillPulses() === p1 + 1,
+            what: "stepper taps arm SET",
+            verifyMs: 3_000,
+          });
+        }
         await waitFor(
           () => !setBtn.disabled,
           3000,
@@ -446,38 +584,37 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
           fill0.querySelector(".row-fill-value")?.textContent,
         ).toContain("7/16");
         // The armed preview paints BEFORE the commit (PX-3 law)…
-        await tapEl(setBtn);
-        await waitFor(
-          () => kick()[0] === true,
-          4000,
-          "SET taps the Euclidean row in",
-        );
+        await tapStable(setBtn, {
+          effect: () => kick()[0] === true,
+          what: "SET taps the Euclidean row in",
+        });
         // The committed row IS euclid(7, 16, 0) — the pure algorithm is the
         // authority (no hand-computed literals to rot).
         expect([...kick()]).toEqual(euclid(7, 16, 0));
-        await tapEl(fillToggle);
-        await sleep(350);
+        await tapStable(fillToggle, {
+          effect: () =>
+            Number.parseFloat(getComputedStyle(fill0).opacity) <= 0.01,
+          what: "FILL hides the rails again",
+          verifyMs: 1_500,
+        });
         expect(
           Number.parseFloat(getComputedStyle(fill0).opacity),
           "FILL hides the rails again",
         ).toBeLessThanOrEqual(0.01);
 
         // ---- 7. STEPPER TAP (preset) — the compact strip by touch ----------
-        await tapEl(el('.lane-switch-tab[data-lane="bass"]'));
-        await waitFor(
-          () => el(".lane-floor").dataset.lane === "bass",
-          3000,
-          "bass stage (steppers)",
-        );
+        await tapStable(el('.lane-switch-tab[data-lane="bass"]'), {
+          effect: () => el(".lane-floor").dataset.lane === "bass",
+          what: "bass stage (steppers)",
+          verifyMs: 3_000,
+        });
         const bassLaneConf = () =>
           docStore.getState().doc.lanes.find((l) => l.id === "bass")!;
         const presetBefore = bassLaneConf().presetId;
-        await tapEl(el('[aria-label="Next preset for BASS"]'));
-        await waitFor(
-          () => bassLaneConf().presetId !== presetBefore,
-          4000,
-          "preset stepper advances by touch tap",
-        );
+        await tapStable(el('[aria-label="Next preset for BASS"]'), {
+          effect: () => bassLaneConf().presetId !== presetBefore,
+          what: "preset stepper advances by touch tap",
+        });
         // (restore — determinism for later suites is the IDB restore's job)
 
         // ---- 8. GESTURE-VS-SCROLL, both directions --------------------------
@@ -498,12 +635,11 @@ describe("MB-2 touch gesture parity (trusted CDP touch, phone stage)", () => {
         // scrolling-grid law has real scroll range for the swipes.
         await page.viewport(844, 390);
         await sleep(200);
-        await tapEl(el('.lane-switch-tab[data-lane="lead"]'));
-        await waitFor(
-          () => el(".lane-floor").dataset.lane === "lead",
-          3000,
-          "lead stage (scroll phase)",
-        );
+        await tapStable(el('.lane-switch-tab[data-lane="lead"]'), {
+          effect: () => el(".lane-floor").dataset.lane === "lead",
+          what: "lead stage (scroll phase)",
+          verifyMs: 3_000,
+        });
         expect(
           document.documentElement.scrollHeight,
           "the phone document scrolls (scrolling-grid law)",
