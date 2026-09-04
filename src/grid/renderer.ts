@@ -437,14 +437,20 @@ export class DomGridRenderer implements GridRenderer {
         fill.className = "row-fill";
         fill.setAttribute("role", "gridcell");
         fill.dataset.row = String(row);
-        fill.style.width = `${this.fillPx}px`;
         if (this.fillOverlay) {
           // MB-1 overlay: anchored at label-left over the cells; the row
           // becomes its positioning context (grid-body would otherwise win)
           // and the slot paints as a floating chassis (see grid.css).
+          // MB-3: the overlay does NOT pin the in-flow fillPx width — out of
+          // flow, nothing depends on it (playheadLeftPx ignores it in overlay
+          // mode), and the phone target law sizes the chassis to its CONTENT
+          // (44 px steppers ≈ 300 px, wider than the 220 px inline slot;
+          // grid.css owns the width + viewport clamp).
           fill.classList.add("is-overlay");
           fill.style.left = `${this.labelPx}px`;
           rowEl.style.position = "relative";
+        } else {
+          fill.style.width = `${this.fillPx}px`;
         }
         rowEl.append(fill); // label → fill rail → cells (appended next)
         this.opts.mountFillControl(row, fill);

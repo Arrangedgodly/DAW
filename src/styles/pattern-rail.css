@@ -68,10 +68,41 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
+  /* MB-3: 1 px of end padding joins the scrollable overflow, so the LAST
+   * item (the append) never sits flush against the clip edge at max scroll
+   * — its full 44 px box stays tappable (the audit's corner probes). */
+  padding-right: 1px;
 }
 
 .app[data-stage="phone"] .rail-tools {
   flex: none;
+}
+
+/*
+ * MB-3 (mobile slice, m2 — the ≥44px target law, WCAG 2.5.5): the rail's
+ * controls are PRIMARY chain controls (tiles cue the song; PAT owns the
+ * pattern tools). The condensed row lives in the pinned chrome where WIDTH
+ * is plentiful but height is budgeted — the tiles/trigger/append grow their
+ * PAINTED height to 44 (one stable line; the chrome budget measured inside
+ * the law at both phone viewports), and the glyph controls (append +, PAT
+ * trigger, menu tools) also take the 44 painted width. The tile content
+ * centers vertically on the taller chassis (baseline pins were for the
+ * 19 px row). The inline rename/cue fields grow to the same 44 — they are
+ * the rail's text-entry targets.
+ */
+.app[data-stage="phone"] .rail-tile {
+  min-height: 44px;
+  align-items: center;
+}
+
+.app[data-stage="phone"] .rail-append,
+.app[data-stage="phone"] .rail-tool {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.app[data-stage="phone"] .rail-edit {
+  min-height: 44px;
 }
 
 .rail-head {

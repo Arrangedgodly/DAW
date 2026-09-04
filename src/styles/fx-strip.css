@@ -449,6 +449,34 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * MB-3 (mobile slice, m2) — the PHONE TARGET LAW on the FX console (WCAG
+ * 2.5.5, ≥44×44 hit; scoped .app[data-stage="phone"]). The console is a
+ * full-width overlay over the single-lane stage that scrolls internally —
+ * every control simply grows its painted box (glyph buttons to 44×44, text
+ * buttons to 44 tall, sliders to the 44 input-height hit law with the
+ * painted track/thumb unchanged).
+ * ------------------------------------------------------------------------- */
+
+.app[data-stage="phone"] .lane-fx-close,
+.app[data-stage="phone"] .fx-add-btn,
+.app[data-stage="phone"] .fx-add-item {
+  min-height: 44px;
+}
+
+.app[data-stage="phone"] .fx-mod-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.app[data-stage="phone"] .fx-param-slider {
+  height: 44px;
+}
+
+.app[data-stage="phone"] .fx-param-select {
+  min-height: 44px;
+}
+
 .fx-mod.is-flash {
   animation: fx-mod-flash 180ms ease-out 1 both;
 }

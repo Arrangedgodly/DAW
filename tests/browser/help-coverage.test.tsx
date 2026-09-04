@@ -34,7 +34,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
 import { getHelp, helpEntryIds } from "../../src/help/registry";
@@ -396,6 +396,178 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         cleanup();
         // Stop the boot autosave controller first (no writes may land after
         // the restore), then put the pre-test rows back (HP-1 gate precedent).
+        try {
+          await getAutosaveController()?.stop();
+          if (bootDb) {
+            const ids = new Set(snapshotRows.map((r) => r.id));
+            const current = await bootDb.allRecords();
+            for (const row of snapshotRows) await bootDb.putRecord(row);
+            for (const row of current) {
+              if (!ids.has(row.id)) await bootDb.deleteRecord(row.id);
+            }
+          }
+        } catch {
+          /* best-effort restore; the wiping suites clean the origin anyway */
+        }
+      }
+    },
+  );
+
+  // MB-3 (mobile slice — the plan's AC: "help coverage holds at phone
+  // width"): the PHONE STAGE renders a different surface set (sticky chrome
+  // with the lane switcher + condensed rail, ONE lane's strip + grid, the
+  // euclid OVERLAY controls always tab-reachable behind the opacity gate,
+  // the FILL reveal toggle) — every one of them must resolve to a registered
+  // entry exactly as the quadrant stage does.
+  it(
+    "phone-width pass: the single-lane stage's surfaces stay fully covered",
+    { timeout: 90_000 },
+    async () => {
+      await page.viewport(390, 844);
+      const { host, cleanup } = mount();
+      let bootDb: ProjectDb | null = null;
+      let snapshotRows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
+      try {
+        await waitFor(
+          () => getAutosaveController() !== null,
+          10_000,
+          "boot autosave controller",
+        );
+        bootDb = await openRawProjectDb("bitbounce");
+        snapshotRows = await bootDb.allRecords();
+        loadDocument(createDemoProject());
+        selectLane("drums");
+        await waitFor(
+          () =>
+            host
+              .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
+              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+          4000,
+          "drums stage editable (demo loaded)",
+        );
+        expect(
+          host.querySelector(".app")?.getAttribute("data-stage"),
+        ).toBe("phone");
+
+        const click = (sel: string) =>
+          host.querySelector(sel)!.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+        const keyAt = (k: string) =>
+          ((document.activeElement as Element) ?? document.body).dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+
+        // --- PHONE STATE 1: base chrome + the drums lane ------------------
+        // (booth, switcher tabs, condensed rail, the drums strip incl. the
+        // FILL toggle, the grid, the euclid overlay steppers — hidden behind
+        // the opacity gate but tab-reachable, so the walk sees them.)
+        let findings = walkInteractive("phone base chrome");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "phone base chrome must be fully covered",
+        ).toEqual([]);
+
+        // --- PHONE STATE 2: the pitched lane + FX console ------------------
+        selectLane("bass");
+        await waitFor(
+          () =>
+            host
+              .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
+              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+          2000,
+          "bass stage editable",
+        );
+        findings = walkInteractive("phone bass lane");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone bass lane must be fully covered",
+        ).toEqual([]);
+        click('[data-help="lane.bass.fx"]');
+        await waitFor(
+          () => host.querySelector(".fx-strip") !== null,
+          2000,
+          "fx strip open at phone width",
+        );
+        findings = walkInteractive("phone fx strip");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone fx strip must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape"); // closes the console (page-level law)
+        await waitFor(
+          () => host.querySelector(".fx-strip") === null,
+          2000,
+          "fx strip closed",
+        );
+
+        // --- PHONE STATE 3: projects popover + PAT menu --------------------
+        click('[data-help="projects.open"]');
+        await waitFor(
+          () => host.querySelector(".projects-pop") !== null,
+          2000,
+          "projects popover open",
+        );
+        findings = walkInteractive("phone projects popover");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone projects popover must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape");
+        await waitFor(
+          () => host.querySelector(".projects-pop") === null,
+          2000,
+          "projects popover closed",
+        );
+        click(".rail-tools-trigger");
+        await waitFor(
+          () => host.querySelector(".rail-tools-menu") !== null,
+          2000,
+          "pattern tools menu open",
+        );
+        findings = walkInteractive("phone pattern tools menu");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone tools menu must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape");
+        await waitFor(
+          () => host.querySelector(".rail-tools-menu") === null,
+          2000,
+          "pattern tools menu closed",
+        );
+
+        // --- Journey clause at phone width: TAP-driven inspection ---------
+        // (the m3 model: the click observer resolves the tapped registered
+        // control — structural coverage made readable by the tap path).
+        setHelpMode(true);
+        await waitFor(() => host.querySelector(".info-view") !== null);
+        const tab = host.querySelector<HTMLElement>(
+          '.lane-switch-tab[data-lane="drums"]',
+        )!;
+        tab.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await waitFor(
+          () =>
+            host.querySelector(".info-view-title")?.textContent?.trim() ===
+            "LANE SWITCHER",
+          2000,
+          "the click path shows the switcher entry",
+        );
+        setHelpMode(false);
+        await waitFor(() => host.querySelector(".info-view") === null);
+      } finally {
+        setHelpMode(false);
+        void import("../../src/engine/session")
+          .then(({ getSession }) => getSession().transport.stop?.())
+          .catch(() => {});
+        cleanup();
+        await page.viewport(1280, 800); // leave the tester viewport as configured
         try {
           await getAutosaveController()?.stop();
           if (bootDb) {

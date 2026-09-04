@@ -124,14 +124,97 @@
 
 /*
  * Phone-booth condensation (recorded MB-1 decision): the SAME controls on a
- * tighter chassis — gaps 24/16 → 12/8, padding 24/12 → 12/8 (the world's own
- * spacing scale, no new vocabulary). At 360×844 the wrapped booth otherwise
- * spends ~390 px of chrome (measured), crowding the grid toward the
- * majority-of-viewport line the plan's return-to-Town-Hall flag watches.
+ * tighter chassis (the world's own spacing scale, no new vocabulary). At
+ * 360×844 the wrapped booth otherwise spends ~390 px of chrome (measured),
+ * crowding the grid toward the majority-of-viewport line the plan's
+ * return-to-Town-Hall flag watches.
+ *
+ * MB-3 (mobile slice, m2 — the ≥44px target law) TIGHTENS IT FURTHER and
+ * changes the row rhythm to a HIT-EXPANSION budget: painted controls stay
+ * compact (the pixel aesthetic is not visually inflated — the plan's
+ * recorded route), while every control's HIT box reaches 44×44 through a
+ * transparent ::before strap extending 8 px above/below the painted box.
+ * The 16 px row gap is exactly two straps meeting at their midpoint —
+ * adjacent hit boxes TOUCH, never overlap (accessibility.md §8). Painting
+ * the whole booth at 44 would grow the pinned chrome past the hard <50%
+ * budget at 360×800 (measured during MB-3: 7 wrapped rows × 44 px ≈ 430 px
+ * chrome — the gate busts); the strap keeps the booth at its compact rows
+ * AND the targets honest. Buttons are already ≥44 px wide (their labels
+ * paint them so); the glyph stepper buttons get a painted min-width.
  */
 .phone-chrome .booth {
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-5) var(--space-3); /* 16 px rows (strap budget) · 8 px cols */
+  /* 8 px block padding: the FIRST row's strap reaches 8 px above its painted
+   * box — the padding keeps the full 44 px hit box inside the viewport (a
+   * clipped strap is a smaller target; gated). */
+  padding: var(--space-3) var(--space-3);
+}
+
+/* Wrapped rows INSIDE a group obey the same 16 px strap budget. */
+.phone-chrome .booth-group {
+  row-gap: var(--space-5);
+}
+
+/*
+ * The strap: a transparent, non-painting hit extension. Chromium's UA sheet
+ * sizes buttons border-box, so a 32 px painted box = a 30 px padding box;
+ * the strap reaches 8 px past the padding box on each side → a 46 px hit
+ * (44 even on the lit 2 px-border states — the border trades in exactly).
+ * Pointer events on a pseudo element target its originating control, so the
+ * tap lands on the button exactly as a direct hit would; no
+ * background/border → the painted control is unchanged (DESIGN.md: sizes
+ * may grow via hit-area padding, never via restyle).
+ */
+.app[data-stage="phone"] .phone-chrome .booth-btn,
+.app[data-stage="phone"] .phone-chrome .booth-step-btn,
+.app[data-stage="phone"] .phone-chrome .scale-chip {
+  position: relative;
+  min-height: 32px;
+}
+
+.app[data-stage="phone"] .phone-chrome .booth-btn::before,
+.app[data-stage="phone"] .phone-chrome .booth-step-btn::before,
+.app[data-stage="phone"] .phone-chrome .scale-chip::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0; /* 30 padding-box + 2×8 strap = 46 hit (≥44 in every state) */
+}
+
+/* Glyph stepper buttons are the one booth width problem (24 px painted):
+ * they grow to a 46 px painted width — 44 px of hit box + the 2 px of
+ * border Chromium's border-box buttons paint inside it (the strap is
+ * vertical-only; the flanking input is flush, a control: never overlapped,
+ * so the padding box itself carries the width). */
+.app[data-stage="phone"] .phone-chrome .booth-step-btn {
+  min-width: 46px;
+}
+
+/*
+ * Sliders cannot carry pseudo elements — their ≥44 hit box is the input's
+ * own height with the row reclaimed by negative block margins (the painted
+ * 4 px track + 10 px thumb stay centered and byte-identical; only the
+ * invisible hit box grows). Phone sliders also shorten to 64 px so the
+ * SWING + MASTER groups share one wrapped row at 360 px (every row the
+ * booth saves is chrome budget for the grid).
+ */
+.app[data-stage="phone"] .phone-chrome .booth-range {
+  width: 64px;
+  height: 44px;
+  margin-block: -6px;
+}
+
+/*
+ * MB-3 readout condensation (production-owned, recorded): the position
+ * group's LED readout + beat LEDs hide at phone width — they are READOUTS,
+ * not controls, and the phone already carries position on the playhead +
+ * the BAR/BEAT screen-reader announcements (the .booth-sr region stays).
+ * This keeps the wrapped booth inside the chrome budget with 44 px targets
+ * (the group reduces to SaveIndicator + PROJECTS, one row).
+ */
+.app[data-stage="phone"] .booth-group-position > .booth-label,
+.app[data-stage="phone"] .booth-group-position > .booth-led,
+.app[data-stage="phone"] .booth-group-position > .booth-beats {
+  display: none;
 }
 
 /* The single-lane stage: one floor, full width. */
@@ -159,7 +242,10 @@
 
 .lane-switch-tab {
   flex: 1 1 0;
-  min-height: 36px;
+  /* MB-3 (m2): the switcher is the phone's PRIMARY lane control — its
+   * painted box is the 44 px target itself (four tabs share the row; no
+   * strap needed, no neighbor overlap by construction). */
+  min-height: 44px;
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   color: var(--color-ink);
@@ -221,4 +307,10 @@ select,
 
 input[type="range"] {
   touch-action: none;
+}
+
+/* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the HU-2 audio-resume
+ * affordance is a primary recovery control — 44 painted at phone width. */
+.app[data-stage="phone"] .audio-resume {
+  min-height: 44px;
 }

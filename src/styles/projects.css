@@ -120,3 +120,11 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
+/* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the popover's rows
+ * and actions grow their painted boxes at phone width (the popover is an
+ * overlay with vertical room; row text already paints ≥44 px wide). */
+.app[data-stage="phone"] .projects-item,
+.app[data-stage="phone"] .projects-action {
+  min-height: 44px;
+}

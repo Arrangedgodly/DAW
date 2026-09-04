@@ -256,6 +256,38 @@
   pointer-events: auto;
 }
 
+/*
+ * MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the overlay's
+ * controls grow to the phone target law (the shared .head-step-btn rule in
+ * lane-header.css sizes the steppers 44×44; SET takes the 44 height here).
+ * With 44 px steppers the control needs ~300 px, so the overlay sizes to
+ * its CONTENT (the renderer no longer pins the in-flow 220 px slot on the
+ * overlay — out of flow, nothing depends on it; the playhead offset already
+ * ignores it) with a viewport clamp; it floats over CELLS (data targets,
+ * not controls — accessibility.md §8).
+ *
+ * The reveal SPREADS the rows: at the phone 24 px row pitch a ~50 px
+ * chassis would stack each row's rail over the next row's rail (the
+ * lower-DOM chassis paints on top — the audit's no-overlap law reddens, and
+ * half of each rail would genuinely be untouchable). While the rails are
+ * open the rows make room (one extra margin — the grid grows downward and
+ * the page scrolls; closing packs them back). Reveal-time layout only: the
+ * closed state is byte-identical.
+ */
+.app[data-stage="phone"] .row-fill.is-overlay {
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--space-3));
+}
+
+.app[data-stage="phone"] .row-fill-apply {
+  height: 44px;
+  min-width: 44px;
+}
+
+.app[data-stage="phone"] .lane-grid-scroll.fill-rails-open .grid-row {
+  margin-bottom: 34px; /* 24 px track + 34 ≥ the ~50 px chassis */
+}
+
 .row-fill-ctl {
   display: flex;
   align-items: center;

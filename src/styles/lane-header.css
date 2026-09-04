@@ -372,3 +372,45 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * MB-3 (mobile slice, m2) — the PHONE TARGET LAW on the control strips and
+ * the scale popover (WCAG 2.5.5, ≥44×44 hit; scoped .app[data-stage="phone"]
+ * — tablet keeps the scaled quadrant law, desktop is untouched, m4). The
+ * strip lives in the SCROLLING stage, so here the painted boxes themselves
+ * grow (bigger chassis, same print — DESIGN.md: size growth is a layout
+ * answer; only the booth's pinned chrome needs the compact+strap route,
+ * app.css). Rows wrap (flex-wrap already on) — the stage scrolls by law.
+ * ------------------------------------------------------------------------- */
+
+.app[data-stage="phone"] .head-step-btn {
+  width: 44px;
+  height: 44px;
+}
+
+.app[data-stage="phone"] .lane-strip-edit .scale-chip,
+.app[data-stage="phone"] .head-mix-btn,
+.app[data-stage="phone"] .head-fx {
+  min-height: 44px;
+  padding-inline: var(--space-4);
+}
+
+/* VOLUME: the input's own box is the hit target (inputs carry no pseudo
+ * elements) — 44 px tall with the painted 4 px track + thumb unchanged. */
+.app[data-stage="phone"] .head-range {
+  height: 44px;
+}
+
+/* The scale popover at phone width: widened so the 6-column root grid keeps
+ * ≥44 px targets (264 px fixed would squeeze roots to ~40 px), clamped to
+ * the viewport; its buttons grow with the same painted law. */
+.app[data-stage="phone"] .scale-pop {
+  width: min(320px, calc(100vw - 2 * var(--space-4)));
+}
+
+.app[data-stage="phone"] .scale-pop-root,
+.app[data-stage="phone"] .scale-pop-mode,
+.app[data-stage="phone"] .scale-pop-commit,
+.app[data-stage="phone"] .scale-pop-detach {
+  min-height: 44px;
+}

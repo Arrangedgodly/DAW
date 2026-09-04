@@ -86,3 +86,12 @@
   outline: 2px solid currentColor;
   outline-offset: 1px;
 }
+
+/* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the failure chrome's
+ * buttons (a toast's action + dismiss) grow their painted boxes at phone
+ * width — they are primary recovery controls, sized with everything else. */
+.app[data-stage="phone"] .toast-action,
+.app[data-stage="phone"] .toast-dismiss {
+  min-height: 44px;
+  min-width: 44px;
+}

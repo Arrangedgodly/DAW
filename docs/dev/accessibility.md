@@ -203,3 +203,82 @@ The gate file itself (`tests/browser/axe-a11y.test.tsx`) is EXTENDED, not
 forked: owning tasks add mounted states/journeys per the table above; the
 §6 accepted-moderates law (a new moderate fails until triaged HERE) applies
 to the new states unchanged.
+
+## 8. Mobile extension (MB-3 — phone target law + tap laws; m2/m3)
+
+The town-hall mobile addendum extends two WCAG lines to the phone stage
+(<768, the sticky-chrome + scrolling-grid law): **m2** — primary controls'
+targets ≥44×44 in BOTH dimensions (WCAG 2.5.5), measured as HIT boxes; and
+**m3** — no hover-only functionality: help mode becomes tap-to-inspect.
+Gates: `tests/browser/target-size.test.tsx` (the audit), `tests/browser/
+help-touch.test.tsx` (trusted CDP touch), the axe gate's phone states, and
+the help-coverage phone pass.
+
+### 8.1 The two world-respecting sizing routes (DESIGN.md law: sizes may
+grow via hit-area padding, never via visual restyle)
+
+| Route | Where | Mechanism |
+| ----- | ----- | -------- |
+| **Painted ≥44** | Everything in the SCROLLING stage + overlays (strip steppers/mix chips/FX/FILL, euclid overlay, rail tiles/append/PAT, popovers, FX console, projects, toasts, banners, KEYS close, audio-resume, switcher tabs, rail inline edits) | The control's own box grows (`min-height`/`min-width` 44) — bigger chassis, same print; rows wrap, the stage scrolls (layout answers layout) |
+| **Hit strap** | The PINNED chrome's booth (compact painted, `::before` strap `inset: -8px 0` over a ≥28px painted box; 16px row gaps = two straps meeting at the midpoint — adjacent hit boxes touch, never overlap) + sliders there (inputs carry no pseudo elements: `height: 44px` with `margin-block: -8px` reclaiming the row) | Painting the whole booth at 44 measurably busts MB-1's hard chrome budget (<50% of viewport at 360×800); the strap keeps the compact booth AND honest targets |
+
+The audit measures HIT boxes behaviorally (`elementFromPoint`): the
+contiguous hit region around each control's center must reach ≥44 on both
+axes, and all four corners of the centered 44×44 rect must resolve to the
+control — a neighbor's hit box encroaching fails the corner probes (the
+"adjacent hit boxes must not overlap" law, enforced, not assumed).
+
+### 8.2 Target matrix (the audit inventory; gate selectors in target-size.test.tsx)
+
+| Surface (phone stage) | Controls | Route |
+| -------------------- | -------- | ----- |
+| Booth transport | PLAY / LOOP / METRONOME / KEYS ? / INFO ? / PROJECTS | strap (painted ≥44 wide) |
+| Booth tempo | − / + steppers | painted 44 wide + strap |
+| Booth scale chip | chip button | strap |
+| Booth sliders | SWING / MASTER | input-height 44 (track/thumb painted unchanged) |
+| Lane switcher | 4 tabs | painted 44 |
+| Condensed rail | tiles / append + / PAT trigger / PAT menu items / inline edits | painted 44 |
+| Lane strip | preset/kit ±, VOLUME, MUTE, SOLO, scale chip, GATE ±, FX, FILL | painted 44 |
+| Euclid overlay | steppers ×4, SET | painted 44 (overlay sizes to content, floats over cells) |
+| FX console | CLOSE, bypass/move/remove, + ADD FX, add items, param sliders/selects | painted 44 / input-height 44 |
+| Popovers | projects rows + actions, scale roots/modes/commit/detach | painted 44 (scale popover widened so 6 roots ≥44) |
+| Failure chrome | toast action/dismiss, banner dismiss, audio-resume, KEYS close | painted 44 |
+
+### 8.3 Recorded exemptions (measured + logged by the audit, never asserted ≥44)
+
+- **Grid cells + note-edge zones** — data targets / pointer gesture
+  affordances, not buttons (the plan's own law; editing obeys the gesture
+  laws with the keyboard twin on the focused cell).
+- **Booth TEMPO number input** — WCAG 2.5.5 "equivalent" exception: the
+  flanking − / + steppers (both ≥44 hit) are the equivalent adjustment
+  controls; the input exists for direct entry.
+- **Save indicator** — role=status, focusable for inspection, not operable
+  (no action); target size applies to controls.
+- **Position LED / beat LEDs** — non-interactive readouts (hidden at phone
+  width by the MB-3 condensation; SR BAR/BEAT announcements continue).
+- **Tablet (768–1024)** — the AC pins the 44 law to the two phone
+  viewports; the tablet keeps the scaled quadrant stage (entry-4 one-page
+  fit) with its compact controls. The M17 review owns that boundary.
+
+### 8.4 Tap laws (m3 — no hover-only functionality)
+
+- **Help mode tap-to-inspect (the recorded tap model):** a tap on a
+  registered control BOTH activates it (pass-through, HP-1's law) AND shows
+  its entry in the info region — observe-only `click` listener mounted only
+  while the mode is on; "inspect without activating" was rejected (it would
+  block editing and contradict the no-trap decision). Entry persists until
+  the next focus/hover/tap on a registered control; identical re-sets are
+  no-ops (no re-announcement). On touch the ENTRY and EXIT affordance is the
+  tappable INFO ? button (no `i` key on glass); the hint reads
+  "TAP INFO ? TO EXIT" on the phone stage.
+- **Euclid reveal** — the FILL strip toggle (MB-2), not hover.
+- **Tooltips/labels** — every hover-titled control has a visible-at-touch
+  equivalent: the rail cue dash renders the label text itself (the inline
+  editor is the touch path); state text lives in aria-labels + names.
+- **Announcements at phone width** — NOW EDITING (mobile-viewport gate),
+  pending/QUEUED cues (touch-gestures gate), info-region updates
+  (help-touch gate) all verified at 390/360 widths.
+- **Focus order at phone** — no positive tabindex anywhere; tab order is
+  top-to-bottom visual order (booth → switcher → rail → strip → grid);
+  rotation (portrait↔landscape, phone↔tablet) never strands focus
+  (target-size gate).

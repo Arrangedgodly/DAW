@@ -20,7 +20,7 @@ import { createSignal } from "solid-js";
 import { announceStage } from "./selection";
 
 export const INFO_MODE_ON_ANNOUNCEMENT =
-  "INFO MODE ON — FOCUS A CONTROL TO HEAR WHAT IT DOES";
+  "INFO MODE ON — FOCUS OR TAP A CONTROL TO HEAR WHAT IT DOES";
 export const INFO_MODE_OFF_ANNOUNCEMENT = "INFO MODE OFF";
 
 const [helpMode, setHelpModeSignal] = createSignal(false);

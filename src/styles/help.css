@@ -112,3 +112,10 @@
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
 }
+
+/* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the KEYS overlay's
+ * CLOSE control grows its painted box at phone width (the modal scrolls
+ * internally; 28 px painted → 44). */
+.app[data-stage="phone"] .help-close {
+  min-height: 44px;
+}

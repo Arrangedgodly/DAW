@@ -65,3 +65,9 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the banner's dismiss
+ * control grows its painted box at phone width (32 px painted → 44). */
+.app[data-stage="phone"] .support-banner-dismiss {
+  min-height: 44px;
+}

@@ -14,6 +14,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "solid-js/web";
 import axe from "axe-core";
 import App from "../../src/App";
@@ -108,6 +109,39 @@ describe("DA-2 axe-core gate", () => {
     } finally {
       cleanup();
     }
+  });
+
+  // MB-3 (mobile slice, m2 — "a11y gates extend" at phone width): the same
+  // zero-critical/serous + triaged-moderates law at the committed phone
+  // viewports on the PHONE STAGE (sticky chrome + lane switcher + condensed
+  // rail + single-lane stage; the ≥44 target law's sizing in effect), plus
+  // help mode ON at phone width (the tap-to-inspect surface).
+  it("phone stage 390×844 + 360×800: main screen + help mode clean", async () => {
+    for (const [w, h] of [
+      [390, 844],
+      [360, 800],
+    ] as const) {
+      await page.viewport(w, h);
+      const { host, cleanup } = mount();
+      try {
+        await new Promise((r) => setTimeout(r, 400));
+        expect(
+          host.querySelector(".app")?.getAttribute("data-stage"),
+          `phone stage at ${w}×${h}`,
+        ).toBe("phone");
+        expectClean(await runAxe(host), `phone main ${w}×${h}`);
+        // Help mode on (the info view + mode-obvious markers at phone).
+        const info = host.querySelector<HTMLButtonElement>(".booth-btn-info")!;
+        info.click();
+        await new Promise((r) => setTimeout(r, 300));
+        expect(host.querySelector(".info-view")).toBeTruthy();
+        expectClean(await runAxe(host), `phone help mode ${w}×${h}`);
+      } finally {
+        setHelpMode(false);
+        cleanup();
+      }
+    }
+    await page.viewport(1280, 800); // leave the tester viewport as configured
   });
 
   it("booth scale popover open: dialog semantics clean", async () => {

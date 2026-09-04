@@ -290,7 +290,7 @@ with the rails shown, a grid Escape closes them BEFORE the FX console
 cover and the region-head pop (the rails are the innermost row-local
 surface).
 
-## Help mode (info view) [v2 · live since HP-1]
+## Help mode (info view) [v2 · live since HP-1; MB-3 adds the touch tap model]
 
 Ableton-style info view (I2-6), SEPARATE from the keyboard-shortcut overlay
 above, which stays unchanged. Architecture: the help REGISTRY is colocated
@@ -298,21 +298,30 @@ with the components (src/help/registry.ts + registrations in each component
 — no central help file); the info region is src/components/InfoView.tsx,
 mounted only while the mode is on (zero cost when off — perf-budget.md §8).
 
-| Key                          | Action                                                                                                                                                           |
+| Key / control                | Action                                                                                                                                                           |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| booth "?" INFO button        | toggle help mode (real button, Tab + Enter — the mouse-parity path)                                                                                              |
+| booth "?" INFO button        | toggle help mode (real button, Tab + Enter — the mouse-parity path; on touch, the TAP path — see the tap model below)                                            |
 | `i`                          | toggle help mode from anywhere (guards: not in text entries, no AT modifiers held)                                                                               |
 | Tab / arrows (while ON)      | normal navigation — focus any registered control; the info region updates on FOCUS, not just hover (the Daredevil law: help mode must respond to keyboard focus) |
+| TAP (while ON) [MB-3, m3]    | touch twin of hover: tapping a registered control shows its entry AND activates the control (pass-through — the recorded tap model); entry persists until the next registered focus/hover/tap |
 | Escape (while ON)            | exit help mode (cancel-first; focus stays where it was — nothing was trapped)                                                                                    |
-| `i` or the button (while ON) | exit help mode; announcement `INFO MODE OFF`                                                                                                                     |
+| `i` or the button (while ON) | exit help mode; announcement `INFO MODE OFF` (on touch the tappable INFO ? button is the exit — the phone hint reads "TAP INFO ? TO EXIT")                       |
 
+- **The MB-3 tap model (mobile addendum m3, recorded):** a tap BOTH inspects
+  and activates. "Inspect without activating" was rejected — it would
+  contradict HP-1's recorded pass-through decision (every control stays
+  operable while the mode is on) and put the mode in the way of editing;
+  the Ableton-on-touch precedent is read-tap-and-still-play. The observer is
+  an observe-only `click` listener mounted only while the mode is on
+  (desktop hover behavior unchanged; identical re-sets are no-ops so a
+  mouse click after its own hover never re-announces).
 - **No trap, no modal:** help mode is a mode, not an overlay — every control
   stays reachable and operable; the info region itself is `role="status"`
   `aria-live="polite"`, NOT focusable, NOT in the tab order (a non-interactive
   status region cannot trap anything; pointer pass-through onto the stage is
   HP-1's recorded production decision).
 - **Announcements (a11y gate E6):** toggling announces `INFO MODE ON —
-FOCUS A CONTROL TO HEAR WHAT IT DOES` / `INFO MODE OFF`; each focused
+  FOCUS OR TAP A CONTROL TO HEAR WHAT IT DOES` / `INFO MODE OFF`; each focused
   registered control's help text is spoken (and shown) once per focus move —
   no repetition while focus rests.
 - Toggling help mode mid-gesture must not corrupt an active drag (gesture
@@ -396,6 +405,7 @@ path as DoD:
 | "?" corner toggle for info mode                            | booth INFO button (Tab+Enter) + global `i`                                                                         | HP-1        |
 | Hover a control to read its help text                      | focus it — info region updates on focus, aria-live speaks it                                                       | HP-1        |
 | Select a lane from the phone switcher                      | the switcher IS a keyboard surface: ArrowLeft/Right, Home/End, Tab roving (§Phone lane switcher)                   | MB-1        |
+| Tap a control to read its help text (help mode on, touch) | focus already drives the same region (E6) — the tap is the hover twin, not a new path; Tab/arrow focus speaks it  | MB-3        |
 
 No gesture in the iteration-2 brief lacks a keyboard row. New gesture
 proposals during production must add a row here (or land a binding) before

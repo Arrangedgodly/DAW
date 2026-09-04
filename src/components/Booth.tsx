@@ -67,7 +67,7 @@ registerHelp([
   {
     id: "booth.info",
     title: "INFO ?",
-    text: "Turns this info view on: point at or focus any control and this bar explains it. I toggles, Escape leaves — controls keep working either way.",
+    text: "Turns this info view on: point at, focus, or tap any control and this bar explains it. I toggles, Escape leaves — controls keep working either way.",
   },
   {
     id: "booth.tempo",
