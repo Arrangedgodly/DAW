@@ -1,0 +1,294 @@
+/**
+ * FV-1 browser gate (i3-6 desktop half) — FULL-VIEWPORT DENSIFICATION on the
+ * REAL BUILT APP. The 1400px cap family is RETIRED (I3-b, user-approved
+ * 2026-09-04): `.stage-floors`'s cap plus its `.rail` twin — one
+ * centered-vacancy law. The quadrant stage fills the viewport width at
+ * every desktop width, and width growth buys MORE VISIBLE STEPS per
+ * quadrant before the internal h-scroll (fixed step px is the readability
+ * law — columns, never bigger cells; RC-1's windowed grids made columns
+ * the thing width buys).
+ *
+ * UTILIZATION DEFINITION (recorded in-task — the plan's "bounding-box
+ * utilization assertion"): the widest committed layout surfaces — the 2×2
+ * stage floors and the rail — each span ≥95% of the LAYOUT viewport width
+ * (iframe documentElement.clientWidth) as their border-box bounding rect,
+ * measured per viewport at 1280×800, 1440×900, 1920×1080. The 5% margin
+ * absorbs nothing today (both surfaces measure 100%); it is the sanctioned
+ * tolerance for a future deliberate inset, so the gate pins the LAW (no
+ * centered vacancy — the surfaces start at the layout edge) rather than
+ * one exact stylesheet value.
+ *
+ * ONE-PAGE LAW (the two law viewports, both axes): 1280×800 AND 1440×900
+ * keep zero page scroll — this task is width densification only; the
+ * refinement-4 vertical fit is untouched. 1920×1080 is additionally pinned
+ * as defense-in-depth: the wider page must not grow any element past it.
+ *
+ * DENSIFICATION PROOF (the retirement actually densifies): a 4-bar lead
+ * pattern shows STRICTLY MORE visible step columns at 1920 than at 1440 —
+ * the retired "1920 = 1440" full-page byte-identity (the old LaneGrid
+ * refinement-4 note, journaled retired in-source) would fail this as
+ * equality.
+ *
+ * Teeth: restoring `max-width: 1400px` reddens the gate — the centered
+ * vacancy assert catches the 20px margin at 1440 first (measured on the
+ * scratch revert), and at 1920 the utilization ratio itself (1400/1920 ≈
+ * 73%) plus the densification assert (36 == 36, not >) go RED.
+ *
+ * MOBILE FENCE (I3-f, regression-only): NO mobile behavior is asserted
+ * here — below 1400px the retired caps were already inert, so the
+ * phone/tablet branches are byte-stable by construction and stay pinned by
+ * their own gates (mobile-viewport m1, mobile-resilience m3/m5,
+ * frame-budget m5, the MB-1 PNG law), re-run in the same battery.
+ *
+ * Evidence screenshots at all three viewports ride the UNCOMMITTED
+ * zz-shots scratch harness into .impeccable/review/ (the RC-1 precedent:
+ * machine-specific absolute screenshot paths never enter the committed
+ * suite — this gate is assertions-only and CI-safe).
+ */
+
+import { describe, expect, it } from "vitest";
+
+const bundleGlob = import.meta.glob("/dist/assets/index-*.js");
+const cssGlob = import.meta.glob("/dist/assets/index-*.css");
+
+/** The three gate viewports (I3-b): min, primary law, wide. The one-page
+ * LAW viewports are 1280×800 + 1440×900; 1920×1080 is the wide gate. */
+const VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
+  [1280, 800],
+  [1440, 900],
+  [1920, 1080],
+];
+
+const UTILIZATION_MIN = 0.95;
+
+function poll(
+  cond: () => boolean,
+  timeoutMs: number,
+  what: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const t0 = performance.now();
+    const check = () => {
+      if (cond()) return resolve();
+      if (performance.now() - t0 > timeoutMs)
+        return reject(new Error(`timed out waiting for ${what}`));
+      setTimeout(check, 50);
+    };
+    check();
+  });
+}
+
+/** Deterministic first-run boot (PX-1 demo) in a sized iframe — the
+ * quadrant-layout harness shape. */
+async function bootIframe(
+  w: number,
+  h: number,
+): Promise<{
+  iframe: HTMLIFrameElement;
+  idoc: () => Document;
+  $: <T extends Element>(sel: string) => T;
+}> {
+  const bundleKey = Object.keys(bundleGlob)[0];
+  const cssKey = Object.keys(cssGlob)[0];
+  expect(
+    bundleKey,
+    "built bundle missing (globalSetup build failed?)",
+  ).toBeTruthy();
+  expect(cssKey).toBeTruthy();
+  const iframe = document.createElement("iframe");
+  iframe.style.width = `${w}px`;
+  iframe.style.height = `${h}px`;
+  document.body.appendChild(iframe);
+  const win = iframe.contentWindow!;
+  await new Promise<void>((resolve) => {
+    const req = win.indexedDB.deleteDatabase("bitbounce");
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
+  const doc0 = iframe.contentDocument!;
+  doc0.open();
+  doc0.write(`<!doctype html><html><head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="${cssKey.replace("/dist/", "/")}" />
+</head><body><div id="root"></div>
+<script type="module" src="${bundleKey.replace("/dist/", "/")}"></script>
+</body></html>`);
+  doc0.close();
+  const idoc = () => iframe.contentDocument!;
+  const $ = <T extends Element>(sel: string): T => {
+    const el = idoc().querySelector<T>(sel);
+    if (!el) throw new Error(`missing ${sel}`);
+    return el;
+  };
+  await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
+  await poll(
+    () =>
+      Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(
+        (c) => c.textContent === "VERSE",
+      ),
+    5_000,
+    "demo cues",
+  );
+  return { iframe, idoc, $ };
+}
+
+/** R14 teardown: remove the iframe, then wipe the shared-origin DB. */
+async function teardown(iframe: HTMLIFrameElement): Promise<void> {
+  iframe.remove();
+  for (let attempt = 0; ; attempt++) {
+    const deleted = await new Promise<boolean>((resolve) => {
+      const req = indexedDB.deleteDatabase("bitbounce");
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(true);
+      req.onblocked = () => resolve(false);
+    });
+    if (deleted || attempt >= 20) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
+describe("FV-1 full-viewport densification (built app, 1280/1440/1920)", () => {
+  it(
+    "≥95% width utilization at all three viewports; one-page at both law viewports; 1920 shows strictly more columns",
+    { timeout: 180_000 },
+    async () => {
+      /** Visible step columns of the lead quadrant's first 4-bar row. */
+      const visibleLeadSteps = (idoc: () => Document): number => {
+        const scroll = idoc().querySelector<HTMLElement>(
+          '.lane-floor[data-lane="lead"] .lane-grid-scroll',
+        )!;
+        const box = scroll.getBoundingClientRect();
+        const row = idoc().querySelector(
+          '.lane-floor[data-lane="lead"] .grid-row .row-cells',
+        )!;
+        let visible = 0;
+        for (const cell of Array.from(row.querySelectorAll(".cell"))) {
+          if (cell.getBoundingClientRect().right <= box.right + 1) visible++;
+          else break;
+        }
+        return visible;
+      };
+
+      /** Append a 4-bar LEAD pattern through the rail PAT menu (the
+       * quadrant-layout §10 path), wait for the 64-step remount. */
+      const add4BarLead = async (
+        $: <T extends Element>(sel: string) => T,
+        idoc: () => Document,
+      ): Promise<void> => {
+        $<HTMLButtonElement>(
+          '.rail-row[data-lane="lead"] .rail-tools-trigger',
+        ).click();
+        await poll(
+          () =>
+            idoc().querySelector(
+              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
+            ) !== null,
+          2_000,
+          "LEAD pattern tools menu open",
+        );
+        $<HTMLButtonElement>(
+          '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
+        ).click();
+        await poll(
+          () =>
+            (idoc()
+              .querySelector('.lane-floor[data-lane="lead"] .grid-row')
+              ?.querySelectorAll(".cell").length ?? 0) === 64,
+          5_000,
+          "4-bar lead pattern rendered (first row = 64 steps)",
+        );
+      };
+
+      const visibleAt = new Map<number, number>();
+      for (const [w, h] of VIEWPORTS) {
+        const { iframe, idoc, $ } = await bootIframe(w, h);
+        try {
+          // --- 0. SETTLE -------------------------------------------------
+          // Fonts + the refinement-4 fit first: a scrollbar-free document
+          // is what clientWidth === w asserts below.
+          const fitsNow = () => {
+            const de = idoc().documentElement;
+            return (
+              de.scrollWidth <= w &&
+              de.scrollHeight <= h &&
+              (idoc().body.scrollWidth ?? 0) <= w &&
+              (idoc().body.scrollHeight ?? 0) <= h
+            );
+          };
+          let settled = true;
+          try {
+            await poll(fitsNow, 5_000, `${w}×${h} fit settle`);
+          } catch {
+            settled = false;
+          }
+          const de = idoc().documentElement;
+          expect(
+            settled,
+            `${w}×${h}: page must fit (measured ${de.scrollWidth}×${de.scrollHeight})`,
+          ).toBe(true);
+
+          // --- 1. UTILIZATION (the FV-1 definition, both surfaces) -------
+          const clientW = idoc().documentElement.clientWidth;
+          expect(clientW, `${w} layout viewport (no scrollbar)`).toBe(w);
+          const floors = $(".stage-floors").getBoundingClientRect();
+          const rail = $(".rail").getBoundingClientRect();
+          expect(
+            floors.width / clientW,
+            `${w}×${h}: stage floors utilization (≥${UTILIZATION_MIN * 100}%; the retired cap measured 1400/${w})`,
+          ).toBeGreaterThanOrEqual(UTILIZATION_MIN);
+          expect(
+            rail.width / clientW,
+            `${w}×${h}: rail utilization (the twin capped surface)`,
+          ).toBeGreaterThanOrEqual(UTILIZATION_MIN);
+          // No centered vacancy: both surfaces start at the layout edge
+          // (the scratch revert measured left = 20 at 1440, 260 at 1920).
+          expect(floors.left).toBeLessThanOrEqual(0.5);
+          expect(rail.left).toBeLessThanOrEqual(0.5);
+
+          // --- 2. ONE-PAGE LAW ------------------------------------------
+          // The two law viewports by name (1280×800 + 1440×900); 1920 is
+          // the defense-in-depth half — a wider page must not overflow
+          // either axis. Proven by the settle poll; re-asserted for the
+          // failure message.
+          expect(fitsNow(), `${w}×${h}: one-page holds after settle`).toBe(
+            true,
+          );
+
+          // --- 3. DENSIFICATION PROOF at 1440 + 1920 ---------------------
+          // A 4-bar (64-step) grid overflows the quadrant at BOTH widths
+          // (the v0 internal-scroll law); the retired cap made the two
+          // viewports show the SAME column count — the byte-identity law.
+          if (w >= 1440) {
+            await add4BarLead($, idoc);
+            const scroll = $(
+              '.lane-floor[data-lane="lead"] .lane-grid-scroll',
+            ) as HTMLElement;
+            expect(
+              scroll.scrollWidth,
+              `${w}: the 4-bar lead grid scrolls INSIDE its quadrant (the measurement grid genuinely overflows)`,
+            ).toBeGreaterThan(scroll.clientWidth);
+            const visible = visibleLeadSteps(idoc);
+            expect(visible, `${w}: visible lead columns`).toBeGreaterThan(0);
+            visibleAt.set(w, visible);
+            // The one-page law still holds with the long pattern aboard.
+            expect(
+              de.scrollWidth <= w && de.scrollHeight <= h,
+              `${w}: one-page holds with the 4-bar pattern (internal scroll, never the page)`,
+            ).toBe(true);
+          }
+        } finally {
+          await teardown(iframe);
+        }
+      }
+
+      // The retirement's whole point: 1920 buys MORE VISIBLE COLUMNS than
+      // 1440 (pre-FV-1 both measured the same — the 1400px cap).
+      const at1440 = visibleAt.get(1440)!;
+      const at1920 = visibleAt.get(1920)!;
+      expect(
+        at1920,
+        `1920 shows strictly more lead columns than 1440 (measured ${at1920} vs ${at1440}; the retired 1920=1440 law measured equal)`,
+      ).toBeGreaterThan(at1440);
+    },
+    180_000,
+  );
+});

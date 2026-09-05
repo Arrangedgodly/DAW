@@ -136,7 +136,9 @@ export default defineConfig({
             // keyboard access (small-surface behavior the mobile slice MB-1/
             // MB-3 owns and will gate in its own viewport). Tests that size
             // their own iframes (quadrant-layout, frame-budget, e2e,
-            // zero-network) are unaffected by this page viewport.
+            // zero-network, viewport-utilization — FV-1's multi-viewport
+            // measurement: 1280/1440/1920 sized per iframe) are unaffected
+            // by this page viewport.
             viewport: { width: 1280, height: 800 },
           },
           maxWorkers: 1,

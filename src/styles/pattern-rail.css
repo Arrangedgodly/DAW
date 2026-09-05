@@ -15,17 +15,23 @@
 
 /*
  * Refinement-4 (critique P2-5, the 1280×800 one-page breach — horizontal
- * half): the rail BOX must never exceed the stage. `width: 100%` on this
+ * half): the rail BOX must never exceed the page. `width: 100%` on this
  * content-box element ADDED its own horizontal padding on top (2 ×
  * --space-5 = 32 px), so the box measured 1312 px inside a 1280 viewport —
- * the 32 px page h-scroll the entry-2 verifier recorded. At ≥1432 px
- * viewports the 1400 px max-width clamp hid the bug (box 1432 px); calc()
- * subtracts the padding so the OUTER box fits at every width while those
- * viewports stay byte-identical (1400 px content, 1432 px box).
+ * the 32 px page h-scroll the entry-2 verifier recorded. calc()
+ * subtracts the padding so the OUTER box fits at every width.
+ *
+ * FV-1 (i3-6 / I3-b): the 1400px max-width clamp is RETIRED with the
+ * stage's — the twin of the app.css cap (one centered-vacancy law). The
+ * arrangement surface fills the viewport width like the booth above it
+ * and the quadrants below; rail rows gain tile room at wide viewports
+ * (the 15-tile single-line law keeps MORE room, never less). The clamp
+ * only ever bit at ≥1432px viewports, so 1280 and the mobile family are
+ * byte-identical (the calc() never-exceeds-the-page law above stays the
+ * load-bearing one).
  */
 .rail {
   --lane-hue: var(--color-ink);
-  max-width: 1400px;
   width: calc(100% - 2 * var(--space-5));
   margin: 0 auto;
   padding: var(--space-3) var(--space-5) 0;

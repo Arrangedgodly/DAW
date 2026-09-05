@@ -27,6 +27,19 @@
  * (drums · bass / chords · lead). Rows size to content so a budget miss
  * grows the page (and fails the viewport assertion) instead of silently
  * clipping a quadrant.
+ *
+ * FV-1 (i3-6 / I3-b, 2026-09-04): the 1400px max-width cap is RETIRED —
+ * the deliberate 1920-equals-1440 densification choice it encoded is
+ * reversed by the user's approved direction. The floors now fill the
+ * viewport width at EVERY desktop width: each quadrant's grid shows MORE
+ * visible steps before its internal h-scroll (the RC-1 windowed grids'
+ * whole point — width growth buys columns, never bigger cells; the
+ * committed 16/20px cell scale is the readability law). The vertical
+ * one-page budget is untouched (the refinement-4 fit owns that axis).
+ * Scope: desktop-only by construction — below 1400px the cap was already
+ * inert, so the tablet branch (768–1024) is byte-identical and the phone
+ * branch below keeps its own committed `max-width: none` rule (MB-1,
+ * byte-stable; the mobile family is regression-only, I3-f).
  */
 .stage-floors {
   position: relative;
@@ -35,7 +48,6 @@
   grid-template-rows: auto auto;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
-  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;

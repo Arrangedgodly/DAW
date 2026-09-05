@@ -201,8 +201,13 @@ const PHONE_ROW_PX = 24;
  * vertical row-track px through the renderer seam (setRowHeight) so the
  * quadrant's own laws decide HOW it compresses —
  *   - tracks clamp at cellPx when the budget is met (viewports that fit are
- *     BYTE-IDENTICAL to before: 1440×900 and 1920×1080 keep their 290 px
- *     quadrant rows and 16/20 px tracks);
+ *     BYTE-IDENTICAL on the VERTICAL axis: 1440×900 and 1920×1080 keep their
+ *     290 px quadrant rows and 16/20 px tracks). FV-1 (I3-b, 2026-09-04)
+ *     RETIRES the full-page "1920 = 1440" byte-identity this line used to
+ *     encode: the 1400px stage cap is gone, so at 1920 the quadrants are
+ *     WIDER and their grids show more steps before the internal h-scroll —
+ *     the retired law's deliberate densification choice, reversed by the
+ *     user's approved direction. The vertical fit law itself is unchanged;
  *   - tracks compress toward minRowPx only by the measured deficit (no
  *     content loss: every row stays fully rendered, cells within
  *     readability);

@@ -16,6 +16,12 @@
  *
  * LY-1 (quadrant layout): geometry is PARAMETERIZED — the v0 editing size
  * (24 px cells) stays the default; quadrant-scaled grids pass smaller cells.
+ * FV-1 (I3-b): the WIDTH axis is fluid BY CONSTRUCTION — steps keep their
+ * pinned px (the readability law; never bigger cells) while the grid lays
+ * out at `max-content` inside the quadrant's scrollport, so a wider
+ * quadrant (the retired 1400px stage cap) shows MORE STEPS before the
+ * internal h-scroll. No new seam: the playhead/hit math already derives
+ * from the same pinned stepWidthPx at every quadrant width.
  * A grid can be switched between EDITABLE and VIEW-ONLY at any time
  * (`setEditable`): view-only grids keep rendering live notes + playhead but
  * expose NO tab stops, NO focusable descendants, and ignore activation —
