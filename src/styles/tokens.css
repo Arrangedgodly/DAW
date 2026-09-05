@@ -1,28 +1,123 @@
 /*
- * Bitbounce design tokens — Arcade Stage Floor (res-9 law, DES-1).
- * Consumed by every component from DES-2 on. Do not hardcode these values.
+ * Bitbounce design tokens — MACHINED CONSOLE (hardware-console run,
+ * 2026-09-04; world contract: .impeccable/surfaces/route.md). Consumed by
+ * every component sheet from DES-2 on. Do not hardcode these values.
+ *
+ * World: the whole app is one premium hardware DAW unit — dark
+ * anodized-graphite deck, brushed 1px metal grain, machined bezels (top
+ * catch-light edge, dark lower edge), recessed slightly-emissive readout
+ * windows, chrome-ringed LEDs. Lane hues are the unit's signal system
+ * (LED values, anodized accent rims) — never paint, never decoration.
+ * State is carried by line form and light discipline (solid / dashed /
+ * doubled rims; recessed vs emissive windows): hue is signal, never the
+ * sole state carrier.
+ *
+ * History: superseded world "Arcade Stage Floor" (res-9 law, DES-1,
+ * 2026-09-01). Its lane-hue anchors, shape-mark law, and label discipline
+ * survive as raw material; its flat-black void, pixel display face, and
+ * glow-forward cell treatment are replaced. Never split the difference.
  */
 
 :root {
-  /* ---- Palette (contrast-verified against ground; res-9 table) ---- */
-  --color-ground: #0d0b10; /* near-black stage floor */
-  --color-ink: #f5f2e9; /* warm white — default info-critical text, 17.49:1 */
-  --color-ink-on-fill: #0d0b10; /* near-black ink on ALL lane fills, 5.17–10.91:1 */
+  /* ---- Palette (contrast-verified against ground; res-9-style table in
+   * docs/dev/accessibility.md §5, re-measured 2026-09-04 for the Machined
+   * Console ground) ---- */
+  --color-ground: #111014; /* anodized graphite deck — ink on ground 16.93:1 */
+  --color-ink: #f5f2e9; /* warm white — default info-critical text (BYTE-IDENTICAL through the world change) */
+  --color-ink-on-fill: #0d0b10; /* near-black ink on ALL lane fills, 5.17–10.91:1 (unchanged) */
 
-  --color-lane-drums: #f23d4c; /* red — text on ground 5.17:1, ≤10px Silkscreen 700 only */
-  --color-lane-bass: #ffb300; /* amber — any size, 10.91:1 */
-  --color-lane-chords: #35d07f; /* green — any size, 9.77:1 */
-  --color-lane-lead: #4da6ff; /* blue — any size, 7.66:1 */
+  /* Lane hue anchors — BYTE-IDENTICAL through the world change (the
+   * contrast table and every color-coding assertion ride these values);
+   * hardware tinting happens only in derived usages (color-mix at
+   * 12–18% alpha on metal panels). */
+  --color-lane-drums: #f23d4c; /* red — on ground 5.01:1, ≤10px Silkscreen 700 only */
+  --color-lane-bass: #ffb300; /* amber — on ground 10.56:1 */
+  --color-lane-chords: #35d07f; /* green — on ground 9.46:1 */
+  --color-lane-lead: #4da6ff; /* blue — on ground 7.41:1 */
 
   /* ---- Ink rules (law; enforce in review, not just style) ----
    * 1. Filled cells set glyphs in --color-ink-on-fill (never warm white on
    *    lane fills; red fill + white ink fails AA at normal sizes).
-   * 2. Info-critical text is warm white on ground — never lane-hued, never dimmed.
+   * 2. Info-critical text is warm white on ground/panel — never lane-hued,
+   *    never dimmed.
    * 3. No lane-hue text on lane fills.
    * 4. Red text ≤ 10px and only Silkscreen 700.
+   * 5. Hue is signal, never the sole state carrier: state rides line form
+   *    (the EMISSION-RAIL rim grammar below), fill, shape marks, and text.
    */
 
-  /* ---- Typography (faces loaded in fonts.css) ---- */
+  /* ---- EMISSION-RAIL state grammar (line form carries state) ----
+   * The rim's LINE FORM is the state vocabulary; hue layers on top as
+   * signal, never alone. Tokens consumed by the T3/T5/T6 rim treatments.
+   */
+  --rim-width: 1px; /* hairline discipline */
+  --rim-idle: solid; /* idle */
+  --rim-pending: dashed; /* pending / cued (inherits the shape-mark law) */
+  --rim-sounding: double; /* sounding / active (two 1px lines) */
+
+  /* ---- Metal materials (chassis surfaces only — NEVER per-cell;
+   * all CSS gradients, zero image assets) ---- */
+  --metal-deck: #111014; /* anodized graphite top deck (= ground) */
+  --metal-panel: #1a191d; /* booth + rail strips */
+  --metal-raised: #232128; /* buttons, console modules */
+  --metal-recess: #0a090c; /* readout windows, grid wells */
+  --metal-edge-hi: rgba(255, 255, 255, 0.16); /* machined top catch-light (re-pinned 2026-09-04 T4/AC-9 round 2: 0.08 read sub-visible in static review — the machined edge must READ) */
+  --metal-edge-lo: rgb(0 0 0 / 68%); /* dark lower edge */
+  --metal-sheen: rgba(255, 255, 255, 0.05); /* brushed power sheen */
+  /* 1px brush grain (alpha re-pinned 0.02 → 0.045 at T4/AC-9 round 2,
+   * 2026-09-04: at 0.02 the grain was invisible in static screenshots — the
+   * material must be perceptible for the unit read; worst text pair
+   * re-verified ≥ AA, see production-log T4): horizontal strokes on the
+   * deck, vertical on booth side walls (paint-once backgrounds). */
+  --metal-brush: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.045) 0 1px,
+    transparent 1px 2px
+  );
+  --metal-brush-v: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.045) 0 1px,
+    transparent 1px 2px
+  );
+
+  /* ---- Static elevation (box-shadow stacks; painted once, NEVER
+   * animated; chassis surfaces only — booth, rail, quadrant floors, FX
+   * console, popovers — never per-cell) ---- */
+  --elev-1: inset 0 1px 0 var(--metal-edge-hi),
+    inset 0 -1px 0 var(--metal-edge-lo);
+  /* casts re-pinned deeper at T4/AC-9 round 2 (2026-09-04): panels must sit
+   * visibly ON the deck / keys visibly ON their panel — at the proposal
+   * amplitudes static review read "flat fills, no depth". Still paint-once,
+   * still static, still chassis-only. */
+  --elev-2: var(--elev-1), 0 8px 18px -9px rgb(0 0 0 / 62%);
+  --elev-3: var(--elev-1), 0 14px 32px -12px rgb(0 0 0 / 70%);
+  /* Key cast (T4/AC-9 round 2): a raised key/module sits on its panel — a
+   * small offset+blur cast under the bezel. Same laws as the family. */
+  --elev-key: var(--elev-1), 0 2px 4px rgb(0 0 0 / 45%);
+  /* The device-frame cast — used ONCE, on the outer chassis (inverted into
+   * inset shadows on the bezel overlay in chassis.css). */
+  --elev-4: 0 24px 48px -16px rgb(0 0 0 / 70%);
+
+  /* ---- LEDs (chrome-ringed via static 1px borders; glow decoration-only,
+   * never the sole signal) ---- */
+  --led-on: var(--color-ink); /* warm-white emissive */
+  --led-idle: color-mix(in srgb, var(--color-ink) 35%, transparent);
+  --led-window: inset 0 3px 8px rgb(0 0 0 / 85%),
+    inset 0 -1px 0 var(--metal-edge-hi); /* recessed readout window (deepened at T4/AC-9 round 2 — the recess must read as depth, not a dark fill) */
+  --led-bloom-decay: 180ms; /* inherits the glow-law ceiling */
+
+  /* ---- Typography (faces loaded in fonts.css; restyle-first, ZERO new
+   * font bytes in v1 — weights/tracking/case only, no face enters or
+   * leaves any chain, so every metric pin holds by construction) ----
+   * IBM Plex Mono (--font-ui) promotes to the panel workhorse (labels
+   * 500 weight — the self-hosted 400/500 weights; 600 would need new
+   * bytes or faux-bold — +0.08em tracking, uppercase, 10–11px floors
+   * respected). Silkscreen (--font-label) demotes to engraved legend
+   * accents ≤10px. VT323 (--font-led) keeps readout duty, restyled into
+   * recessed emissive windows (--led-window on --metal-recess).
+   * Departure Mono (--font-value) keeps value duty. Press Start 2P
+   * (--font-display) retreats to rare brand moments (logo, empty-state).
+   */
   --font-label: "Silkscreen", "IBM Plex Mono", ui-monospace, monospace;
   --font-value: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
   --font-led: "VT323", "IBM Plex Mono", ui-monospace, monospace;
@@ -33,6 +128,12 @@
   --text-value: 400 11px/1 var(--font-value); /* monospaced = tabular */
   --text-ui: 400 13px/1.5 var(--font-ui);
   --text-numeric-field: 500 13px/1.2 var(--font-ui); /* + tabular-nums */
+  /* Machined Console panel-label variants (Plex workhorse; uppercase +
+   * --track-panel-label at usage). Consumed by the T2/T3/T6/T7 surface
+   * restyles — no sheet consumes them in T1, by design. */
+  --text-panel-label-sm: 500 10px/1.2 var(--font-ui);
+  --text-panel-label: 500 11px/1.2 var(--font-ui);
+  --track-panel-label: 0.08em;
 
   /* ---- Spacing scale (2px base: pad-grid rhythm) ---- */
   --space-1: 2px;
@@ -44,24 +145,62 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* ---- Glow (decoration-only law) ----
+  /* ---- Glow law v2 (decoration-only; amended 2026-09-04) ----
    * 1. Glow never counts toward contrast and never substitutes for it
    *    (halo = background per WCAG 1.4.3).
    * 2. Glow is never the only state signal: trigger = fill change +
-   *    2px lane-hue border + shape mark (corner notch active, diagonal
-   *    hatch muted); glow layers on top.
-   * 3. Exactly ONE glow layer, ≤3px blur, lane hue at 45–60% alpha;
-   *    no glow on text < 18px.
-   * 4. One-shot trigger glow decays ≤180 ms; no infinite pulses (SC 2.3.1/2.2.2).
+   *    rim/shape mark; glow layers on top. Recessed/emissive windows and
+   *    LED fills obey the same law.
+   * 3. Exactly ONE glow layer, ≤3px blur, lane hue at 45–60% alpha
+   *    (or the --led-* emissive treatment); no glow on text < 18px.
+   * 4. One-shot glow decays ≤180ms as the OPACITY of a pre-painted
+   *    lane-hue radial layer (compositor-only). Animating box-shadow or
+   *    filter for glow is BANNED in all NEW code — the legacy
+   *    grid-trigger-glow pattern is frozen, never multiplied, and
+   *    migrates to the opacity treatment (T3). No infinite pulses
+   *    except the ambient-motion clause below.
    */
   --glow-blur: 3px; /* max */
   --glow-alpha-min: 45%;
   --glow-alpha-max: 60%;
   --glow-trigger-decay: 180ms; /* max */
 
+  /* ---- Ambient-motion clause (the D3 amendment — law) ----
+   * Infinite ambient animation is permitted ONLY as ALL of:
+   *   - period ≥ --ambient-period-floor (the .booth-nudge precedent);
+   *     --ambient-period-idle at standby, --ambient-period-playing while
+   *     playing (switched via the existing playing-gated class/state);
+   *   - ease-in-out timing;
+   *   - opacity swing ≤ --ambient-amp-opacity OR transform ≤
+   *     --ambient-amp-px — transform/opacity ONLY, never paint;
+   *   - ONE layer per chassis (deck vignette OR booth sheen — never both
+   *     on one element); `will-change` stays capped at the playhead plus
+   *     ≤2 bounded ambient layers;
+   *   - NEVER a state signal (state lives in LEDs + aria + shape marks);
+   *   - a static twin under prefers-reduced-motion in the SAME increment.
+   */
+  --ambient-period-floor: 1.6s;
+  --ambient-period-idle: 5s;
+  --ambient-period-playing: 3.2s;
+  --ambient-amp-opacity: 0.05;
+  --ambient-amp-px: 2px;
+
+  /* ---- Press travel (D8 — mechanical key feel; transform-only, hit
+   * geometry NEVER changes) ---- */
+  --press-travel: 1.5px;
+  --press-down: 80ms;
+  --press-return: 140ms;
+  --press-curve: cubic-bezier(0.2, 0.9, 0.3, 1.15); /* return-spring overshoot */
+
+  /* ---- Focus on metal (law: may GROW vs the legacy rings, never
+   * shrink; verified legible over every textured panel — a11y §5) ---- */
+  --focus-on-metal: 2px solid var(--color-ink);
+  --focus-on-metal-offset: 2px;
+
   /* ---- Reduced motion (law) ----
    * prefers-reduced-motion: playhead sweep → quantized column highlight +
-   * textual "BAR n · BEAT n" readout; trigger glow → static on-state.
-   * Gate in BOTH CSS media query and the render loop via matchMedia.
+   * textual "BAR n · BEAT n" readout; trigger glow → static on-state;
+   * EVERY ambient layer → its static twin (clause above). Gate in BOTH
+   * the CSS media query and the render loop via matchMedia.
    */
 }

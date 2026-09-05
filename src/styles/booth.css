@@ -1,7 +1,14 @@
 /*
- * Booth — transport chassis (DES-2). Tokens only (see tokens.css law):
- * silkscreen labels, LED readouts, lane-hue fills with near-black ink,
- * one glow layer ≤3px as decoration over fill+border state coding.
+ * Booth — the machined transport faceplate (T2, Machined Console).
+ * Tokens only (see tokens.css v2 law): brushed --metal-panel with vertical
+ * grain, machined --elev-* bezels, recessed emissive readout windows
+ * (--metal-recess + --led-window), chrome-ringed beat LEDs, press travel
+ * (--press-*), and the unit's first breathing layer (the --ambient-* clause
+ * prototype — measured in this increment before it propagates anywhere).
+ * Every animation in this sheet is transform/opacity ONLY on pre-painted
+ * layers (glow law v2); every one carries its prefers-reduced-motion twin
+ * below. ZERO DOM writes and ZERO layout px vs the pre-T2 booth — the whole
+ * restyle is paint on the existing class/attribute seams.
  */
 
 /*
@@ -24,9 +31,71 @@
   align-items: flex-end;
   gap: var(--space-5) var(--space-6);
   padding: var(--space-4) var(--space-6);
-  background: color-mix(in srgb, var(--color-ink) 4%, var(--color-ground));
-  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 25%, transparent);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 60%);
+  /* T2 faceplate: brushed panel metal, VERTICAL grain (the material law's
+   * booth-side-wall direction), dark machined lower edge, static --elev-2
+   * bezel + cast (paint-once — never animated; only the sheen layer below
+   * moves, as opacity). Phone keeps the wrapper's own chrome treatment via
+   * the higher-specificity overrides in app.css. */
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush-v);
+  border-bottom: 1px solid var(--metal-edge-lo);
+  box-shadow: var(--elev-2);
+}
+
+/*
+ * BREATHING (T2 prototype — route.md ambient-motion clause, all six
+ * constraints): ONE layer on the booth chassis, a static brushed power
+ * sheen whose OPACITY breathes. Swing 0.50 → 0.55 = exactly
+ * --ambient-amp-opacity (5%); ease-in-out; period --ambient-period-idle
+ * (5s) at standby, --ambient-period-playing (3.2s) while playing — switched
+ * from the EXISTING playing-gated class (.booth-btn-play.is-on) via :has(),
+ * a pure CSS read: no DOM write, no JS, no new rAF seam. Never a state
+ * signal (state lives in the LEDs + aria); static twin under
+ * prefers-reduced-motion in this same sheet. will-change: opacity — this is
+ * 1 of the ≤2 bounded ambient layers the clause caps (playhead + 2).
+ * Desktop + tablet only: on the phone stage the booth is position:static
+ * (the wrapper owns the stick, app.css), so the layer is not painted there
+ * at all — the scroll-heavy phone chrome ships the static treatment
+ * (identical information: breathing carries none by law).
+ */
+.booth::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1; /* stacked INSIDE the booth's own context: over the panel
+                  paint, under every control */
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-ink) 9%, transparent) 0%,
+    transparent 46%,
+    transparent 72%,
+    color-mix(in srgb, var(--color-ink) 5%, transparent) 100%
+  );
+  opacity: 0.525; /* static twin value = the breathing midpoint */
+}
+
+.app[data-stage="phone"] .booth::before {
+  content: none;
+}
+
+.app:not([data-stage="phone"]) .booth::before {
+  animation: booth-breathe var(--ambient-period-idle) ease-in-out infinite;
+  will-change: opacity; /* ambient layer 1 of ≤2 (tokens.css clause) */
+}
+
+.app:not([data-stage="phone"]) .booth:has(.booth-btn-play.is-on)::before {
+  animation-duration: var(--ambient-period-playing);
+}
+
+@keyframes booth-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.55; /* swing = --ambient-amp-opacity, at the clause ceiling */
+  }
 }
 
 .booth-group {
@@ -46,13 +115,16 @@
   margin-left: auto;
 }
 
-/* Silkscreened chassis labels */
+/* Engraved panel labels (T1 typography: the Plex workhorse promotes —
+ * 500 weight, --track-panel-label, uppercase; line-height pinned to 1 so
+ * the label's flex box stays byte-identical to the Silkscreen box it
+ * replaced — zero booth-height delta). */
 .booth-label {
-  font: var(--text-label-sm);
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 60%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 /* Values ( Departure Mono @11px — monospaced = tabular ) */
@@ -63,18 +135,35 @@
   text-align: right;
 }
 
-/* Buttons: real <button>s; inactive = outline chassis control,
- * active = lane-hue fill + near-black ink + 2px hue border + one glow. */
+/* Machined keys: real <button>s on raised metal (--metal-raised + static
+ * --elev-key: bezel + the 2px key cast — the key SITS on the faceplate,
+ * T4/AC-9 round 2); inactive = outlined chassis key, active = lane-hue
+ * fill + near-black ink + 2px hue border + one glow (state coding
+ * byte-identical to pre-T2). */
 .booth-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  position: relative; /* the nudge glow layer (::after) anchors here */
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
   color: var(--color-ink);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  background: var(--metal-raised);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 40%, var(--metal-raised));
   border-radius: 4px;
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
+  box-shadow: var(--elev-key);
+  /* Press travel (D8): 80ms down / 140ms spring return, transform-only —
+   * hit geometry NEVER changes (the phone hit straps measure the box,
+   * unchanged). */
+  transition: transform var(--press-return) var(--press-curve);
+}
+
+.booth-btn:active {
+  transform: translateY(var(--press-travel)) scale(0.985);
+  transition-duration: var(--press-down);
+  transition-timing-function: ease-out;
 }
 
 .booth-btn.is-on {
@@ -113,10 +202,12 @@
     color-mix(in srgb, var(--color-ink) 50%, transparent);
 }
 
-/* Keyboard focus: always visible, never glow-dependent. */
+/* Keyboard focus: always visible, never glow-dependent. --focus-on-metal
+ * (T1): 2px ink at 2px offset — grow-only law, legible over every texture
+ * in this sheet (same computed values the booth always had). */
 .booth :focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 /* TEMPO stepper */
@@ -126,21 +217,41 @@
 }
 
 .booth-step-btn {
-  font: var(--text-label-sm);
+  /* 11px glyphs (the panel-label size): the stepper height is governed by
+   * the flanking 22px readout input (stretch), so the +1px font is paint
+   * on the same box — the −/+ keys keep machined-key legibility. */
+  font: var(--text-panel-label);
+  line-height: 1;
   color: var(--color-ink);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  background: var(--metal-raised);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 40%, var(--metal-raised));
   border-radius: 4px;
   width: var(--space-6);
   cursor: pointer;
+  box-shadow: var(--elev-key);
+  transition: transform var(--press-return) var(--press-curve);
 }
 
+.booth-step-btn:active {
+  transform: translateY(var(--press-travel)) scale(0.985);
+  transition-duration: var(--press-down);
+  transition-timing-function: ease-out;
+}
+
+/* BPM readout window (VT323 digits): recessed emissive — --metal-recess
+ * well + --led-window inset stack + warm-white digits with the one soft
+ * emissive shadow (22px face ≥ the 18px glow floor; decoration-only — the
+ * digits are full ink, contrast 17.74:1 on recess). Paint-only: width and
+ * padding are the pinned metric (66px desktop/tablet, 44px phone in
+ * app.css) and stay untouched. */
 .booth-led-input {
   font: 400 22px/1 var(--font-led);
-  color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  color: var(--led-on);
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
   border-radius: 4px;
+  box-shadow: var(--led-window);
   /* MB-3 fix (verifier m2-2): pinned px, NOT 5ch. The LED face ships with
    * font-display: optional — a cold first-run lays `ch` out on whichever mono
    * face is available at first paint (measured: 66px deployed vs 55px with
@@ -153,6 +264,7 @@
   width: 66px;
   text-align: center;
   padding: 2px 0;
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 40%, transparent);
   -moz-appearance: textfield;
   appearance: textfield;
 }
@@ -163,15 +275,30 @@
   margin: 0;
 }
 
-/* Position LED readout (VT323 20–24px; glow allowed ≥18px, decorative only) */
+/* Position LED readout (VT323 digits) — the BAR.BEAT.STEP window: same
+ * recessed emissive treatment. Paint-only on the identical flex slot: the
+ * window's 4px side padding is handed straight back via matching negative
+ * inline margins (the refinement-7 law), so the group's layout — wraps,
+ * booth height, one-page budget — is byte-identical; the painted window
+ * merely bleeds into the existing 8px group gap it always had. */
 .booth-led {
   font: 400 22px/1 var(--font-led);
-  color: var(--color-ink);
+  color: var(--led-on);
   min-width: 6ch;
   text-align: right;
+  padding: 0 var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  background: var(--metal-recess);
+  border-radius: 3px;
+  /* the window's machined rim as an OUTER 1px ring in the shadow stack —
+   * a real border would grow the flex box (layout law); paint does not */
+  box-shadow: var(--led-window), 0 0 0 1px var(--metal-edge-lo);
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 40%, transparent);
 }
 
-/* Beat LEDs: static on/off state (no pulse, ever); amber fill coding. */
+/* Beat LEDs: chrome-ringed, recessed idle wells; amber fill coding when
+ * active (fill + ring carry state — glow is decoration, never the sole
+ * signal). Geometry byte-identical (8px + 1px ring). */
 .booth-beats {
   display: flex;
   gap: var(--space-2);
@@ -182,21 +309,45 @@
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
-  background: transparent;
+  /* the chrome ring: a static 1px bright machined ring (route.md — LEDs
+   * get chrome rings via static 1px borders) over the recess stack.
+   * 55% → 65% ink at T4/AC-9 round 2 — the ring must read as chrome. */
+  border: 1px solid color-mix(in srgb, var(--color-ink) 65%, transparent);
+  background: color-mix(in srgb, var(--color-ink) 8%, var(--metal-recess));
+  box-shadow: var(--led-window);
 }
 
 .booth-beat-led[data-active="true"] {
   background: var(--color-lane-bass);
   border-color: var(--color-lane-bass);
+  /* emissive: the lit LED DROPS the recess veil (the well fills with
+   * light — an 8px cell under a 6px inset shadow would read muddy) and
+   * carries the one ≤3px glow instead; fill + ring carry the state. */
   box-shadow: 0 0 var(--glow-blur)
     color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
+  /* the mechanical tick: a ONE-SHOT 180ms transform pop (≤1.08, the route's
+   * ceiling) fired purely by the existing dataset.active attribute write —
+   * the booth rAF seam is untouched, and the fill/ring above carry the
+   * state without the pop. */
+  animation: booth-beat-pop var(--led-bloom-decay) ease-out;
+}
+
+@keyframes booth-beat-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Range sliders (DES-7): the SAME in-world slider language as the FX strip
  * (fx-strip.css) — chassis track + warm-white square thumb with an
- * amber-accented edge. The previous native accent-color thumb rendered the
- * OS-default round thumb (an OS imitation; two slider languages in one world). */
+ * amber-accented edge. T2: the track becomes a recessed well
+ * (--metal-recess + dark machined edge) — paint-only. */
 .booth-range {
   -webkit-appearance: none;
   appearance: none;
@@ -210,17 +361,15 @@
 .booth-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .booth-range::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .booth-range::-webkit-slider-thumb {
@@ -233,6 +382,9 @@
   background: var(--color-ink);
   border: 1px solid
     color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+  /* T4/AC-9 round 2: the fader cap casts into its slot — a machined cap,
+   * not a bare HTML thumb. Paint-only; the thumb box (10px) is unchanged. */
+  box-shadow: 0 1px 2px rgb(0 0 0 / 60%);
 }
 
 .booth-range::-moz-range-thumb {
@@ -242,19 +394,34 @@
   background: var(--color-ink);
   border: 1px solid
     color-mix(in srgb, var(--color-lane-bass) 55%, var(--color-ground));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 60%);
 }
 
 .booth-range:focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: var(--focus-on-metal);
   outline-offset: 1px;
 }
 
-/* Reduced motion: booth is already static (no pulses by design);
- * drop glow transitions so state changes are instantaneous. */
+/* Reduced motion — the twin block for EVERY animation in this sheet
+ * (identical information, statically): no press travel (the native active
+ * state + the action itself carry the press), no beat-LED pop (the
+ * fill/ring state change stands without it), no breathing (the static
+ * sheen at its midpoint), no nudge pulse (static lit border + static glow
+ * — the same contract the nudge always had). */
 @media (prefers-reduced-motion: reduce) {
   .booth *,
   .booth {
     transition: none;
+  }
+  .booth-btn:active,
+  .booth-step-btn:active {
+    transform: none;
+  }
+  .booth-beat-led[data-active="true"] {
+    animation: none;
+  }
+  .app:not([data-stage="phone"]) .booth::before {
+    animation: none;
   }
 }
 
@@ -289,8 +456,8 @@
 }
 
 .save-indicator:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .save-dot {
@@ -327,28 +494,47 @@
  * additive styling. Glow is decoration-only over the always-present border +
  * fill coding (DES-1); under prefers-reduced-motion the pulse becomes a
  * static lit border (the cue survives, the motion does not).
+ *
+ * T2 — glow law v2 migration: the legacy animated-box-shadow keyframes are
+ * replaced by the opacity of a PRE-PAINTED glow layer (::after carries the
+ * static 3px lead-hue shadow; only the layer's opacity pulses, 1.6s = the
+ * ambient floor, the precedent the --ambient-* clause generalizes). The
+ * painted range (70% × 0.28 → 70% × 1.0) reproduces the legacy 20% → 70%
+ * effective glow exactly. The ::before pseudo stays reserved for the phone
+ * hit strap (app.css); pointer events on the pseudo target the button, and
+ * the layer rides the button's own press travel.
  */
 .booth-btn-play.booth-nudge {
   border-color: var(--color-lane-lead);
-  animation: booth-nudge-pulse 1.6s ease-in-out infinite;
 }
 
-@keyframes booth-nudge-pulse {
+.booth-btn-play.booth-nudge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-lead) 70%, transparent);
+  animation: booth-nudge-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes booth-nudge-breathe {
   0%,
   100% {
-    box-shadow: 0 0 var(--glow-blur)
-      color-mix(in srgb, var(--color-lane-lead) 20%, transparent);
+    opacity: 0.28;
   }
   50% {
-    box-shadow: 0 0 var(--glow-blur)
-      color-mix(in srgb, var(--color-lane-lead) 70%, transparent);
+    opacity: 1;
   }
 }
 
+/* Nudge twin — lives AFTER the nudge base rules (same specificity; the
+ * later declaration wins): the pulse dies, the lit border + static glow
+ * survive. 0.78 × the 70% pre-painted glow ≈ the legacy twin's 55%. */
 @media (prefers-reduced-motion: reduce) {
-  .booth-btn-play.booth-nudge {
+  .booth-btn-play.booth-nudge::after {
     animation: none;
-    box-shadow: 0 0 var(--glow-blur)
-      color-mix(in srgb, var(--color-lane-lead) 55%, transparent);
+    opacity: 0.78;
   }
 }

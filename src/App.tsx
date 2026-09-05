@@ -1,7 +1,9 @@
 /**
- * App shell — Arcade Stage Floor: the booth (transport) is fixed at the top
- * of the stage; below it the four lane floors render their pad grids (DES-4).
- * DES-3 adds the lane header strips between booth and floors.
+ * App shell — Machined Console (2026-09-04; was Arcade Stage Floor): the
+ * booth (transport) is fixed at the top of the stage; below it the four lane
+ * floors render their pad grids (DES-4). DES-3 adds the lane header strips
+ * between booth and floors. chassis.css lays the device deck + inset bezel
+ * (zero layout px) that the per-surface hardware restyles consume.
  *
  * HP-1: the shell carries the help-mode attribute (the mode-obvious CSS hook
  * — see styles/info-view.css) and mounts the InfoView ONLY while help mode
@@ -22,6 +24,7 @@ import { helpMode } from "./state/helpMode";
 import { stageMode } from "./state/selection";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
+import "./styles/chassis.css";
 import "./styles/grid.css";
 import "./styles/lane-header.css";
 import "./styles/fx-strip.css";

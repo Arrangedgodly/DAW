@@ -1,17 +1,23 @@
 /*
  * Lane pad grids (DES-4, LY-1 quadrants) — the sounding grid, the product's
- * focal moment. All values from tokens.css; lane hue arrives via the
- * data-lane attribute. Ink law (D9): filled cells set glyphs in near-black
- * on the lane fill; glow is one ≤3px layer at 45–60% alpha, decoration-only;
- * one-shot decay ≤180 ms.
+ * focal moment. Machined Console reskin (T3): the pad bed is a recessed
+ * well on the anodized floor panel (chassis.css owns the floor's paint),
+ * cells read as rubber pads in that well, the playhead is a scan-light
+ * slit, and the crossed-step glow is the OPACITY of a pre-painted lane-hue
+ * radial layer (glow law v2 — the legacy animated box-shadow + filter
+ * pattern is retired in this sheet). All values from tokens.css; lane hue
+ * arrives via the data-lane attribute. Ink law (D9): filled cells set
+ * glyphs in near-black on the lane fill; glow is one ≤3px layer at 45–60%
+ * alpha, decoration-only; one-shot decay ≤180 ms.
  *
  * LY-1: each lane floor is a QUADRANT card (4px chassis radius — the
  * controls/chassis corner language). The SELECTED quadrant carries the
- * lane-hue border + a faint fill tint; view-only quadrants dim toward the
- * ground but keep every text pair ≥ AA (a11y §7 contrast carry-over: state
- * is fill + border + the strip's text word, never color alone). Geometry
- * (cell px / label gutter / playhead offset) is set inline by the renderer
- * from its options — CSS here holds only the v0 fallbacks.
+ * doubled lane-hue rim + a faint fill tint (chassis.css); view-only
+ * quadrants keep the single hairline rim but keep every text pair ≥ AA
+ * (a11y §7 contrast carry-over: state is line form + fill + the strip's
+ * text word, never color alone). Geometry (cell px / label gutter /
+ * playhead offset) is set inline by the renderer from its options — CSS
+ * here holds only the v0 fallbacks.
  */
 
 .lane-floor {
@@ -21,8 +27,8 @@
   flex-direction: column;
   min-width: 0;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  /* Paint (panel metal, rim grammar, elevation) lives in chassis.css —
+   * the sole definer, so sheet order can never drift the floor. */
   border-radius: 4px;
 }
 
@@ -39,12 +45,9 @@
   --lane-hue: var(--color-lane-lead);
 }
 
-/* Selected quadrant: lane-hue border + fill tint carry the EDITING state
- * (with the strip's · EDIT text word and the grid's accessible name). */
-.lane-floor[data-editing="true"] {
-  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
-  background: color-mix(in srgb, var(--lane-hue) 3%, var(--color-ground));
-}
+/* Selected quadrant: the doubled lane-hue rim + fill tint carry the EDITING
+ * state (with the strip's · EDIT text word and the grid's accessible name) —
+ * chassis.css, the panel-treatment owner. */
 
 .lane-head {
   display: flex;
@@ -53,31 +56,42 @@
   margin-bottom: var(--space-3);
 }
 
+/* T1 typography: the printed panel-label voice (Plex workhorse, 500 weight,
+ * uppercase tracking) — line-height pinned to 1 so the label's box is
+ * byte-identical to the Silkscreen box it replaces. */
 .lane-name {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
 }
 
 /* LY-1: the visible edit-state word (text-equivalent state, D9/E3 belt+braces
- * alongside the grid's accessible name). */
+ * alongside the grid's accessible name). Mixed against the PANEL the label
+ * sits on (the ink-rule-2 panel world, not the retired ground). */
 .lane-state {
   margin-left: var(--space-2);
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 /* Red lane-hue text is law-restricted; the count rides warm white instead. */
 .lane-count {
   font: var(--text-value);
-  color: color-mix(in srgb, var(--color-ink) 60%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 60%, var(--metal-panel));
 }
 
-/* Long patterns scroll INSIDE the quadrant; rows never reflow on toggling. */
+/* Long patterns scroll INSIDE the quadrant; rows never reflow on toggling.
+ * T3: the pad bed — a machined recess the pads sit in (--metal-recess +
+ * the --led-window inset stack; paint-only, zero layout px). */
 .lane-grid-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: var(--space-2);
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+  background-color: var(--metal-recess);
+  border-radius: 3px;
+  box-shadow: var(--led-window);
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--metal-recess))
     transparent;
 }
 
@@ -106,11 +120,15 @@
   width: 72px; /* fallback; the renderer pins the exact gutter inline */
   display: flex;
   align-items: center;
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  /* T1 typography: panel-label voice, line-height 1 (box byte-identical to
+   * the Silkscreen box; the renderer-pinned gutter swallows the width). */
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
-  /* Labels are info-critical → warm white on ground (ink rule 2). */
-  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-ground));
+  /* Labels are info-critical → warm white, mixed against the RECESS well
+   * they sit in (ink rule 2; darker bed, contrast only improves). */
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--metal-recess));
   padding-right: var(--space-3);
   /* MB-2: the label is a deliberate NON-interactive origin — touch swipes
    * that start here keep the browser's default panning in BOTH axes (the
@@ -159,6 +177,62 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* T3 pad feel: the key-travel return spring (D8) — transform-only, and
+   * the :active travel itself is gated to EDITING floors below (a view-only
+   * pad is not a key; its quadrant-select click is the strip's business). */
+  transition: transform var(--press-return) var(--press-curve);
+}
+
+/* T3 pad feel: the press travel on the editable pad (80ms down / spring
+ * return). Hit geometry NEVER changes — the renderer's gesture math reads
+ * the .row-cells rect, never this visual transform. */
+.lane-floor[data-editing="true"] .cell:active {
+  transform: translateY(var(--press-travel)) scale(0.985);
+  transition-duration: var(--press-down);
+  transition-timing-function: ease-out;
+}
+
+/*
+ * The LED bloom layer (glow law v2, the T3 migration): ONE pre-painted
+ * lane-hue radial per cell, opacity 0 at rest. Every bloom in this sheet —
+ * the crossed-step one-shot, the press, the drag-preview light — is the
+ * OPACITY of this layer (compositor-only; the legacy animated
+ * box-shadow + filter pattern is retired here, never multiplied).
+ * z-index 2 lifts the bloom over the pitched lanes' .note-run bars (the
+ * struck note's head lights through its own bar); geometry stays inside
+ * the cell box, so nothing else is overpainted. State never rides the
+ * bloom: fill + border + shape marks carry every state (D9).
+ */
+.cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--color-ink) 70%, var(--lane-hue)) 0%,
+    color-mix(in srgb, var(--lane-hue) 55%, transparent) 55%,
+    transparent 78%
+  );
+  opacity: 0;
+  z-index: 2;
+  transition: opacity var(--glow-trigger-decay) ease-out;
+}
+
+/* Build-journey light (route.md interaction one-shots): the drag / euclid
+ * PREVIEW cells glow softly in the lane's hue while the gesture proposes
+ * them (the dashed outline stays the shape-mark signal; this layers light
+ * under it) and decay with the one-shot budget on release. */
+.cell[data-preview="true"]::after {
+  opacity: 0.5;
+}
+
+/* Immediate light under the finger: the editable pad reaches full bloom on
+ * press (fast attack; the 180ms decay above lets it fall back). */
+.lane-floor[data-editing="true"] .cell:active::after {
+  opacity: 1;
+  transition-duration: var(--press-down);
 }
 
 /* View-only cells are not clickable — the quadrant select handles clicks. */
@@ -171,10 +245,8 @@
   border-color: color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
 }
 
-.cell:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
-}
+/* Focus ring: the shared focus-on-metal law (app.css utility, may grow
+ * never shrink) covers every focusable in the floor, cells included. */
 
 /* On state: fill + border coding carry the state (glow never does). */
 .cell[data-on="true"] {
@@ -243,11 +315,14 @@
   opacity: 0;
   pointer-events: none;
   padding: var(--space-1) var(--space-2);
-  background: var(--color-ground);
+  /* T3: the floating-chassis vocabulary — brushed panel metal + machined
+   * edge + the --elev-3 popover cast (paint-only on the same box). */
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 4px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--elev-3);
 }
 
 .row-fill.is-overlay:focus-within,
@@ -359,9 +434,11 @@
 }
 
 .row-fill-tag {
+  /* The one engraved-legend accent on the working surface (T1: Silkscreen
+   * demoted to legends ≤10px — the E tag is exactly that). */
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-recess));
 }
 
 .row-fill-value {
@@ -371,13 +448,20 @@
   text-align: center;
 }
 
+/* SET — a machined key (raised metal + --elev-1 bezel + the lane-hue accent
+ * rim; press travel via the shared app.css utility). Geometry (20px box)
+ * byte-identical. */
 .row-fill-apply {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+  background: var(--metal-raised);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  /* 3px for the same corner-probe law as .head-step-btn (target-size MB-3). */
   border-radius: 3px;
+  box-shadow: var(--elev-key); /* T4/AC-9 round 2: the key cast law */
   height: 20px;
   padding: 0 var(--space-2);
   cursor: pointer;
@@ -392,12 +476,7 @@
 
 .row-fill-apply:not(:disabled):hover,
 .row-fill-apply.is-armed {
-  background: color-mix(in srgb, var(--lane-hue) 18%, var(--color-ground));
-}
-
-.row-fill-apply:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  background: color-mix(in srgb, var(--lane-hue) 18%, var(--metal-raised));
 }
 
 /* Euclidean PREVIEW overlay: dashed lane-hue outline, never the on-state —
@@ -474,40 +553,56 @@
   cursor: default;
 }
 
-/* Playhead light bar — compositor-only movement (transform). The horizontal
- * offset (label + fill gutter) is pinned INLINE by the renderer from its
- * geometry options (LY-1); this is only the shape. */
+/* Playhead — the scan-light slit (T3). Compositor-only movement (the same
+ * translateX path the renderer has always driven; the horizontal offset is
+ * pinned INLINE from its geometry options). The shape is now a narrow
+ * light slit with a STATIC trailing gradient — the wake the scan leaves
+ * over the bars it has crossed: a 2px warm-white leading edge lands exactly
+ * on the renderer's position (width + matching negative margin = zero
+ * offset drift), fading to transparent over the 12px behind it. */
 .grid-playhead {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--color-ink);
-  box-shadow: 0 0 3px color-mix(in srgb, var(--color-ink) 50%, transparent);
+  width: 14px;
+  margin-left: -14px; /* right edge == the pinned playhead position */
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    color-mix(in srgb, var(--color-ink) 30%, transparent) 55%,
+    color-mix(in srgb, var(--color-ink) 85%, transparent) calc(100% - 2px),
+    var(--color-ink) 100%
+  ); /* wake/edge alphas raised at T4/AC-9 round 2 — the slit must read as
+      * light; still the same 14px shape on the same transform path */
   opacity: 0;
-  will-change: transform;
+  will-change: transform; /* the named playhead layer of the will-change cap */
   pointer-events: none;
 }
 
-/* One-shot trigger glow: ≤180 ms, single ≤3px lane-hue layer. */
-.cell.is-triggering {
-  animation: grid-trigger-glow 180ms ease-out 1;
+/*
+ * One-shot LED bloom (glow law v2): the crossed step lights the pre-painted
+ * ::after radial to full and decays ≤180ms — OPACITY ONLY, no box-shadow,
+ * no filter (the legacy grid-trigger-glow pattern is retired). The state
+ * never rides the bloom: the on-fill + corner notch stand on their own.
+ */
+.cell.is-triggering::after {
+  animation: grid-cell-bloom var(--glow-trigger-decay) ease-out 1;
 }
 
-@keyframes grid-trigger-glow {
+@keyframes grid-cell-bloom {
   from {
-    box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 60%, transparent);
-    filter: brightness(1.35);
+    opacity: 1;
   }
   to {
-    box-shadow: 0 0 0 0 transparent;
-    filter: none;
+    opacity: 0;
   }
 }
 
-/* Reduced motion (D9): no sweep, no glow animation — quantized column
- * highlight + static on-state. Gated in CSS AND in the render loop. */
+/* Reduced motion (D9): no sweep, no bloom animation — quantized column
+ * highlight + static on-state. Gated in CSS AND in the render loop. The
+ * pad feel degrades to instant states: no key travel, blooms (press /
+ * preview) appear and vanish without decay — identical information,
+ * statically. */
 @media (prefers-reduced-motion: reduce) {
   .grid-playhead {
     display: none;
@@ -519,7 +614,19 @@
     transition: none;
   }
 
-  .cell.is-triggering {
+  .cell {
+    transition: none;
+  }
+
+  .lane-floor[data-editing="true"] .cell:active {
+    transform: none;
+  }
+
+  .cell::after {
+    transition: none;
+  }
+
+  .cell.is-triggering::after {
     animation: none;
   }
 

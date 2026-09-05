@@ -1,6 +1,13 @@
 /*
  * Quadrant control strips (DES-3 → LY-1) + the shared scale chip/popover.
- * Ink law (D9): info-critical text = warm white on the ground; the lane hue
+ * Machined Console reskin (T3): strip controls are machined keys — raised
+ * --metal-raised on the anodized floor panel (chassis.css), static --elev-1
+ * bezel, lane-hue accent rims, the --press-* key travel (shared app.css
+ * utility), and the T1 panel-label typography (Plex workhorse, uppercase
+ * tracking, line-height pinned to 1 so every flex box stays
+ * byte-identical — the one-page law). VOLUME tracks read as recessed wells
+ * (the one-slider vocabulary T2 set on the booth).
+ * Ink law (D9): info-critical text = warm white on the panel; the lane hue
  * appears only on borders, fills of state chips, and focus — never as body
  * text (red lane text is restricted to ≤10px Silkscreen 700 anyway).
  * Glow law: one ≤3px layer, decoration-only, never the sole state signal.
@@ -9,6 +16,9 @@
  * SOLO) is present and operable in all four quadrants; the EDIT row (scale
  * chip · GATE · FX) renders only in the selected quadrant — display:none
  * elsewhere, which also removes it from the tab order (never a trap).
+ * Focus rings: the shared focus-on-metal utility (app.css,
+ * `.lane-floor :focus-visible`) covers every focusable in this sheet —
+ * may grow vs the legacy rings, never shrink.
  */
 
 .lane-head-strip {
@@ -50,9 +60,11 @@
 }
 
 .head-ctl-label {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 .head-stepper {
@@ -61,30 +73,30 @@
   gap: var(--space-2);
 }
 
+/* A machined key: raised metal, static --elev-1 bezel (small surfaces cast
+ * nothing), the lane-hue accent rim (never lane-hue text), press travel via
+ * the shared app.css utility. 20×20 box byte-identical. */
 .head-step-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label);
+  line-height: 1;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+    color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  /* 3px, not the booth key's 4: the euclid overlay's corner-reachability
+   * law probes 1px inside every box corner — at 4px radius the corner probe
+   * falls outside the rounded hit shape (tests/browser/target-size MB-3). */
   border-radius: 3px;
   width: 20px;
   height: 20px;
   display: grid;
   place-items: center;
   cursor: pointer;
-  /* Lane-hue border accent (never lane-hue text). */
-  border-color: color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+  box-shadow: var(--elev-1);
 }
 
 .head-step-btn:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
-}
-
-.head-step-btn:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .head-ctl-value {
@@ -101,13 +113,14 @@
 
 .head-ctl-unit {
   margin-left: 2px;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-panel));
 }
 
 /* ---- LY-1 mix controls: VOLUME range + MUTE / SOLO ---- */
 
 /* The SAME in-world slider language as the booth/FX strip (DES-7 one-slider
- * vocabulary): chassis track + warm-white square thumb. */
+ * vocabulary): recessed well track + warm-white square thumb with the
+ * lane-hue accent edge (the T2 booth treatment). */
 .head-range {
   -webkit-appearance: none;
   appearance: none;
@@ -121,17 +134,15 @@
 .head-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .head-range::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .head-range::-webkit-slider-thumb {
@@ -153,21 +164,19 @@
   border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
 }
 
-.head-range:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
-}
-
-/* MUTE / SOLO: real buttons; pressed = lane-hue fill + near-black ink
+/* MUTE / SOLO: machined keys; pressed = lane-hue fill + near-black ink
  * (fill + border + aria-pressed carry the state; never glow alone). */
 .head-mix-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
-  border-radius: 3px;
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  border-radius: 4px;
+  box-shadow: var(--elev-1);
   height: 20px;
   padding: 0 var(--space-3);
   cursor: pointer;
@@ -175,12 +184,7 @@
 }
 
 .head-mix-btn:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
-}
-
-.head-mix-btn:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .head-mix-btn.is-on {
@@ -197,32 +201,30 @@
 }
 
 .scale-chip {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
-  border-radius: 3px;
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  border-radius: 4px;
+  box-shadow: var(--elev-1);
   padding: 4px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .scale-chip:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
-}
-
-.scale-chip:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 /* Override state: lane-hue border + fill tint carry it (never glow alone,
  * never hue text). */
 .scale-chip.is-lane {
   border-color: var(--lane-hue);
-  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--metal-raised));
   box-shadow: 0 0 3px color-mix(in srgb, var(--lane-hue) 45%, transparent);
 }
 
@@ -234,6 +236,8 @@
 
 /* ---- Scale popover ---- */
 
+/* A floating machined chassis: brushed panel metal + machined edge + the
+ * --elev-3 popover cast (paint-only on the pinned 264px box). */
 .scale-pop {
   position: absolute;
   top: calc(100% + var(--space-3));
@@ -244,11 +248,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  background: var(--color-ground);
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--elev-3);
 }
 
 .scale-pop-group {
@@ -258,9 +263,11 @@
 }
 
 .scale-pop-heading {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 .scale-pop-roots {
@@ -272,12 +279,16 @@
 .scale-pop-root {
   font: var(--text-value);
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 24%, var(--metal-raised));
   border-radius: 3px;
   padding: 4px 0;
   cursor: pointer;
+}
+
+.scale-pop-root:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .scale-pop-root[aria-pressed="true"] {
@@ -292,7 +303,7 @@
   gap: var(--space-1);
   max-height: 168px;
   overflow-y: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--metal-panel))
     transparent;
 }
 
@@ -302,26 +313,22 @@
   line-height: 1.2;
   text-align: left;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--metal-raised));
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 18%, var(--metal-raised));
   border-radius: 3px;
   padding: 4px 8px;
   cursor: pointer;
+}
+
+.scale-pop-mode:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .scale-pop-mode[aria-pressed="true"] {
   background: var(--color-ink);
   color: var(--color-ink-on-fill);
   border-color: var(--color-ink);
-}
-
-.scale-pop-root:focus-visible,
-.scale-pop-mode:focus-visible,
-.scale-pop-commit:focus-visible,
-.scale-pop-detach:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
 }
 
 .scale-pop-actions {
@@ -331,24 +338,28 @@
 }
 
 .scale-pop-commit {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink-on-fill);
   background: var(--color-ink);
   border: 1px solid var(--color-ink);
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 6px 8px;
   cursor: pointer;
 }
 
 .scale-pop-detach {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
-  border-radius: 3px;
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  border-radius: 4px;
   padding: 6px 8px;
   cursor: pointer;
 }

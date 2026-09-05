@@ -1,0 +1,145 @@
+/*
+ * Chassis — the Machined Console surface-treatment layer (T1 foundation).
+ * This sheet owns the DEVICE treatment of the app root (deck material +
+ * inset device bezel) and the shared chassis-treatment vocabulary. The
+ * per-surface hardware restyles consume it without owning it: booth
+ * faceplate (T2), quadrant/lane-floor panels (T3), rail strip (T6), FX
+ * module chassis (T7), furniture (T10) ADD their rules to their own
+ * sheets, on class ADDITIONS only — no existing class or DOM shape
+ * changes here.
+ *
+ * Laws this layer obeys (tokens.css v2):
+ *   - D7 inset-first: the bezel consumes ZERO layout px. It is a
+ *     position:fixed pseudo-element overlay with pointer-events:none —
+ *     it can never affect the one-page law, the phone <50% chrome
+ *     budget, hit boxes (elementFromPoint skips pointer-events:none), or
+ *     any renderer-pinned geometry.
+ *   - Elevation is static: --elev-* stacks are painted once, NEVER
+ *     animated (glow law v2 clause 4), and applied to chassis surfaces
+ *     only — never per-cell.
+ *   - No animation ships in this sheet — the bezel/deck are static by
+ *     construction, so there is no reduced-motion twin to declare. The
+ *     breathing deck vignette, when it lands (T2 prototype first), rides
+ *     the --ambient-* clause and carries its own twin in that increment.
+ */
+
+/* The deck: anodized graphite with the 1px horizontal brush grain
+ * (≤0.02 alpha — near-subliminal machined texture, the material's own).
+ * .stage paints through (transparent, app.css) so the deck reads in the
+ * gaps between the booth, rail, and quadrant panels. */
+.app {
+  background-color: var(--metal-deck);
+  background-image: var(--metal-brush);
+}
+
+/*
+ * The device bezel: ONE fixed decorative overlay on the app root — the
+ * viewport's own edge becomes the unit's extrusion (first-viewport
+ * contract). A pseudo-element: aria-free by construction (never in the
+ * accessibility tree), pointer-events:none (no interaction, no hit-box
+ * interference, zero tab stops). It carries:
+ *   - the static desk vignette (the unit sits on a dim desk; the corners
+ *     recede behind the frame), and
+ *   - --elev-4 INVERTED as inset shadows (the extrusion's cast turned
+ *     inward) behind a 1px machined edge: top catch-light over dark
+ *     walls (the edge-hi/edge-lo pair from --elev-1).
+ * z-index 95 keeps the frame in front of everything drawn on the screen
+ * (help overlay 90, banners 70, toasts 60) — physically the bezel is the
+ * unit's own extrusion. The treatment is edge-only: text contrast at the
+ * edges can only improve (light ink over darkened ground).
+ */
+.app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+  background: radial-gradient(
+    140% 120% at 50% 42%,
+    transparent 56%,
+    rgb(0 0 0 / 40%) 100%
+  );
+  /* wall/cast amplitudes re-pinned at T4/AC-9 round 2 (2026-09-04): the
+   * extrusion must READ at the viewport edge in static review — at the
+   * proposal amplitudes the frame read as "browser edge", not a machined
+   * bezel. Still edge-only paint; light ink over darkened ground only
+   * improves. */
+  box-shadow:
+    inset 0 1px 0 var(--metal-edge-hi),
+    inset 0 0 0 1px rgb(0 0 0 / 65%),
+    inset 0 24px 48px -16px rgb(0 0 0 / 75%),
+    inset 0 -24px 48px -16px rgb(0 0 0 / 60%),
+    inset 28px 0 52px -24px rgb(0 0 0 / 48%),
+    inset -28px 0 52px -24px rgb(0 0 0 / 48%);
+}
+
+/*
+ * ---- Shared chassis-treatment vocabulary (foundation; INERT in T1) ----
+ * Later tasks apply these as class ADDITIONS on existing chassis DOM.
+ * Every treatment is paint-once (static background + static --elev-*
+ * stack); the elevation stacks are never animated and never per-cell.
+ */
+
+/* Machined panel: booth + rail strips (T2/T6). Vertical brush on side
+ * walls per the material law; --elev-2 bezel + cast. */
+.chassis-panel {
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush-v);
+  box-shadow: var(--elev-2);
+}
+
+/* Raised module: painted buttons, console modules (T3/T7). --elev-key
+ * (T4/AC-9 round 2): the bezel PLUS the small key cast — a raised key sits
+ * ON its panel; the cast is what makes the read physical. */
+.chassis-raised {
+  background-color: var(--metal-raised);
+  box-shadow: var(--elev-key);
+}
+
+/* Recessed well: readout windows, grid wells (T2/T3) — the --led-window
+ * inset stack over near-black recess. */
+.chassis-recess {
+  background-color: var(--metal-recess);
+  box-shadow: var(--led-window);
+}
+
+/*
+ * ---- Quadrant floors: the anodized lane panels (T3) ----
+ * Each quadrant floor is an anodized panel — --metal-panel dyed a breath
+ * toward its lane hue (the route's derived-usage tinting; --lane-hue is set
+ * per lane on this same element by grid.css, so these rules read it at
+ * computed-value time regardless of sheet order), horizontal brush grain
+ * (the top-face panel direction), and a static --elev-2 bezel + cast.
+ *
+ * The EMISSION-RAIL rim grammar, applied in LINE FORM on the existing
+ * 1px border (layout byte-identical — the one-page law measures this box):
+ *   view-only (idle)   = ONE hairline solid lane-hue rim (the tint band);
+ *   editing  (active)  = the DOUBLED rim — the border PLUS a second 1px
+ *     line as an inset outline. outline consumes ZERO layout px; a real
+ *     3px double border would grow the quadrant and break the one-page
+ *     law, so the second line is paint. The editing state is never
+ *     hue-alone: line form + fill tint + the strip's "· EDIT" word + the
+ *     grid's accessible name all carry it.
+ * The paint lives HERE (sole definer): grid.css keeps the floor's structure
+ * only, so sheet order can never drift the panel.
+ */
+.lane-floor {
+  background-color: color-mix(in srgb, var(--lane-hue) 5%, var(--metal-panel));
+  background-image: var(--metal-brush);
+  /* rim band 16% → 22% at T4/AC-9 round 2: the hairline must read as a
+   * machined rim seam at screenshot distance (line FORM unchanged — solid
+   * hairline, still hue-as-signal over the panel tint). */
+  border: var(--rim-width) var(--rim-idle)
+    color-mix(in srgb, var(--lane-hue) 22%, var(--metal-panel));
+  box-shadow: var(--elev-2);
+}
+
+.lane-floor[data-editing="true"] {
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--metal-panel));
+  background-color: color-mix(in srgb, var(--lane-hue) 7%, var(--metal-panel));
+  /* the second line of the doubled rim (T5's is-sounding pulse will light
+   * this same grammar; the wiring is that task's) */
+  outline: var(--rim-width) var(--rim-idle)
+    color-mix(in srgb, var(--lane-hue) 35%, transparent);
+  outline-offset: -3px;
+}

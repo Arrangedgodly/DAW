@@ -91,6 +91,24 @@ viewport:
   were re-measured after the fix and stand as documented — the law and its
   threshold are unchanged, and the gate is now measuring what it always
   claimed.
+- **M1 checkpoint (measured 2026-09-04, hardware-console M1 — the fully
+  skinned state: Machined Console tokens v2, chassis bezel/deck, brushed
+  booth faceplate + breathing + beat-LED pop + nudge, anodized quadrant
+  panels + scan-light playhead + cell-bloom layer + press travel, PLUS the
+  checkpoint's own AC-9 material-amplitude pass: deeper `--elev-2/3`
+  casts, the new `--elev-key` cast under every painted key, brush grain
+  0.02→0.045, edge-hi 0.08→0.16, deeper `--led-window` recess, stronger
+  bezel vignette/walls; same environment + method — the gate's own console
+  line, 4 s pure-render window)**: `[TH-4 quadrant budget] frames=241
+  over33.4ms=0 max=21.0ms p95=18.6ms median=16.6ms` — **median
+  byte-identical to the preserved standard, 0/241 frames over, max/p95
+  within run-to-run noise of the 19.6/18.7 pre-run baseline**. The static
+  paint amplitude cost nothing measurable: the deeper casts and key
+  shadows are paint-once layers on panel-sized surfaces, and the per-cell
+  law (never per-cell) held through the pass. `[TH-1] frames=241, 0 over,
+  max 21.3, median 16.6, worst toggle 3.50ms; [TH-4 storm totals] 364
+  frames, 0 over, worstMove 1.60ms, median 0.20ms, zero non-preview
+  mutations; [TH-4 lazy] paint 55ms, PLAY 51ms`.
 - Teeth (red/green, TH-4 evidence): a literal layout-thrash loop injected
   into the renderer's rAF (write+read per cell per frame) collapses to
   18 frames / 4 s with median 251 ms and FAILS the ratio; swapping the
@@ -165,6 +183,19 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   prints slightly different gzip figures
   (e.g. 66.41 KB initial) because it uses its default gzip settings, not
   -9; the gate's numbers above are the contract.
+- **M1 checkpoint record (measured 2026-09-04, hardware-console M1 —
+  tokens v2 + chassis + booth + grid surface + the checkpoint's AC-9
+  material-amplitude pass; same method: `npm run build` +
+  `npm run check:bundle`)**: initial JS **66.75 KB gz** (the +1.74 over
+  the 65.01 refinement-7 baseline is T1's single App.tsx chassis-import +
+  hash churn — byte-identical through T2/T3/T4: no JS was touched after
+  T1); CSS **15.51 KB gz** (+2.35 over the 13.16 baseline: tokens.css v2
+  law text + the new chassis.css sheet + the booth/grid/lane-header
+  restyles — 22% of the 300 KB JS budget, CSS is info-only, ungated);
+  fonts **37.02 / 50 KB unchanged** (zero new font bytes through M1, the
+  restyle-first typography law held). The M1 CSS delta per task:
+  T1 +1.49 → 14.65, T2 +0.46 → 15.11, T3 +0.37 → 15.48, T4 amplitude
+  pass +0.03 → 15.51 (script numbers).
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start
@@ -343,7 +374,21 @@ frame budget", built app in a 390×844 iframe).
   per pointermove redds (m-b) as `attributes@data-thrash on
   div.lane-grid-scroll` (the mutation filter); an eager audio-asset fetch
   at boot redds (m-c) as `audio-asset fetches on the phone boot/play
-path` (the lazy law).
+  path` (the lazy law).
+- **M1 checkpoint (measured 2026-09-04, hardware-console M1, same
+  environment/method — the gate's own console lines, on the fully skinned
+  phone stage incl. the checkpoint's AC-9 material-amplitude pass)**:
+  **(m-a)** 243 frames / 4 s, **0 frames ≥ 33.4 ms**, max 20.3 ms,
+  p95 18.6 ms, median 16.7 ms; 243 edits, worst edit block 7.10 ms;
+  playheads 122/122 and 121/121 per window; 17 sustained voices;
+  chrome-top deviation 0.00 px mid-scroll. **(m-b)** 364 storm frames,
+  0 over 33.4 ms, 1456 moves, worst dispatch 1.60 ms, median 0.20 ms,
+  zero non-preview mutations. **(m-c)** 181 frames / 3 s decode window,
+  0 over, max 20.5 ms, median 16.6 ms, worst stepper-click block 2.10 ms,
+  1 fetch + 1 decode mid-playback, transport never stopped. MB-3 chrome
+  budget byte-identical to the pre-skin record: 390×844 chrome 308.5 px
+  (**36.6%**), 360×800 367.5 px (**45.9%**) — the skin consumed zero
+  layout px on the phone stage.
 - **Honesty caveat (the reduced-expectations stance, by design)**: CI
   Chromium runs on desktop-class hardware EMULATING the 390×844 viewport.
   These gates catch REGRESSIONS at the phone paint/edit load — layout

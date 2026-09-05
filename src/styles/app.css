@@ -19,7 +19,11 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--color-ground);
+  /* Root vars application (T1): the stage paints through so the Machined
+   * Console deck (anodized graphite + brush grain, chassis.css on .app)
+   * reads in the gaps between the rail and quadrant panels. Same color as
+   * the old ground paint — visual only, zero layout px. */
+  background: transparent;
 }
 
 /*
@@ -75,8 +79,83 @@
 }
 
 .audio-resume:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
+}
+
+/* ---------------------------------------------------------------------------
+ * T3 — SHARED PRESS / FOCUS UTILITIES (the machined-key recipe).
+ * One place, one law, consumed by every painted button this task owns:
+ *   - key travel (D8): :active depresses translateY(--press-travel)
+ *     scale(0.985), 80ms down / 140ms return on the --press-curve spring —
+ *     transform-only, hit geometry NEVER changes;
+ *   - focus on metal: 2px ink at --focus-on-metal-offset — the law is
+ *     grow-only vs any legacy ring.
+ * REUSE (T6 rail tools, T7 FX console): APPEND your selectors to the two
+ * rule lists below — do not fork the recipe. Reduced-motion twin: the
+ * block at the sheet's foot (no travel, same rings).
+ * ------------------------------------------------------------------------- */
+
+.head-step-btn,
+.head-mix-btn,
+.scale-chip,
+.row-fill-apply,
+.scale-pop-root,
+.scale-pop-mode,
+.scale-pop-commit,
+.scale-pop-detach,
+.lane-switch-tab {
+  transition: transform var(--press-return) var(--press-curve);
+}
+
+.head-step-btn:active,
+.head-mix-btn:active,
+.scale-chip:active,
+.row-fill-apply:active,
+.scale-pop-root:active,
+.scale-pop-mode:active,
+.scale-pop-commit:active,
+.scale-pop-detach:active,
+.lane-switch-tab:active {
+  transform: translateY(var(--press-travel)) scale(0.985);
+  transition-duration: var(--press-down);
+  transition-timing-function: ease-out;
+}
+
+/* Focus on metal — the whole quadrant stage (cells, strip keys, sliders,
+ * fill rail, scale popover; the booth carries its own copy in booth.css,
+ * same tokens). Applied at :focus-visible only, never harmed by texture. */
+.lane-floor :focus-visible {
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
+}
+
+/* The utilities' reduced-motion twin: the travel dies (the native active
+ * state + the action itself carry the press), the rings stand. */
+@media (prefers-reduced-motion: reduce) {
+  .head-step-btn,
+  .head-mix-btn,
+  .scale-chip,
+  .row-fill-apply,
+  .scale-pop-root,
+  .scale-pop-mode,
+  .scale-pop-commit,
+  .scale-pop-detach,
+  .lane-switch-tab {
+    transition: none;
+  }
+
+  .head-step-btn:active,
+  .head-mix-btn:active,
+  .scale-chip:active,
+  .row-fill-apply:active,
+  .scale-pop-root:active,
+  .scale-pop-mode:active,
+  .scale-pop-commit:active,
+  .scale-pop-detach:active,
+  .lane-switch-tab:active {
+    transform: none;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -262,13 +341,18 @@
    * painted box is the 44 px target itself (four tabs share the row; no
    * strap needed, no neighbor overlap by construction). */
   min-height: 44px;
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  /* T3: a machined key (raised metal + --elev-1 bezel + the T1 panel-label
+   * voice; press travel via the shared utility above). */
+  font: var(--text-panel-label);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
-  border-radius: 3px;
+    color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  border-radius: 4px;
+  box-shadow: var(--elev-1);
   cursor: pointer;
 }
 
@@ -292,8 +376,8 @@
 }
 
 .lane-switch-tab:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 /* ---------------------------------------------------------------------------
