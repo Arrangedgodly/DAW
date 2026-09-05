@@ -593,15 +593,6 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        const key = (el: Element, k: string): void => {
-          el.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: k,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
         const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
         await poll(
@@ -682,7 +673,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
               $(
                 `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
               ) !== null,
-            2000,
+            2_000,
             `${lane} pattern tools menu open`,
           );
           (
@@ -695,45 +686,71 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
               const n = floor(lane).querySelectorAll(".cell").length;
               return n > 0 && n % 64 === 0;
             },
-            5000,
+            5_000,
             `${lane} 4-bar grid rendered`,
           );
-          // The tool adds the pattern to the POOL + selects it; the rail "+"
-          // button appends the SELECTED pattern to the lane's chain (the
-          // arrangement the engine plays).
-          (
-            $(
-              `.rail-row[data-lane="${lane}"] button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
-            ) as HTMLButtonElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(
-                `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
-            2000,
-            `${lane} dense pattern appended to the chain`,
-          );
+          // BC-1 (I3-a): the rail "+" now creates a NEW blank pattern — it no
+          // longer chains the selected one — so the dense pattern stays in
+          // the POOL, selected, unchained. Chaining happens in
+          // removeDemoPatterns below (the pool-removal law).
         };
-        /** Drop the four demo chain slots: the lane's chain becomes exactly
-         *  its dense 4-bar pattern, so playback AND rendering are dense for
-         *  the whole measurement window (poly-loop: the chain is the
-         *  arrangement; loopBars stays transport semantics). */
-        const stripDemoSlots = async (lane: string): Promise<void> => {
+        /**
+         * BC-1 rework (I3-a): with `+` creating blanks, the dense 4-bar
+         * pattern reaches the chain the drums-precedent way (the MB-6
+         * gate-integrity fix): strip the four demo patterns from the POOL
+         * (the PAT menu's RM tool — tile Delete only edits the chain). Each
+         * removal takes its chain occurrences with it, and removing the LAST
+         * demo rebuilds the chain to the lane's one remaining pattern — the
+         * dense 4-bar. Paint first (the dense pattern is the selection at
+         * that point), then strip: the chain ends exactly [dense], so
+         * playback AND rendering are dense for the whole measurement window.
+         */
+        const removeDemoPatterns = async (lane: string): Promise<void> => {
+          const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
           for (let i = 0; i < 4; i++) {
-            const tile = $(`.rail-row[data-lane="${lane}"] .rail-tile`);
-            (tile as HTMLElement).focus();
-            key(tile, "Delete");
+            // Select the first (demo) tile, then remove it from the pool.
+            (
+              $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
+            ).click();
             await poll(
               () =>
                 doc().querySelectorAll(
                   `.rail-row[data-lane="${lane}"] .rail-tile`,
                 ).length ===
                 4 - i,
-              2000,
-              `${lane} demo chain slot ${i} removed`,
+              2_000,
+              `${lane} demo pattern ${i} selected (chain untouched yet)`,
+            );
+            $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+            await poll(
+              () =>
+                $(
+                  `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+                ) !== null,
+              2_000,
+              `${lane} PAT menu (pool remove)`,
+            );
+            (
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+              ) as HTMLButtonElement
+            ).click();
+            await poll(
+              () =>
+                doc().querySelector(
+                  `.rail-row[data-lane="${lane}"] .rail-tools-menu`,
+                ) === null,
+              2_000,
+              `${lane} PAT menu closes after pool remove`,
             );
           }
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+                .length === 1,
+            2_000,
+            `${lane} pool = the dense 4-bar alone (chain followed it)`,
+          );
         };
         const clickCells = (
           lane: string,
@@ -756,7 +773,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           "bass sustained notes committed",
         );
         clickCells("bass", [4, 6], [40, 48, 56]);
-        await stripDemoSlots("bass");
+        await removeDemoPatterns("bass");
 
         // chords: 2 full-length notes — each sounds a 3-voice diatonic triad
         // (compileLaneEvents stack law) → 6 sustained voices, whole pattern.
@@ -769,7 +786,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           3000,
           "chords sustained notes committed",
         );
-        await stripDemoSlots("chords");
+        await removeDemoPatterns("chords");
 
         // lead: 4 sustained long notes (rows 7..13).
         await selectLane("lead");
@@ -780,7 +797,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           3000,
           "lead sustained notes committed",
         );
-        await stripDemoSlots("lead");
+        await removeDemoPatterns("lead");
 
         // drums: last (stays the editable quadrant); hits on every piece.
         // MB-6 setup-integrity fix (the MB-5 gate-integrity finding,
@@ -802,51 +819,11 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // the demo chain occurrences with them).
         await selectLane("drums");
         await add4Bar("drums");
-        const removeDrumsDemoPattern = async (): Promise<void> => {
-          const label = "Remove DRUMS selected pattern";
-          $(`.rail-row[data-lane="drums"] .rail-tools-trigger`).click();
-          await poll(
-            () =>
-              $(
-                `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
-              ) !== null,
-            2_000,
-            "drums PAT menu (pool remove)",
-          );
-          (
-            $(
-              `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
-            ) as HTMLButtonElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelector(
-                `.rail-row[data-lane="drums"] .rail-tools-menu`,
-              ) === null,
-            2_000,
-            "PAT menu closes after pool remove",
-          );
-        };
-        for (let i = 0; i < 4; i++) {
-          // Select the first (demo) tile, then remove it from the pool.
-          ($(`.rail-row[data-lane="drums"] .rail-tile`) as HTMLElement).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-                .length ===
-              5 - i,
-            2_000,
-            `drums demo tile ${i} selected`,
-          );
-          await removeDrumsDemoPattern();
-        }
-        await poll(
-          () =>
-            doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-              .length === 1,
-          2_000,
-          "drums pool = the dense 4-bar alone (chain followed it)",
-        );
+        // BC-1 (I3-a): the dense pattern reaches the chain the same
+        // pool-removal way as the other lanes now (see removeDemoPatterns —
+        // the `+` button creates blanks and cannot chain the selected
+        // pattern anymore; the drums RM flow was already doing exactly this).
+        await removeDemoPatterns("drums");
         // The grid follows the pool: back to the 4-bar shape (6 rows × 64)
         // before the clicks — the intermediate removals left it 16-step.
         await poll(
@@ -1492,15 +1469,6 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        const key = (el: Element, k: string): void => {
-          el.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: k,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
         const stepWidth = (lane: string): number => {
           const a = cellAt(lane, 0, 0).getBoundingClientRect();
           const b = cellAt(lane, 0, 1).getBoundingClientRect();
@@ -1591,27 +1559,24 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             5_000,
             `${lane} 4-bar phone grid rendered`,
           );
-          (
-            $(
-              `button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
-            ) as HTMLElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(
-                `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
-            2_000,
-            `${lane} dense pattern appended`,
-          );
+          // BC-1 (I3-a): the rail "+" creates a NEW blank pattern now — the
+          // dense pattern stays pool+selected, unchained. Chaining happens
+          // in removeDemoPatterns (the pool-removal law, desktop twin).
         };
 
-        /** Drop the four demo chain slots: the chain = the dense pattern. */
-        const stripDemoSlots = async (lane: string): Promise<void> => {
+        /**
+         * BC-1 rework (I3-a — phone twin of the desktop helper): strip the
+         * four demo patterns from the POOL via the PAT menu's RM tool; the
+         * chain follows the removals and the last one rebuilds it to exactly
+         * [dense 4-bar] — the arrangement the whole measurement window plays.
+         */
+        const removeDemoPatterns = async (lane: string): Promise<void> => {
+          const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
           for (let i = 0; i < 4; i++) {
-            const tile = $(`.rail-row[data-lane="${lane}"] .rail-tile`);
-            (tile as HTMLElement).focus();
-            key(tile, "Delete");
+            // Select the first (demo) tile, then remove it from the pool.
+            (
+              $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
+            ).click();
             await poll(
               () =>
                 doc().querySelectorAll(
@@ -1619,9 +1584,28 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
                 ).length ===
                 4 - i,
               2_000,
-              `${lane} demo chain slot ${i} removed`,
+              `${lane} demo pattern ${i} selected (chain untouched yet)`,
+            );
+            $(".rail-tools-trigger").click();
+            await poll(
+              () => doc().querySelector(`button[aria-label="${rmLabel}"]`) !== null,
+              2_000,
+              `${lane} PAT menu (pool remove)`,
+            );
+            ($(`button[aria-label="${rmLabel}"]`) as HTMLElement).click();
+            await poll(
+              () => !doc().querySelector(".rail-tools-menu"),
+              2_000,
+              `${lane} PAT menu closes after pool remove`,
             );
           }
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+                .length === 1,
+            2_000,
+            `${lane} pool = the dense 4-bar alone (chain followed it)`,
+          );
         };
 
         /** Sustained voices covering step 4 (chords stack 3 voices/note). */
@@ -1668,7 +1652,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "bass sustained notes committed",
         );
-        await stripDemoSlots("bass");
+        await removeDemoPatterns("bass");
         await stepSoundTo("bass", "preset", "SUB DROP"); // PS-4 sample voice
 
         // chords: 2 full-length triads → 6 sustained voices.
@@ -1681,7 +1665,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "chords sustained notes committed",
         );
-        await stripDemoSlots("chords");
+        await removeDemoPatterns("chords");
         await stepSoundTo("chords", "preset", "PURE TONE");
 
         // lead: 4 sustained long notes (the densest phone grid: 14 rows).
@@ -1693,7 +1677,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "lead sustained notes committed",
         );
-        await stripDemoSlots("lead");
+        await removeDemoPatterns("lead");
         await stepSoundTo("lead", "preset", "PHASER UP");
 
         // drums (stays reachable for window B): the densest realistic kit
@@ -1713,41 +1697,9 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // pattern: every click then lands ON, in-pattern, in-length.
         await switchLane("drums");
         await add4Bar("drums");
-        const removeViaMenu = async (): Promise<void> => {
-          const label = "Remove DRUMS selected pattern";
-          ($(".rail-tools-trigger") as HTMLElement).click();
-          await poll(
-            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
-            2_000,
-            "drums PAT menu (pool remove)",
-          );
-          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
-          await poll(
-            () => !doc().querySelector(".rail-tools-menu"),
-            2_000,
-            "PAT menu closes after pool remove",
-          );
-        };
-        const drumsTiles = () =>
-          doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`);
-        for (let i = 0; i < 4; i++) {
-          // Select the first (demo) tile, then remove it from the pool.
-          (drumsTiles()[0] as HTMLElement).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-                .length ===
-              5 - i,
-            2_000,
-            `drums demo tile ${i} selected`,
-          );
-          await removeViaMenu();
-        }
-        await poll(
-          () => drumsTiles().length === 1,
-          2_000,
-          "drums pool = the dense 4-bar alone (chain followed it)",
-        );
+        // BC-1 (I3-a): the dense pattern reaches the chain the same
+        // pool-removal way as the other lanes now (see removeDemoPatterns).
+        await removeDemoPatterns("drums");
         for (const row of [0, 1, 2, 3, 4, 5])
           for (const step of [16, 24, 32, 40, 48, 56, 60])
             cellAt("drums", row, step).click();

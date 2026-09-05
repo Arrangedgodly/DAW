@@ -732,6 +732,40 @@ function newPatternId(lane: LaneId): string {
   return `${lane}-${n}`;
 }
 
+/** The blank-pattern construction shared by addPattern + appendBlankPattern. */
+function blankPattern(
+  lane: LaneId,
+  doc: ProjectDocument,
+  id: string,
+  name: string,
+  bars: PatternBars,
+): Pattern {
+  return lane === "drums"
+    ? {
+        kind: "drums",
+        id,
+        name,
+        bars,
+        steps: Object.fromEntries(
+          DRUM_PIECES.map((piece) => [
+            piece,
+            new Array(16 * bars).fill(false),
+          ]),
+        ) as Record<DrumPiece, boolean[]>,
+      }
+    : {
+        kind: "pitched",
+        id,
+        name,
+        bars,
+        rowDegrees: Array.from(
+          { length: pitchedRowCount(lane, doc) },
+          (_, degree) => degree,
+        ),
+        notes: [],
+      };
+}
+
 /** Append a new empty pattern to a lane. Returns the new pattern id. */
 export function addPattern(
   lane: LaneId,
@@ -740,31 +774,7 @@ export function addPattern(
 ): string {
   const doc = docStore.getState().doc;
   const id = newPatternId(lane);
-  const pattern: Pattern =
-    lane === "drums"
-      ? {
-          kind: "drums",
-          id,
-          name,
-          bars,
-          steps: Object.fromEntries(
-            DRUM_PIECES.map((piece) => [
-              piece,
-              new Array(16 * bars).fill(false),
-            ]),
-          ) as Record<DrumPiece, boolean[]>,
-        }
-      : {
-          kind: "pitched",
-          id,
-          name,
-          bars,
-          rowDegrees: Array.from(
-            { length: pitchedRowCount(lane, doc) },
-            (_, degree) => degree,
-          ),
-          notes: [],
-        };
+  const pattern = blankPattern(lane, doc, id, name, bars);
   commit({
     ...doc,
     patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
@@ -903,6 +913,43 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
     ),
   );
   return true;
+}
+
+/**
+ * BC-1 (I3-a — the rail `+` law): create a NEW blank pattern (caller-supplied
+ * next-letter name; bars = addPattern's existing default, 1) AND append it to
+ * the lane's chain in ONE commit. The rail's `+` button and rail-local
+ * `+`/`=` key both land here; the caller selects the returned id for editing
+ * (selection is view state, selection.ts — never document).
+ *
+ * Undo discipline (the recorded production decision): one `+` press = ONE
+ * undo step — the create and its append co-revert, following the
+ * removePattern precedent (a patterns+chain structural rewrite in a single
+ * commit), NOT a coalescing family (those exist for rapid REPEAT edits
+ * within the 350 ms window — a family here would wrongly glue two deliberate
+ * `+` presses into one step; structural actions never coalesce).
+ */
+export function appendBlankPattern(
+  lane: LaneId,
+  name: string,
+  bars: PatternBars = 1,
+): string {
+  const doc = docStore.getState().doc;
+  const id = newPatternId(lane);
+  const pattern = blankPattern(lane, doc, id, name, bars);
+  commit(
+    // The appended slot's cue rides withChain's null padding (unlabeled).
+    withChain(
+      {
+        ...doc,
+        patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
+      },
+      lane,
+      [...doc.songChain[lane], id],
+      (old) => [...old],
+    ),
+  );
+  return id;
 }
 
 /** Append one chain slot playing `patternId` (unlabeled). */

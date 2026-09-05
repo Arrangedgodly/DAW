@@ -35,14 +35,16 @@ inline and the deliberate v0-journey changes are recorded in the ledger at
 the bottom (regression rule: journey updates only
 alongside deliberate UX changes).
 
-**v3 (KL-1, iteration 3 — SPEC, not yet implemented).** The §"v3 delta"
+**v3 (KL-1, iteration 3 — SPEC; BC-1's slice is LIVE).** The §"v3 delta"
 at the bottom of this file extends the v2 map for the iteration-3 surfaces
 (town-hall §Iteration 3, decisions I3-a..f; schema v3 landed by SV-1:
 powers-of-two pattern vocabulary 1..128, per-pitched-lane `octave` −3..+3,
 `loopBars` retired behind the engine-side compat derivation). Sections
 marked **[v3 · spec — lands with BC-1/RC-1/LL-1/LL-2]** are the CONTRACT
 those tasks implement and gate; until a task lands, the v2 law above stays
-the shipping behavior. The v3 supersessions of v2/v0 text are marked inline
+the shipping behavior — EXCEPT the rail `+` change (I3-a), which is
+**[v3 · live since BC-1]** (§"Rail `+` = new blank clip" below). The v3
+supersessions of v2/v0 text are marked inline
 (the v2 precedent), and the deliberate v2-journey changes are recorded in
 the v2 → v3 ledger inside the delta — the rail-`+` semantics change (I3-a)
 is THE one deliberate journey change iteration 3 plans (the plan's
@@ -225,10 +227,10 @@ steps`; spanned: `note continues`; empty: v0 name. Resize steps announce
 
 v0 rail law unchanged: ←/→ rove tiles, Enter/Space trigger a quantized
 switch on the focused tile, Delete/Backspace removes the slot, F2 renames,
-`l` edits the cue, `+` appends. **[v3: the ACTION behind rail `+` changes —
-it creates a NEW blank next-letter pattern instead of re-appending the
-selected one (I3-a); see §v3 delta "Rail `+` = new blank clip".]** The
-multi-clip drag (one gesture across N
+`l` edits the cue, `+` appends. **[v3 · live since BC-1: the ACTION behind
+rail `+` changes — it creates a NEW blank next-letter pattern instead of
+re-appending the selected one (I3-a); see §v3 delta "Rail `+` = new blank
+clip".]** The multi-clip drag (one gesture across N
 clips queues exactly those N, identical pending/quantized semantics as
 clicking individually — one queued switch per touched lane) gets this
 keyboard path (LIVE: the pointer sweep and this range commit share one
@@ -267,10 +269,10 @@ sweep extends):
 
 Rail-local keys (DES-6, unchanged): ←/→ rove tiles, Enter/Space trigger a
 quantized switch, Delete/Backspace removes the chain slot, F2 renames, `l`
-edits the cue, `+` appends a slot. **[v3: `+` now appends a slot holding a
-NEW blank next-letter pattern — the key, the button, and the announcement
-all change meaning together (I3-a); DUP (`d` + the PAT menu) becomes the
-ONLY duplication path. See §v3 delta.]**
+edits the cue, `+` appends a slot. **[v3 · live since BC-1: `+` now appends
+a slot holding a NEW blank next-letter pattern — the key, the button, and
+the announcement all change meaning together (I3-a); DUP (`d` + the PAT
+menu) becomes the ONLY duplication path. See §v3 delta.]**
 
 ## Transport — unchanged v0
 
@@ -592,7 +594,7 @@ coordinates; every action begins from a focused element.
 | 9   | `Enter` on the scale chip → pick root D + mode DORIAN → OVERRIDE LANE                | popover opens focused, closes on commit; chip becomes LANE · D DOR (is-lane). Cancel path: reopen + `Escape` → closed, focus back on the chip                                                                                                                   |
 | 10  | `Enter` on FX → `Enter` + ADD FX → `Enter` first device → arrows on the CUTOFF range | strip opens; menu opens WITH focus inside (fixed in DA-3); 3rd module appears; readout + aria-valuetext track the stepped value                                                                                                                                 |
 | 11  | Rail: focus tile 1 → `→`×3 → `Enter`                                                 | tile shows PENDING (◆ / aria "switch pending"), then lands ACTIVE/selected on the chain boundary while still playing                                                                                                                                            |
-| 12  | `Space` (stop) → `Enter` on PAT → `Enter` on DUP → focus last tile → `+` → `Escape`  | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle). [refinement-6 ledger #5: DUP lives in the row's PAT menu — one extra `Enter` opens it; `d` remains the menu-free twin] [v3 · spec — BC-1 will journal this step's delta: under I3-a the final `+` creates a NEW blank next-letter pattern (appended + selected + announced `PATTERN <L> CREATED · <n> BAR · APPENDED`), not a re-append of the selected pattern] |
+| 12  | `Space` (stop) → `Enter` on PAT → `Enter` on DUP → focus last tile → `+` → `Escape`  | play stops; pattern pool grows; chain gains a tile with focus moved onto it (fixed in DA-3); Escape pops to the rail head (view toggle). [refinement-6 ledger #5: DUP lives in the row's PAT menu — one extra `Enter` opens it; `d` remains the menu-free twin] [v3 · LANDED by BC-1 (I3-a): the final `+` creates a NEW blank next-letter pattern — appended + selected + announced `PATTERN <L> CREATED · 1 BAR · APPENDED` through the lane's rail status region, focus on the new tile — NOT a re-append of the selected pattern; the journey now asserts the F label, the announcement, the selection flip, and the focus law] |
 | 13  | `Enter` PROJECTS → `Enter` EXPORT WAV → EXPORT MIDI                                  | RENDERING… → "WAV EXPORTED" toast + audio/wav blob download; "MIDI EXPORTED · 5 TRACKS" + audio/midi blob (recorded via the URL.createObjectURL seam)                                                                                                           |
 | 14  | `Enter` NEW … then reopen popover → `Escape`                                         | "NEW PROJECT READY" toast, empty-stage hint "PICK A PRESET · PAINT THE GRID"; Escape exits the focus trap with focus returned to the PROJECTS button                                                                                                            |
 
@@ -604,7 +606,12 @@ Gaps the walk found (fixed in DA-3, all in this repo):
   Escape closes and refocuses + ADD FX (src/components/FxStrip.tsx).
 - **`+` append existed only as a mouse button** — the spec's rail-local `+`
   key was never implemented. Now `+`/`=` on a focused tile appends the
-  selected pattern (src/components/PatternRail.tsx).
+  selected pattern (src/components/PatternRail.tsx). [Historical v0 record;
+  superseded by v3/BC-1 (I3-a): the same key now creates a NEW blank
+  next-letter pattern — §v3 delta "Rail `+` = new blank clip". Cosmetic
+  journal note (BC-1): this sentence is the one residual v0-era
+  "+ appends the selected pattern" prose the KL-1 verification flagged as
+  non-normative historical narrative; left as history, not law.]
 - **Chain edits stranded focus** — the tile row rebuilds on any chain edit
   (For reference diff), so `+` and `Delete` dropped focus to `<body>`.
   Focus now lands on the tile occupying the edited slot (the appended tile
@@ -629,7 +636,8 @@ vocabulary 1·2·4·8·16·32·64·128; per-pitched-lane `octave` field −3..+3
 canonical-empty at 0 — schema.ts:296-303, 406-415; `loopBars` retired behind
 the engine-side compat derivation until LL-2's deliberate basis swap).
 **Everything in this delta is SPEC until its owning task lands** — the
-implementing tasks are BC-1 (rail `+`), RC-1 (OCT + register windows +
+implementing tasks are BC-1 (rail `+` — **LANDED**, §"Rail `+` = new blank
+clip" is live law), RC-1 (OCT + register windows +
 manifest scroll), LL-1 (vocabulary + resize + extent), LL-2 (per-lane
 playhead/position basis); their browser gates assert these laws verbatim.
 The v2 laws above (one-Tab-stop regions, roving groups, no-wrap,
@@ -818,19 +826,21 @@ to the ledger first).
   keyboard nav over 2048 columns is O(1) focus math (G8) — Home/End/beat
   jump keep their exact meanings at any length.
 
-## Rail `+` = new blank clip [v3 · spec — lands with BC-1]
+## Rail `+` = new blank clip [v3 · live since BC-1]
 
 I3-a, THE deliberate journey change of iteration 3 (the plan's regression
 rule names this ledger entry):
 
 1. **Rail `+` creates a NEW blank pattern** — next-letter label via the
-   addPattern naming (A,B,C…Z,P27+ — PatternRail.tsx:588-592), appended to
-   the lane's chain, selected, immediately editable. Default bars =
-   addPattern's existing default (1 — BC-1 records the production
-   decision). This applies to BOTH trigger shapes together: the row's `+`
-   button (PatternRail.tsx:896-904, whose aria-label changes from "Append …
-   selected pattern" to new-clip wording that says NEW) and the rail-local
-   `+`/`=` key on a focused tile (PatternRail.tsx:786-791).
+   addPattern naming (A,B,C…Z,P27+ — one shared authority now,
+   `nextPatternLabel` in src/state/patternRail.ts), appended to the lane's
+   chain, selected, immediately editable. Default bars =
+   addPattern's existing default (**1 — the BC-1 production decision,
+   recorded**: the blank rides addPattern's default; LL-1's LENGTH ladder
+   grows it afterwards). This applies to BOTH trigger shapes together: the
+   row's `+` button (src/components/PatternRail.tsx — accessible name
+   `Append new blank pattern to <LANE> chain`) and the rail-local `+`/`=`
+   key on a focused tile.
 2. **DUP is the ONLY duplicator** — unchanged in behavior: the PAT menu's
    DUP button and the global `d` key duplicate the selected pattern and
    select the copy (v0 law). Its ledger line is updated to SAY so (this
@@ -850,6 +860,18 @@ rule names this ledger entry):
 5. **Help text:** the rail-append registry entry (`data-help="rail.append"`)
    and the button's accessible name must say NEW BLANK CLIP — the HP-2
    coverage gate fails on stale text (BC-1's plan line).
+
+**BC-1 implementation record (production decisions):** one `+` press is
+ONE store commit (`appendBlankPattern`, src/state/store.ts) — so one
+Ctrl+Z reverts the create AND its append together (the removePattern
+single-commit precedent for a patterns+chain structural rewrite); it is
+deliberately NOT a coalescing-family edit (those exist for rapid repeat
+edits within the 350 ms window — a family here would wrongly glue two
+deliberate `+` presses into one undo step; structural actions never
+coalesce). Gated by tests/browser/pattern-rail.test.ts (both trigger
+shapes, announcement, extent remount, one-step undo, DUP-only duplicator,
+E11 wording) + the unit store tests in tests/pattern-rail.test.ts + the
+DA-3 step 12 journey delta.
 
 ## Position & playhead at unequal cycle lengths [v3 · spec — lands with LL-2]
 
@@ -893,8 +915,8 @@ field to per-lane chain totals / one LCM cycle. What the SR user hears:
 
 | New gesture (pointer/world)                                    | Keyboard path (this spec)                                                                     | Owning task |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
-| Rail `+` button creates a blank next-letter clip                | rail-local `+`/`=` key — same action, same announcement                                       | BC-1        |
-| DUP a pattern (now the only duplication path)                   | global `d` (unchanged) + PAT menu DUP (unchanged)                                             | BC-1 (ledger only) |
+| Rail `+` button creates a blank next-letter clip                | rail-local `+`/`=` key — same action, same announcement                                       | BC-1 (live) |
+| DUP a pattern (now the only duplication path)                   | global `d` (unchanged) + PAT menu DUP (unchanged)                                             | BC-1 (live, ledger only) |
 | Click OCT − / OCT + to transpose a lane                        | global `o` / Shift+`o` (active lane) + Tab→button→Enter on any lane's strip                   | RC-1        |
 | Wheel/drag-scroll the register window                          | Shift+`↑` / Shift+`↓` on a focused cell (view-only, clamped, announced)                       | RC-1        |
 | Reach rows outside the default window                          | ↑/↓ walk the full manifest; the window follows focus (scroll-into-view law)                   | RC-1        |
@@ -917,11 +939,19 @@ LL-1/LL-2 are reviewed against.
    pattern (appended + selected + editable, announced
    `PATTERN <L> CREATED · <n> BAR · APPENDED`). DUP (`d` + PAT menu)
    unchanged — now the ONLY duplicator, its ledger line updated to say so
-   (§ above). **BC-1 journals the journey deltas** (the rule): DA-3 step 12
-   (keyboard-journey-full) — the post-DUP `+` asserts the new tile's
-   next-letter label + the creation announcement; pattern-rail tests move
-   with it; the rail-append aria-label/help-text updates ride the HP-2
-   coverage gate.
+   (§ above). **LANDED by BC-1** (journey deltas journaled, per the rule):
+   DA-3 step 12 (keyboard-journey-full) — the post-DUP `+` asserts the new
+   tile's next-letter label (F), the creation announcement, the selection
+   flip, and the focus-on-new-tile law; NEW gate
+   tests/browser/pattern-rail.test.ts (both trigger shapes, one-step undo,
+   extent remount, DUP-only duplicator, E11 wording); unit store tests in
+   tests/pattern-rail.test.ts; e2e-happy-path's DUP-then-`+` stage now
+   expects the blank next-letter tile (not the duplicated copy); the
+   frame-budget dense-lane construction re-based from `+`-append to the
+   drums-precedent pool-removal path (RM the demo patterns; the chain
+   follows). The rail-append aria-label/help-text updates ride the HP-2
+   coverage gate (accessible name now `Append new blank pattern to <LANE>
+   chain`; registry entry `rail.append` says NEW BLANK CLIP).
 2. **Row-clamp domain grows to the manifest + window follows focus**
    (RC-1): an AMENDMENT, not a binding change — ↑/↓ still clamp at a hard
    edge (the manifest bound replaces the visible-rows bound, identical in

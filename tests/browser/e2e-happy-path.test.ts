@@ -480,7 +480,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "BASS pattern tools menu open",
         );
         // Duplicate creates a NEW pattern ("NAME+" copy, selected but not yet
-        // chained — the chain length is unchanged until append) ...
+        // chained — the chain length is unchanged) ...
         bassRow
           .querySelector<HTMLButtonElement>(
             'button[aria-label="Duplicate BASS selected pattern"]',
@@ -489,29 +489,30 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         await poll(
           () =>
             bassRow.querySelector<HTMLButtonElement>(
-              'button[aria-label="Append BASS selected pattern to chain"]',
+              'button[aria-label="Append new blank pattern to BASS chain"]',
             ) !== null && tiles().length === tilesBefore,
           T.ui,
           "duplicate pattern (chain unchanged until append)",
         );
-        // ... then append chains the copy: one MORE tile, named "…+".
+        // ... then the rail "+" chains a NEW BLANK next-letter pattern
+        // (BC-1/I3-a: it no longer re-appends the selected copy — DUP is
+        // the only duplication path). Demo pool A–D + the DUP copy "D+" →
+        // next label by count = F: one MORE tile, blank, named F.
         bassRow
           .querySelector<HTMLButtonElement>(
-            'button[aria-label="Append BASS selected pattern to chain"]',
+            'button[aria-label="Append new blank pattern to BASS chain"]',
           )!
           .click();
         await poll(
           () => tiles().length === tilesBefore + 1,
           T.ui,
-          "chain append",
+          "new blank pattern appended to the chain",
         );
         const appended = tiles()[tiles().length - 1]!;
         expect(
-          (
-            appended.querySelector(".rail-tile-name")?.textContent ?? ""
-          ).endsWith("+"),
-          "appended tile is not the duplicated copy",
-        ).toBe(true);
+          appended.querySelector(".rail-tile-name")?.textContent,
+          "appended tile is the NEW blank pattern (not the duplicate)",
+        ).toBe("F");
         bassTilesAfter = tiles().length;
 
         // --- 6. EXPORT WAV through the real button + LAZY import ------------

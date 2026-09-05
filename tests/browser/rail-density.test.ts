@@ -236,6 +236,10 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         // --- 2. TILE HEADROOM: append a long chain, rows stay single-line --
         // UI-honest: the row's own + button (the append stays with the tiles
         // by design — chain structure next to the chain it extends).
+        // BC-1 (I3-a): each press now creates + appends + SELECTS a new
+        // BLANK next-letter pattern — the tile-count growth the law needs is
+        // identical; only the tiles' content differs (blanks, not repeats of
+        // the selected pattern).
         for (const lane of ["drums", "bass"]) {
           const append = $<HTMLButtonElement>(
             `.rail-row[data-lane="${lane}"] .rail-append`,
@@ -383,6 +387,17 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
 
         // 3e. +1B from inside the menu: adds + selects (the drums grid
         // switches to the new EMPTY pattern) and closes the menu.
+        // BC-1 (I3-a): the long-chain stage above leaves the last BLANK
+        // clip selected (`+` selects what it creates), so re-select a demo
+        // tile first — §3e's precondition is a pattern WITH content.
+        ($$('.rail-row[data-lane="drums"] .rail-tile')[0] as HTMLElement).click();
+        await poll(
+          () =>
+            $$('.lane-floor[data-lane="drums"] .cell[data-on="true"]').length >
+            0,
+          5_000,
+          "demo drums pattern re-selected (grid shows content)",
+        );
         const onBefore = $$(
           '.lane-floor[data-lane="drums"] .cell[data-on="true"]',
         ).length;

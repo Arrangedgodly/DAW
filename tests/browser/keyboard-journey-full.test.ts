@@ -18,7 +18,8 @@
  *   9. lane scale override via the popover (root + mode + OVERRIDE LANE)
  *  10. FX device added + param tweaked by keyboard
  *  11. quantized pattern switch (tile Enter while playing → PENDING → lands)
- *  12. stop · duplicate pattern (DUP) + append to chain (+ key on a tile)
+ *  12. stop · duplicate pattern (DUP) + NEW blank pattern via rail `+`
+ *      (BC-1/I3-a: the deliberate journey change of iteration 3)
  *  13. EXPORT WAV → EXPORT MIDI via the Projects popover (downloads recorded
  *      through a URL.createObjectURL seam)
  *  14. NEW project, then Escape out of the popover (focus trap exit)
@@ -440,15 +441,44 @@ describe("DA-3 full keyboard journey (built app)", () => {
           )!,
         );
         const tilesBefore = tiles().length;
-        // "+" on a focused tile appends the selected pattern (DA-3 spec fix).
+        // BC-1 (I3-a — the one deliberate journey change of iteration 3):
+        // "+" on a focused tile creates a NEW blank next-letter pattern —
+        // appended + selected + announced through the lane's rail status
+        // region — NOT a re-append of the selected (duplicated) pattern.
+        // Demo bass pool A–D + the DUP copy "D+" → next label by count = F.
         const lastTile = tiles()[tiles().length - 1]!;
         lastTile.focus();
         key(lastTile, "+");
         await poll(
           () => tiles().length === tilesBefore + 1,
           T.ui,
-          "chain append",
+          "new blank pattern appended to the chain",
         );
+        const created = tiles()[tiles().length - 1]!;
+        expect(
+          created.querySelector(".rail-tile-name")?.textContent,
+          "next-letter label (not the duplicated copy)",
+        ).toBe("F");
+        expect(
+          created.querySelector(".rail-tile-bars")?.textContent,
+          "the blank carries addPattern's default bars",
+        ).toBe("1B");
+        await poll(
+          () => created.dataset.state === "selected",
+          T.ui,
+          "selection flips to the blank pattern",
+        );
+        // E11: the creation announcement rides the lane's rail status region.
+        await poll(
+          () =>
+            (bassRow.querySelector<HTMLElement>(".head-sr[role='status']")
+              ?.textContent ?? "") ===
+            "PATTERN F CREATED · 1 BAR · APPENDED",
+          T.ui,
+          "creation announcement",
+        );
+        // DA-3 focus-after-edit law: focus lands on the NEW tile.
+        expect(active()).toBe(created);
         // Escape from a tile pops to the rail head (the view toggle).
         key(active() ?? lastTile, "Escape");
         await poll(

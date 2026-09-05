@@ -6,8 +6,15 @@
  * one PAT trigger per row (refinement-6: the six-tool row ×4 lanes competed
  * with the tiles for scan space — the tools are pool management, so they
  * distill into the popover vocabulary; every control keeps its function,
- * help entry, and keyboard twin) and the "+" append slot with the tiles
+ * help entry, and keyboard twin) and the "+" new-clip slot with the tiles
  * (chain structure lives next to the chain it extends).
+ *
+ * BC-1 (I3-a, keyboard.md v3): the rail `+` — button AND rail-local key —
+ * creates a NEW blank next-letter pattern (1 bar), appends it to the lane's
+ * chain and selects it (immediately editable), announcing
+ * `PATTERN B CREATED · 1 BAR · APPENDED` through the lane's rail status
+ * region. DUP (PAT menu + global `d`) is unchanged and is the ONLY
+ * duplication path.
  *
  * Click a tile while playing → quantized switch request (engineBridge.
  * requestPatternSwitch); the tile shows PENDING (from session.
@@ -71,7 +78,7 @@ import { LANE_NAMES } from "./laneMeta";
 import { getSession } from "../engine/session";
 import { requestPatternSwitch } from "../state/engineBridge";
 import {
-  appendChainSlot,
+  appendBlankPattern,
   addPattern,
   docStore,
   duplicatePattern,
@@ -84,6 +91,8 @@ import {
   clampCue,
   clampSlot,
   clampSlotTo,
+  nextPatternLabel,
+  patternCreatedAnnouncement,
   patternPool,
   pendingAnnouncement,
   queuedLanesAnnouncement,
@@ -134,8 +143,8 @@ registerHelp([
   },
   {
     id: "rail.append",
-    title: "APPEND SLOT",
-    text: "Adds another slot playing the lane's selected pattern to the end of the chain. The + key does the same while a tile is focused.",
+    title: "NEW BLANK CLIP",
+    text: "Creates a NEW blank pattern — next letter, one bar — appends it to the end of this lane's chain and selects it for editing. The + key on a focused tile does the same. To copy the selected pattern instead, use DUP: it is the only duplicator.",
   },
   {
     id: "rail.add",
@@ -543,8 +552,23 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   // Refinement-7: the "now <pattern>" line follows the SOUNDING slot too —
   // natural chain advance announces exactly like a landed switch (the
   // critique's fix: "follow natural chain advance … and announce").
+  // BC-1 (I3-a) announcement ordering: the append's commit synchronously
+  // emits a switch event (chain edits always do), which bumps switchVersion
+  // and queues this effect's run — that run would repaint the region with
+  // the follow line before the creation text is ever read. The override is
+  // consumed BY that exact run: the effect writes the creation line once,
+  // then returns to its pending/follow duty.
+  let pendingAnnounceOverride: string | null = null;
   createEffect(() => {
     void switchVersion();
+    if (pendingAnnounceOverride !== null) {
+      // BC-1: this flush belongs to the creation announcement — one line,
+      // then the region returns to its pending/follow duty.
+      const text = pendingAnnounceOverride;
+      pendingAnnounceOverride = null;
+      setAnnounce(text);
+      return;
+    }
     const pending = session.getPendingSwitch(props.lane);
     if (pending)
       setAnnounce(pendingAnnouncement(LANE_NAMES[props.lane], pending));
@@ -587,9 +611,31 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 
   const handleAdd = (bars: PatternBars) => {
     const n = patternPool(docStore.getState().doc, props.lane).length;
-    const name = n < 26 ? String.fromCharCode(65 + n) : `P${n + 1}`;
-    const id = addPattern(props.lane, bars, name);
+    const id = addPattern(props.lane, bars, nextPatternLabel(n));
     selectPattern(props.lane, id);
+  };
+
+  /**
+   * BC-1 (I3-a): THE rail `+` action — one press creates a NEW blank
+   * next-letter pattern (addPattern's default bars, 1), appends it to the
+   * chain, selects it (the grid remounts to the blank — immediately
+   * editable), and announces the creation through this lane's rail status
+   * region. Both trigger shapes share it (the row's `+` button and the
+   * rail-local `+`/`=` key); DUP (PAT menu + global `d`) stays the only
+   * duplication path. Store side: ONE commit → ONE undo step (create +
+   * append co-revert).
+   */
+  const handleAppendBlank = () => {
+    const n = patternPool(docStore.getState().doc, props.lane).length;
+    const label = nextPatternLabel(n);
+    const id = appendBlankPattern(props.lane, label);
+    selectPattern(props.lane, id);
+    const bars =
+      docStore.getState().doc.patterns[props.lane].find((p) => p.id === id)
+        ?.bars ?? 1;
+    const text = patternCreatedAnnouncement(label, bars);
+    pendingAnnounceOverride = text;
+    setAnnounce(text); // immediate; the queued effect re-writes the same line
   };
 
   const handleDuplicate = () => {
@@ -784,20 +830,15 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       e.preventDefault();
       setEditing({ kind: "cue", slot: tile.slot });
     } else if (e.key === "+" || e.key === "=") {
-      // DA-3 (spec gap fix): "+" appends the selected pattern to the chain —
-      // the keyboard twin of the rail's + button.
+      // BC-1 (I3-a): "+" creates a NEW blank next-letter pattern, appended
+      // + selected — the keyboard twin of the rail's + button. DUP (the
+      // PAT menu + the global `d`) is the only duplication path.
       e.preventDefault();
-      const wasLast = tile.slot === tiles().length - 1;
-      appendChainSlot(props.lane, selectedId());
-      setAnnounce(
-        `${LANE_NAMES[props.lane]}: appended chain slot ${tiles().length + 1}`,
-      );
-      // The row rebuilds on chain edits — hand focus to the appended tile
-      // (or stay on this slot) so focus is never stranded on <body>.
+      handleAppendBlank();
+      // The row rebuilds on chain edits — land focus on the NEW tile (the
+      // DA-3 focus-after-edit law: the appended slot), never on <body>.
       focusSlotAfterEdit(
-        wasLast
-          ? docStore.getState().doc.songChain[props.lane].length - 1
-          : tile.slot,
+        docStore.getState().doc.songChain[props.lane].length - 1,
       );
     } else if (e.key === "Escape") {
       // IN-3 (cancel-first): an active range collapses BEFORE the region-head
@@ -897,8 +938,8 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
           type="button"
           class="rail-append"
           data-help="rail.append"
-          aria-label={`Append ${LANE_NAMES[props.lane]} selected pattern to chain`}
-          onClick={() => appendChainSlot(props.lane, selectedId())}
+          aria-label={`Append new blank pattern to ${LANE_NAMES[props.lane]} chain`}
+          onClick={() => handleAppendBlank()}
         >
           +
         </button>

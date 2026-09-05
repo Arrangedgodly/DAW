@@ -116,6 +116,35 @@ export function structurePendingAnnouncement(laneName: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// BC-1 (I3-a): rail `+` = new blank clip — naming + creation announcement
+// ---------------------------------------------------------------------------
+
+/**
+ * The next pattern label for a lane whose pool holds `poolCount` patterns:
+ * A..Z by pool index, then P27+ — the established addPattern call-site
+ * naming, ONE authority now that three creation paths must agree (the PAT
+ * menu's +N B tools, the global `n`, and the rail `+`).
+ */
+export function nextPatternLabel(poolCount: number): string {
+  return poolCount < 26
+    ? String.fromCharCode(65 + poolCount)
+    : `P${poolCount + 1}`;
+}
+
+/**
+ * E11 (BC-1): the creation announcement through the lane's rail status
+ * region — `PATTERN B CREATED · 1 BAR · APPENDED` (label = the actual next
+ * letter; bars pluralized; the appended+selected state rides the same line —
+ * one announcement, not three).
+ */
+export function patternCreatedAnnouncement(
+  label: string,
+  bars: number,
+): string {
+  return `PATTERN ${label} CREATED · ${bars} BAR${bars === 1 ? "" : "S"} · APPENDED`;
+}
+
+// ---------------------------------------------------------------------------
 // Keyboard navigation (roving tabindex along a lane's row)
 // ---------------------------------------------------------------------------
 
