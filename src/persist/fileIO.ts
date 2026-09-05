@@ -15,7 +15,13 @@
  * valibot only). Size guard rejects >10 MB before any text is read.
  */
 
-import { DecodeError, decode, encode } from "../document/codec";
+import {
+  DecodeError,
+  DepthLimitError,
+  TextTooLargeError,
+  decode,
+  encode,
+} from "../document/codec";
 import { MigrationError } from "../document/migrate";
 import { ProjectValidationError } from "../document/validate";
 import type { ProjectDocument } from "../document/schema";
@@ -202,6 +208,28 @@ export async function importProjectFile(
       );
     }
     if (error instanceof DecodeError) {
+      // HL-1 honesty fix (2026-09-04): the codec's pre-parse DoS guards
+      // (CA-2/SV-1) throw DecodeError SUBCLASSES. A file between the 4 MB
+      // decode cap and the 10 MB File guard used to fall through to the
+      // generic "not valid JSON" message — dishonest for a file that IS
+      // valid JSON, just oversized (or hostilely deep). Map both to their
+      // own typed failures with the true cause, BEFORE the subclass-wide
+      // DecodeError branch (instanceof matches the parent).
+      if (error instanceof TextTooLargeError) {
+        return failure(
+          "too-large",
+          `Project file is too large to open safely (${(error.length / 1024 / 1024).toFixed(1)} MB of text; the safe-open limit is 4 MB).`,
+          "Use a smaller .bitbounce.json file — this one may not be a Bitbounce project.",
+        );
+      }
+      if (error instanceof DepthLimitError) {
+        return failure(
+          "corrupt",
+          "Project file is too deeply nested to open safely.",
+          "Re-export the project from the app it came from, then try again.",
+          { issues: [error.message] },
+        );
+      }
       return failure(
         "not-json",
         "Project file is not valid JSON.",
