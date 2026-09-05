@@ -225,6 +225,18 @@ export default function Projects(): JSX.Element {
       } else {
         showError(result.message, { suggestion: result.suggestion });
       }
+    } catch {
+      // HL-1 honesty fix (2026-09-04): the typed-result contract covers
+      // failures INSIDE the export module (render/encode/io); REACHING the
+      // module can also fail — a stale deploy's index.html outliving its
+      // chunk is the real-world class. Without this catch the sticky
+      // RENDERING toast vanished with no explanation and the rejection went
+      // unhandled. Same error-toast shape as any export failure (TH-2's
+      // stated contract, now actually implemented); busy clears in finally.
+      showError("WAV export could not start.", {
+        suggestion:
+          "The app may have been updated — reload the page, then try again.",
+      });
     } finally {
       dismissToast(renderingId);
       setBusy(false);
@@ -251,6 +263,13 @@ export default function Projects(): JSX.Element {
       } else {
         showError(result.message, { suggestion: result.suggestion });
       }
+    } catch {
+      // Same class as the WAV twin above (HL-1): a chunk that fails to LOAD
+      // gets the same honest toast as one that fails inside.
+      showError("MIDI export could not start.", {
+        suggestion:
+          "The app may have been updated — reload the page, then try again.",
+      });
     } finally {
       setBusy(false);
     }
