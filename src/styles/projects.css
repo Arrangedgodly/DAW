@@ -65,7 +65,6 @@
   border-radius: 3px;
   box-shadow: var(--elev-1);
   font: var(--text-ui);
-  font-size: 12px;
   cursor: pointer;
 }
 

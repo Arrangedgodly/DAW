@@ -54,7 +54,7 @@
   justify-content: center;
   pointer-events: none;
   font-family: var(--font-label);
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.2em;
   /* DA-2: the hint is info-critical — 62% ink (7.00:1), not 45% (4.15:1). */
   color: rgba(245, 242, 233, 0.62);
@@ -73,7 +73,7 @@
   background: var(--color-ground);
   color: var(--color-ink);
   border: 2px solid var(--color-ink);
-  font: 700 12px/1 var(--font-label);
+  font: 700 13px/1 var(--font-label);
   letter-spacing: 0.1em;
   cursor: pointer;
 }

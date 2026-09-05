@@ -313,8 +313,15 @@
    * get chrome rings via static 1px borders) over the recess stack.
    * 55% → 65% ink at T4/AC-9 round 2 — the ring must read as chrome. */
   border: 1px solid color-mix(in srgb, var(--color-ink) 65%, transparent);
-  background: color-mix(in srgb, var(--color-ink) 8%, var(--metal-recess));
-  box-shadow: var(--led-window);
+  /* 2026-09-05 polish pass (critique P2 #1 "dead pixels"): the rest well
+   * takes the --micro-recess stack (the full --led-window veil crushed the
+   * 8px dot to a flat void — pixel-probed interior spread was 7/255) and
+   * the --led-well-fill standby register (was an 8% inline mix — the well
+   * now reads occupied behind the chrome ring: dark far wall, catch-light
+   * near wall, standby ember). The LIT state below is unchanged and still
+   * ~10x brighter; fill + ring carry the state, not amplitude. */
+  background: var(--led-well-fill);
+  box-shadow: var(--micro-recess);
 }
 
 .booth-beat-led[data-active="true"] {
@@ -358,11 +365,19 @@
   cursor: pointer;
 }
 
+/* 2026-09-05 polish pass (critique P2 #1: the MASTER track "nearly
+ * disappears"): the slot gains the --micro-recess walls — dark far (top)
+ * wall + catch-light near (bottom) wall over the near-black fill — so the
+ * 4px groove reads as a MILLED SLOT against the panel (pixel-probed
+ * track-vs-panel luminance delta was ~5/255 before). The one fader
+ * vocabulary: the same treatment lands on the lane VOL and FX param tracks
+ * (lane-header.css / fx-strip.css). Paint-only; geometry untouched. */
 .booth-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
+  box-shadow: var(--micro-recess);
 }
 
 .booth-range::-moz-range-track {
@@ -370,6 +385,7 @@
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
+  box-shadow: var(--micro-recess);
 }
 
 .booth-range::-webkit-slider-thumb {
@@ -557,7 +573,10 @@
   padding: 1px 10px 1.5px;
   font: 700 8px/1.2 var(--font-label);
   letter-spacing: 0.12em;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+  /* legend ink 55% → 62% at the 2026-09-05 polish pass (furniture sub-1x
+   * finding): the engraved model legend must resolve at reading distance —
+   * still an engraving mix, never full ink. */
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-raised));
   background: var(--metal-raised);
   border-radius: 2px;
   box-shadow:
@@ -582,7 +601,11 @@
   margin-left: auto; /* restated: the plate must not eat the right-align */
   margin-right: calc(-1 * var(--space-3));
   border-radius: 4px;
-  background: color-mix(in srgb, var(--color-ink) 3%, var(--metal-panel));
+  /* Inlay amplitude knob (T10/T11 deferred → 2026-09-05 polish): tint
+   * 3% → 5% warm-white on panel — a brighter-metal inlay strip set into
+   * the faceplate; the plate/panel separation doubles at 1x reading
+   * distance while staying a BREATH (hue-free, ink-rule world). */
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--metal-panel));
   box-shadow:
     inset 0 1px 0 var(--metal-edge-hi),
     inset 0 0 0 1px var(--metal-edge-lo);
@@ -617,19 +640,29 @@
 }
 
 /* Chrome-ringed LED (the booth-beat-led vocabulary, neutral ink — autosave
- * is a chassis state, deliberately not a lane hue). */
+ * is a chassis state, deliberately not a lane hue). 2026-09-05 polish pass
+ * (critique: "SAVED JUST NOW" read label-not-lamp): the dot carries the
+ * --micro-recess lamp well at rest, and the FILLED lamp takes the one
+ * sanctioned ≤3px emissive glow (the --led emissive treatment — the
+ * booth-btn-info lit precedent) so the saved state reads as a lit lamp, not
+ * a filled circle. State CODING is untouched: fill + shape still carry it
+ * (filled = saved, hollow = unsaved, dashed = saving, dimmed = error), the
+ * glow is decoration-only per the glow law. */
 .save-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--color-ink) 65%, transparent);
   background: transparent;
+  box-shadow: var(--micro-recess);
   flex-shrink: 0;
 }
 
 .save-indicator[data-status="saved"] .save-dot,
 .save-indicator[data-status="idle"] .save-dot {
   background: currentColor;
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-ink) 50%, transparent);
 }
 
 .save-indicator[data-status="saving"] .save-dot {
@@ -641,10 +674,13 @@
 }
 
 /* The label: VT323 readout digits in the window (12px — the readout size
- * that keeps the phone row inside its footprint). */
+ * that keeps the phone row inside its footprint). Emissive shadow amplitude
+ * 40% → 55% at the 2026-09-05 polish pass: the same sanctioned readout-
+ * window treatment (DESIGN.md readout windows), one layer, strengthened so
+ * the digits read as light emitted from the well at 1x reading distance. */
 .save-label {
   font: 400 12px/1 var(--font-led);
   letter-spacing: 0.02em;
   white-space: nowrap;
-  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 40%, transparent);
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 55%, transparent);
 }

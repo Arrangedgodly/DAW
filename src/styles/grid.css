@@ -69,10 +69,18 @@
 
 /* LY-1: the visible edit-state word (text-equivalent state, D9/E3 belt+braces
  * alongside the grid's accessible name). Mixed against the PANEL the label
- * sits on (the ink-rule-2 panel world, not the retired ground). */
+ * sits on (the ink-rule-2 panel world, not the retired ground). 2026-09-05
+ * polish pass (critique P3 #5): the SELECTED quadrant's word rises to full
+ * ink — the editing state is the core navigation state and must read at 1x
+ * (62% mix under-communicated); view-only keeps the 62% label register, so
+ * EDIT/VIEW discrimination sharpens on the same grammar. */
 .lane-state {
   margin-left: var(--space-2);
   color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
+}
+
+.lane-floor[data-editing="true"] .lane-state {
+  color: var(--color-ink);
 }
 
 /* Red lane-hue text is law-restricted; the count rides warm white instead. */

@@ -135,12 +135,20 @@
 }
 
 .lane-floor[data-editing="true"] {
-  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--metal-panel));
+  /* Doubled-rim amplitude re-pinned at the 2026-09-05 polish pass (critique
+   * P3 #5: readers identified the selected quadrant via the red console,
+   * not the rim — pixel-probed, the outline's second line was
+   * indistinguishable from the panel grain). border 55% → 65%, outline
+   * 35% → 55%: BOTH lines now read as distinct hairlines at 1x. Grammar
+   * unchanged (doubled hairline, solid, zero layout px); discrimination
+   * intact — the sounding pulse (below) still lights a STRONGER ring (70%
+   * + the one ≤3px halo, animated) reserved for what actually sounds. */
+  border-color: color-mix(in srgb, var(--lane-hue) 65%, var(--metal-panel));
   background-color: color-mix(in srgb, var(--lane-hue) 7%, var(--metal-panel));
   /* the second line of the doubled rim (T5's is-sounding pulse will light
    * this same grammar; the wiring is that task's) */
   outline: var(--rim-width) var(--rim-idle)
-    color-mix(in srgb, var(--lane-hue) 35%, transparent);
+    color-mix(in srgb, var(--lane-hue) 55%, transparent);
   outline-offset: -3px;
 }
 

@@ -97,8 +97,21 @@
   --elev-2: var(--elev-1), 0 8px 18px -9px rgb(0 0 0 / 62%);
   --elev-3: var(--elev-1), 0 14px 32px -12px rgb(0 0 0 / 70%);
   /* Key cast (T4/AC-9 round 2): a raised key/module sits on its panel — a
-   * small offset+blur cast under the bezel. Same laws as the family. */
-  --elev-key: var(--elev-1), 0 2px 4px rgb(0 0 0 / 45%);
+   * small offset+blur cast under the bezel. Same laws as the family.
+   * Re-pinned at the 2026-09-05 finishing polish pass (critique P2 #2: the
+   * PROJECTS key face read "web-button lean — uniform rounded rectangle";
+   * real raised keys live from ASYMMETRIC lighting): the bezel pair becomes
+   * DIRECTIONAL — catch-light on the top AND left walls, dark edge below AND
+   * right (studio light from top-left), the flank amplitudes half-strength
+   * so the 1px pair reads machined, not outlined. Panels (--elev-2/-3, which
+   * compose --elev-1) keep the symmetric pair: flat plates are lit evenly,
+   * keys sit raised under directional light. Still static, paint-once,
+   * chassis-only, never animated. */
+  --elev-key: inset 0 1px 0 var(--metal-edge-hi),
+    inset 1px 0 0 color-mix(in srgb, var(--color-ink) 9%, transparent),
+    inset 0 -1px 0 var(--metal-edge-lo),
+    inset -1px 0 0 rgb(0 0 0 / 40%),
+    0 2px 4px rgb(0 0 0 / 45%);
   /* The device-frame cast — used ONCE, on the outer chassis (inverted into
    * inset shadows on the bezel overlay in chassis.css). */
   --elev-4: 0 24px 48px -16px rgb(0 0 0 / 70%);
@@ -109,6 +122,20 @@
   --led-idle: color-mix(in srgb, var(--color-ink) 35%, transparent);
   --led-window: inset 0 3px 8px rgb(0 0 0 / 85%),
     inset 0 -1px 0 var(--metal-edge-hi); /* recessed readout window (deepened at T4/AC-9 round 2 — the recess must read as depth, not a dark fill) */
+  /* Micro-recess (2026-09-05 finishing polish, critique P2 #1): the FULL
+   * --led-window veil (3px/8px inset) crushes an ≤8px surface to a flat
+   * void — beat-LED rest wells read as "dead pixels" at 2x. This shorter
+   * stack keeps the depth read at micro scale: a dark far (top) wall plus
+   * the catch-light on the near (bottom) wall — the recess's edge pair,
+   * inverted from a raised surface's. Consumed by the chrome-ringed LED
+   * dots and the 4px fader-slot tracks (the one-slider vocabulary). */
+  --micro-recess: inset 0 1px 2px rgb(0 0 0 / 70%),
+    inset 0 -1px 0 var(--metal-edge-hi);
+  /* LED standby register (was an 8% inline mix, re-pinned 2026-09-05): the
+   * rest well must read OCCUPIED (a standby ember behind the chrome ring),
+   * not dead. State discrimination is untouched — the lit register is the
+   * full hue fill + ring + the one glow, ~10x brighter by construction. */
+  --led-well-fill: color-mix(in srgb, var(--color-ink) 16%, var(--metal-recess));
   --led-bloom-decay: 180ms; /* inherits the glow-law ceiling */
 
   /* ---- Typography (faces loaded in fonts.css; restyle-first, ZERO new
@@ -139,6 +166,14 @@
   --text-panel-label-sm: 500 10px/1.2 var(--font-ui);
   --text-panel-label: 500 11px/1.2 var(--font-ui);
   --track-panel-label: 0.08em;
+  /* 2026-09-05 typeset pass (critique P3 #4): the ramp is exactly
+   * 10/11/13/16/22 — NO 12px secondary step was canonized. The six flagged
+   * 12px surfaces (help dd, info-view text, scale-pop modes, projects item,
+   * toast + dismiss) plus the shorthand-hidden siblings (audio-resume
+   * 12px, banner body 12px / dismiss 14px, stage-hint 14px) were drift on
+   * --text-ui, not a deliberate step — all normalized to the documented
+   * steps above. Frozen pins untouched: save-label VT323 12px (phone-row
+   * layout pin), 8px furniture engravings (decorative). */
 
   /* ---- Spacing scale (2px base: pad-grid rhythm) ---- */
   --space-1: 2px;
@@ -216,13 +251,16 @@
    * bright rim and dark slot here are the calibrated vocabulary every
    * surface re-uses (ONE inline-SVG data-URI, self-authored, zero asset
    * files). */
-  --furniture-screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Ccircle cx='3.5' cy='3.5' r='3.3' fill='%23000' fill-opacity='0.55'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='%232e2b33'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='none' stroke='%23f5f2e9' stroke-opacity='0.5' stroke-width='0.55'/%3E%3Cpath d='M1.8 5.2 5.2 1.8' stroke='%23000' stroke-opacity='0.9' stroke-width='0.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  --furniture-screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Ccircle cx='3.5' cy='3.5' r='3.3' fill='%23000' fill-opacity='0.62'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='%233c3844'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='none' stroke='%23f5f2e9' stroke-opacity='0.75' stroke-width='0.6'/%3E%3Cpath d='M1.8 5.2 5.2 1.8' stroke='%23000' stroke-opacity='0.9' stroke-width='0.8' stroke-linecap='round'/%3E%3C/svg%3E");
   --furniture-screw-size: 7px;
   /* Vent grille: dark milled slots (heat exits here); one strip per chassis
-   * side, in padding dead zones only. */
+   * side, in padding dead zones only. Slot alpha re-pinned 65% → 80% at the
+   * 2026-09-05 polish pass: sub-1x pixel-probed spread was 16/255 — the
+   * grille must resolve as machined slots at reading distance, not texture
+   * noise. */
   --furniture-vent: repeating-linear-gradient(
     90deg,
-    rgb(0 0 0 / 65%) 0 2px,
+    rgb(0 0 0 / 80%) 0 2px,
     transparent 2px 5px
   );
   /* DEPTH-BAND wash (route.md playback-reactivity #8): the ONE ambient

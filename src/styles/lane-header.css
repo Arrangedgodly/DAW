@@ -181,6 +181,7 @@
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
+  box-shadow: var(--micro-recess); /* 2026-09-05 polish: the milled-slot walls (see booth.css) */
 }
 
 .head-range::-moz-range-track {
@@ -188,6 +189,7 @@
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
+  box-shadow: var(--micro-recess);
 }
 
 .head-range::-webkit-slider-thumb {
@@ -418,7 +420,6 @@
 
 .scale-pop-mode {
   font: var(--text-ui);
-  font-size: 12px;
   line-height: 1.2;
   text-align: left;
   color: var(--color-ink);

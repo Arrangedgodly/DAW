@@ -31,7 +31,7 @@
   background: var(--color-ground);
   color: var(--color-ink);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .toast-error {
@@ -76,7 +76,7 @@
   background: none;
   border: none;
   color: inherit;
-  font-size: 12px;
+  font-size: 13px; /* explicit: buttons don't inherit — keeps the glyph on the body step */
   cursor: pointer;
   padding: 2px var(--space-2);
 }

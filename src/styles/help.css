@@ -87,7 +87,6 @@
 .help-row dd {
   margin: 0;
   font: var(--text-ui);
-  font-size: 12px;
   color: var(--color-ink);
 }
 

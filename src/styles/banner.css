@@ -38,7 +38,7 @@
 
 .support-banner-body {
   margin: 4px 0 0;
-  font: 12px/1.4 var(--font-ui);
+  font: 13px/1.4 var(--font-ui);
   opacity: 0.9;
 }
 
@@ -47,7 +47,7 @@
   border: 1px solid var(--color-ink);
   background: transparent;
   color: var(--color-ink);
-  font: 700 14px/1 var(--font-ui);
+  font: 700 13px/1 var(--font-ui);
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }

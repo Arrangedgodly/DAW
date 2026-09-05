@@ -4,7 +4,9 @@
 
 A music studio in your browser for people who don't read music. Draw beats on a
 grid, shape them with live effects, and export a loop-perfect WAV for your game
-— no installs, no accounts, no wrong notes.
+— no installs, no accounts, no wrong notes. On screen, it's all one machined
+console: a single page of panels, keys, and meters that reacts to the music it
+plays.
 
 **Play with it right now: <https://bitbounce-d2d.pages.dev/>**
 
@@ -72,6 +74,17 @@ export it.
 - Autosave to IndexedDB as you work, plus versioned `.bitbounce.json` project
   files (SAVE FILE / OPEN FILE) for backup and sharing. Undo for 50 steps.
 
+**It reads like a machine.** The console reacts to the track instead of
+sitting still: cells glow as the playhead crosses them, each beat pulses the
+sounding lane's rim and name LED, and the lit rail tile is the pattern slot
+sounding right now — it walks the chain as the song plays. Each FX device
+carries a recessed meter that reads back its defining parameter (cutoff,
+drive, feedback, …) and dims to an idle register when bypassed; mute, solo,
+and bypass are switches that physically throw in milled slots. A faint sheen
+breathes across the desktop chassis — slower at standby, quicker in playback
+— carrying no information, and every animation yields to
+`prefers-reduced-motion`.
+
 **Mobile — the same studio at phone width.** Lane tabs replace the
 quadrants, and every editing gesture works by touch: tap, drag-create,
 edge-resize, rail sweep, mix sliders, exports. Android Chrome is the
@@ -138,8 +151,8 @@ Open the printed localhost URL. Other handy scripts:
 | Command                | What it does                              |
 | ---------------------- | ----------------------------------------- |
 | `npm run build`        | type-check + production build to `dist/`  |
-| `npm test`             | unit suite (1,127 tests)                  |
-| `npm run test:browser` | browser suite against the built app (128) |
+| `npm test`             | unit suite (1,167 tests)                  |
+| `npm run test:browser` | browser suite against the built app (129) |
 | `npm run lint`         | ESLint                                    |
 | `npm run typecheck`    | TypeScript, no emit                       |
 
@@ -152,8 +165,8 @@ spec, accessibility audit, performance budgets, content rules — live in
 
 1. **No wrong notes** — the grid makes musical correctness the default.
 2. **Constraint is the charm** — four lanes, four devices, one screen.
-3. **Sound design is play** — tweak the FX while it runs; hearing beats
-   configuring.
+3. **Sound design is play** — tweak the FX while the loop runs and hear
+   every change land.
 4. **Loop-perfect or it didn't happen** — exports are sample-exact; seams are
    bugs.
 5. **Local-first forever** — nothing leaves your device unless you export it.
