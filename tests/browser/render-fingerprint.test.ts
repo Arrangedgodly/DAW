@@ -37,9 +37,11 @@ import {
   RENDER_FP_GOLDEN_NAME,
   WAV_EXPORT_FP_GOLDEN_NAME,
   WAV_EXPORT_MIX_FP_GOLDEN_NAME,
+  WAV_EXPORT_LCM_FP_GOLDEN_NAME,
 } from "../golden/render-fp-protocol";
 import { exportWav } from "../../src/audio/exportWav";
 import type { DownloadSeam } from "../../src/persist/fileIO";
+import { lcmCycleProject } from "../exportLcmReference";
 
 const GOLDEN_NAME = RENDER_FP_GOLDEN_NAME;
 
@@ -281,6 +283,73 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
       } else {
         console.log(
           `[wav-export-fingerprint] '${WAV_EXPORT_MIX_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
+        );
+      }
+      expect(true).toBe(true); // canary never blocks
+    },
+  );
+
+  // XP-1: byte fingerprint of the exported WAV for the UNEQUAL-CHAIN LCM
+  // reference — pins the LCM cycle law on the render path the same
+  // environment-pinned way (loop length = the LCM of lane chain totals,
+  // shorter lanes wrapping within it). Hard law proofs (64-bar probe,
+  // sample-exact math, seam, parse-back) live in tests/browser/
+  // exportWav.test.ts; the hard MIDI twin is midi/lcm-cycle-project-v1.
+  it(
+    "exported LCM-cycle WAV byte fingerprint; drift only warns",
+    { timeout: 120000 },
+    async () => {
+      let captured: Blob | undefined;
+      const seam: DownloadSeam = {
+        createObjectURL: (blob) => {
+          captured = blob;
+          return "blob:captured";
+        },
+        revokeObjectURL: () => undefined,
+        createElement: () => ({
+          click: () => undefined,
+          href: "",
+          download: "",
+        }),
+      };
+      const result = await exportWav(lcmCycleProject(), { seam });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const bytes = new Uint8Array(await captured!.arrayBuffer());
+      expect(captured!.type).toBe("audio/wav");
+      // Hard structural floor: the export cycle is 4 bars (the LCM of
+      // 64/32/16/16 chain steps) — NOT any lane-local length.
+      expect(result.loopSamples).toBe(4 * 4 * ((44100 * 60) / 120));
+      expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+
+      // --- Soft canary (same protocol + recorder as the siblings) ---
+      const hash = await hashBytesHex(bytes);
+      const entry = await loadManifestEntry(WAV_EXPORT_LCM_FP_GOLDEN_NAME);
+      console.log(
+        RENDER_FP_PREFIX +
+          JSON.stringify({
+            name: WAV_EXPORT_LCM_FP_GOLDEN_NAME,
+            sha256: hash,
+            byteLength: bytes.byteLength,
+            sampleRate: result.sampleRate,
+            loopSamples: result.loopSamples,
+          }),
+      );
+      if (!entry?.sha256) {
+        console.warn(
+          `[wav-export-fingerprint] no manifest entry for '${WAV_EXPORT_LCM_FP_GOLDEN_NAME}' — seed it with: npm run goldens:update`,
+        );
+      } else if (entry.sha256 !== hash) {
+        console.warn(
+          `[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on '${WAV_EXPORT_LCM_FP_GOLDEN_NAME}': ` +
+            `manifest ${entry.sha256} (env: ${entry.renderEnv?.playwright ?? "?"}) vs current ${hash}. ` +
+            `NOT a failure — environment-pinned like the render fp. ` +
+            `If deliberate, regenerate: npm run goldens:update`,
+        );
+      } else {
+        console.log(
+          `[wav-export-fingerprint] '${WAV_EXPORT_LCM_FP_GOLDEN_NAME}' matches manifest (${hash.slice(0, 12)}…)`,
         );
       }
       expect(true).toBe(true); // canary never blocks

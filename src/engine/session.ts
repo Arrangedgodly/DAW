@@ -15,7 +15,7 @@ import {
   STEPS_PER_BEAT,
   STEPS_PER_BAR,
   clampSwing,
-  stepIndexAtTime,
+  stepOfTimeBounded,
 } from "../audio/time";
 import { type LaneSchedule, type LaneSegment } from "../audio/song";
 import { clamp } from "../lib/clamp";
@@ -243,6 +243,15 @@ export class Session {
   private laneScales: Partial<
     Record<Exclude<LaneId, "drums">, EffectiveScale>
   > = {};
+  /**
+   * RC-1 (v3): per-pitched-lane register offset in octaves (the document's
+   * `octave` field via the engineBridge, riding the same lane-config push as
+   * sounds/scales). Placement auditions resolve the degree at the SAME base
+   * the compiler uses (octaveBase + offset), so what you hear when a note
+   * lands is what plays — while an OCT press itself never auditions (the
+   * transpose-≠-audition law).
+   */
+  private laneOctaves: Partial<Record<Exclude<LaneId, "drums">, number>> = {};
 
   constructor(opts: SessionOptions = {}) {
     this.engine = opts.engine ?? new AudioEngineContext();
@@ -471,6 +480,20 @@ export class Session {
   /** Pattern id the lane's active slot plays (post-switch state). */
   getActivePattern(lane: LaneId): string | null {
     return this.lanePlayback[LANE_IDS.indexOf(lane)]?.activePatternId ?? null;
+  }
+
+  /**
+   * LL-2 (seam G4): the lane's LIVE cycle basis — the chain total of the
+   * schedule the engine is actually sounding (post-substitution, including
+   * iteration-mode rebuilds that resized the chain mid-play; a queued
+   * pendingSchedule does NOT count until it lands). The per-lane playhead
+   * sweep (LaneGrid's readFrame) and the `p` announcement's lane half read
+   * this — the honest sounding truth, not the document's chain. Null before
+   * the bridge has pushed any schedule for the lane (callers fall back to
+   * the doc-derived song.ts laneCycleSteps).
+   */
+  getLaneCycleSteps(lane: LaneId): number | null {
+    return this.lanePlayback[LANE_IDS.indexOf(lane)]?.schedule.chainSteps ?? null;
   }
 
   /**
@@ -731,6 +754,10 @@ export class Session {
 
   /**
    * Legacy single-pattern seam (DES-4 tests): builds a one-segment schedule.
+   * LL-1 (seam F10): the `bars: 4` HARD-CODE in the event→step bucketing is
+   * RETIRED — events bucket against the pattern's REAL step count at any
+   * vocabulary size (the bounded steps-typed lookup; previously every event
+   * past step 63 collapsed onto step 63 under a fixed 64-step window).
    */
   setLaneEvents(
     laneId: LaneId,
@@ -743,11 +770,7 @@ export class Session {
       swing: this.transport.snapshot.swing,
     };
     for (const event of events) {
-      const step = stepIndexAtTime(event.time, {
-        bars: 4,
-        bpm: groove.bpm,
-        swing: groove.swing,
-      });
+      const step = stepOfTimeBounded(event.time, groove, patternSteps);
       const bucket = byStep.get(step);
       if (bucket) bucket.push(event);
       else byStep.set(step, [event]);
@@ -845,6 +868,20 @@ export class Session {
     else this.laneScales[laneId] = scale;
   }
 
+  /** RC-1: set a pitched lane's register offset for auditions (engineBridge). */
+  setLaneOctave(
+    laneId: Exclude<LaneId, "drums">,
+    octave: number | null,
+  ): void {
+    if (octave === null || octave === 0) delete this.laneOctaves[laneId];
+    else this.laneOctaves[laneId] = octave;
+  }
+
+  /** RC-1: the lane's current audition register offset (inspector/tests). */
+  getLaneOctave(laneId: Exclude<LaneId, "drums">): number {
+    return this.laneOctaves[laneId] ?? 0;
+  }
+
   /**
    * AUDITION: trigger one voice of a lane immediately (grid placement,
    * browser). `degreeOrDrum` is a scale degree for pitched lanes or a drum
@@ -911,13 +948,19 @@ export class Session {
     // before the engineBridge pushes the document's scale.
     const scale =
       this.laneScales[laneId] ?? toEffectiveScale({ root: 0, mode: "minor" });
-    const octaveBase = preset.pitchRange?.octaveBase ?? 4;
+    // RC-1: auditions carry the lane's register offset (same base law as the
+    // compiler) and clamp to the MIDI domain, exactly like compile.ts.
+    const octaveBase =
+      (preset.pitchRange?.octaveBase ?? 4) + (this.laneOctaves[laneId] ?? 0);
     // Chord lanes audition the diatonic triad, one voice per chord tone.
     const offsets = laneId === "chords" ? [0, 2, 4] : [0];
     return offsets.map((offset) =>
       noteParamsFor(preset, {
         time: when,
-        midi: degreeToMidi(scale, degree + offset, octaveBase),
+        midi: Math.min(
+          127,
+          Math.max(0, degreeToMidi(scale, degree + offset, octaveBase)),
+        ),
         holdSeconds: 0.25,
         seedSalt: degree + offset,
       }),

@@ -16,7 +16,7 @@
  * tests/ambientDensity.test.ts):
  *   band 0  empty            (the fresh NEW project)
  *   band 1  sparse  ≤ 40     (first ideas)
- *   band 2  medium  ≤ 128    (the WELCOME SONG demo = 97 content)
+ *   band 2  medium  ≤ 128    (the WELCOME SONG demo = 100 content post-PX-4)
  *   band 3  dense   > 128    (a filled-out arrangement)
  */
 

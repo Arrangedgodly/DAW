@@ -47,8 +47,10 @@ const T = {
 
 /**
  * Demo export math (edits in this journey never touch bpm). SV-1 (J11): the
- * retired loopBars field never sized the export — the LCM law does (4 x 1-bar
- * demo chains => a 4-bar export); FRAMES_PER_BAR is per ONE bar and the
+ * retired loopBars field never sized the export — the LCM law does; PX-4's
+ * poly-loop demo (chords 8B · drums 4B · lead 4B · bass 4B) => an 8-bar
+ * export cycle (the journey's appended 1-bar bass blank widens it — the
+ * toast's own count is the assert). FRAMES_PER_BAR is per ONE bar and the
  * toast's bar count carries the cycle length.
  */
 const DEMO_BPM = 112;
@@ -270,10 +272,12 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         }
         expect(await playheadSamples(1500)).toBeGreaterThanOrEqual(8);
 
-        // Onsets via a REAL render: the demo loop through the true worklet +
+        // Onsets via a REAL render: the demo cycle through the true worklet +
         // FX graph (same path as WAV export) transients on the bar grid —
-        // the thing PLAYING is the thing that renders. (Onset check = the
-        // RMS jump across each bar start, same law as PX-1's demo test.)
+        // the thing PLAYING is the thing that renders. PX-4 re-base: the
+        // poly-loop demo renders its 32-bar LCM cycle; the onset check
+        // samples the first four bars (the first PLAY experience) at the
+        // same law as PX-1's demo test.
         {
           const rendered = await renderProjectToBuffer(createDemoProject());
           assertCleanAudio(rendered.channels, "e2e demo render", {
@@ -291,7 +295,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
             for (let i = a; i < b; i++) sum += mono[i]! * mono[i]!;
             return Math.sqrt(sum / Math.max(1, b - a));
           };
-          const barSamples = rendered.loopSamples / 4;
+          // The demo's own cycle math (PX-4): 8 bars @112 BPM (the LCM of
+          // chords 8B / drums 4B / lead 4B / bass 4B).
+          const cycleBars = rendered.loopSteps / 16;
+          expect(cycleBars).toBe(8);
+          const barSamples = rendered.loopSamples / cycleBars;
           const w = 0.04 * EXPORT_SAMPLE_RATE;
           for (let bar = 0; bar < 4; bar++) {
             const t = bar * barSamples;
@@ -329,8 +337,6 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         );
         // (b) euclid fill on the SNARE row: + pulses → preview → SET commits.
         const snareRow = $$('.lane-floor[data-lane="drums"] .grid-row')[1]!;
-        const snareCell = (i: number) =>
-          snareRow.querySelectorAll<HTMLButtonElement>(".cell")[i]!;
         const fillRail = $('.row-fill[data-row="1"]');
         const morePulses = fillRail.querySelector<HTMLButtonElement>(
           'button[aria-label="More pulses for SNARE fill"]',
@@ -341,8 +347,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
               fillRail.querySelector(".row-fill-value")!.textContent ?? "0/16"
             ).split("/")[0],
           );
-        const snareOnBefore = Array.from({ length: 16 }, (_, i) =>
-          snareCell(i),
+        const snareOnBefore = Array.from(
+          snareRow.querySelectorAll(".cell"),
         ).filter((c) => c.dataset.on === "true").length;
         expect(snareOnBefore).toBeGreaterThan(0); // demo groove row
         morePulses.click(); // arm (custom rows re-arm at current density)
@@ -362,10 +368,12 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
             'button[aria-label^="Apply Euclidean fill to SNARE"]',
           )!
           .click();
+        // Count the WHOLE row: the euclid spread covers the whole pattern
+        // (shape-generic — the demo's 1-bar rows make it the first 16).
         await poll(
           () => {
-            const onCount = Array.from({ length: 16 }, (_, i) =>
-              snareCell(i),
+            const onCount = Array.from(
+              snareRow.querySelectorAll(".cell"),
             ).filter((c) => c.dataset.on === "true").length;
             return onCount === pulsesNow;
           },
@@ -480,7 +488,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "BASS pattern tools menu open",
         );
         // Duplicate creates a NEW pattern ("NAME+" copy, selected but not yet
-        // chained — the chain length is unchanged until append) ...
+        // chained — the chain length is unchanged) ...
         bassRow
           .querySelector<HTMLButtonElement>(
             'button[aria-label="Duplicate BASS selected pattern"]',
@@ -489,29 +497,30 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         await poll(
           () =>
             bassRow.querySelector<HTMLButtonElement>(
-              'button[aria-label="Append BASS selected pattern to chain"]',
+              'button[aria-label="Append new blank pattern to BASS chain"]',
             ) !== null && tiles().length === tilesBefore,
           T.ui,
           "duplicate pattern (chain unchanged until append)",
         );
-        // ... then append chains the copy: one MORE tile, named "…+".
+        // ... then the rail "+" chains a NEW BLANK next-letter pattern
+        // (BC-1/I3-a: it no longer re-appends the selected copy — DUP is
+        // the only duplication path). Demo pool A–D + the DUP copy "D+" →
+        // next label by count = F: one MORE tile, blank, named F.
         bassRow
           .querySelector<HTMLButtonElement>(
-            'button[aria-label="Append BASS selected pattern to chain"]',
+            'button[aria-label="Append new blank pattern to BASS chain"]',
           )!
           .click();
         await poll(
           () => tiles().length === tilesBefore + 1,
           T.ui,
-          "chain append",
+          "new blank pattern appended to the chain",
         );
         const appended = tiles()[tiles().length - 1]!;
         expect(
-          (
-            appended.querySelector(".rail-tile-name")?.textContent ?? ""
-          ).endsWith("+"),
-          "appended tile is not the duplicated copy",
-        ).toBe(true);
+          appended.querySelector(".rail-tile-name")?.textContent,
+          "appended tile is the NEW blank pattern (not the duplicate)",
+        ).toBe("F");
         bassTilesAfter = tiles().length;
 
         // --- 6. EXPORT WAV through the real button + LAZY import ------------
@@ -559,10 +568,13 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         expect(h.channelsCount).toBe(2);
         expect(h.bits).toBe(16);
         expect(h.sampleRate).toBe(EXPORT_SAMPLE_RATE);
-        // Length via the app's own claim: the toast reports the exported bar
-        // count; the file must carry exactly that many sample-exact 112-BPM
-        // bars (the demo journey exports the whole arranged chain).
-        const toastBars = Number((exportToast.match(/· (\d+) BAR/) ?? [])[1]);
+        // Length via the app's own claim: the toast reports the exported
+        // CYCLE in bars (PX-4 wording `· <n>-BAR CYCLE`); the file must
+        // carry exactly that many sample-exact 112-BPM bars (the demo
+        // journey exports the whole LCM cycle).
+        const toastBars = Number(
+          (exportToast.match(/· (\d+)-BAR CYCLE/) ?? [])[1],
+        );
         expect(Number.isInteger(toastBars)).toBe(true);
         expect(toastBars).toBeGreaterThanOrEqual(4); // the 4-section demo
         expect(h.frames).toBe(toastBars * EXPECTED_FRAMES);

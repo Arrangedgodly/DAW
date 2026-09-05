@@ -219,7 +219,9 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () =>
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
-              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+              // RC-1 journey delta: windowed names append the ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           2000,
           "bass quadrant editable",
         );

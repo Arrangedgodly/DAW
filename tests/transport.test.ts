@@ -23,7 +23,12 @@ interface Harness {
   unsubscribe: () => void;
 }
 
-function makeTransport(bars: 1 | 2 | 4 = 1): Harness {
+/**
+ * LL-2: the transport's basis is CYCLE STEPS (the LCM of lane chain
+ * totals — the engineBridge pushes it). Default 16 = the fresh project's
+ * LCM (one 1-bar chain per lane).
+ */
+function makeTransport(cycleSteps = 16): Harness {
   const ctx = fakeContext(0);
   const scheduled: Array<{ event: EngineEvent; when: number }> = [];
   const cancel = vi.fn();
@@ -31,7 +36,7 @@ function makeTransport(bars: 1 | 2 | 4 = 1): Harness {
     getContext: () => ctx,
     scheduleEvent: (event, when) => scheduled.push({ event, when }),
     cancelScheduledEvents: cancel,
-    loopBars: bars,
+    cycleSteps,
     intervalMs: 200,
     horizonSeconds: 1.5,
   });
@@ -51,7 +56,7 @@ describe("Transport state machine", () => {
       bpm: 120,
       swing: 0,
       loop: true,
-      loopBars: 1,
+      cycleSteps: 16,
     });
 
     h.transport.play();
@@ -341,10 +346,118 @@ describe("Transport state machine", () => {
     const emissions = h.states.length;
     h.transport.setSwing(2);
     expect(h.transport.snapshot.swing).toBe(1);
-    h.transport.setLoopBars(4);
-    expect(h.transport.snapshot.loopBars).toBe(4);
+    h.transport.setCycleSteps(64);
+    expect(h.transport.snapshot.cycleSteps).toBe(64);
     h.transport.setLoop(false);
     expect(h.transport.snapshot.loop).toBe(false);
     expect(h.states.length).toBe(emissions + 3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LL-2 gates (i3-4/i3-5, KL-1 position law — the basis swap):
+//   - one-shot (LOOP off) plays EXACTLY one full LCM cycle then parks;
+//   - the booth position wraps at the LCM cycle (the global clock);
+//   - a mid-play basis change (a chain edit landing) keeps the global step
+//     stream CONTIGUOUS — the session's lane anchors and quantized-switch
+//     windows ride it (the CI touch-gate fix lineage's iteration-mode
+//     defer windows are computed against the delivered step stream).
+// ---------------------------------------------------------------------------
+
+describe("LL-2 transport cycle basis", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("one-shot at a chain-derived LCM basis plays EXACTLY one full cycle (all steps, nothing more) then parks at its final bar", () => {
+    // The user's example shape: drums 64B vs bass 4B single-pattern chains →
+    // LCM 1024 steps. Scaled for the harness: 64 steps (4 bars).
+    const h = makeTransport(64);
+    h.transport.setLoop(false);
+    h.transport.play();
+    // Horizon refills compile the whole one-shot: 64 steps, numbered 0..63
+    // (the 1.5 s horizon needs several refills to span the 8 s cycle).
+    for (let t = 1; t <= 7; t += 1) {
+      h.ctx.currentTime = t;
+      vi.advanceTimersByTime(200);
+    }
+    expect(h.scheduled.length).toBe(64);
+    expect(h.scheduled[0]!.event.step).toBe(0);
+    expect(h.scheduled[63]!.event.step).toBe(63);
+    // The auto-stop fires on the first refill past the cycle end (8.1 s).
+    expect(h.transport.snapshot.playing).toBe(true);
+    h.ctx.currentTime = 9;
+    vi.advanceTimersByTime(200);
+    expect(h.transport.snapshot.playing).toBe(false);
+    // Parked at the FINAL step of the LCM cycle: bar 4, beat 4, step 4.
+    expect(h.transport.getPosition()).toEqual({ bar: 3, beat: 3, step: 3 });
+    expect(h.transport.getLoopTime()).toBeCloseTo(64 * 0.125, 9);
+    // Nothing more schedules — not a second cycle.
+    const count = h.scheduled.length;
+    h.ctx.currentTime = 20;
+    vi.advanceTimersByTime(1000);
+    expect(h.scheduled.length).toBe(count);
+    h.transport.stop();
+  });
+
+  it("the position readout wraps at the LCM cycle (BAR counts through the full cycle, then wraps)", () => {
+    const h = makeTransport(64); // 4-bar LCM @ 120 bpm → 8 s cycle
+    h.transport.play();
+    h.ctx.currentTime = 0.1 + 2 * 16 * 0.125; // step 32 = bar 3 start
+    expect(h.transport.getPosition()).toEqual({ bar: 2, beat: 0, step: 0 });
+    h.ctx.currentTime = 0.1 + 63 * 0.125; // last step of the cycle
+    expect(h.transport.getPosition()).toEqual({ bar: 3, beat: 3, step: 3 });
+    h.ctx.currentTime = 0.1 + 64 * 0.125; // the wrap
+    expect(h.transport.getPosition()).toEqual({ bar: 0, beat: 0, step: 0 });
+    h.transport.stop();
+  });
+
+  it("a mid-play basis change (chain edit) keeps the global step stream CONTIGUOUS and each step at its exact timeline slot", () => {
+    // Start at a 16-step basis; the lane grows (rail `+` appends a 1-bar
+    // blank → the LCM widens to 64). The next compiled step must be
+    // prev + 1 at its exact absolute-grid time — no gap, no duplicate.
+    const h = makeTransport(16);
+    h.transport.play();
+    h.ctx.currentTime = 1;
+    vi.advanceTimersByTime(200);
+    // Steps 0..19 compiled (horizon [1, 2.5] → times 0.1..2.475).
+    const before = h.scheduled.length;
+    const lastStep = h.scheduled[before - 1]!.event.step;
+    const lastWhen = h.scheduled[before - 1]!.when;
+    expect(lastStep).toBe(before - 1);
+
+    h.transport.setCycleSteps(64); // mid-pass basis swap
+    h.ctx.currentTime = 1.4;
+    vi.advanceTimersByTime(200);
+    const next = h.scheduled[before]!;
+    expect(next.event.step, "no step gap/duplicate across the swap").toBe(
+      lastStep + 1,
+    );
+    // The absolute grid is preserved: one step duration after the last
+    // compiled step's slot.
+    expect(next.when).toBeCloseTo(lastWhen + 0.125, 9);
+    // And the widened basis now wraps at 64 (the booth reads the LCM).
+    expect(h.transport.snapshot.cycleSteps).toBe(64);
+    h.transport.stop();
+  });
+
+  it("R-3 re-arm law holds on the LCM basis: loop re-enabled during the exhausted tail resumes at the pass boundary", () => {
+    const h = makeTransport(64);
+    h.transport.setLoop(false);
+    h.transport.play();
+    for (let t = 1; t <= 7; t += 1) {
+      h.ctx.currentTime = t;
+      vi.advanceTimersByTime(200);
+    }
+    expect(h.scheduled.length).toBe(64); // whole one-shot compiled: exhausted
+    expect(h.transport.snapshot.playing).toBe(true); // tail sounding
+    h.transport.setLoop(true);
+    h.ctx.currentTime = 7.2; // inside the exhausted tail (< the 8.1 s end)
+    vi.advanceTimersByTime(200);
+    expect(h.scheduled.length).toBeGreaterThan(64);
+    // The resumed pass starts EXACTLY at the cycle boundary (8.1 s) with
+    // the global numbering continuing.
+    expect(h.scheduled[64]!.event.step).toBe(64);
+    expect(h.scheduled[64]!.when).toBe(0.1 + 64 * 0.125);
+    h.transport.stop();
   });
 });

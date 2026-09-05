@@ -10,6 +10,7 @@ import { createDefaultProject } from "../src/document/schema";
 import { validateProject } from "../src/document/validate";
 import {
   appendChainSlot,
+  appendBlankPattern,
   addPattern,
   canUndo,
   docStore,
@@ -25,6 +26,8 @@ import {
   clampCue,
   clampSlot,
   clampSlotTo,
+  nextPatternLabel,
+  patternCreatedAnnouncement,
   patternPool,
   pendingAnnouncement,
   queuedLanesAnnouncement,
@@ -372,6 +375,71 @@ describe("store actions: patterns + chain + cues", () => {
     expect(doc().chainCues?.drums).toEqual(["VERSE"]);
     undo();
     expect(doc().chainCues ?? null).toBeNull();
+  });
+
+  // BC-1 (I3-a): the rail `+` store law — one press creates a NEW blank
+  // next-letter pattern AND appends it in ONE commit.
+  it("appendBlankPattern creates a named blank pattern and chains it in one commit", () => {
+    const poolBefore = doc().patterns.bass.length;
+    const chainBefore = [...doc().songChain.bass];
+    const id = appendBlankPattern("bass", nextPatternLabel(poolBefore));
+    // Pool grows by the blank (1 bar, next-letter name, no content)…
+    expect(doc().patterns.bass).toHaveLength(poolBefore + 1);
+    const created = doc().patterns.bass.find((p) => p.id === id);
+    expect(created).toMatchObject({ name: "B", bars: 1 });
+    if (created?.kind === "pitched") expect(created.notes).toEqual([]);
+    // …and the chain gained exactly one slot playing it (unlabeled cue).
+    expect(doc().songChain.bass).toEqual([...chainBefore, id]);
+    expect(doc().chainCues?.bass ?? doc().songChain.bass.map(() => null))
+      .toHaveLength(doc().songChain.bass.length);
+    expect(() => validateProject(doc())).not.toThrow();
+  });
+
+  it("one + press = ONE undo step: create and append co-revert together", () => {
+    const poolBefore = doc().patterns.lead.length;
+    const chainBefore = [...doc().songChain.lead];
+    appendBlankPattern("lead", nextPatternLabel(poolBefore));
+    expect(canUndo()).toBe(true);
+    undo();
+    // A single Ctrl+Z reverts BOTH halves of the gesture (the removePattern
+    // single-commit precedent — no coalescing family, nothing half-undone).
+    expect(doc().patterns.lead).toHaveLength(poolBefore);
+    expect(doc().songChain.lead).toEqual(chainBefore);
+  });
+
+  it("two deliberate + presses are two undo steps (structural actions never coalesce)", () => {
+    const poolBefore = doc().patterns.drums.length;
+    const chainBefore = [...doc().songChain.drums];
+    appendBlankPattern("drums", nextPatternLabel(poolBefore));
+    appendBlankPattern(
+      "drums",
+      nextPatternLabel(doc().patterns.drums.length),
+    );
+    undo();
+    // First Ctrl+Z takes back only the SECOND press…
+    expect(doc().patterns.drums).toHaveLength(poolBefore + 1);
+    expect(doc().songChain.drums).toHaveLength(chainBefore.length + 1);
+    undo();
+    // …the second takes back the first.
+    expect(doc().patterns.drums).toHaveLength(poolBefore);
+    expect(doc().songChain.drums).toEqual(chainBefore);
+  });
+
+  it("nextPatternLabel walks A..Z then P27+ by pool index", () => {
+    expect(nextPatternLabel(0)).toBe("A");
+    expect(nextPatternLabel(1)).toBe("B");
+    expect(nextPatternLabel(25)).toBe("Z");
+    expect(nextPatternLabel(26)).toBe("P27");
+    expect(nextPatternLabel(30)).toBe("P31");
+  });
+
+  it("patternCreatedAnnouncement is the E11 twin (label, bars pluralized, appended)", () => {
+    expect(patternCreatedAnnouncement("B", 1)).toBe(
+      "PATTERN B CREATED · 1 BAR · APPENDED",
+    );
+    expect(patternCreatedAnnouncement("P27", 4)).toBe(
+      "PATTERN P27 CREATED · 4 BARS · APPENDED",
+    );
   });
 });
 

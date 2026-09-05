@@ -15,6 +15,8 @@ manifest.
 | `render/reference-loop-fp-v1`        | render fingerprint (**environment-pinned**)                                                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `RENDER FINGERPRINT DRIFT` warning |
 | `wav/reference-export-fp-v1`         | render fingerprint of the exported .wav file bytes (**environment-pinned**)                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 | `wav/reference-export-mix-fp-v1`     | render fingerprint of the exported .wav file bytes WITH a non-default lane mix, drums muted + lead volume 0.75 (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
+| `midi/lcm-cycle-project-v1`          | bytes (pure TS; structure + LCM tick law asserted in-test; the 64-bar parse-back twin lives in `tests/browser/exportMidi.test.ts`) | `tests/golden/midi-lcm-export.golden.test.ts`       | **hard fail**                                    |
+| `wav/lcm-export-fp-v1`               | render fingerprint of the exported .wav file bytes for the UNEQUAL-CHAIN LCM reference (4-bar cycle) (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 
 Decode-and-assert coverage (structure, not just hashes): the reference-project
 exported WAV's headers/sample-count/seam-continuity live in
@@ -124,6 +126,67 @@ refresh. If you add a NEW golden, add its note in the same commit.
   reproduced by the compat derivation; verified zero DRIFT warnings in the
   browser runs. v2 source texts live in `tests/v2Project.ts` (re-stamp
   version + loopBars over the live docs = exactly the pre-SV-1 bytes).
+- **2026-09-04 — XP-1 (the export LCM cycle law; TWO NEW entries, nothing
+  regenerated).** i3-5 completed the law: WAV AND MIDI render EXACTLY one
+  full LCM cycle (the LCM of lane chain totals = the longest lane at the
+  powers-of-two vocabulary). The WAV path already rendered the LCM (render.ts
+  computeLoopSteps — verified, not regenerated); the MIDI path previously
+  stopped each lane track at its OWN chain end and now repeats chain-local
+  notes AND cue markers at their chain length within the cycle
+  (exportMidi.ts repeatNotesToCycle — the same expansion law the offline
+  render applies). NEW hard entry `midi/lcm-cycle-project-v1`
+  (`71b8adf1…`, 581 B): the unequal-chain LCM reference (drums [2B,2B],
+  bass 2B, chords/lead 1B → 4-bar cycle; bass ×2 at ticks 0/3840, the
+  GROOVE cue recurs at the chain boundary), seeded via the sanctioned
+  unit stage (`UPDATE_GOLDENS=1 vitest run tests/golden`). NEW soft entry
+  `wav/lcm-export-fp-v1` (`a000a8f8…`, 1,411,244 B = 44 + 4×352,800):
+  the exported WAV FILE bytes of the same reference through the real
+  render, seeded via the sanctioned browser stage (stage 2 of the
+  documented command; the node stage's tripwire exit-red under
+  UPDATE_GOLDENS=1 is the recorded pre-existing quirk). NOT regenerated,
+  deliberately (the iteration-3 regression rule): every pre-existing entry
+  verified byte-stable — `midi/reference-project-v1` unchanged (equal
+  chains are the identity of the fill law; the golden test passes
+  untouched) and all three render/export fingerprints re-recorded
+  IDENTICAL hashes (render `e87ae0ab…`, wav `3eff5771…`, mix `403361ca…`)
+  — zero drift, no audio-path byte touched.
+- **2026-09-04 — PX-4 (the poly-loop demo; THREE entries regenerated, nothing
+  else).** The WELCOME SONG demo was re-composed as the i3-4 POLY-LOOP
+  demonstration — lanes at UNEQUAL powers-of-two cycles: the CHORDS are the
+  long lane at 4×2B = 8B against the 4×1B rhythm section (drums/lead/bass
+  4B each); the song cycle is the LCM = 8 bars, and the same 4-bar melody
+  phrase lands on a different chord each time the 8-bar chord cycle comes
+  round. Deliberate content change to pinned demo bytes — the sanctioned
+  "new default-project content" case. REGENERATED, all three to the SAME
+  new hash (they are one document's canonical bytes, and the two migration
+  fixtures still byte-equal the shipped demo — the SC-1/SV-1 identity laws
+  hold at the new shape):
+  `codec/demo-project-canonical-v3` (`76475955…` 6,874 B → `df53e967…`,
+  6,979 B — the 2-bar chord pads), `migrate/v1-demo-to-v3` (same),
+  `migrate/v2-demo-to-v3` (same), all via the sanctioned unit stage
+  (`UPDATE_GOLDENS=1 vitest run tests/golden`; the tripwire exit-red under
+  recording mode is the recorded pre-existing quirk). Recorded production
+  choices (each MEASURED against an established gate — the plan's "e.g.
+  drums 32/64B" shape was composed and measured RED at 8×4B, 4×8B and 4×4B,
+  see production-log.md "PX-4 worker"): four chain slots per lane (MB-3's
+  phone hit-box audit), drums patterns at 1 bar (the euclid rail's 220 px
+  pin + the drums quadrant's no-internal-scroll + phone default-view laws
+  are budgeted for 16-step rows, and TH-1's 50 ms pool-wide-toggle guard
+  scales with lane steps — 8-bar patterns measured a 52 ms worst block),
+  view-only patterns ≤ 2 bars with 2 the measured 1280×800 fit (a 2-bar
+  pitched row measures 615 px against a 606 px quadrant gutter; DA-2's axe
+  gate flags a scrollable view-only region with no tab stops — the long
+  lane is CHORDS, whose 7-row manifest keeps its scroller un-windowed and
+  empirically clean). Every demo pattern stays inside the v1/v2 vocabulary
+  {1,2,4} — the projections remain era-legal saves; the fixture helper
+  type widened to `PatternBars`, comments updated; no law changed.
+  NOT regenerated, deliberately (zero-drift law): every render/export
+  fingerprint (render `e87ae0ab…`, wav `3eff5771…`, mix `403361ca…`, LCM
+  wav `a000a8f8…`) — they pin REFERENCE projects, not the demo, and no
+  audio-path byte was touched; verified MATCHING in the post-change
+  browser run. `codec/default-project-canonical-v3`, `midi/*`,
+  `wav/encoder-*`, and the boundary/sustain migration fixtures byte-stable
+  (manifest diff = exactly the three demo entries).
 
 ## Review discipline
 

@@ -499,7 +499,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           "playing before rotation",
         );
         const ctx = session.engine.getContext() as unknown as AudioContext;
-        const loopLen = 2; // 1 bar @ 120 bpm (loopBars 1)
+        // LL-2: the fresh project's LCM — four 1-bar chains → 16 steps =
+        // 2 s @ 120 bpm (the v0.1 basis exactly; the zero-drift shape).
+        const loopLen = 2;
         const sample = () => ({
           clock: ctx.currentTime,
           loopTime: session.transport.getLoopTime(),

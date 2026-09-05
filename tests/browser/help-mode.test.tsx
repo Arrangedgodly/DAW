@@ -409,7 +409,9 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
           () =>
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
-              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+              // RC-1 journey delta: windowed names append the ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           2000,
           "bass quadrant editable",
         );
@@ -553,6 +555,9 @@ function generatedHelpIds(): Set<string> {
       "volume",
       "mute",
       "solo",
+      // RC-1: the register transpose entry (pitched lanes only — the
+      // generator mints it under the same per-lane fan-out).
+      "oct",
       "scale",
       "gate",
       "fx",

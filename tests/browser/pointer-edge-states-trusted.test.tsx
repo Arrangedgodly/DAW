@@ -151,7 +151,9 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
           () =>
             document
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
-              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+              // RC-1 journey delta: windowed pitched names append ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           4000,
           "bass quadrant editable",
         );

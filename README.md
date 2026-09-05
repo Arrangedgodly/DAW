@@ -29,22 +29,28 @@ export it.
 
 ## Make your first loop
 
-1. **Press PLAY.** First run loads the WELCOME SONG demo — everything you
-   hear is editable, so poke at it.
+1. **Press PLAY.** First run loads the WELCOME SONG demo — a POLY-LOOP
+   arrangement where the lanes cycle at their own lengths (chords 8 bars
+   against the rhythm section's 4) and weave out of sync and back —
+   everything you hear is editable, so poke at it.
 2. **Draw notes.** Click a cell to place one; click and drag to stretch a
    note across steps; grab its right edge (or press `+` / `-`) to resize. On
    the drums lane, dragging paints hits.
 3. **Switch lanes.** The stage is a 2×2 grid of lane quadrants: one quadrant
    is your editing lane, the other three stay visible and playing in their
    own colors. Click a quadrant — or press `]` / `[` — to edit another lane.
-4. **Arrange.** Each lane has a pattern rail. Duplicate a pattern (`d`),
-   chain sections with `+`, then drag across the rail during playback to cue
-   several lanes into their next section together, quantized to the beat.
+4. **Arrange.** Each lane has a pattern rail. Start a new blank section with
+   `+` (or duplicate the current pattern with `d`), grow it with the LENGTH
+   ladder `b` / `Shift+b` up to 128 bars, then drag across the rail during
+   playback to cue several lanes into their next section together,
+   quantized to the beat.
 5. **Shape the sound.** Step through each lane's presets, open its FX
    console, and set the mix — volume, mute, and solo per lane.
-6. **Export.** EXPORT WAV hands you a sample-exact loop (effect tails are
-   folded into the loop start, so the seam is silent). EXPORT MIDI writes a
-   Type-1 file — one track per lane, drums on General MIDI channel 10 — that
+6. **Export.** EXPORT WAV hands you a sample-exact render of exactly one
+   full cycle of your arrangement — however long your lanes are, their
+   least-common multiple, with effect tails folded into the start so the
+   seam is silent. EXPORT MIDI writes a Type-1 file — one track per lane,
+   drums on General MIDI channel 10 — spanning that same cycle, and it
    opens anywhere.
 
 > [!TIP]

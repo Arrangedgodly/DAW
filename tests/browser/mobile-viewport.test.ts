@@ -371,8 +371,10 @@ describe("MB-1 responsive stage (built app)", () => {
           );
         }
 
-        // 1-BAR pattern needs NO horizontal scroll (the default view): drive
-        // the PAT menu (+1B — the refinement-6 commit-and-close law).
+        // 1-BAR pattern needs NO horizontal scroll (the default view). LL-1
+        // journey delta: the PAT menu's +NB create buttons retired with the
+        // LENGTH stepper — the honest 1-bar creation path is the global `n`
+        // (and `b` grows it to 2 below; BC-1's ladder flow).
         ($(`.lane-switch-tab[data-lane="drums"]`) as HTMLElement).click();
         await poll(
           () => $(".lane-floor").dataset.lane === "drums",
@@ -380,23 +382,8 @@ describe("MB-1 responsive stage (built app)", () => {
           "drums stage",
         );
         const openAddBars = async (bars: number) => {
-          ($(".rail-tools-trigger") as HTMLElement).click();
-          await poll(
-            () => !!idoc().querySelector(".rail-tools-menu"),
-            2_000,
-            "PAT menu",
-          );
-          const btn = $$(".rail-tool").find(
-            (b) =>
-              b.getAttribute("aria-label") ===
-              `Add ${bars}-bar pattern to DRUMS`,
-          )! as HTMLElement;
-          btn.click();
-          await poll(
-            () => !idoc().querySelector(".rail-tools-menu"),
-            2_000,
-            "PAT menu closes after commit",
-          );
+          key(idoc().body, "n"); // 1-bar blank, selected
+          for (let i = 1; i < bars; i *= 2) key(idoc().body, "b"); // ladder
         };
         await openAddBars(1);
         await poll(

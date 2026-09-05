@@ -105,7 +105,8 @@ export function noteEditAt(
 
 /**
  * Resize by a keyboard step (`+`/`-` ±1, Shift ±0.25): snap + clamp; returns
- * the SAME length at the bounds (0.25 floor / 128 ceiling — no wrap, no-op).
+ * the SAME length at the bounds (0.25 floor / 2048 ceiling — the SV-1 C3
+ * widened MAX_NOTE_LENGTH; no wrap, no-op).
  */
 export function resizeBy(current: number, delta: number): number {
   return snapSpanLength(current + delta);

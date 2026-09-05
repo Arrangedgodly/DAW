@@ -75,6 +75,11 @@ export default defineConfig({
     onConsoleLog: (log) => onRenderFingerprintConsoleLog(String(log)),
     projects: [
       {
+        // PX-4: the help-language unit tests import .tsx components for
+        // their module-scope registerHelp side effects (the I2-6 colocated
+        // law) — the same per-project JSX-transform registration the browser
+        // project documents below. Nothing mounts; node stays node.
+        plugins: [solid()],
         test: {
           name: "unit",
           environment: "node",
@@ -136,7 +141,9 @@ export default defineConfig({
             // keyboard access (small-surface behavior the mobile slice MB-1/
             // MB-3 owns and will gate in its own viewport). Tests that size
             // their own iframes (quadrant-layout, frame-budget, e2e,
-            // zero-network) are unaffected by this page viewport.
+            // zero-network, viewport-utilization — FV-1's multi-viewport
+            // measurement: 1280/1440/1920 sized per iframe) are unaffected
+            // by this page viewport.
             viewport: { width: 1280, height: 800 },
           },
           maxWorkers: 1,

@@ -19,12 +19,68 @@ import {
   redo,
   undo,
 } from "../state/store";
-import { activeLane, activePatterns, selectPattern } from "../state/selection";
+import {
+  activeLane,
+  activePatterns,
+  announceDrumsNoOctave,
+  announceStage,
+  selectPattern,
+  stepLaneOctave,
+} from "../state/selection";
+import { LANE_NAMES } from "./laneMeta";
+import { laneCycleSteps } from "../audio/song";
+import { LANE_IDS, type LaneId } from "../document/schema";
+import { formatPositionAnnouncement } from "../engine/mappings";
+import { nextPatternLabel } from "../state/patternRail";
+import { stepPatternLength } from "./PatternRail";
 import { helpOpen, openHelp } from "../state/helpOverlay";
 import { toggleHelp } from "../state/helpMode";
 import HelpOverlay from "./HelpOverlay";
 
 const session = getSession();
+
+/**
+ * LL-2 (KL-1 §"Position & playhead at unequal cycle lengths", a11y E12):
+ * compose + announce the on-demand `p` position readout through the stage
+ * status region. GLOBAL half = the transport's LCM-cycle position (the
+ * same source the booth readout paints — BAR.BEAT.STEP within the full
+ * LCM cycle, parked while stopped/one-shot-ended); LANE half = the ACTIVE
+ * lane's position within ITS cycle, from the lane's live chain total (the
+ * engine's sounding schedule, doc-derived fallback) against the same
+ * global step. The lane half is omitted when every lane shares one cycle
+ * length. Reads state only — no document write, no focus move, nothing
+ * consumed (it can never interfere with an Escape order or a drag).
+ */
+function announceTransportPosition(): void {
+  const lane = activeLane();
+  const pos = session.transport.getPosition();
+  const cycleSteps = Math.max(1, session.transport.snapshot.cycleSteps);
+  const laneStepsOf = (l: LaneId): number =>
+    session.getLaneCycleSteps(l) ??
+    laneCycleSteps(docStore.getState().doc, l);
+  const cycles = LANE_IDS.map(laneStepsOf).filter((s) => s > 0);
+  const shared =
+    cycles.length > 0 && cycles.every((s) => s === cycles[0]);
+  const activeSteps = laneStepsOf(lane);
+  let laneHalf: ({ readonly name: string } & {
+    readonly bar: number;
+    readonly bars: number;
+  }) | null = null;
+  if (!shared && activeSteps > 0) {
+    const globalStep = pos.bar * 16 + pos.beat * 4 + pos.step;
+    laneHalf = {
+      name: LANE_NAMES[lane],
+      bar: Math.floor((globalStep % activeSteps) / 16),
+      bars: activeSteps / 16,
+    };
+  }
+  announceStage(
+    formatPositionAnnouncement(
+      { bar: pos.bar, bars: cycleSteps / 16 },
+      laneHalf,
+    ),
+  );
+}
 
 /** True when the event target is a text entry — letter shortcuts stand down. */
 function isTextEntry(target: EventTarget | null): boolean {
@@ -92,10 +148,20 @@ export default function KeyboardShortcuts(): JSX.Element {
     const lane = activeLane();
     if (e.key === "n") {
       e.preventDefault();
+      // BC-1 deviation closure (LL-1): the naming rides the ONE authority
+      // (patternRail.nextPatternLabel) — the rail `+` and the PAT tools
+      // share it; the inline A..Z/P27+ copy is gone.
       const n = docStore.getState().doc.patterns[lane].length;
-      const name = n < 26 ? String.fromCharCode(65 + n) : `P${n + 1}`;
-      const id = addPattern(lane, 1, name);
+      const id = addPattern(lane, 1, nextPatternLabel(n));
       selectPattern(lane, id);
+    } else if (e.key === "b" || e.key === "B") {
+      // LL-1 (i3-4, keyboard.md v3): pattern LENGTH ladder — `b` one
+      // vocabulary step BIGGER (1→2→…→128), Shift+`b` one SMALLER. Works on
+      // drums patterns too; the at-limit press is a no-op that still
+      // announces; a lossy shrink refuses and names the blocking note (E10).
+      // ONE funnel with the PAT menu's LENGTH stepper (E5 parity).
+      e.preventDefault();
+      stepPatternLength(lane, e.shiftKey ? -1 : 1);
     } else if (e.key === "d") {
       e.preventDefault();
       const id = duplicatePattern(lane, activePatterns()[lane]);
@@ -117,6 +183,23 @@ export default function KeyboardShortcuts(): JSX.Element {
       // capture handler owns that keystroke).
       e.preventDefault();
       toggleHelp();
+    } else if (e.key === "o" || e.key === "O") {
+      // RC-1 (v3, i3-2): OCTAVE transpose of the ACTIVE lane — `o` +1,
+      // Shift+`o` −1. Pitched lanes only: drums answers with the refusal
+      // announcement (the drum voice model has no pitch resolution). Same
+      // guards as the pattern-ops family (text-entry + AT-modifier skips
+      // happened above). ONE funnel with the strip buttons (E8); the press
+      // never auditions and never scrolls the register window (E9 fence).
+      e.preventDefault();
+      if (lane === "drums") announceDrumsNoOctave();
+      else stepLaneOctave(lane, e.shiftKey ? -1 : 1);
+    } else if (e.key === "p" || e.key === "P") {
+      // LL-2 (v3, i3-4): the on-demand position announcement — the SR twin
+      // of the four visible playheads sweeping at their own cycle lengths.
+      // Guards identical to `o`/`b` (text-entry + AT-modifier skips happened
+      // above); reads state only (see announceTransportPosition).
+      e.preventDefault();
+      announceTransportPosition();
     }
   };
 

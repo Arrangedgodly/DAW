@@ -124,12 +124,17 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
         if (p?.kind !== "drums") throw new Error("expected drums pattern");
         return p.steps.kick[step] === true;
       };
+      // RC-1 journey delta: windowed pitched names append `· ROWS a–b OF n`
+      // (E9) — gate on the edit-state prefix (exact for unwindowed drums).
       const waitEditable = async (lane: string, label: string) =>
         waitFor(
           () =>
-            document.querySelector(
-              `.lane-floor[data-lane="${lane}"] [role="grid"]`,
-            )?.getAttribute("aria-label") === label,
+            document
+              .querySelector(
+                `.lane-floor[data-lane="${lane}"] [role="grid"]`,
+              )
+              ?.getAttribute("aria-label")
+              ?.startsWith(label) === true,
           4000,
           `${lane} quadrant editable`,
         );

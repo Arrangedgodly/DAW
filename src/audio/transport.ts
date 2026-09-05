@@ -3,6 +3,16 @@
  * Owns a LookaheadScheduler; the "compiler" (provideEvents) emits
  * metronome-style tick events at every 16th-step time (swing applied),
  * derived purely from absolute audio-clock times via time.ts.
+ *
+ * LL-2 (i3-4, KL-1 position law — the playhead-basis swap): the transport's
+ * cycle basis is the LCM OF LANE CHAIN TOTALS, pushed by the engineBridge
+ * as `cycleSteps` (the same LCM the offline export renders — i3-5; at
+ * powers-of-two chain totals it is simply the longest lane). The global
+ * step stream is unchanged: each pass compiles `cycleSteps` steps, so the
+ * booth's BAR.BEAT.STEP readout wraps at the full LCM cycle and a LOOP-off
+ * one-shot plays EXACTLY one full LCM cycle then parks. Per-lane sweeps
+ * are computed grid-side against each lane's OWN chain total (LaneGrid's
+ * readFrame) — the transport stays the one global clock.
  */
 
 import {
@@ -11,18 +21,15 @@ import {
   LookaheadScheduler,
 } from "./scheduler";
 import {
-  type LoopBars,
   type Position,
   STEPS_PER_BAR,
   barBeatStep,
   clampBpm,
   clampSwing,
-  loopLengthSeconds,
   nextStepAtOrAfter,
   secondsPerStep,
   stepIndexAtTime,
   timeAtStep,
-  totalSteps,
 } from "./time";
 
 export interface TransportSnapshot {
@@ -30,7 +37,8 @@ export interface TransportSnapshot {
   readonly bpm: number;
   readonly swing: number;
   readonly loop: boolean;
-  readonly loopBars: LoopBars;
+  /** LL-2: the cycle basis = the LCM of lane chain totals (steps). */
+  readonly cycleSteps: number;
 }
 
 export type TransportListener = (state: TransportSnapshot) => void;
@@ -40,7 +48,12 @@ export interface TransportOptions {
   scheduleEvent: ScheduleEventFn;
   /** Injected cancel: must cancel every pending scheduled event. */
   cancelScheduledEvents(): void;
-  readonly loopBars?: LoopBars;
+  /**
+   * LL-2: the transport's cycle basis in steps (= the LCM of lane chain
+   * totals; the engineBridge derives it from the document). Default 16 =
+   * one bar (the fresh project's LCM).
+   */
+  readonly cycleSteps?: number;
   readonly intervalMs?: number;
   readonly horizonSeconds?: number;
   readonly setIntervalFn?: NonNullable<
@@ -64,7 +77,8 @@ export class Transport {
   private _bpm = 120;
   private _swing = 0;
   private _loop = true;
-  private _loopBars: LoopBars;
+  /** LL-2: the cycle basis (steps) — see the class doc. */
+  private _cycleSteps: number;
 
   // Compile cursor: absolute audio time of the pass currently being generated.
   private passStart = 0;
@@ -88,7 +102,7 @@ export class Transport {
     this.getContext = opts.getContext;
     this.cancelScheduledEvents = opts.cancelScheduledEvents;
     this.startDelay = opts.startDelaySeconds ?? 0.1;
-    this._loopBars = opts.loopBars ?? 1;
+    this._cycleSteps = opts.cycleSteps ?? 16;
     this.scheduler = new LookaheadScheduler({
       getContext: opts.getContext,
       scheduleEvent: opts.scheduleEvent,
@@ -106,7 +120,7 @@ export class Transport {
       bpm: this._bpm,
       swing: this._swing,
       loop: this._loop,
-      loopBars: this._loopBars,
+      cycleSteps: this._cycleSteps,
     };
   }
 
@@ -128,7 +142,7 @@ export class Transport {
     const groove = { bpm: this._bpm, swing: this._swing };
     this.startStep = Math.min(
       nextStepAtOrAfter(offsetSeconds, groove),
-      totalSteps(this._loopBars) - 1,
+      this._cycleSteps - 1,
     );
     this.passStart = this.timelineStart;
     this.stepInPass = this.startStep;
@@ -187,8 +201,8 @@ export class Transport {
   private rearmAfterExhaustion(): void {
     const now = this.getContext().currentTime;
     const groove = { bpm: this._bpm, swing: this._swing };
-    const steps = totalSteps(this._loopBars);
-    const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
+    const steps = this._cycleSteps;
+    const loopLen = steps * secondsPerStep(this._bpm);
     // Skip whole passes that ended while the auto-stop raced us (normally
     // < one refill interval; a throttled background tab can make this
     // several — the 1-2 s horizon still covers the resume).
@@ -206,9 +220,36 @@ export class Transport {
     this.exhausted = false;
   }
 
-  setLoopBars(bars: LoopBars): void {
-    if (bars === this._loopBars) return;
-    this._loopBars = bars;
+  /**
+   * LL-2: set the cycle basis (the engineBridge's LCM of lane chain totals).
+   * Value-compared — a no-op push never emits.
+   *
+   * MID-PLAY changes (a reachable gesture since BC-1: the rail `+` appends a
+   * 1-bar blank to a playing lane's chain; LL-1's resize edits a chained
+   * pattern) RE-BASE THE CURSOR ON THE ABSOLUTE STEP GRID: the session's
+   * lane anchors ride the global step stream, so the stream must stay
+   * CONTIGUOUS across the swap (no gap, no duplicate — the quantized-switch
+   * boundary windows depend on it; the CI touch-gate fix lineage's
+   * iteration-mode defer windows are computed against `lastDeliveredStep`).
+   * Passes are even-carved (cycle totals are multiples of 16 steps), so an
+   * absolute step's sounding time decomposes exactly across any carving:
+   * the re-based pass restarts so the next unsounded step keeps its exact
+   * timeline slot. While exhausted (the one-shot tail) the cursor is spent —
+   * only the basis swaps (the auto-stop/re-arm laws then run on the new
+   * length; a corner, never reachable without a chain edit inside the final
+   * 1.5 s tail of a LOOP-off pass).
+   */
+  setCycleSteps(steps: number): void {
+    if (steps === this._cycleSteps) return;
+    if (this._playing && !this.exhausted) {
+      const abs = this.passIndex * this._cycleSteps + this.stepInPass;
+      this.passIndex = Math.floor(abs / steps);
+      this.stepInPass = abs - this.passIndex * steps;
+      this.passStart =
+        this.timelineStart +
+        this.passIndex * steps * secondsPerStep(this._bpm);
+    }
+    this._cycleSteps = steps;
     this.emit();
   }
 
@@ -225,9 +266,10 @@ export class Transport {
    */
   getLoopTime(): number {
     const groove = { bpm: this._bpm, swing: this._swing };
-    if (this.oneShotEnded) return loopLengthSeconds(this._loopBars, this._bpm);
+    if (this.oneShotEnded)
+      return this._cycleSteps * secondsPerStep(this._bpm);
     if (!this._playing) return timeAtStep(this.startStep, groove);
-    const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
+    const loopLen = this._cycleSteps * secondsPerStep(this._bpm);
     const elapsed = this.getContext().currentTime - this.timelineStart;
     if (elapsed < 0) return timeAtStep(this.startStep, groove);
     if (!this._loop && elapsed >= loopLen) return loopLen;
@@ -235,21 +277,20 @@ export class Transport {
   }
 
   getPosition(): Position {
-    if (this.oneShotEnded)
-      return barBeatStep(totalSteps(this._loopBars) - 1);
+    if (this.oneShotEnded) return barBeatStep(this._cycleSteps - 1);
     if (!this._playing) return barBeatStep(this.startStep);
-    const loopLen = loopLengthSeconds(this._loopBars, this._bpm);
+    const loopLen = this._cycleSteps * secondsPerStep(this._bpm);
     const elapsed = this.getContext().currentTime - this.timelineStart;
     const local =
       elapsed < 0
         ? timeAtStep(this.startStep, { bpm: this._bpm, swing: this._swing })
         : ((elapsed % loopLen) + loopLen) % loopLen;
     if (!this._loop && elapsed >= loopLen) {
-      return barBeatStep(totalSteps(this._loopBars) - 1);
+      return barBeatStep(this._cycleSteps - 1);
     }
     return barBeatStep(
       stepIndexAtTime(local, {
-        bars: this._loopBars,
+        steps: this._cycleSteps,
         bpm: this._bpm,
         swing: this._swing,
       }),
@@ -274,7 +315,7 @@ export class Transport {
     const events: EngineEvent[] = [];
     if (this.exhausted) return events;
     const groove = { bpm: this._bpm, swing: this._swing };
-    const steps = totalSteps(this._loopBars);
+    const steps = this._cycleSteps;
     const stepDur = secondsPerStep(this._bpm);
 
     while (this.passStart + timeAtStep(this.stepInPass, groove) <= until) {
@@ -311,7 +352,7 @@ export class Transport {
    */
   private finishOneShot(): void {
     this.oneShotEnded = true;
-    this.startStep = totalSteps(this._loopBars) - 1;
+    this.startStep = this._cycleSteps - 1;
     this._playing = false;
     this.scheduler.stop();
     this.emit();

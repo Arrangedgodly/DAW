@@ -32,6 +32,13 @@ export interface Toast {
   readonly details?: readonly string[];
   /** Optional one-shot action (RECOVER…); runs then dismisses. */
   readonly action?: ToastAction;
+  /**
+   * XP-1: no auto-dismiss timer — the toast stays until explicitly
+   * dismissed (by its owner or the user's ✕). For in-flight work states
+   * (RENDERING WAV…) that must stay on screen for as long as the work
+   * runs; a 128-bar offline render outlives the 5 s auto-dismiss window.
+   */
+  readonly sticky?: boolean;
 }
 
 export interface ToastInput {
@@ -40,6 +47,8 @@ export interface ToastInput {
   readonly suggestion?: string;
   readonly details?: readonly string[];
   readonly action?: ToastAction;
+  /** XP-1: see Toast.sticky — the caller owns dismissal. */
+  readonly sticky?: boolean;
 }
 
 export const MAX_TOASTS = 3;
@@ -74,7 +83,7 @@ export function pushToast(input: ToastInput): number {
     }
     return next;
   });
-  if (input.kind !== "error") {
+  if (input.kind !== "error" && !input.sticky) {
     timers.set(
       id,
       setTimeout(() => dismissToast(id), AUTO_DISMISS_MS),

@@ -75,6 +75,45 @@
  *         mirrors the worklet pool — asserted against the engine constants;
  *         the audio graph has no viewport branch).
  *
+ * TH-5 (iteration 3) — the CONSOLIDATED PERF GATE FAMILY at the long-loop
+ * scale (LP-1's browser-spike HARD laws folded here per its scope, plus the
+ * FV-1 perf half and the XP-1 export ceiling; docs/dev/perf-budget.md §10):
+ *   (a)  LONG-LANE PLAYBACK — all 4 lanes playing MIXED-length chains incl.
+ *        a dense 128-bar lead (LP-1's denseLead128Doc shape, imported
+ *        through the REAL OPEN FILE path): ≥95% frames < 33.4 ms pure
+ *        rendering with every lane's playhead sweeping at its OWN cycle
+ *        length (the LL-2 poly-loop visual under load), the register-window
+ *        fling sweep on the 2048-column grid, and per-edit blocks < 50 ms
+ *        (the long-task guard, re-pinned §10c). Phone twin at 390×844.
+ *   (b)  VIRTUALIZATION LAWS — the DOM census stays window-bounded (< 10k
+ *        cells; eager at this state is 38,208) while every long-pattern
+ *        scroller keeps its PATTERN-WIDE native extent (the sizer), the
+ *        census tracks the WINDOW not the pattern (a 4× pattern grow moves
+ *        it ~0), and rewindows during the sweep re-tag the pool without
+ *        churn (census constant, window origin moved). The bounded
+ *        time-math's law is the per-toggle guard: the retired O(steps)
+ *        scan measured 276-438 ms per edit at this state; the O(1) lookup
+ *        sits at 10-21 ms — the < 50 ms assert IS the no-linear-scans gate.
+ *   (c)  EXPORT-COST CEILING — the 64-bar gate render (musical density,
+ *        the REAL offline pipeline) stays under the pinned wall-time
+ *        ceiling (a regression ceiling from measured numbers, not a UX
+ *        promise; XP-1's 128-bar worst case stays the recorded determinism
+ *        probe in audio-determinism — CI-cost discipline). Source-mount
+ *        block (the LP-1 (d) precedent — the render pipeline under test is
+ *        the same source the globalSetup builds).
+ *   (d)  WIDTH-UTILIZATION PERF — the densified 1920×1080 stage (FV-1's
+ *        stage; the utilization law itself is viewport-utilization.test.ts)
+ *        holds the frame budget while playing.
+ *
+ * FLING DE-FLAKE (the LP-1 verifier's flag: the fling sweep is the one
+ * load-sensitive committed assert — 88.9% < 95% ONLY under a foreign
+ * battery's full-parallel load, 99.2-100% in every quieter run): the ratio
+ * stays HARD; the gates wait for a QUIET MACHINE before the measured sweep
+ * (waitForQuietRaf — an idle calibration window must itself hold the frame
+ * law at a sane cadence, else settle and re-poll). Never a threshold
+ * loosening; if the machine never goes quiet the assert fails LOUD (the
+ * MB-6 stance).
+ *
  * HONESTY CAVEAT (reduced expectations, documented in perf-budget.md §9):
  * CI Chromium runs on desktop-class hardware EMULATING the 390×844 viewport.
  * These gates catch REGRESSIONS (layout thrash, reactive playheads, blocking
@@ -86,6 +125,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { page } from "vitest/browser";
 // MB-5 (m-c): the voice budget is UNCHANGED by mobile — pinned against the
 // engine constants the app runs (8/lane on BOTH hosts → 32 total). The audio
 // graph has no viewport branch (src/audio + engineBridge never read the
@@ -94,6 +134,14 @@ import {
   SAMPLE_VOICES_PER_LANE,
   VOICES_PER_LANE,
 } from "../../src/audio/voiceEngine";
+// TH-5 (a)(b): the dense mixed-chain document (LP-1's committed builder)
+// serialized through the REAL canonical codec, imported through the REAL
+// OPEN FILE path — the built app itself owns the state under measurement.
+// TH-5 (c): the real offline render pipeline (source-mount block — the
+// LP-1 (d) precedent; globalSetup builds this exact source).
+import { encode } from "../../src/document/codec";
+import { renderProjectToBuffer } from "../../src/audio/render";
+import { denseLead128Doc, longLoopDoc } from "../lp1-spike-harness";
 
 const FRAME_BUDGET_MS = 33.4; // ~30 fps floor — HARD bound
 const FRAME_PASS_RATIO = 0.95;
@@ -120,6 +168,22 @@ const PLAY_BUDGET_MS = 3000; // PLAY → transport running must beat it too
 const PHONE_W = 390;
 const PHONE_H = 844;
 const PHONE_WINDOW_MS = 2000; // per-window measurement inside (m-a)
+
+// TH-5 (iteration 3) — the long-loop-scale family (see the file header).
+// The virtualization census law (LP-1 §10a as landed by LL-1): DOM cells
+// stay window-bounded at any pattern size. Eager at the dense-128 state
+// would be 6×1024 + 7×64 + 7×128 + 15×2048 = 38,208 (LL-1 measured the
+// windowed production census at 1,616 = 4.2% of that).
+const LONG_CENSUS_MAX = 10_000;
+const EAGER_CENSUS_DENSE_128 = 38_208;
+const LONG_SWEEP_MS = 2000; // the 2048-column fling window
+// The 64-bar export gate render's wall-time ceiling (TH-5 (c)) — a
+// REGRESSION ceiling pinned from the measured band with ~3× headroom
+// (perf-budget.md §10d records the method + date; XP-1's through-app busy
+// window measured 2.3-2.5 s, LP-1's musical-density offline renders
+// 6.2-8.5 s; an algorithmic regression (e.g. the retired scan class) is
+// 10-100×, far past this line).
+const EXPORT64_CEILING_MS = 25_000;
 
 // The production bundle built by tests/browser/globalSetup.ts. The glob is
 // resolved by vite at transform time; the hashed name changes per build.
@@ -463,6 +527,104 @@ async function runStormWindow(
 }
 
 // ---------------------------------------------------------------------------
+// TH-5 shared machinery (iteration-3 long-loop family)
+// ---------------------------------------------------------------------------
+
+/**
+ * One full programmatic horizontal sweep of `el` over `ms` (rAF-driven) —
+ * the fling worst case (LP-1 §10b: ~34.8k px in 2-2.5 s ≈ 13.6-17k px/s, far
+ * past any realistic wheel cadence).
+ */
+function sweepScroll(el: HTMLElement, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const max = el.scrollWidth - el.clientWidth;
+    const tick = () => {
+      const t = (performance.now() - start) / ms;
+      el.scrollLeft = max * Math.min(1, t);
+      if (t < 1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/**
+ * FLING DE-FLAKE (the LP-1 verifier's flag — settle/poll, NEVER threshold
+ * loosening): the sweep's ≥95% ratio law stays HARD, so the gate chooses
+ * WHEN to measure. An idle calibration window (500 ms, warm-up sample
+ * dropped) must itself hold the frame law at a sane cadence (≥20 frames ≈
+ * 40 fps, zero intervals ≥ 33.4 ms) — else settle 400 ms and re-poll, up to
+ * the deadline. This is the repo's quiet-fence discipline expressed in-test:
+ * under the observed foreign-battery load waves (bare vitest's concurrent
+ * unit+browser projects), a quiet slot appears within seconds; if the
+ * machine never quiets down we return and the HARD assert fails LOUD (the
+ * documented MB-6 stance — a red flake is honest, a green lie is not).
+ */
+async function waitForQuietRaf(deadlineMs = 20_000): Promise<void> {
+  const t0 = performance.now();
+  for (;;) {
+    const quiet = await new Promise<boolean>((resolve) => {
+      const intervals: number[] = [];
+      let last = performance.now();
+      const start = last;
+      const frame = () => {
+        const now = performance.now();
+        const d = now - last;
+        last = now;
+        if (intervals.length > 0) intervals.push(d); // drop the warm-up tick
+        if (now - start < 500) requestAnimationFrame(frame);
+        else
+          resolve(
+            intervals.length >= 20 &&
+              intervals.every((d) => d < FRAME_BUDGET_MS),
+          );
+      };
+      requestAnimationFrame(frame);
+    });
+    if (quiet) return;
+    if (performance.now() - t0 > deadlineMs) return; // measure anyway — LOUD
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+
+/**
+ * Import a project document through the REAL OPEN FILE path: the hidden
+ * `.projects-input` (always mounted — the popover itself need not open)
+ * receives a File via DataTransfer and fires the same change handler the
+ * user's OPEN FILE click drives (importProjectFile → decode → new persisted
+ * project → loadDocument). The text is `encode(doc)` from the REAL codec —
+ * the built app parses exactly what a saved file would carry.
+ */
+function importDocFile(app: BootResult, docText: string, name: string): void {
+  const win = app.win;
+  const file = new win.File([docText], name, { type: "application/json" });
+  const dt = new win.DataTransfer();
+  dt.items.add(file);
+  const input = app.doc().querySelector<HTMLInputElement>(".projects-input");
+  if (!input) throw new Error("missing .projects-input (Projects mount)");
+  input.files = dt.files;
+  input.dispatchEvent(new win.Event("change", { bubbles: true }));
+}
+
+/** Chromium heap probe (LP-1 (d) precedent; undefined where unavailable). */
+function heapUsed(): number | undefined {
+  return (performance as { memory?: { usedJSHeapSize: number } }).memory
+    ?.usedJSHeapSize;
+}
+
+/** The rail badge a lane's first tile carries ("<bars>B" — the LL-1 law). */
+function railBadge(doc: () => Document, lane: string): string {
+  return (
+    doc()
+      .querySelector(
+        `.rail-row[data-lane="${lane}"] .rail-tile .rail-tile-bars`,
+      )
+      ?.textContent ?? ""
+  );
+}
+
+// ---------------------------------------------------------------------------
 // v0 baseline (TH-1) — unchanged law, refactored onto the shared harness
 // ---------------------------------------------------------------------------
 
@@ -603,15 +765,6 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        const key = (el: Element, k: string): void => {
-          el.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: k,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
         const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
         await poll(
@@ -683,67 +836,108 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           );
         };
         const add4Bar = async (lane: string): Promise<void> => {
-          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
-          // Refinement-6: the tools live behind the row's PAT menu — open it
-          // first, then act inside it.
-          $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+          // LL-1 journey delta: the +4B menu button retired with the LENGTH
+          // stepper — create the blank via the rail `+` (1 bar, appended +
+          // selected — BC-1), then grow it with the global `b` ladder ×2.
+          // PX-4 re-base: the rail-`+` blank rides at the chain's end of a
+          // DEMO whose chain length is per-lane (the poly-loop demo: drums
+          // carry 8 tiles, the other lanes 4) — expect one MORE tile, not a
+          // fixed count.
+          const tilesBefore = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
+          $(`.rail-row[data-lane="${lane}"] .rail-append`).click();
           await poll(
             () =>
-              $(
-                `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
-              ) !== null,
-            2000,
-            `${lane} pattern tools menu open`,
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length ===
+              tilesBefore + 1,
+            2_000,
+            `${lane} blank appended`,
           );
-          (
-            $(
-              `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
-            ) as HTMLButtonElement
-          ).click();
+          await selectLane(lane); // the ladder acts on the ACTIVE lane
+          for (const k of ["b", "b"]) {
+            doc().body.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: k,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          }
           await poll(
             () => {
               const n = floor(lane).querySelectorAll(".cell").length;
               return n > 0 && n % 64 === 0;
             },
-            5000,
+            5_000,
             `${lane} 4-bar grid rendered`,
           );
-          // The tool adds the pattern to the POOL + selects it; the rail "+"
-          // button appends the SELECTED pattern to the lane's chain (the
-          // arrangement the engine plays).
-          (
-            $(
-              `.rail-row[data-lane="${lane}"] button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
-            ) as HTMLButtonElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(
-                `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
-            2000,
-            `${lane} dense pattern appended to the chain`,
-          );
+          // BC-1 (I3-a): the rail "+" now creates a NEW blank pattern — it no
+          // longer chains the selected one — so the dense pattern stays in
+          // the POOL, selected, unchained. Chaining happens in
+          // removeDemoPatterns below (the pool-removal law).
         };
-        /** Drop the four demo chain slots: the lane's chain becomes exactly
-         *  its dense 4-bar pattern, so playback AND rendering are dense for
-         *  the whole measurement window (poly-loop: the chain is the
-         *  arrangement; loopBars stays transport semantics). */
-        const stripDemoSlots = async (lane: string): Promise<void> => {
-          for (let i = 0; i < 4; i++) {
-            const tile = $(`.rail-row[data-lane="${lane}"] .rail-tile`);
-            (tile as HTMLElement).focus();
-            key(tile, "Delete");
+        /**
+         * BC-1 rework (I3-a): with `+` creating blanks, the dense 4-bar
+         * pattern reaches the chain the drums-precedent way (the MB-6
+         * gate-integrity fix): strip the demo patterns from the POOL (the
+         * PAT menu's RM tool — tile Delete only edits the chain). Each
+         * removal takes its chain occurrences with it, and removing the LAST
+         * demo rebuilds the chain to the lane's one remaining pattern — the
+         * dense 4-bar. Paint first (the dense pattern is the selection at
+         * that point), then strip: the chain ends exactly [dense], so
+         * playback AND rendering are dense for the whole measurement window.
+         * PX-4 re-base: the demo's POOL is per-lane (drums 8 patterns, the
+         * other lanes 4) — strip every tile except the appended blank,
+         * counted from the rail itself.
+         */
+        const removeDemoPatterns = async (lane: string): Promise<void> => {
+          const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
+          const tilesNow = (): number =>
+            doc().querySelectorAll(
+              `.rail-row[data-lane="${lane}"] .rail-tile`,
+            ).length;
+          const start = tilesNow(); // demo tiles + the rail-`+` blank
+          for (let i = 0; i < start - 1; i++) {
+            // Select the first (demo) tile, then remove it from the pool.
+            (
+              $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
+            ).click();
+            await poll(
+              () => tilesNow() === start - i,
+              2_000,
+              `${lane} demo pattern ${i} selected (chain untouched yet)`,
+            );
+            $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
             await poll(
               () =>
-                doc().querySelectorAll(
-                  `.rail-row[data-lane="${lane}"] .rail-tile`,
-                ).length ===
-                4 - i,
-              2000,
-              `${lane} demo chain slot ${i} removed`,
+                $(
+                  `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+                ) !== null,
+              2_000,
+              `${lane} PAT menu (pool remove)`,
+            );
+            (
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+              ) as HTMLButtonElement
+            ).click();
+            await poll(
+              () =>
+                doc().querySelector(
+                  `.rail-row[data-lane="${lane}"] .rail-tools-menu`,
+                ) === null,
+              2_000,
+              `${lane} PAT menu closes after pool remove`,
             );
           }
+          await poll(
+            () => tilesNow() === 1,
+            2_000,
+            `${lane} pool = the dense 4-bar alone (chain followed it)`,
+          );
         };
         const clickCells = (
           lane: string,
@@ -766,7 +960,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           "bass sustained notes committed",
         );
         clickCells("bass", [4, 6], [40, 48, 56]);
-        await stripDemoSlots("bass");
+        await removeDemoPatterns("bass");
 
         // chords: 2 full-length notes — each sounds a 3-voice diatonic triad
         // (compileLaneEvents stack law) → 6 sustained voices, whole pattern.
@@ -779,7 +973,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           3000,
           "chords sustained notes committed",
         );
-        await stripDemoSlots("chords");
+        await removeDemoPatterns("chords");
 
         // lead: 4 sustained long notes (rows 7..13).
         await selectLane("lead");
@@ -790,7 +984,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           3000,
           "lead sustained notes committed",
         );
-        await stripDemoSlots("lead");
+        await removeDemoPatterns("lead");
 
         // drums: last (stays the editable quadrant); hits on every piece.
         // MB-6 setup-integrity fix (the MB-5 gate-integrity finding,
@@ -798,67 +992,27 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // POOL-WIDE (read = any pattern of the lane, write = EVERY pattern)
         // and a step write past a pattern's own length fails validateProject
         // (sparse-array holes → codec reject → the click throws and lands
-        // NOTHING). With the demo's 1-bar patterns still in the pool, the
-        // original `clickCells` at steps ≥ 16 threw silently — the
-        // dense-drums quadrant was ~4× sparser than intended (only steps
-        // 0/8 ever landed, and even those obeyed the pool-wide read against
-        // demo hits). The honest setup strips the four demo patterns from
-        // the POOL first (the PAT menu's RM tool — tile Delete only edits
-        // the CHAIN; MB-5's own phone-gate fix), leaving the fresh 4-bar as
-        // the lane's only pattern: every click then lands ON, in-pattern,
-        // in-length. The gate now ASSERTS the intended density (48/48
+        // NOTHING). With demo patterns still in the pool (1-bar at the
+        // finding, the PX-4 poly-loop shapes today), the original
+        // `clickCells` at out-of-demo-length steps threw silently and
+        // in-length clicks obeyed the pool-wide read against demo hits. The
+        // honest setup strips EVERY demo pattern from the POOL first (the
+        // PAT menu's RM tool — tile Delete only edits the CHAIN; MB-5's own
+        // phone-gate fix), leaving the fresh 4-bar as the lane's only
+        // pattern: every click then lands ON, in-pattern, in-length. The gate now ASSERTS the intended density (48/48
         // painted hits), so the setup can never silently degrade again —
         // and the chain needs no separate strip (the pool removals take
         // the demo chain occurrences with them).
         await selectLane("drums");
         await add4Bar("drums");
-        const removeDrumsDemoPattern = async (): Promise<void> => {
-          const label = "Remove DRUMS selected pattern";
-          $(`.rail-row[data-lane="drums"] .rail-tools-trigger`).click();
-          await poll(
-            () =>
-              $(
-                `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
-              ) !== null,
-            2_000,
-            "drums PAT menu (pool remove)",
-          );
-          (
-            $(
-              `.rail-row[data-lane="drums"] button[aria-label="${label}"]`,
-            ) as HTMLButtonElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelector(
-                `.rail-row[data-lane="drums"] .rail-tools-menu`,
-              ) === null,
-            2_000,
-            "PAT menu closes after pool remove",
-          );
-        };
-        for (let i = 0; i < 4; i++) {
-          // Select the first (demo) tile, then remove it from the pool.
-          ($(`.rail-row[data-lane="drums"] .rail-tile`) as HTMLElement).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-                .length ===
-              5 - i,
-            2_000,
-            `drums demo tile ${i} selected`,
-          );
-          await removeDrumsDemoPattern();
-        }
-        await poll(
-          () =>
-            doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-              .length === 1,
-          2_000,
-          "drums pool = the dense 4-bar alone (chain followed it)",
-        );
-        // The grid follows the pool: back to the 4-bar shape (6 rows × 64)
-        // before the clicks — the intermediate removals left it 16-step.
+        // BC-1 (I3-a): the dense pattern reaches the chain the same
+        // pool-removal way as the other lanes now (see removeDemoPatterns —
+        // the `+` button creates blanks and cannot chain the selected
+        // pattern anymore; the drums RM flow was already doing exactly this).
+        await removeDemoPatterns("drums");
+        // The grid follows the pool: back to the dense 4-bar alone (6 rows
+        // × 64) before the clicks — PX-4's demo drums are 4-bar too, so the
+        // intermediate removals kept a 64-step grid throughout.
         await poll(
           () => floor("drums").querySelectorAll(".cell").length === 6 * 64,
           3_000,
@@ -1502,15 +1656,6 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           $(
             `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
           );
-        const key = (el: Element, k: string): void => {
-          el.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: k,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
         const stepWidth = (lane: string): number => {
           const a = cellAt(lane, 0, 0).getBoundingClientRect();
           const b = cellAt(lane, 0, 1).getBoundingClientRect();
@@ -1583,16 +1728,37 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           pe("pointerup", end);
         };
 
-        /** The active lane's rail row carries ONE PAT trigger (refinement-6). */
+        /**
+         * LL-1 journey delta: the +4B menu button retired with the LENGTH
+         * stepper — the rail `+` creates the blank (1 bar, appended +
+         * selected — BC-1), then the global `b` ladder ×2 grows it.
+         */
         const add4Bar = async (lane: string): Promise<void> => {
-          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
-          $(".rail-tools-trigger").click();
+          // PX-4 re-base: one MORE tile than the demo chain holds (the
+          // poly-loop demo's chains are per-lane — drums 8 tiles, others 4).
+          const tilesBefore = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
+          ($(`.rail-row[data-lane="${lane}"] .rail-append`) as HTMLElement).click();
           await poll(
-            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
+            () =>
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length ===
+              tilesBefore + 1,
             2_000,
-            `${lane} PAT menu open`,
+            `${lane} blank appended`,
           );
-          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
+          await switchLane(lane); // the ladder acts on the ACTIVE lane
+          for (const k of ["b", "b"]) {
+            doc().body.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: k,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          }
           await poll(
             () => {
               const n = floor(lane).querySelectorAll(".cell").length;
@@ -1601,37 +1767,58 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             5_000,
             `${lane} 4-bar phone grid rendered`,
           );
-          (
-            $(
-              `button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
-            ) as HTMLElement
-          ).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(
-                `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
-            2_000,
-            `${lane} dense pattern appended`,
-          );
+          // BC-1 (I3-a): the rail "+" creates a NEW blank pattern now — the
+          // dense pattern stays pool+selected, unchained. Chaining happens
+          // in removeDemoPatterns (the pool-removal law, desktop twin).
         };
 
-        /** Drop the four demo chain slots: the chain = the dense pattern. */
-        const stripDemoSlots = async (lane: string): Promise<void> => {
-          for (let i = 0; i < 4; i++) {
-            const tile = $(`.rail-row[data-lane="${lane}"] .rail-tile`);
-            (tile as HTMLElement).focus();
-            key(tile, "Delete");
+        /**
+         * BC-1 rework (I3-a — phone twin of the desktop helper): strip the
+         * four demo patterns from the POOL via the PAT menu's RM tool; the
+         * chain follows the removals and the last one rebuilds it to exactly
+         * [dense 4-bar] — the arrangement the whole measurement window plays.
+         */
+        const removeDemoPatterns = async (lane: string): Promise<void> => {
+          const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
+          // PX-4 re-base: strip every tile except the appended blank (the
+          // demo pool is per-lane now — drums carry 8 patterns, others 4).
+          const start = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
+          for (let i = 0; i < start - 1; i++) {
+            // Select the first (demo) tile, then remove it from the pool.
+            (
+              $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
+            ).click();
             await poll(
               () =>
                 doc().querySelectorAll(
                   `.rail-row[data-lane="${lane}"] .rail-tile`,
                 ).length ===
-                4 - i,
+                start - i, // LL-1: the rail-`+` blank rides at the chain's end
               2_000,
-              `${lane} demo chain slot ${i} removed`,
+              `${lane} demo pattern ${i} selected (chain untouched yet)`,
+            );
+            $(".rail-tools-trigger").click();
+            await poll(
+              () => doc().querySelector(`button[aria-label="${rmLabel}"]`) !== null,
+              2_000,
+              `${lane} PAT menu (pool remove)`,
+            );
+            ($(`button[aria-label="${rmLabel}"]`) as HTMLElement).click();
+            await poll(
+              () => !doc().querySelector(".rail-tools-menu"),
+              2_000,
+              `${lane} PAT menu closes after pool remove`,
             );
           }
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+                .length === 1,
+            2_000,
+            `${lane} pool = the dense 4-bar alone (chain followed it)`,
+          );
         };
 
         /** Sustained voices covering step 4 (chords stack 3 voices/note). */
@@ -1678,7 +1865,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "bass sustained notes committed",
         );
-        await stripDemoSlots("bass");
+        await removeDemoPatterns("bass");
         await stepSoundTo("bass", "preset", "SUB DROP"); // PS-4 sample voice
 
         // chords: 2 full-length triads → 6 sustained voices.
@@ -1691,7 +1878,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "chords sustained notes committed",
         );
-        await stripDemoSlots("chords");
+        await removeDemoPatterns("chords");
         await stepSoundTo("chords", "preset", "PURE TONE");
 
         // lead: 4 sustained long notes (the densest phone grid: 14 rows).
@@ -1703,7 +1890,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           3_000,
           "lead sustained notes committed",
         );
-        await stripDemoSlots("lead");
+        await removeDemoPatterns("lead");
         await stepSoundTo("lead", "preset", "PHASER UP");
 
         // drums (stays reachable for window B): the densest realistic kit
@@ -1714,50 +1901,18 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // toggle is POOL-WIDE (read = ANY pattern of the lane, write = EVERY
         // pattern) and a step write past a pattern's own length fails
         // validateProject (sparse-array holes → codec reject → the click
-        // throws and lands NOTHING). With the demo's 1-bar patterns in the
-        // pool, clicks at steps ≥17 throw and steps 0–15 obey the pool-wide
-        // read (a demo-hit cell reads "on" and the click turns it OFF — an
-        // invisible no-op). The honest dense setup strips the four demo
-        // patterns from the POOL first (the PAT menu's RM tool — tile Delete
+        // throws and lands NOTHING). With the demo's shorter patterns in
+        // the pool, clicks past their length throw and in-length clicks
+        // obey the pool-wide read (a demo-hit cell reads "on" and the click
+        // turns it OFF — an invisible no-op). The honest dense setup strips
+        // every demo pattern from the POOL first (the PAT menu's RM tool — tile Delete
         // only edits the chain), leaving the fresh 4-bar as the lane's only
         // pattern: every click then lands ON, in-pattern, in-length.
         await switchLane("drums");
         await add4Bar("drums");
-        const removeViaMenu = async (): Promise<void> => {
-          const label = "Remove DRUMS selected pattern";
-          ($(".rail-tools-trigger") as HTMLElement).click();
-          await poll(
-            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
-            2_000,
-            "drums PAT menu (pool remove)",
-          );
-          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
-          await poll(
-            () => !doc().querySelector(".rail-tools-menu"),
-            2_000,
-            "PAT menu closes after pool remove",
-          );
-        };
-        const drumsTiles = () =>
-          doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`);
-        for (let i = 0; i < 4; i++) {
-          // Select the first (demo) tile, then remove it from the pool.
-          (drumsTiles()[0] as HTMLElement).click();
-          await poll(
-            () =>
-              doc().querySelectorAll(`.rail-row[data-lane="drums"] .rail-tile`)
-                .length ===
-              5 - i,
-            2_000,
-            `drums demo tile ${i} selected`,
-          );
-          await removeViaMenu();
-        }
-        await poll(
-          () => drumsTiles().length === 1,
-          2_000,
-          "drums pool = the dense 4-bar alone (chain followed it)",
-        );
+        // BC-1 (I3-a): the dense pattern reaches the chain the same
+        // pool-removal way as the other lanes now (see removeDemoPatterns).
+        await removeDemoPatterns("drums");
         for (const row of [0, 1, 2, 3, 4, 5])
           for (const step of [16, 24, 32, 40, 48, 56, 60])
             cellAt("drums", row, step).click();
@@ -2118,21 +2273,31 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         expect(doc().querySelector(".info-view")).toBeNull();
 
         // --- setup: dense 4-bar bass grid + two resize-target notes ---------
+        // LL-1 journey delta: +4B retired with the LENGTH stepper — the
+        // rail `+` blank (1 bar) then the global `b` ladder ×2.
         await switchLane("bass");
-        ($(".rail-tools-trigger") as HTMLElement).click();
+        ($('.rail-row[data-lane="bass"] .rail-append') as HTMLElement).click();
         await poll(
           () =>
-            doc().querySelector(
-              'button[aria-label="Add 4-bar pattern to BASS"]',
-            ) !== null,
+            doc().querySelectorAll(
+              '.rail-row[data-lane="bass"] .rail-tile',
+            ).length === 5,
           2_000,
-          "bass PAT menu",
+          "bass blank appended",
         );
-        (
-          $('button[aria-label="Add 4-bar pattern to BASS"]') as HTMLElement
-        ).click();
+        for (const k of ["b", "b"]) {
+          doc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
         await poll(
-          () => floor("bass").querySelectorAll(".cell").length % 64 === 0,
+          () =>
+            floor("bass").querySelectorAll(".cell").length > 0 &&
+            floor("bass").querySelectorAll(".cell").length % 64 === 0,
           5_000,
           "bass 4-bar grid",
         );
@@ -2577,5 +2742,626 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
       }
     },
     120_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// TH-5 (a)(b) — long-lane playback frame budget + virtualization laws at
+// the dense mixed-chain state (desktop, 1440×900). The state is LP-1's
+// denseLead128Doc (drums 64B + bass 4B + chords 8B + a dense 128-bar lead;
+// LCM = one 128-bar cycle, per-lane cycles all different — the LL-2 poly-
+// loop visual), imported through the REAL OPEN FILE path so the built app
+// itself owns the document under measurement.
+// ---------------------------------------------------------------------------
+
+describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead)", () => {
+  it(
+    "mixed-length chains (64/16/8/128 bars) playing keep ≥95% frames < 33.4 ms with all four per-lane sweeps live; window census ≪ eager and pattern-independent; the 2048-column fling sweep holds; per-edit blocks < 50 ms",
+    { timeout: 300_000 },
+    async () => {
+      const app = await bootBuiltApp({ width: VIEW_W, height: VIEW_H });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const floor = (lane: string): HTMLElement =>
+          $(`.lane-floor[data-lane="${lane}"]`);
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+        await poll(
+          () =>
+            [...doc().querySelectorAll(".rail-tile-cue")].some(
+              (c) => c.textContent === "VERSE",
+            ),
+          5000,
+          "demo cues",
+        );
+        // TH-4 (c) law carries: every TH-5 measurement runs help-mode-off.
+        expect(doc().querySelector(".help-backdrop")).toBeNull();
+        expect(doc().querySelector(".info-view")).toBeNull();
+
+        // --- the dense long-loop state through the REAL OPEN FILE path ----
+        importDocFile(
+          app,
+          encode(denseLead128Doc()),
+          "th5-dense-long-loop.bitbounce.json",
+        );
+        await poll(
+          () =>
+            railBadge(doc, "drums") === "64B" &&
+            railBadge(doc, "bass") === "4B" &&
+            railBadge(doc, "chords") === "8B" &&
+            railBadge(doc, "lead") === "128B",
+          10_000,
+          "imported dense long-loop doc (mixed chains 64/4/8/128 bars)",
+        );
+
+        // --- (b) the virtualization census law ----------------------------
+        const census0 = doc().querySelectorAll(".cell").length;
+        const runs0 = doc().querySelectorAll(".note-run").length;
+        console.log(
+          `[TH-5 census @dense-128, 1440×900] ${census0.toLocaleString()} cells (${runs0.toLocaleString()} note-runs) — eager ${EAGER_CENSUS_DENSE_128.toLocaleString()} (${((census0 / EAGER_CENSUS_DENSE_128) * 100).toFixed(1)}%)`,
+        );
+        expect(census0).toBeLessThan(LONG_CENSUS_MAX);
+        // Pattern-wide native extents (the sizer) + the sticky layer on the
+        // long-pattern scrollers; the ≤4-bar grid stays EAGER (the LL-1
+        // byte-identity law).
+        const leadH = floor("lead").querySelector<HTMLElement>(
+          ".lane-grid-scroll .grid-hscroll",
+        )!;
+        expect(leadH.querySelector(".grid-col-sizer"), "lead sizer").toBeTruthy();
+        expect(leadH.querySelector(".grid-col-layer"), "lead sticky layer").toBeTruthy();
+        expect(leadH.scrollWidth).toBeGreaterThan(30_000); // 2048 steps × 17 px
+        const drumsH = floor("drums").querySelector<HTMLElement>(
+          ".lane-grid-scroll .grid-hscroll",
+        )!;
+        expect(drumsH.scrollWidth).toBeGreaterThan(15_000); // 1024 × 22 px
+        expect(
+          floor("bass").querySelector(".grid-col-sizer"),
+          "the 4-bar grid stays EAGER",
+        ).toBeNull();
+
+        // --- (b) census vs PATTERN SIZE: grow bass 4→16 bars --------------
+        // The census tracks the WINDOW, never the pattern: the bass pattern's
+        // step count ×4s while its DOM census stays ~constant (an eager
+        // 16-bar bass would be 7 rows × 256 = 1,792 cells).
+        const bassBefore = floor("bass").querySelectorAll(".cell").length;
+        // The ladder acts on the ACTIVE lane: select bass first (the click
+        // also toggles that cell — a legitimate edit on the imported doc).
+        (floor("bass").querySelector(".cell") as HTMLElement).click();
+        await poll(
+          () => floor("bass").dataset.editing === "true",
+          2000,
+          "bass quadrant selected",
+        );
+        for (const k of ["b", "b"]) {
+          doc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
+        await poll(
+          () =>
+            floor("bass").querySelector(".grid-col-sizer") !== null &&
+            railBadge(doc, "bass") === "16B",
+          5_000,
+          "bass grown 4→16 bars (virtualized)",
+        );
+        const bassAfter = floor("bass").querySelectorAll(".cell").length;
+        console.log(
+          `[TH-5 census-vs-pattern] bass 4B→16B (steps ×4): cells ${bassBefore}→${bassAfter} (eager 16-bar would be ${7 * 256})`,
+        );
+        expect(bassAfter).toBeLessThanOrEqual(bassBefore + 400);
+        expect(doc().querySelectorAll(".cell").length).toBeLessThan(
+          LONG_CENSUS_MAX,
+        );
+
+        // --- (a) PLAY, settle, wait for a quiet machine --------------------
+        await clickPlayAndWait(app);
+        // The imported doc's autosave flush (its canonical encode) + the
+        // engine's first schedule generation are one-off costs, not per-frame
+        // render cost (the LP-1 settle precedent).
+        await sleep(1200);
+        await waitForQuietRaf();
+
+        const stats = await new Promise<{
+          intervals: number[];
+          moves: Record<string, number>;
+        }>((resolve) => {
+          const intervals: number[] = [];
+          const moves: Record<string, number> = {
+            drums: 0,
+            bass: 0,
+            chords: 0,
+            lead: 0,
+          };
+          const lastT: Record<string, string> = {};
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            for (const lane of LANES) {
+              const ph =
+                floor(lane).querySelector<HTMLElement>(".grid-playhead");
+              if (ph) {
+                const t = ph.style.transform;
+                if (t && t !== lastT[lane]) {
+                  lastT[lane] = t;
+                  moves[lane]++;
+                }
+              }
+            }
+            if (now - start < MEASURE_MS) requestAnimationFrame(frame);
+            else resolve({ intervals, moves });
+          };
+          requestAnimationFrame(frame);
+        });
+        const sorted = [...stats.intervals].sort((a, b) => a - b);
+        const over = stats.intervals.filter((d) => d >= FRAME_BUDGET_MS);
+        console.log(
+          `[TH-5 long-lane frames @dense-128, 4 s pure rendering] frames=${stats.intervals.length} over33.4ms=${over.length} max=${sorted[sorted.length - 1].toFixed(1)}ms p95=${sorted[Math.floor(sorted.length * 0.95)].toFixed(1)}ms median=${sorted[Math.floor(sorted.length / 2)].toFixed(1)}ms playheadMoves=${JSON.stringify(stats.moves)} (per-lane cycles 64/16/8/128 bars)`,
+        );
+        expect(app.playBtn().textContent).toBe("STOP");
+        for (const lane of LANES) {
+          expect(
+            stats.moves[lane],
+            `${lane} per-lane sweep live (its own cycle length)`,
+          ).toBeGreaterThanOrEqual(
+            (MEASURE_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC,
+          );
+        }
+        expect(stats.intervals.length).toBeGreaterThan(MEASURE_MS / 50);
+        expect(
+          over.length / stats.intervals.length,
+          `${over.length}/${stats.intervals.length} long-lane frames ≥ ${FRAME_BUDGET_MS} ms (max ${sorted[sorted.length - 1].toFixed(1)} ms, median ${sorted[Math.floor(sorted.length / 2)].toFixed(1)} ms)`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+
+        // --- (a) register-window fling sweep on the 2048-column grid ------
+        // (the LP-1 verifier's load-sensitive assert — quiet-poll first, the
+        // ratio itself stays HARD)
+        await waitForQuietRaf();
+        const sweep = sweepScroll(leadH, LONG_SWEEP_MS);
+        const sweepStats = await new Promise<{
+          intervals: number[];
+          maxFirstStep: number;
+          censusMin: number;
+          censusMax: number;
+        }>((resolve) => {
+          const intervals: number[] = [];
+          let maxFirstStep = 0;
+          let censusMin = Infinity;
+          let censusMax = 0;
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            // Window observables (the virtualization laws, DOM-side): the
+            // first rendered cell's PATTERN step (the window origin) and the
+            // census (the pool size).
+            const first = floor("lead").querySelector<HTMLElement>(
+              ".row-cells .cell",
+            );
+            if (first)
+              maxFirstStep = Math.max(maxFirstStep, Number(first.dataset.step));
+            const c = floor("lead").querySelectorAll(".cell").length;
+            censusMin = Math.min(censusMin, c);
+            censusMax = Math.max(censusMax, c);
+            if (now - start < LONG_SWEEP_MS) requestAnimationFrame(frame);
+            else resolve({ intervals, maxFirstStep, censusMin, censusMax });
+          };
+          requestAnimationFrame(frame);
+        });
+        await sweep;
+        const sSorted = [...sweepStats.intervals].sort((a, b) => a - b);
+        const sOver = sweepStats.intervals.filter(
+          (d) => d >= FRAME_BUDGET_MS,
+        );
+        console.log(
+          `[TH-5 fling sweep @2048 cols] frames=${sweepStats.intervals.length} over33.4ms=${sOver.length} max=${sSorted[sSorted.length - 1].toFixed(1)}ms p95=${sSorted[Math.floor(sSorted.length * 0.95)].toFixed(1)}ms median=${sSorted[Math.floor(sSorted.length / 2)].toFixed(1)}ms | window first-step max ${sweepStats.maxFirstStep} | lead census ${sweepStats.censusMin}-${sweepStats.censusMax}`,
+        );
+        expect(
+          sOver.length / sweepStats.intervals.length,
+          `${sOver.length}/${sweepStats.intervals.length} fling frames ≥ ${FRAME_BUDGET_MS} ms (max ${sSorted[sSorted.length - 1].toFixed(1)} ms)`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        expect(
+          sweepStats.maxFirstStep,
+          "the window re-seated during the sweep (rewindows ran)",
+        ).toBeGreaterThan(100);
+        expect(
+          sweepStats.censusMax - sweepStats.censusMin,
+          "pool recycling: the census stayed constant through the rewindows",
+        ).toBeLessThanOrEqual(200);
+
+        leadH.scrollLeft = 0;
+        await poll(
+          () =>
+            floor("lead").querySelector(
+              '.cell[data-row="1"][data-step="16"]',
+            ) !== null,
+          2000,
+          "window re-seated at column 0",
+        );
+
+        // --- (b) bounded time-math: the per-edit long-task guard ----------
+        // The retired O(steps) scan measured 276-438 ms per toggle at this
+        // state; the O(1) lookup sits at 10-21 ms. The < 50 ms assert IS the
+        // no-per-frame-linear-scans law (the §10c re-pin).
+        const blocks: number[] = [];
+        for (let k = 0; k < 5; k++) {
+          const cell = floor("lead").querySelector<HTMLElement>(
+            `.cell[data-row="1"][data-step="${16 + k * 4}"]`,
+          );
+          if (!cell) throw new Error("missing lead toggle cell");
+          const t0 = performance.now();
+          cell.click();
+          blocks.push(performance.now() - t0);
+          await sleep(120);
+        }
+        console.log(
+          `[TH-5 toggle blocks @128-bar lead] ${blocks.map((b) => b.toFixed(0)).join("/")} ms per toggle (store → validate → recompile → renderer sync on the O(1) step lookup)`,
+        );
+        for (const b of blocks)
+          expect(
+            b,
+            `toggle block ${b.toFixed(1)} ms (the §10c re-pin: the 50 ms guard stays HARD)`,
+          ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
+      } finally {
+        await app.teardown();
+      }
+    },
+    300_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// TH-5 (a′) — the long-lane phone window (390×844, the MB-5 stance: CI
+// Chromium is desktop-class hardware emulating the viewport — a regression
+// catch, not a device-class verdict).
+// ---------------------------------------------------------------------------
+
+describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar lead visible)", () => {
+  it(
+    "the phone stage playing the dense long-loop doc keeps ≥95% frames < 33.4 ms (pure render + the 2048-column register sweep); census window-bounded",
+    { timeout: 240_000 },
+    async () => {
+      const app = await bootBuiltApp({ width: PHONE_W, height: PHONE_H });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const floor = (lane: string): HTMLElement =>
+          $(`.lane-floor[data-lane="${lane}"]`);
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const switchLane = async (lane: string): Promise<void> => {
+          ($(`.lane-switch-tab[data-lane="${lane}"]`) as HTMLElement).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(".lane-grid").length === 1 &&
+              doc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
+                lane &&
+              doc().querySelector(
+                `.lane-floor[data-lane="${lane}"] .cell`,
+              ) !== null,
+            4_000,
+            `${lane} phone stage (single floor + cells)`,
+          );
+        };
+
+        await poll(
+          () => $(".app").getAttribute("data-stage") === "phone",
+          5_000,
+          "data-stage=phone at 390×844",
+        );
+        await poll(
+          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          5_000,
+          "demo chain tiles (phone boot signal)",
+        );
+        expect(doc().querySelector(".help-backdrop")).toBeNull();
+        expect(doc().querySelector(".info-view")).toBeNull();
+
+        // LEAD displayed, then the dense long-loop doc through OPEN FILE
+        // (the audio state is viewport-independent — all four lanes play;
+        // the phone renders the one 2048-step lead grid).
+        await switchLane("lead");
+        importDocFile(
+          app,
+          encode(denseLead128Doc()),
+          "th5-dense-long-loop.bitbounce.json",
+        );
+        await poll(
+          () =>
+            doc().querySelectorAll(".lane-grid").length === 1 &&
+            railBadge(doc, "lead") === "128B" &&
+            floor("lead").querySelector(".cell") !== null,
+          10_000,
+          "imported dense long-loop doc on the phone stage (lead 128B)",
+        );
+
+        // Census: the phone's single 2048-step lead grid rides the same
+        // column window (eager would be 15 × 2048 = 30,720 cells).
+        const census = doc().querySelectorAll(".cell").length;
+        console.log(
+          `[TH-5 census @dense-128 lead, 390×844] ${census.toLocaleString()} cells (eager was ${(15 * 2048).toLocaleString()})`,
+        );
+        expect(census).toBeLessThan(LONG_CENSUS_MAX);
+        const leadH = floor("lead").querySelector<HTMLElement>(
+          ".lane-grid-scroll .grid-hscroll",
+        )!;
+        expect(leadH.scrollWidth).toBeGreaterThan(30_000);
+
+        await clickPlayAndWait(app);
+        await sleep(1000);
+        await waitForQuietRaf();
+
+        // Window 1 — pure render + the visible lane's sweep liveness.
+        const win1 = await new Promise<{
+          intervals: number[];
+          moves: number;
+        }>((resolve) => {
+          const intervals: number[] = [];
+          let moves = 0;
+          let lastTransform = "";
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            const ph = doc().querySelector<HTMLElement>(".grid-playhead");
+            if (ph) {
+              const t = ph.style.transform;
+              if (t && t !== lastTransform) {
+                lastTransform = t;
+                moves++;
+              }
+            }
+            if (now - start < PHONE_WINDOW_MS) requestAnimationFrame(frame);
+            else resolve({ intervals, moves });
+          };
+          requestAnimationFrame(frame);
+        });
+
+        // Window 2 — the register sweep (quiet-poll first; the ratio HARD).
+        await waitForQuietRaf();
+        const sweep = sweepScroll(leadH, LONG_SWEEP_MS);
+        const win2 = await new Promise<number[]>((resolve) => {
+          const intervals: number[] = [];
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            if (now - start < LONG_SWEEP_MS) requestAnimationFrame(frame);
+            else resolve(intervals);
+          };
+          requestAnimationFrame(frame);
+        });
+        await sweep;
+
+        const report = (label: string, intervals: number[]): string => {
+          const s = [...intervals].sort((a, b) => a - b);
+          const o = intervals.filter((d) => d >= FRAME_BUDGET_MS).length;
+          return `[TH-5 ${label} @390×844] frames=${intervals.length} over33.4ms=${o} max=${s[s.length - 1].toFixed(1)}ms median=${s[Math.floor(s.length / 2)].toFixed(1)}ms`;
+        };
+        console.log(report("phone pure render", win1.intervals));
+        console.log(report("phone register sweep", win2));
+
+        expect(app.playBtn().textContent).toBe("STOP");
+        for (const intervals of [win1.intervals, win2]) {
+          expect(intervals.length).toBeGreaterThan(PHONE_WINDOW_MS / 50);
+          const o = intervals.filter((d) => d >= FRAME_BUDGET_MS).length;
+          expect(
+            o / intervals.length,
+            `${o}/${intervals.length} phone frames ≥ ${FRAME_BUDGET_MS} ms`,
+          ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        }
+        expect(win1.moves).toBeGreaterThanOrEqual(
+          (PHONE_WINDOW_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC,
+        );
+      } finally {
+        await app.teardown();
+      }
+    },
+    240_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// TH-5 (c) — export-cost ceiling. Source-mount block (the LP-1 (d)
+// precedent): the REAL offline render pipeline; globalSetup builds this
+// exact source, and the render path owns its own OfflineAudioContext. The
+// 128-bar worst case stays XP-1's RECORDED determinism probe
+// (tests/browser/audio-determinism.test.ts — one ~9 s case per battery,
+// CI-cost discipline); this gate pins the 64-bar render the export UI
+// actually spans for the user's own poly-loop shape.
+// ---------------------------------------------------------------------------
+
+describe("TH-5 (c) export-cost ceiling (REAL offline render, 64-bar gate render)", () => {
+  it(
+    "the 64-bar musical-density LCM render stays under the pinned wall-time ceiling; loop buffer + heap delta recorded",
+    { timeout: 120_000 },
+    async () => {
+      const heapBefore = heapUsed();
+      const t0 = performance.now();
+      const rendered = await renderProjectToBuffer(longLoopDoc("user64"));
+      const wallMs = performance.now() - t0;
+      const heapAfter = heapUsed();
+      // 64 bars @120 BPM = 1024 steps × 0.125 s = 128 s of audio.
+      expect(rendered.loopSteps).toBe(64 * 16);
+      expect(rendered.loopSamples).toBe(Math.round(1024 * 0.125 * 44100));
+      const mb = (rendered.loopSamples * 4 * 2) / (1024 * 1024);
+      const audioSec = rendered.loopSamples / 44100;
+      console.log(
+        `[TH-5 export 64-bar ceiling] ${(wallMs / 1000).toFixed(2)} s wall for ${audioSec.toFixed(0)} s audio (x${(audioSec / (wallMs / 1000)).toFixed(0)} real-time) | loop buffer ${mb.toFixed(0)} MB | heap delta ${heapBefore !== undefined && heapAfter !== undefined ? ((heapAfter - heapBefore) / (1024 * 1024)).toFixed(0) : "n/a"} MB | ceiling ${(EXPORT64_CEILING_MS / 1000).toFixed(0)} s`,
+      );
+      // Sanity: finite + non-silent (a ceiling on a silent render is a lie).
+      const mono = rendered.channels[0]!;
+      let peak = 0;
+      for (let i = 0; i < mono.length; i += 997) {
+        const v = Math.abs(mono[i]!);
+        if (!Number.isFinite(v)) throw new Error("non-finite sample");
+        if (v > peak) peak = v;
+      }
+      expect(peak).toBeGreaterThan(0.01);
+      // THE ceiling — a regression bound from the measured band (perf-budget
+      // §10d: method + date), not a UX promise.
+      expect(
+        wallMs,
+        `64-bar gate render wall ${(wallMs / 1000).toFixed(2)} s (ceiling ${EXPORT64_CEILING_MS / 1000} s)`,
+      ).toBeLessThan(EXPORT64_CEILING_MS);
+    },
+    120_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// TH-5 (d) — width-utilization perf (FV-1's perf half): the DENSIFIED
+// 1920×1080 stage holds the frame budget while playing. The utilization +
+// densification LAWS live in viewport-utilization.test.ts (assertions-only);
+// this gate adds the frame-budget window FV-1 left uncovered.
+// ---------------------------------------------------------------------------
+
+describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", () => {
+  it(
+    "the demo + 4-bar lead playing at 1920×1080 keep ≥95% frames < 33.4 ms, all four playheads live (the wide quadrant, not a capped stage)",
+    { timeout: 180_000 },
+    async () => {
+      await page.viewport(1920, 1080);
+      try {
+        const app = await bootBuiltApp({ width: 1920, height: 1080 });
+        try {
+          const doc = app.doc;
+          const $ = <T extends Element>(sel: string): T => {
+            const el = doc().querySelector<T>(sel);
+            if (!el) throw new Error(`missing ${sel}`);
+            return el;
+          };
+          const floor = (lane: string): HTMLElement =>
+            $(`.lane-floor[data-lane="${lane}"]`);
+          const sleep = (ms: number) =>
+            new Promise((r) => setTimeout(r, ms));
+
+          await poll(
+            () =>
+              [...doc().querySelectorAll(".rail-tile-cue")].some(
+                (c) => c.textContent === "VERSE",
+              ),
+            5000,
+            "demo cues",
+          );
+          expect(doc().querySelector(".help-backdrop")).toBeNull();
+          expect(doc().querySelector(".info-view")).toBeNull();
+
+          // FV-1's measurement shape: the lead demo pattern grown to 4 bars
+          // (the ladder ×2 — the +4B button retired with the LENGTH stepper).
+          floor("lead").click(); // select the quadrant (the ladder's lane)
+          await sleep(150);
+          for (const k of ["b", "b"]) {
+            doc().body.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: k,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          }
+          await poll(
+            () =>
+              (
+                floor("lead").querySelector(".grid-row .row-cells")
+                  ?.querySelectorAll(".cell").length ?? 0
+              ) === 64,
+            5_000,
+            "4-bar lead pattern rendered (first row = 64 steps)",
+          );
+          // The measurement runs on the DENSIFIED stage, not a capped one:
+          // at 1920 the quadrant spans ~944 px (FV-1's measured 704 at 1440;
+          // the retired 1400 px cap would leave ~660).
+          const leadW = floor("lead").getBoundingClientRect().width;
+          expect(
+            leadW,
+            `the 1920 stage is densified (lead quadrant ${leadW.toFixed(0)} px wide)`,
+          ).toBeGreaterThan(900);
+
+          await clickPlayAndWait(app);
+          await sleep(700);
+          await waitForQuietRaf();
+
+          const stats = await new Promise<{
+            intervals: number[];
+            moves: Record<string, number>;
+          }>((resolve) => {
+            const intervals: number[] = [];
+            const moves: Record<string, number> = {
+              drums: 0,
+              bass: 0,
+              chords: 0,
+              lead: 0,
+            };
+            const lastT: Record<string, string> = {};
+            let last = performance.now();
+            const start = last;
+            const frame = () => {
+              const now = performance.now();
+              intervals.push(now - last);
+              last = now;
+              for (const lane of LANES) {
+                const ph =
+                  floor(lane).querySelector<HTMLElement>(".grid-playhead");
+                if (ph) {
+                  const t = ph.style.transform;
+                  if (t && t !== lastT[lane]) {
+                    lastT[lane] = t;
+                    moves[lane]++;
+                  }
+                }
+              }
+              if (now - start < MEASURE_MS) requestAnimationFrame(frame);
+              else resolve({ intervals, moves });
+            };
+            requestAnimationFrame(frame);
+          });
+          const sorted = [...stats.intervals].sort((a, b) => a - b);
+          const over = stats.intervals.filter((d) => d >= FRAME_BUDGET_MS);
+          console.log(
+            `[TH-5 densified stage @1920×1080, 4 s] frames=${stats.intervals.length} over33.4ms=${over.length} max=${sorted[sorted.length - 1].toFixed(1)}ms p95=${sorted[Math.floor(sorted.length * 0.95)].toFixed(1)}ms median=${sorted[Math.floor(sorted.length / 2)].toFixed(1)}ms playheadMoves=${JSON.stringify(stats.moves)} | lead quadrant ${leadW.toFixed(0)} px`,
+          );
+          expect(app.playBtn().textContent).toBe("STOP");
+          for (const lane of LANES) {
+            expect(
+              stats.moves[lane],
+              `${lane} playhead live at 1920×1080`,
+            ).toBeGreaterThanOrEqual(
+              (MEASURE_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC,
+            );
+          }
+          expect(stats.intervals.length).toBeGreaterThan(MEASURE_MS / 50);
+          expect(
+            over.length / stats.intervals.length,
+            `${over.length}/${stats.intervals.length} densified-stage frames ≥ ${FRAME_BUDGET_MS} ms (max ${sorted[sorted.length - 1].toFixed(1)} ms)`,
+          ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        } finally {
+          await app.teardown();
+        }
+      } finally {
+        await page.viewport(1280, 800); // restore the harness viewport
+      }
+    },
+    180_000,
   );
 });

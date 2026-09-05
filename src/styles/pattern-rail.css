@@ -44,17 +44,23 @@
 
 /*
  * Refinement-4 (critique P2-5, the 1280×800 one-page breach — horizontal
- * half): the rail BOX must never exceed the stage. `width: 100%` on this
+ * half): the rail BOX must never exceed the page. `width: 100%` on this
  * content-box element ADDED its own horizontal padding on top (2 ×
  * --space-5 = 32 px), so the box measured 1312 px inside a 1280 viewport —
- * the 32 px page h-scroll the entry-2 verifier recorded. At ≥1432 px
- * viewports the 1400 px max-width clamp hid the bug (box 1432 px); calc()
- * subtracts the padding so the OUTER box fits at every width while those
- * viewports stay byte-identical (1400 px content, 1432 px box).
+ * the 32 px page h-scroll the entry-2 verifier recorded. calc()
+ * subtracts the padding so the OUTER box fits at every width.
+ *
+ * FV-1 (i3-6 / I3-b): the 1400px max-width clamp is RETIRED with the
+ * stage's — the twin of the app.css cap (one centered-vacancy law). The
+ * arrangement surface fills the viewport width like the booth above it
+ * and the quadrants below; rail rows gain tile room at wide viewports
+ * (the 15-tile single-line law keeps MORE room, never less). The clamp
+ * only ever bit at ≥1432px viewports, so 1280 and the mobile family are
+ * byte-identical (the calc() never-exceeds-the-page law above stays the
+ * load-bearing one).
  */
 .rail {
   --lane-hue: var(--color-ink);
-  max-width: 1400px;
   width: calc(100% - 2 * var(--space-5));
   margin: 0 auto;
   padding: var(--space-3) var(--space-5) 0;
@@ -470,6 +476,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  /* merge 2026-09-05: stays 216px here (main's phone law — the condensed
+   * stage's abspos popover must not reach into the lane-switcher's tap
+   * lane: widening to fit LL-1's three-across LENGTH row reddens the
+   * MB-2 phone tap gate, verified by scratch-revert). The desktop/tablet
+   * seat for the un-crushed LENGTH row is the :not(phone) rule below. */
   max-width: 216px;
   padding: var(--space-3);
   /* T6: the floating machined chassis (the scale-pop vocabulary — brushed
@@ -507,6 +518,51 @@
 .rail-tool:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/*
+ * LL-1 (i3-4): the LENGTH stepper group inside the PAT tools menu — the
+ * gate-stepper vocabulary (buttons flanking a value span; the span carries
+ * the live `LENGTH <n> BARS` readout). The menu's flex-wrap row carries it;
+ * the span is a plain chip (never interactive, always text-readable).
+ */
+.rail-length {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.rail-length-value {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 11ch;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/*
+ * merge 2026-09-05 (main -> hardware-ui): the LENGTH row under the machined
+ * key faces, DESKTOP/TABLET ONLY. The mono value voice runs wider than the
+ * fork-era font main's 11ch floor sized — "LENGTH 1 BAR" measures 12ch and
+ * the probe caught the final R clipped ("LENGTH 1 BA"), the longest stable
+ * readout "LENGTH 128 BARS" is 15ch. 15ch floors the longest text in ONE
+ * stable box (no reflow between presses — main's own intent, re-sized to
+ * the machined metrics), and the popover cap grows to seat the three-across
+ * row un-crushed (two ~72px keys + 15ch chip + gaps + padding ≈ 274px
+ * min-content; at 216 the flex row crushed the keys and clipped the chip).
+ * The popover is abspos against the row — the extra width floats leftward
+ * over the full-width rail, no row growth. PHONE keeps main's exact 216px/
+ * 11ch geometry: the condensed stage's popover must not reach into the
+ * lane-switcher's tap lane (widening it reddens the MB-2 phone tap gate —
+ * verified by scratch-revert + green re-run), so the phone chip carries
+ * main's own ~2px inherited clip as a recorded follow-up, not a hack.
+ */
+.app:not([data-stage="phone"]) .rail-tools-menu {
+  max-width: 280px;
+}
+
+.app:not([data-stage="phone"]) .rail-length-value {
+  min-width: 15ch;
 }
 
 .rail-edit {

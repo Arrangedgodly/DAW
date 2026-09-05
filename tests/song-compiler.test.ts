@@ -24,7 +24,7 @@ const GATE = { unit: "steps", value: 1 } as const;
 
 function drumPattern(
   id: string,
-  bars: 1 | 2 | 4,
+  bars: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128,
   onSteps: number[],
 ): DrumPattern {
   const kick = new Array(16 * bars).fill(false);
@@ -124,6 +124,36 @@ describe("compileLaneSchedule", () => {
     // Pattern-local times are exact (loop-relative within the pattern).
     expect(schedule.byStep.get(19)![0].time).toBe(timeAtStep(3, groove));
     expect(schedule.byStep.get(53)![0].time).toBe(timeAtStep(5, groove));
+  });
+
+  // LL-1 (seam J14, i3-4): the vocabulary extends to 128 bars — chain math
+  // and the bounded event→step inversion hold at the widened sizes.
+  it("LL-1: 8-bar + 128-bar chain segments are exact; events land on their real steps past 63", () => {
+    // A(8 bars, kick at 100), B(128 bars, kick at 2000).
+    const chain = [
+      drumPattern("A", 8, [100]),
+      drumPattern("B", 128, [2000]),
+    ];
+    const groove = { bpm: 120, swing: 0 };
+    const schedule = compileLaneSchedule({
+      chain,
+      preset: KIT,
+      gate: GATE,
+      groove,
+    });
+
+    expect(schedule.chainSteps).toBe(128 + 2048); // 2176
+    expect(schedule.segments).toEqual([
+      { patternId: "A", startStep: 0, steps: 128 },
+      { patternId: "B", startStep: 128, steps: 2048 },
+    ]);
+    // The 128-bar pattern's step-2000 kick lands at its own chain step —
+    // never collapsed by the old O(steps) scan's window assumptions.
+    expect([...schedule.byStep.keys()].sort((a, b) => a - b)).toEqual([
+      100, 2128,
+    ]);
+    expect(schedule.byStep.get(100)![0].time).toBe(timeAtStep(100, groove));
+    expect(schedule.byStep.get(2128)![0].time).toBe(timeAtStep(2000, groove));
   });
 
   it("swing stays pattern-local exact: segment offsets are even, parity preserved", () => {

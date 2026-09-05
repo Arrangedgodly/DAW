@@ -133,3 +133,51 @@ export function isLaneMoveKey(key: string, ctrl: boolean): -1 | 1 | null {
   if (ctrl && key === "ArrowDown") return 1;
   return null;
 }
+
+/* ---------------------------------------------------------------------------
+ * RC-1 (v3): register-window math — pure so the whole window law is
+ * unit-testable without a DOM (the spec's "Where things live" row: clamp +
+ * focus-anchor live here). The window is a scroll POSITION of the grid body
+ * (docs/dev/keyboard.md §"Register window scroll"); `start` is the index of
+ * the first VISIBLE row over the full row manifest.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Clamp a window start into [0, rows − windowRows] (the manifest bounds; a
+ * manifest that fits the window has exactly one legal start, 0).
+ */
+export function clampWindowStart(
+  start: number,
+  rows: number,
+  windowRows: number,
+): number {
+  const maxStart = Math.max(0, rows - windowRows);
+  return Math.min(Math.max(Math.round(start), 0), maxStart);
+}
+
+/**
+ * THE FOCUS-ANCHOR LAW (E9): a Shift+↑/↓ window scroll may never move the
+ * focused row out of view — the target clamps BOTH at the manifest bounds
+ * AND at the last position that keeps `focusRow` visible
+ * (start ≤ focusRow ≤ start + windowRows − 1). A target equal to the current
+ * start is the blocked no-op the renderer announces as the edge.
+ */
+export function clampedWindowScroll(
+  start: number,
+  dir: -1 | 1,
+  focusRow: number,
+  rows: number,
+  windowRows: number,
+): number {
+  const maxStart = Math.max(0, rows - windowRows);
+  // Manifest bounds first …
+  let target = Math.min(Math.max(start + dir * windowRows, 0), maxStart);
+  // … then the anchor window [focusRow − windowRows + 1, focusRow] (which is
+  // never empty for windowRows ≥ 1), re-clamped at the manifest bounds so an
+  // anchor row below the first window cannot push the start negative.
+  target = Math.min(
+    Math.max(target, focusRow - windowRows + 1),
+    Math.max(focusRow, 0),
+  );
+  return Math.min(Math.max(target, 0), maxStart);
+}

@@ -1,13 +1,15 @@
 /**
  * PX-1 browser tests — the WELCOME SONG demo, rendered OFFLINE through the
  * REAL worklet + FX graph (same path as WAV export). Nobody on the machine
- * can listen on CI's behalf (the human listen is explicitly R12's session),
- * so musicality is verified acoustically-by-metric:
+ * can listen on CI's behalf (the human listen stays the pending-human
+ * carry), so musicality is verified acoustically-by-metric. PX-4 re-based
+ * to the POLY-LOOP arrangement: the render spans the 8-BAR LCM CYCLE
+ * (chords 8B · drums 4B · lead 4B · bass 4B):
  *
  *  - clean, non-clipping mix (finite samples, 0.05 < peak < 0.95);
- *  - energy present in every bar (all 4 chain slots actually sound);
- *  - downbeat transients at every bar start (kick + chord + bass land at
- *    steps 0/16/32/48 — RMS jumps at each expected onset step);
+ *  - energy present in every bar of the whole 32-bar cycle;
+ *  - downbeat transients at every bar start (kick + chord + bass land on
+ *    every bar's step 0 — RMS jumps at each expected onset);
  *  - the loop is not a wall of sound: the gap between the melody's opening
  *    rest and its first attack is measurable (bar-1 RMS before the lead's
  *    first note is lower than after — the arrangement breathes).
@@ -19,6 +21,8 @@ import { renderProjectToBuffer } from "../../src/audio/render";
 import { assertCleanAudio, findNonFinite } from "./helpers";
 
 const SAMPLE_RATE = 44100;
+/** PX-4: the demo's song cycle — the LCM of the lane chain totals (bars). */
+const CYCLE_BARS = 8;
 
 function rms(buf: Float32Array, from: number, to: number): number {
   let sum = 0;
@@ -30,15 +34,17 @@ function rms(buf: Float32Array, from: number, to: number): number {
 
 describe("PX-1 demo song — offline render metrics (real worklet + FX)", () => {
   it(
-    "renders a clean, energetic, non-clipping 4-bar loop with onsets at the bar grid",
+    "renders a clean, energetic, non-clipping 8-bar poly-loop cycle with onsets at the bar grid",
     { timeout: 180000 },
     async () => {
       const rendered = await renderProjectToBuffer(createDemoProject());
       const [left, right] = rendered.channels;
 
-      // Shape: 4-bar loop @112 BPM → 4 bars × 4 beats × 23625 samples.
+      // Shape: the LCM cycle @112 BPM → 8 bars × 4 beats × 23625 samples.
       expect(rendered.sampleRate).toBe(SAMPLE_RATE);
-      expect(rendered.loopSamples).toBe(4 * 4 * ((SAMPLE_RATE * 60) / 112));
+      expect(rendered.loopSamples).toBe(
+        CYCLE_BARS * 4 * ((SAMPLE_RATE * 60) / 112),
+      );
 
       // (a) Clean + non-clipping: finite everywhere, peak in (0.05, 0.95).
       const peak = assertCleanAudio([left, right], "demo", {
@@ -53,9 +59,10 @@ describe("PX-1 demo song — offline render metrics (real worklet + FX)", () => 
       for (let i = 0; i < left.length; i++)
         mono[i] = (left[i]! + right[i]!) / 2;
 
-      // (b) Energy present in EVERY bar (each chain slot actually sounds).
-      const barSamples = rendered.loopSamples / 4;
-      for (let bar = 0; bar < 4; bar++) {
+      // (b) Energy present in EVERY bar of the whole cycle (every lane's
+      // every chain slot actually sounds across its own shorter cycle too).
+      const barSamples = rendered.loopSamples / CYCLE_BARS;
+      for (let bar = 0; bar < CYCLE_BARS; bar++) {
         const energy = rms(mono, bar * barSamples, (bar + 1) * barSamples);
         expect(energy).toBeGreaterThan(0.01);
       }
@@ -63,9 +70,10 @@ describe("PX-1 demo song — offline render metrics (real worklet + FX)", () => 
       // (c) Downbeat transients on the bar grid: RMS in the 40 ms AFTER each
       // bar start is clearly higher than the 40 ms just before it. Kick +
       // bass + chord all land on step 0 of each bar (structurally asserted
-      // in tests/demoSong.test.ts; here we hear the mix prove it).
+      // in tests/demoSong.test.ts; here we hear the mix prove it) — every
+      // one of the 32 bars, the poly-loop arc included.
       const w = 0.04 * SAMPLE_RATE;
-      for (let bar = 0; bar < 4; bar++) {
+      for (let bar = 0; bar < CYCLE_BARS; bar++) {
         const t = bar * barSamples;
         const before = rms(mono, t - w, t - 2);
         const after = rms(mono, t + 2, t + w);

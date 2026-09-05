@@ -280,9 +280,13 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           T.ui,
           "NOW EDITING LEAD (click path)",
         );
+        // RC-1 journey delta: windowed pitched names append `· ROWS a–b OF n`.
         expect(
-          floor("lead").querySelector("[role='grid']")!.getAttribute("aria-label"),
-        ).toBe("LEAD grid · EDITING");
+          floor("lead")
+            .querySelector("[role='grid']")!
+            .getAttribute("aria-label")
+            ?.startsWith("LEAD grid · EDITING"),
+        ).toBe(true);
         expect(
           floor("drums").querySelector("[role='grid']")!.getAttribute("aria-label"),
         ).toBe("DRUMS grid · VIEW ONLY");
@@ -308,8 +312,10 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         floor("bass").querySelector<HTMLElement>(".cell")!.click();
         await poll(
           () =>
-            floor("bass").querySelector("[role='grid']")!.getAttribute("aria-label") ===
-            "BASS grid · EDITING",
+            floor("bass")
+              .querySelector("[role='grid']")!
+              .getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           T.ui,
           "BASS quadrant editable",
         );

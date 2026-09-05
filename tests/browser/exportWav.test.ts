@@ -25,6 +25,8 @@ import {
   EXPORT_SAMPLE_RATE,
 } from "../../src/audio/render";
 import { exportWav } from "../../src/audio/exportWav";
+import { secondsPerStep } from "../../src/audio/time";
+import { wideUnequalChainProject } from "../exportLcmReference";
 import type { DownloadSeam } from "../../src/persist/fileIO";
 
 // ---------------------------------------------------------------------------
@@ -239,6 +241,110 @@ describe("MF-4 WAV export — the file IS the loop (real render + encoder)", () 
       // Seam continuity in the file itself: last sample → first sample, no spike.
       const seamJump = Math.abs(wav.channels[0][0] - wav.channels[0][L - 1]);
       expect(seamJump).toBeLessThan(0.5);
+    },
+  );
+
+  // XP-1 (i3-5): the export is EXACTLY one LCM cycle — the plan's own probe
+  // (I3-d): drums 64B + bass 4B + chords 8B (+ the default 1-bar lead) →
+  // the export is 64 bars, loopSteps × secondsPerStep to the SAMPLE, the
+  // shorter lanes' content repeating within the cycle (audibly: the last
+  // 4-bar window — the 16th bass iteration — matches the first), and the
+  // seam loop-perfect at scale.
+  it(
+    "XP-1: unequal chains export EXACTLY one LCM cycle (64 bars, sample-exact)",
+    { timeout: 240000 },
+    async () => {
+      const doc = wideUnequalChainProject();
+
+      const t0 = performance.now();
+      const rendered = await renderProjectToBuffer(doc);
+      const renderMs = performance.now() - t0;
+      console.log(
+        `[xp1] 64-bar LCM offline render wall: ${Math.round(renderMs)} ms`,
+      );
+
+      // The LCM law, pure math first: lcm(1024, 64, 128, 16) = 1024 steps.
+      expect(rendered.loopSteps).toBe(64 * 16);
+      // loopSamples = round(loopSteps × secondsPerStep × 44100), and at
+      // 120 BPM the integer bars×beats law gives the same number exactly.
+      const expectedSamples = Math.round(
+        64 * 16 * secondsPerStep(120) * EXPORT_SAMPLE_RATE,
+      );
+      expect(expectedSamples).toBe(64 * 4 * 22050); // 5,644,800, integer
+      expect(rendered.loopSamples).toBe(expectedSamples);
+      for (const ch of rendered.channels)
+        expect(ch).toHaveLength(rendered.loopSamples);
+
+      // Export through the SAME render (the injectable seam keeps this at
+      // ONE 64-bar render — CI-time honesty; the trim+encode path is what
+      // runs): the file IS the loop, byte-for-byte our own encoder's law.
+      const cap = captureSeam();
+      const result = await exportWav(doc, {
+        seam: cap.seam,
+        render: () => Promise.resolve(rendered),
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.bars).toBe(64);
+      expect(result.loopSamples).toBe(expectedSamples);
+
+      const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
+      const wav = parseWav16Stereo(bytes);
+      // Parse-back: headers exact, frames = the LCM's loopSamples exactly.
+      expect(wav.audioFormat).toBe(1);
+      expect(wav.channelsCount).toBe(2);
+      expect(wav.bits).toBe(16);
+      expect(wav.sampleRate).toBe(EXPORT_SAMPLE_RATE);
+      expect(wav.frames).toBe(expectedSamples);
+      expect(wav.dataBytes).toBe(expectedSamples * 4);
+      expect(wav.riffSize).toBe(bytes.byteLength - 8);
+      expect(bytes.byteLength).toBe(44 + expectedSamples * 4);
+
+      // Byte-equality with the pure encoder over the SAME render: the
+      // defensive trim + encode changed nothing. (Manual byte compare —
+      // deep-equal on a 22.6 MB typed array is too slow for CI; the HW-5
+      // manual-compare precedent.)
+      const { encodeWav16 } = await import("../../src/audio/wav");
+      const expectBytes = encodeWav16(rendered.channels, rendered.sampleRate);
+      let diffAt = -1;
+      for (let i = 0; i < expectBytes.length; i++) {
+        if (bytes[i] !== expectBytes[i]) {
+          diffAt = i;
+          break;
+        }
+      }
+      expect(
+        diffAt,
+        `exported file differs from encodeWav16(render) at byte ${diffAt}`,
+      ).toBe(-1);
+
+      // Loop-perfect seam at scale: last sample → first sample, no spike.
+      const seamJump = Math.abs(
+        wav.channels[0][0] - wav.channels[0][wav.frames - 1],
+      );
+      expect(seamJump).toBeLessThan(0.5);
+
+      // The LCM fill is AUDIBLE, not notational: the bass repeats every 4
+      // bars (the 16th iteration lives in the last 4-bar window), so the
+      // first and last 4-bar windows carry the same composition. Compare
+      // their energy — a lane-local export (the pre-XP-1 bug shape) would
+      // end at 4 bars and this file would not exist past bar 4 at all.
+      const barSamples = 4 * 22050;
+      const rms = (from: number, to: number) => {
+        let sum = 0;
+        for (let i = from; i < to; i++) {
+          const x = wav.channels[0][i];
+          sum += x * x;
+        }
+        return Math.sqrt(sum / (to - from));
+      };
+      const first = rms(0, barSamples * 4);
+      const last = rms(
+        wav.frames - barSamples * 4,
+        wav.frames - barSamples,
+      );
+      expect(first).toBeGreaterThan(0.01); // real signal, not silence
+      expect(Math.abs(first - last)).toBeLessThan(first * 0.1);
     },
   );
 });

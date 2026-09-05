@@ -97,6 +97,30 @@ function projectFullFx(): ProjectDocument {
   return doc;
 }
 
+/**
+ * XP-1 (i3-5): the 128-bar worst case — one lane at the top of the v3
+ * powers-of-two vocabulary (2048 steps ≈ 4.3 min @120 BPM) against the
+ * default 1-bar lanes. The export cycle is the LCM = 2048 steps; drums
+ * four-on-the-floor across the whole extent keeps real signal everywhere
+ * (the fold seam included).
+ */
+function project128Bars(): ProjectDocument {
+  const doc = projectPlain();
+  const drums = doc.patterns.drums[0];
+  if (drums.kind !== "drums") throw new Error("expected drums");
+  drums.bars = 128;
+  const len = 128 * 16;
+  drums.steps = {
+    kick: Array.from({ length: len }, (_, i) => i % 4 === 0),
+    snare: Array.from({ length: len }, (_, i) => i % 8 === 4),
+    hat: Array.from({ length: len }, (_, i) => i % 2 === 0),
+    openhat: new Array<boolean>(len).fill(false),
+    clap: new Array<boolean>(len).fill(false),
+    tom: new Array<boolean>(len).fill(false),
+  };
+  return doc;
+}
+
 interface DeterminismCase {
   name: string;
   doc: () => ProjectDocument;
@@ -115,6 +139,11 @@ const CASES: DeterminismCase[] = [
     name: "demo song (4 dense lanes, 4-pattern chains)",
     doc: createDemoProject,
   },
+  // XP-1 (i3-5): deterministic offline render at the 128-bar WORST CASE —
+  // the IM-5 fold law holds at the new scale (loopSteps 2048, ~11.3M
+  // samples/channel; the recorded wall-time probe for the busy-guard UX:
+  // both renders run concurrently, matching the suite's Promise.all law).
+  { name: "XP-1: 128-bar worst case (LCM 2048 steps, fold at scale)", doc: project128Bars },
 ];
 
 describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
@@ -122,10 +151,18 @@ describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
     "same project rendered twice is bit-identical: $name",
     { timeout: 120000 },
     async ({ doc }) => {
+      const t0 = performance.now();
       const [a, b] = await Promise.all([
         renderProjectToBuffer(doc()),
         renderProjectToBuffer(doc()),
       ]);
+      // XP-1 recorded probe: the wall-time of the worst case (concurrent
+      // double render — the number the busy-guard UX is sized against).
+      if (a.loopSteps >= 2048) {
+        console.log(
+          `[xp1] 128-bar worst case: ${a.loopSamples} samples/ch, concurrent double render ${Math.round(performance.now() - t0)} ms wall`,
+        );
+      }
 
       // Metadata identical (loop/tail math is pure — swing must not move it).
       expect(a.loopSamples).toBe(b.loopSamples);
@@ -133,6 +170,11 @@ describe("HW-2 double-render determinism (real worklet + FX graph)", () => {
       expect(a.loopSteps).toBe(b.loopSteps);
       expect(a.sampleRate).toBe(EXPORT_SAMPLE_RATE);
       expect(b.sampleRate).toBe(EXPORT_SAMPLE_RATE);
+      // XP-1: the 128-bar case's cycle IS the LCM law (2048 steps, and the
+      // sample math is integer-exact at 44100).
+      if (a.loopSteps === 2048) {
+        expect(a.loopSamples).toBe(128 * 4 * ((44100 * 60) / 120));
+      }
 
       // Bit-identity, both directions: hash equality AND per-sample float
       // equality (the hash proves totality; the loop pinpoints any drift).

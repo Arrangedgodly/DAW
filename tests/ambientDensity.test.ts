@@ -73,9 +73,13 @@ describe("T10 density wash — document derivation (route.md #8)", () => {
     expect(densityBand(doc)).toBe(0);
   });
 
-  it("the WELCOME SONG demo lands in band 2 (medium) at 97 content", () => {
+  // Re-based by the 2026-09-05 merge of main: PX-4 re-composed the WELCOME
+  // SONG as the POLY-LOOP demonstration — the arrangement content moved
+  // 97 → 100 (still squarely inside band 2's 41..128; the band claim the
+  // header pins is unchanged).
+  it("the WELCOME SONG demo lands in band 2 (medium) at 100 content", () => {
     const demo = createDemoProject();
-    expect(arrangementContent(demo)).toBe(97);
+    expect(arrangementContent(demo)).toBe(100);
     expect(densityBand(demo)).toBe(2);
   });
 

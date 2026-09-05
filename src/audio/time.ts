@@ -14,6 +14,13 @@ export const MAX_BPM = 200;
 export const MIN_SWING = 0;
 export const MAX_SWING = 1;
 
+/**
+ * The v2 loop-bar picklist vocabulary. LL-2 retired it as a BASIS (the
+ * transport/sweep basis is steps-typed — see StepAtTimeOptions); the type
+ * and the two helpers below remain as the pure vocabulary math that node
+ * suites pin (they are the identity every wider basis must reproduce at
+ * 1/2/4 bars).
+ */
 export type LoopBars = 1 | 2 | 4;
 
 export function clampBpm(bpm: number): number {
@@ -87,28 +94,64 @@ export function stepIndex(pos: Position): number {
   return pos.bar * STEPS_PER_BAR + pos.beat * STEPS_PER_BEAT + pos.step;
 }
 
+/**
+ * Basis options for the wrapped step lookup. LL-2 (seam G1/A1 — the
+ * playhead-basis swap): the option is STEPS-typed and carries the caller's
+ * own cycle total (a lane's chain steps for per-lane sweeps, the LCM of
+ * lane chain totals for the transport's global clock). The v2 `bars:
+ * LoopBars` picklist vocabulary is gone from this seam — `steps` is any
+ * positive multiple of 16 up to the 128-bar ceiling (2048).
+ */
 export interface StepAtTimeOptions extends GrooveOptions {
-  readonly bars: LoopBars;
+  readonly steps: number;
 }
 
 /**
- * Inverse of timeAtStep: the step index (within one loop, 0..steps-1)
- * sounding at time `t` (seconds from loop start, 0 <= t < loop length).
+ * LL-1 (iteration 3, LP-1 §10b — seam A5/F5): the O(1) guess-and-verify step
+ * lookup for a NON-NEGATIVE, unwrapped pattern-local time. One division-floor
+ * GUESS (`floor(t / secondsPerStep)`) plus at most three EXACT
+ * timeAtStep-boundary predicate checks (candidates guess-1..guess+1) —
+ * bit-identical decisions to the old O(steps) scan BY CONSTRUCTION because
+ * the predicates are timeAtStep verbatim; proven by the LP-1 node harness's
+ * exhaustive equivalence sweep (every step boundary + midpoint + ulp
+ * neighbors of the 2048-step loop at swing 0/0.5/1; a bpm × swing ×
+ * step-count spot grid; wrapped/negative times — tests/lp1-perf-spike.test.ts).
+ * The scan cost O(steps) per call made the per-edit compile path 276-438 ms
+ * at 128 bars; this is 84-136 ns (~200-460× cheaper, LP-1 §10c).
+ */
+export function stepOfTimeBounded(
+  t: number,
+  groove: GrooveOptions,
+  steps: number,
+): number {
+  if (steps <= 1) return Math.max(steps - 1, 0);
+  const spb = secondsPerStep(groove.bpm);
+  const guess = Math.max(0, Math.floor(t / spb));
+  for (let i = Math.max(0, guess - 1); i <= guess + 1; i++) {
+    if (t >= timeAtStep(i, groove) && t < timeAtStep(i + 1, groove)) {
+      return Math.min(i, steps - 1);
+    }
+  }
+  return steps - 1;
+}
+
+/**
+ * Inverse of timeAtStep: the step index (within one cycle, 0..steps-1)
+ * sounding at time `t` (seconds from cycle start, 0 <= t < cycle length).
  * Boundary rule: a step occupies [timeAtStep(i), timeAtStep(i + 1)).
+ * LL-2: the basis is the caller's own step count (see StepAtTimeOptions).
+ * LL-1: the O(steps) scan body is replaced by the bounded lookup above —
+ * decisions are bit-identical (the predicates are the same timeAtStep calls
+ * the scan made; the LP-1 sweep pins the equivalence).
  */
 export function stepIndexAtTime(t: number, opts: StepAtTimeOptions): number {
-  const steps = totalSteps(opts.bars);
+  const steps = opts.steps;
   const loopLen = steps * secondsPerStep(opts.bpm);
   // Single-modulo fast path for t >= 0: the ((t % L) + L) % L idiom rounds the
   // result by 1 ulp for positive t (found by the HW-1 timing sweep), which
   // broke exact-onset inverse lookups at e.g. 200 bpm / swing 0.5.
   const local = t >= 0 ? t % loopLen : ((t % loopLen) + loopLen) % loopLen;
-  for (let i = 0; i < steps - 1; i++) {
-    if (local >= timeAtStep(i, opts) && local < timeAtStep(i + 1, opts)) {
-      return i;
-    }
-  }
-  return steps - 1;
+  return stepOfTimeBounded(local, opts, steps);
 }
 
 /** Smallest step index (>= 0) whose sounding time is >= `t`. */

@@ -14,11 +14,12 @@
  * two-tier split).
  */
 
-import { compileLaneSchedule, resolveChainPatterns } from "../audio/song";
+import { compileLaneSchedule, laneCycleSteps, resolveChainPatterns } from "../audio/song";
+import { computeLoopSteps } from "../audio/render";
 import { getDrumKit, getPreset, sampleRefsForSound } from "../audio/presets";
 import {
   type LaneId,
-  deriveLoopBarsCompat,
+  LANE_IDS,
   effectiveLaneMix,
   type ProjectDocument,
 } from "../document/schema";
@@ -52,6 +53,10 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
       : {
           scale: effectiveScale(doc, lane),
           stackChord: lane === "chords",
+          // RC-1 (v3): the lane's register offset rides the one compiler —
+          // the OCT control's live recompile (audible) lands here.
+          octaveOffset:
+            (laneConf as { octave?: number }).octave ?? 0,
         }),
   });
 }
@@ -125,6 +130,10 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
     // LY-1: the quadrant mix (volume/mute/solo) rides the lane-object identity
     // too — any mix edit re-syncs all four lanes (solo ducks the others).
     session.setLaneMix(laneConf.id, effectiveLaneMix(laneConf));
+    // RC-1 (v3): the register offset rides the same identity for AUDITIONS
+    // (compilation consumes it as a compile input below).
+    if (laneConf.id !== "drums")
+      session.setLaneOctave(laneConf.id, laneConf.octave ?? null);
   }
   // PS-4: keep the current sounds' sample assets decoded (warm after the
   // first selection; a no-op for synth-only projects).
@@ -135,19 +144,31 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
 }
 
 /**
- * Transport parameters persisted in the document drive the session. v3
- * (SV-1, SE-1 E5): the transport's loop basis is the COMPAT DERIVATION
- * `deriveLoopBarsCompat(doc)` = min(4, max pattern bars) — the retired
- * persisted field's value reproduced engine-side (the renderer reads the
- * transport snapshot, so zero renderer change; see schema.ts for the
- * recorded divergence class). LL-2 re-bases this to per-lane chain totals /
- * one LCM cycle and deletes the derivation.
+ * LL-2 (seam E5's re-base — the deliberate basis swap): the transport's
+ * cycle basis is the LCM OF LANE CHAIN TOTALS, derived from the document
+ * with the SAME pure law the offline export renders (render.ts
+ * computeLoopSteps — one LCM for one-shot, booth readout, and export,
+ * i3-4/i3-5). Chain totals come from the bounded resolveChainPatterns scan
+ * (song.ts laneCycleSteps; LP-1 §10 — never a schedule compile). Degenerate
+ * all-empty docs fall back to computeLoopSteps' constant 16 (one bar, the
+ * v0.1 default basis). At powers-of-two chain totals the LCM is simply the
+ * longest lane (I3-d); the SV-1 compat derivation retired with this swap.
+ */
+function docCycleSteps(doc: ProjectDocument): number {
+  return computeLoopSteps(LANE_IDS.map((lane) => laneCycleSteps(doc, lane)));
+}
+
+/**
+ * Transport parameters persisted in the document drive the session. LL-2:
+ * the transport's cycle basis is `docCycleSteps(doc)` (see above) — the
+ * renderer reads each LANE's own chain total for its sweep (LaneGrid's
+ * readFrame), so this push sizes only the global clock + one-shot.
  */
 function syncTransport(doc: ProjectDocument, session: Session): void {
   session.setBpm(doc.transport.bpm);
   session.setSwingAmount(doc.transport.swing);
   session.setMetronome(doc.transport.metronome);
-  session.transport.setLoopBars(deriveLoopBarsCompat(doc));
+  session.transport.setCycleSteps(docCycleSteps(doc));
 }
 
 /** Connect the store to the session; returns the unsubscribe function. */
@@ -165,14 +186,15 @@ export function connectStoreToEngine(
   return docStore.subscribe((state, prev) => {
     const doc = state.doc;
     if (doc === prev.doc) return;
-    // The derived loop basis follows PATTERN bars (not just the transport
-    // object): a bars-widening pattern edit must re-push the transport even
-    // though doc.transport is untouched. The derivation is value-compared,
-    // so note edits and same-bars changes never re-push (no spurious
-    // setLoopBars churn).
+    // The derived cycle basis follows the CHAIN totals (pattern bars × the
+    // songChain ids): a chain edit (rail `+`/remove/resize of a chained
+    // pattern) must re-push the transport even though doc.transport is
+    // untouched. The derivation is VALUE-compared — note edits and
+    // same-chain changes never re-push (no spurious setCycleSteps churn;
+    // the scan is the same order the SV-1 compat derivation ran per emit).
     if (
       doc.transport !== prev.doc.transport ||
-      deriveLoopBarsCompat(doc) !== deriveLoopBarsCompat(prev.doc)
+      docCycleSteps(doc) !== docCycleSteps(prev.doc)
     )
       syncTransport(doc, session);
     const scaleChanged =
@@ -199,10 +221,16 @@ export function connectStoreToEngine(
           l.id === "drums"
             ? (l as { kitId: string }).kitId
             : (l as { presetId: string }).presetId;
+        // RC-1: the register offset is a compile input — an OCT change must
+        // recompile the lane (audible live). (A mix-only change still alters
+        // none of these, so it must not recompile.)
+        const octaveOf = (l: (typeof doc.lanes)[number]) =>
+          l.id === "drums" ? 0 : ((l as { octave?: number }).octave ?? 0);
         return (
           a.gate !== b.gate ||
           soundOf(a) !== soundOf(b) ||
-          a.fxChain !== b.fxChain
+          a.fxChain !== b.fxChain ||
+          octaveOf(a) !== octaveOf(b)
         );
       };
       const laneConfChanged =

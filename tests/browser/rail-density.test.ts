@@ -21,12 +21,13 @@
  * 3. FUNCTION THROUGH THE DISTILL: the PAT menu opens/closes with the
  *    committed popover laws (focus lands on the first control, Escape
  *    closes with focus returned to the trigger, the inline rename field
- *    consumes its OWN Escape first), +1B adds a pattern from inside the
- *    menu (and closes it), the global `r` shortcut still lands focus on
- *    the active lane's REN (opening the menu when needed — keyboard.md
- *    ledger #5), and the rail still PLAYS: a tile click while the
- *    transport runs shows the quantized PENDING state (the IN-3 adjacent
- *    path the critique warned about distilling away).
+ *    consumes its OWN Escape first), a new 1-bar pattern arrives via the
+ *    global `n` (LL-1: the +NB menu buttons retired with the LENGTH
+ *    stepper — create at 1 bar, LENGTH grows it), the global `r` shortcut
+ *    still lands focus on the active lane's REN (opening the menu when
+ *    needed — keyboard.md ledger #5), and the rail still PLAYS: a tile
+ *    click while the transport runs shows the quantized PENDING state (the
+ *    IN-3 adjacent path the critique warned about distilling away).
  * 4. ONE-PAGE LAW: the page still fits both viewports exactly with the
  *    long chains mounted (the rail never grows for the menu — it is
  *    absolutely positioned).
@@ -236,6 +237,10 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         // --- 2. TILE HEADROOM: append a long chain, rows stay single-line --
         // UI-honest: the row's own + button (the append stays with the tiles
         // by design — chain structure next to the chain it extends).
+        // BC-1 (I3-a): each press now creates + appends + SELECTS a new
+        // BLANK next-letter pattern — the tile-count growth the law needs is
+        // identical; only the tiles' content differs (blanks, not repeats of
+        // the selected pattern).
         for (const lane of ["drums", "bass"]) {
           const append = $<HTMLButtonElement>(
             `.rail-row[data-lane="${lane}"] .rail-append`,
@@ -294,9 +299,9 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         ).toBeLessThanOrEqual(96);
         expect(
           menu.querySelectorAll(".rail-tool").length,
-          "all six management controls inside the menu",
-        ).toBe(6);
-        // Pre-fix equivalent measurement: the six buttons + their 4px gaps
+          "all five management tool buttons inside the menu (LL-1: REN + LENGTH −/+ + DUP + RM — the +NB create buttons retired with the LENGTH stepper)",
+        ).toBe(5);
+        // Pre-fix equivalent measurement: the tool buttons + their 4px gaps
         // are exactly what the row used to spend (one line, no wrap).
         const toolRects = Array.from(
           menu.querySelectorAll<HTMLElement>(".rail-tool"),
@@ -305,7 +310,7 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
           toolRects.reduce((sum, r) => sum + r.width, 0) +
           (toolRects.length - 1) * 4;
         console.log(
-          `[refinement-6 rail density] the six tools in one line measure ${Math.round(toolsRowEquiv)}px — the per-lane row spend the distill removed (cluster now ${Math.round(trigger.getBoundingClientRect().width)}px)`,
+          `[refinement-6 rail density] the five tools in one line measure ${Math.round(toolsRowEquiv)}px — the per-lane row spend the distill removed (cluster now ${Math.round(trigger.getBoundingClientRect().width)}px)`,
         );
         expect(
           trigger.getAttribute("aria-expanded"),
@@ -381,32 +386,28 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
           "focus returns to the trigger (never stranded)",
         ).toBe(trigger);
 
-        // 3e. +1B from inside the menu: adds + selects (the drums grid
-        // switches to the new EMPTY pattern) and closes the menu.
+        // 3e. New 1-bar pattern + select (the drums grid switches to the new
+        // EMPTY pattern). LL-1 journey delta: the +1B menu button retired
+        // with the LENGTH stepper (the stepper owns its lifecycle and STAYS
+        // open — pinned in tests/browser/pattern-resize.test.ts); the
+        // 1-bar creation twin here is the global `n` key (addPattern's
+        // default — BC-1's ladder flow: create at 1, LENGTH grows it).
+        // BC-1 (I3-a): the long-chain stage above leaves the last BLANK
+        // clip selected (`+` selects what it creates), so re-select a demo
+        // tile first — §3e's precondition is a pattern WITH content.
+        ($$('.rail-row[data-lane="drums"] .rail-tile')[0] as HTMLElement).click();
+        await poll(
+          () =>
+            $$('.lane-floor[data-lane="drums"] .cell[data-on="true"]').length >
+            0,
+          5_000,
+          "demo drums pattern re-selected (grid shows content)",
+        );
         const onBefore = $$(
           '.lane-floor[data-lane="drums"] .cell[data-on="true"]',
         ).length;
         expect(onBefore, "demo drums pattern has on-cells").toBeGreaterThan(0);
-        trigger.click();
-        await poll(
-          () =>
-            idoc().querySelector(
-              '.rail-row[data-lane="drums"] button[aria-label="Add 1-bar pattern to DRUMS"]',
-            ) !== null,
-          2_000,
-          "tools menu open for +1B",
-        );
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="drums"] button[aria-label="Add 1-bar pattern to DRUMS"]',
-        ).click();
-        await poll(
-          () =>
-            idoc().querySelector(
-              '.rail-row[data-lane="drums"] .rail-tools-menu',
-            ) === null,
-          2_000,
-          "action commit closes the menu",
-        );
+        key(idoc().body, "n");
         await poll(
           () =>
             $$('.lane-floor[data-lane="drums"] .cell[data-on="true"]')

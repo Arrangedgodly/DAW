@@ -8,7 +8,10 @@ Every measured value below was re-derived from a fresh build + gate run on
 2026-09-03 (refinement-5 audit), and each number states its method. No
 measured value exceeds its budget as of that run. The §9 mobile numbers are
 from the 2026-09-04 MB-5 gate run (their own method + date stated
-in-section).
+in-section). The §10 long-loop numbers are from the 2026-09-04 LP-1 spike
+(its own harnesses + method stated in-section), consolidated into the
+committed gate family and re-measured by TH-5 on 2026-09-04 (§10d — the
+final gate family, its own method + date in-section).
 
 ## 1. Audio timing — "notes audible within ±2 ms of musical time"
 
@@ -650,7 +653,253 @@ frame budget", built app in a 390×844 iframe).
   it self-checking (the gate now asserts 48/48 intended painted hits, so
   the setup can never silently degrade again).
 
-## 10. Degradation matrix (Hulk lane — M3 final, 2026-09-04)
+## 10. Long-loop scale (LP-1, iteration 3 — the 128-bar spike: measured BEFORE the long-loop UI lands)
+
+The LP-1 production spike (2026-09-04) measured the iteration-3 target
+state — "a 128-bar pattern visible on one lane while all four lanes play
+dense long chains" (drums 64B + bass 4B + chords 8B + a dense 128-bar
+lead, LCM = one 128-bar cycle, 120 BPM) — plus the worst case (every lane
+one 128-bar pattern). The EAGER baseline is the finding: today's renderer
+CANNOT hold §2a's law at 128 bars, and the per-edit recompile path cannot
+hold §2's long-task guard. The spike's VERDICT gates LL-1/LL-2 (Ant-Man's
+fence): every criterion is within budget WITH the two committed
+mitigations below — they are LL-1 build REQUIREMENTS, not options.
+
+- **(a) Frame budget — EAGER: RED.** 38,208 cells + 7,393 note-runs
+  (53,459 elements) across the quadrants; 4 s pure rendering while playing:
+  57-76 frames (14-19 fps), median 48-64 ms, p95 106-142 ms, max up to
+  147 ms, **3.4-42.1% of frames < 33.4 ms** (law: ≥95%) across four runs
+  (load-sensitive, never close). Phone window (390×844, single-lane stage
+  with the 30,720-cell lead grid): median 50-69 ms, 2.6-3.6% < 33.4 ms
+  (desktop-class CI hardware emulating the viewport — the MB-5 caveat).
+  **WINDOWED prototype: GREEN** — see the committed approach; the same
+  dense state renders **241-242 frames / 4 s (≈60 fps), median
+  16.6-16.7 ms, p95 19.0-19.4 ms, max 21.2-27.3 ms, 100.0% < 33.4 ms**,
+  playheads live in all four grids (60-61 distinct transforms/s each), on
+  **2,151 DOM cells** (5.6% of eager; per-grid windows 324/441/441/945).
+- **(b) Horizontal scroll on the 2048-column grid — EAGER: RED** (16
+  frames / 2 s sweep, median 133-152 ms, 0-6.3% < 33.4 ms). **WINDOWED:
+  GREEN** — a full-width programmatic fling sweep during playback (2.5 s
+  across ~34.8k px ≈ 13.6k px/s — the aggressive worst case, not a
+  realistic wheel cadence): 115-147 frames, median 17-21 ms, p95 26-28 ms,
+  **98.3-100% < 33.4 ms**, 56-65 rewindows at 2.1-2.6 ms each.
+- **(c) O(steps) scans vs the bounded replacement.** Node-measured
+  (node harness, M1-class arm64): the production-shaped scan at 2048 steps
+  costs 16-27 µs avg / 36-66 µs worst per call vs the O(1) bounded lookup
+  at 84-136 ns (~200-460× cheaper). Per rAF frame (9 lookups: 4 grids ×
+  playheadX+quantizedStep + the booth's getPosition) the scan projects to
+  145-248 µs avg (worst 322-557 µs) vs 0.8-1.2 µs bounded — both inside
+  the 33.4 ms budget, so the rAF path alone never demanded the fix. The
+  binding constraint is the **per-EDIT recompile** (compileLaneSchedule
+  runs synchronously in the engineBridge store subscriber on every
+  pitched content edit): at 128 bars the stepOfTime scan costs
+  **276-438 ms per edit at musical density** (7,680 notes; measured live
+  in-page: 232-295 ms per lead toggle incl. validate+sync) and 582-1809 ms
+  at max density (30,720 notes) — multiples of the 50 ms long-task guard.
+  With the bounded lookup: **2.5-4.3 ms musical** (GREEN), 22-73 ms at the
+  degenerate max-dense extreme (the §10c TH-5 re-pin below: the 50 ms
+  guard HOLDS as-is, pinned at the production numbers — the max-dense band
+  is a recorded content-volume asymptote outside the guard's scoped claim).
+- **(d) Export cost (REAL render pipeline).** Offline render is NOT
+  real-time-bound: the user's 64-bar LCM cycle (drums 64B + bass 4B +
+  chords 8B; 128 s of audio @120 BPM) renders in **7.3-8.5 s wall
+  (15-17× real-time)**, loop buffer 43 MB; the worst-case 128-bar cycle
+  (every lane 128B, musical density; 256 s ≈ the planned "4.3 min")
+  renders in **12.2-14.8 s wall (17-21× real-time)**, loop buffer 86 MB,
+  heap delta 243-460 MB (Chromium `performance.memory` around the whole
+  render; includes the raw + folded buffers and context internals).
+  GREEN — the busy-guard UX spans seconds, not minutes.
+- **(e) Codec round-trip at the dense-128 scale (SV-1 re-confirmation).**
+  The max-dense 128-bar document (this harness's shape: one 128-bar
+  pattern per lane, a note on every step of every row, 3 max-FX per lane)
+  canonicalizes to **2,238,947 chars ≈ 2.14 MB** (SV-1 measured
+  2,693,153 ≈ 2.63 MB with a slightly denser FX/rows shape) — 53-64% of
+  the 4 MB cap. Round-trip (encode + decode): **103-230 ms** — a one-time
+  save/load/import cost. GREEN.
+
+### 10a. The committed windowing approach (what LL-1 builds)
+
+The spike prototyped and chose the **sticky-layer column window**
+(`WindowedGridRenderer` in tests/lp1-spike-harness.ts — prototype only;
+LL-1 lands the seam in src/):
+
+- The scroll container keeps a native, pattern-wide scroll extent via an
+  invisible absolute **sizer** (width = label + steps × stepWidth), and a
+  `position: sticky; left: 0` **layer** holds the grid — the compositor
+  pins it to the visible edge while the sizer scrolls under it. No JS on
+  the per-scroll path.
+- Each row's `.row-cells` grid template carries ONLY the window's tracks
+  (`repeat(winCols, cellPx)`); rewindow rebuilds are **O(winCols × rows)
+  at any pattern size**. (The first prototype variant — spacer grid items
+  spanning the off-window tracks of a `repeat(2048)` template — was
+  measured and REJECTED: re-laying-out spacer spans in the full-width
+  template cost ~25 ms per rewindow and collapsed the fling sweep to
+  15-83% < 33.4 ms.)
+- Rewindow is hysteresis-gated (fires only when the visible range exhausts
+  the ±24-column overscan; the recentered window then buys a full
+  overscan+visible of travel) and **recycles the cell pool** — a rewindow
+  re-tags existing cells (`dataset.step/beat/on`, auto-placement keeps DOM
+  order == column order), so it does zero element churn and no layout-tree
+  rebuild: measured 2.1-2.6 ms per rewindow, invisible in the frame
+  distribution.
+- On-state reads are O(1) per cell: sync flattens each row's content
+  (drums hits / pitched spans) into a full-pattern `Uint8Array` once
+  (O(rows × steps) per sync), and applyOnState/cell re-tagging read it
+  directly. (The naive `spans.some` per cell was O(cells × spans) — 512
+  spans/row at 128 bars — and was itself a measurable sweep cost.)
+- Note-runs are clipped to the window (the G6 seam law): only spans
+  intersecting the window exist, with window-relative geometry.
+- The playhead/glow rAF loop is unchanged law (transform playhead,
+  quantized glow) with x window-relative
+  (patternX − winStart × stepWidth).
+
+### 10b. The committed time-math (what LL-1/LL-2 build)
+
+An **O(1) guess-and-verify step lookup** replaces both linear scans
+(`stepIndexAtTime` at time.ts:99-112, seam A5; `stepOfTime` at
+song.ts:118-123, seam F5): one division-floor guess
+(`floor(t / secondsPerStep)`) plus at most three EXACT timeAtStep boundary
+predicate checks over candidates guess−1..guess+1. Because the predicates
+are timeAtStep verbatim, boundary decisions are bit-identical to the scan
+by construction — proven by the node harness's exhaustive equivalence
+sweep (every step boundary + midpoint + ulp neighbors of the 2048-step
+loop at swing 0/0.5/1; a bpm × swing × step-count spot grid across 8 × 9 ×
+5 combinations; wrapped/negative times; production LoopBars parity at
+1/2/4 bars). The sweep lives in tests/lp1-perf-spike.test.ts (hard
+assert); the timing lines above are its recorded `[LP-1 …]` console
+output. LL-2's steps-typed playhead basis (grid/math.ts G1) uses the same
+lookup (`playheadXSteps` in the harness is the shape).
+
+### 10c. Verdict (the LL-1 gate input)
+
+| Criterion | Verdict | The LL-1 requirement it becomes |
+|---|---|---|
+| (a) frame budget @ dense 128 | **AMBER** | column-window virtualization (§10a) is REQUIRED — eager is 3-42% vs the 95% law; windowed is 100% |
+| (b) 2048-col scroll | **AMBER** | §10a incl. pool recycling + sticky layer — eager is 0-6%; windowed 98-100% (fling worst case) |
+| (c) O(steps) scans | **AMBER** | the O(1) lookup (§10b) is REQUIRED for the per-edit compile path (276-438 ms → 2.5-4.3 ms at musical density); rAF path green either way |
+| (d) export wall/memory | **GREEN** | 14-15 s wall / 86 MB buffer / ≤460 MB heap at the 128-bar worst case |
+| (e) codec round-trip | **GREEN** | 2.14-2.63 MB canonical (≤ 64% of the 4 MB cap), 103-230 ms round-trip |
+
+No criterion is RED: the windowed-editing fallback (the Strange
+contingency) does NOT fire. LL-1/LL-2 proceed behind the two committed
+mitigations above. Harnesses: tests/lp1-perf-spike.test.ts (node) +
+tests/browser/lp1-perf-spike.test.tsx (browser) + shared
+tests/lp1-spike-harness.ts; method + honesty caveats in their headers
+(source-mount browser harness — the pattern-rail precedent; the eager
+baseline numbers are RECORDED lines, the windowed laws are HARD asserts;
+the windowed prototype's time basis is a wall-clock loop-time at the
+lane's own cycle length until LL-2's per-lane basis lands — cost-
+equivalent, journaled).
+
+**TH-5 long-task re-pin (2026-09-04) — the 50 ms per-edit guard HOLDS
+AS-IS.** No widening, no named 128-bar-density exception. The level the
+production numbers support: at the dense-128 musical state (7,680 notes)
+LL-1's browser gate measured **10-21 ms per toggle**, and TH-5's
+consolidated gate re-measured **0/14/12/13/10 and 0/14/12/12/11 ms**
+across standalone runs (the 0 ms first toggle is the note-removal path's
+near-free case) — 2.4-5× headroom under the guard, asserted HARD in
+`tests/browser/frame-budget.test.ts` ("TH-5 (a)(b)"). The LP-1 22-73 ms
+band was measured at the degenerate every-step-every-row extreme (30,720
+hand-authored notes): a bounded CONTENT-VOLUME asymptote (~2.4 µs/note —
+linear in note count, never in pattern steps), reachable only by
+deliberately maxing fills/drags on every row, and not a regression of
+any kind (the retired O(steps) scan it replaced measured 276-438 ms at
+the musical state ALONE — the guard's actual prey). Decision recorded:
+the guard stays 50 ms, and its scoped claim is the production-
+representative authoring states — exactly the states its asserting gates
+measure (TH-1's 1-bar demo, TH-4's dense 4-bar, TH-5's dense-128
+musical). The max-dense extreme stays a recorded honesty note here, not
+a gated budget; nothing was widened anywhere in this decision (the
+contract's discipline: never widen without measured justification, and
+the production measurements never asked for it).
+
+### 10d. The committed iteration-3 gate family (TH-5, 2026-09-04)
+
+The iteration-3 perf laws live as ONE consolidated family in the canonical
+perf gate file — `tests/browser/frame-budget.test.ts` — alongside the v0/iteration-2
+gates (the LP-1 spike harness stays as the recorded evidence + prototype
+laws; its two fling asserts gained the same de-flake below):
+
+- **(a) LONG-LANE PLAYBACK, desktop (1440×900)** — LP-1's denseLead128Doc
+  state (drums 64B + bass 4B + chords 8B + a dense 128-bar lead; LCM = one
+  128-bar cycle, per-lane cycles all different — the LL-2 poly-loop visual
+  under load), imported through the REAL OPEN FILE path (canonical codec
+  bytes on the always-mounted `.projects-input` → the real import handler →
+  loadDocument): **≥95% of frames < 33.4 ms over a 4 s pure-render window**
+  with all four per-lane sweeps live (≥2 distinct transforms/s each), the
+  **2048-column register fling sweep ≥95%**, and **every per-edit toggle
+  block < 50 ms** (the §10c re-pin law — this assert IS the
+  no-per-frame-linear-scans gate: the retired scan measured 276-438 ms at
+  this state).
+- **(a′) LONG-LANE PLAYBACK, phone (390×844)** — the same imported state on
+  the single-lane stage: census + a pure-render window + the register
+  sweep, same HARD laws (the §9 MB-5 emulation caveat carries — a
+  regression catch, not a device-class verdict).
+- **(b) VIRTUALIZATION LAWS** — the DOM census **< 10,000 cells** at the
+  dense-128 state (eager 38,208) while every long-pattern scroller keeps
+  its pattern-wide native extent (lead > 30,000 px — the sizer) and ≤4-bar
+  grids stay eager; **census vs pattern size** (a bass 4→16-bar grow — step
+  count ×4 — moves its census 448→322: the window, never the pattern); and
+  during the sweep **the window re-seats** (first rendered cell's step
+  reaches ~1990 of 2048) **with the census constant** (pool recycling,
+  variance ≤ 200 cells). Teeth re-proven in-family: GRID_VIRTUALIZE_MIN_STEPS
+  scratch-forced to 99999 → the census law RED exactly on
+  `expected 38208 to be less than 10000` → restored byte-exact (SHA-verified)
+  → green.
+- **(c) EXPORT-COST CEILING** — the 64-bar gate render (musical density,
+  the user's poly-loop shape, the REAL offline pipeline) **wall-time ≤ 25 s**
+  (a regression ceiling ≈ 3× the 4.0-8.5 s measured band across LP-1/TH-5 —
+  NOT a UX promise; an algorithmic regression of the retired-scan class is
+  10-100×); loop buffer 43 MB + heap delta recorded (Chromium
+  `performance.memory`, recorded not gated — its precision is
+  Chromium-only). The 128-bar worst case stays XP-1's RECORDED determinism
+  probe (tests/browser/audio-determinism.test.ts — 7.2-7.5 s concurrent
+  double render; LP-1 (d) 7.4-14.8 s single under load) per the CI-cost
+  discipline: one worst-case render per battery, not per gate.
+- **(d) WIDTH-UTILIZATION PERF (FV-1's perf half)** — the densified
+  1920×1080 stage (demo + 4-bar lead; the lead quadrant measures 944 px —
+  the retired 1400 px cap would leave ~660, asserted in-gate so the
+  measurement can never silently run on a capped stage) holds **≥95% of
+  frames < 33.4 ms** with all four playheads live. The utilization +
+  densification LAWS stay in tests/browser/viewport-utilization.test.ts
+  (assertions-only, FV-1).
+
+Measured (2026-09-04, TH-5; M1-class macOS arm64, headless Chromium 151
+via the playwright 1.62.1 pin; method: the `[TH-5 …]` console lines of the
+gates themselves — rAF deltas measured in-page, the REAL built bundle
+booted in a fresh same-origin iframe with the dense doc imported through
+OPEN FILE; standalone runs ×4, statistically identical):
+
+| Gate | Law | Measured |
+|---|---|---|
+| (a) desktop long-lane, 4 s | ≥95% < 33.4 ms | 241 frames, **0 over**, max 19.8-20.8 ms, p95 18.1-19.0, median 16.6; playheads 241/241 ×4 lanes |
+| (a) 2048-col fling sweep | ≥95% < 33.4 ms | 119-120 frames, **0 over**, max 23.8-27.3 ms, median 16.6-16.8; window re-seat 1990-1993; census 690-810 (constant) |
+| (a) per-edit guard | each block < 50 ms | 0/14/12/13/10 and 0/14/12/12/11 ms |
+| (a) census | < 10,000 cells | **1,616 = 4.2%** of 38,208 eager; bass 4→16 bars: 448→322 |
+| (a′) phone | ≥95% both windows | pure 121 frames 0 over (max 19.9); sweep 120 frames 0 over (max 23.7-26.1); census **435** vs 30,720 eager |
+| (c) export 64-bar render | ≤ 25 s wall | **3.97-4.03 s** (×32 real-time), 43 MB loop buffer, 260-286 MB heap delta |
+| (d) 1920×1080 stage, 4 s | ≥95% < 33.4 ms | 241 frames, **0 over**, max 19.8-20.0, median 16.6; lead quadrant 944 px |
+
+**Fling de-flake (the LP-1 verifier's flag, closed).** The fling-sweep
+ratio was the one load-sensitive committed assert (88.9% < 95% ONLY under
+a foreign battery's full-parallel load; 99.2-100% in every quieter run —
+bare vitest runs unit+browser projects concurrently, i.e. self-load).
+Fixed by settle/poll, NEVER threshold loosening: the consolidated gates
+and both LP-1 spike sweeps now wait for a quiet machine before the
+measured window (`waitForQuietRaf` — an idle 500 ms calibration window
+with the warm-up sample dropped must itself hold the frame law at ≥40 fps
+cadence, else settle 400 ms and re-poll up to 20 s; the HARD ratio then
+runs unchanged; a machine that never quiets fails LOUD — the MB-6
+stance). On the quiet fence the calibration passes on its first window.
+
+## 11. Degradation matrix (Hulk lane — M3 final, 2026-09-04)
+
+*(Renumbered §10 → §11 by the 2026-09-05 merge of main into hardware-ui:
+both sides appended a "## 10." at the fork point — main's LP-1 long-loop
+scale family keeps §10 because §10a-§10e are cross-referenced from
+src/grid/renderer.ts, src/audio/song.ts, src/audio/time.ts,
+src/state/engineBridge.ts and the TH-5/LL-1/LP-1 gate files; this
+hardware-ui M3 measurement record follows it unchanged.)*
 
 The four degradation rows town-hall §6 assigned the Hulk, measured at the
 M3 final tree by the T11 checkpoint (own Playwright probes over the served
@@ -664,6 +913,7 @@ battery):
 | **Fallback fonts** | context route aborting every `.woff2` request (4 file-backed faces blocked: Departure Mono, Plex 400/500, PS2P, VT323; Silkscreen rides inlined data-URIs and cannot be network-blocked — 2 faces still resolve), `document.fonts.ready`, then pins | one-page EXACT at 1440×900 (900/900) AND 1280×800 (800/800) under fallback rendering; zero horizontal overflow (rail right edge 4px inside the viewport); the tempo 44px input pin is a fixed CSS width (probe's ad-hoc selector missed the node — recorded honestly; the res-9 worst-case-digits law is what guards the digits, and the one-page law held). Capture `t11-1440x900-fallback-fonts.png`. |
 | **Background tab** | the repo's documented synthetic `visibilitychange` override (headless Chromium does not natively clamp — perf-budget §6's honest caveat); play → on-beat → hidden 1.5s → refocus | on-beat 4/4 `.lane-floor.is-sounding`; while hidden the ~120ms decay removal PARKS the rims (count 0 — no stuck glow); on refocus the next beat fires (4/4) and the playhead recomputes from the live audio clock (93.2px → 2.1px across the loop wrap — resync-in-one-frame, no replay). Matches TH-3 (§6) and T5's park design. |
 | **Low-end / CPU throttle** | CDP `Emulation.setCPUThrottlingRate {rate: 4}` + own TH-4-style probe (rAF deltas, 4s window, demo playing at 1440×900; run twice) | **241 frames / 4s, 0 over 33.4ms (ratio 1.0), max 18.7ms, p95 18.3–18.5, median 16.6–16.7 — vsync cadence holds at quarter-speed CPU** (per-frame work is far under the 16.6ms budget; the compositor layers do the moving). The vitest browser harness does not expose CDP throttling, so the dense-state TH-4(a) CI floor ran unthrottled (green, §2a M3); this probe is the honest 4x statement on the standard demo state, and the §9 device-class honesty caveat stands (real mid-tier Android stays an R7 user-session item). |
+
 
 ## Harness notes (D8/RES-7)
 
@@ -686,3 +936,9 @@ battery):
   synchronously (handler + any forced layout). Tolerances follow the v0
   formalization: the 33.4 ms ratio bound is HARD; liveness counts are
   load-robust (≥2/s per quadrant).
+- TH-5: the long-lane gates load their dense state through the REAL OPEN
+  FILE import path (canonical `encode(doc)` bytes set on the always-mounted
+  hidden `.projects-input` via DataTransfer) — the built app itself owns
+  the measured document, no test-side store access; the fling sweeps are
+  quiet-poll-gated (see §10d); the export block is source-mount (the LP-1
+  (d) precedent — globalSetup builds the same source).

@@ -15,7 +15,14 @@
  * Everything here is testable without a browser (scaleChip.ts pattern).
  */
 
-import type { LaneId, ProjectDocument } from "../document/schema";
+import {
+  DRUM_PIECES,
+  PITCH_CLASS_NAMES,
+  type LaneId,
+  type PatternBars,
+  type ProjectDocument,
+} from "../document/schema";
+import { effectiveScale, modeSize } from "../document/scales";
 import type { PendingSwitchSnapshot } from "../engine/session";
 
 /** One chain slot as the rail renders it. */
@@ -55,6 +62,95 @@ export function patternPool(doc: ProjectDocument, lane: LaneId): PoolEntry[] {
     name: p.name,
     bars: p.bars,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// LL-1 (iteration 3, i3-4): the LENGTH ladder — powers-of-two navigation +
+// the E10 announcement texts (docs/dev/keyboard.md §"Pattern resize").
+// Pure; the UI funnel (PatternRail.tsx stepPatternLength) composes these
+// with the store's resizePattern.
+// ---------------------------------------------------------------------------
+
+/** The powers-of-two length ladder (schema PATTERN_BAR_VOCABULARY order). */
+export const PATTERN_LENGTH_LADDER: readonly PatternBars[] = [
+  1, 2, 4, 8, 16, 32, 64, 128,
+];
+
+/**
+ * One vocabulary step along the ladder (KL-1: `b` grows 1→2→…→128,
+ * Shift+`b` shrinks 128→…→1). Null at the ladder's end — the caller's
+ * no-op that still announces the limit (never a silent no-op).
+ */
+export function nextPatternLength(
+  bars: PatternBars,
+  dir: 1 | -1,
+): PatternBars | null {
+  const index = PATTERN_LENGTH_LADDER.indexOf(bars);
+  if (index < 0) return null;
+  const next = index + dir;
+  return next >= 0 && next < PATTERN_LENGTH_LADDER.length
+    ? PATTERN_LENGTH_LADDER[next]!
+    : null;
+}
+
+const barsText = (bars: number): string => `${bars} BAR${bars === 1 ? "" : "S"}`;
+
+/** E10 success (grow or clean shrink), through the lane's rail status region. */
+export function resizeSuccessAnnouncement(
+  label: string,
+  bars: number,
+): string {
+  return `PATTERN ${label} · ${barsText(bars)}`;
+}
+
+/** E10 limit no-op (`PATTERN B · 128 BARS · AT LIMIT`, singular at 1). */
+export function resizeLimitAnnouncement(
+  label: string,
+  bars: number,
+): string {
+  return `PATTERN ${label} · ${barsText(bars)} · AT LIMIT`;
+}
+
+/**
+ * E10 refusal — never silent, never truncating:
+ * `CANNOT SHRINK PATTERN B TO 4 BARS · <ROW LABEL> NOTE AT BAR 5 WOULD BE
+ * LOST · MOVE OR SHORTEN IT FIRST`. `bar` is the blocking note's ANCHOR bar
+ * (1-based — the note's identity; the store's determinism rule picked the
+ * note: greatest end, ties by latest start).
+ */
+export function resizeRefusalAnnouncement(
+  label: string,
+  toBars: number,
+  rowLabel: string,
+  bar: number,
+): string {
+  return `CANNOT SHRINK PATTERN ${label} TO ${barsText(toBars)} · ${rowLabel} NOTE AT BAR ${bar} WOULD BE LOST · MOVE OR SHORTEN IT FIRST`;
+}
+
+/** The 1-based bar a step belongs to (the announcement's addressing). */
+export function barOfStep(step: number): number {
+  return Math.floor(step / 16) + 1;
+}
+
+/**
+ * The ROW LABEL a refusal names — the grid's own row vocabulary: drum
+ * pieces uppercase (KICK…), pitched rows as the pitch-name labels the grid
+ * renders (LaneGrid.pitchedLabels' law: pitch class + ′ above the first
+ * octave). `fallback` covers a degree outside the manifest (not
+ * UI-reachable; validation ties notes to rows in practice).
+ */
+export function resizeRowLabel(
+  doc: ProjectDocument,
+  lane: LaneId,
+  row: number | string,
+): string {
+  if (typeof row === "string") return row.toUpperCase();
+  if (lane === "drums") return (DRUM_PIECES[row] ?? `ROW ${row}`).toUpperCase();
+  const scale = effectiveScale(doc, lane);
+  const size = modeSize(scale.mode);
+  const pc = (scale.root + scale.intervals[row % size]) % 12;
+  const octave = Math.floor(row / size);
+  return PITCH_CLASS_NAMES[pc] + (octave > 0 ? "′" : "");
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +209,35 @@ export function pendingAnnouncement(
 
 export function structurePendingAnnouncement(laneName: string): string {
   return `${laneName}: chain change queued — lands at the next chain pass`;
+}
+
+// ---------------------------------------------------------------------------
+// BC-1 (I3-a): rail `+` = new blank clip — naming + creation announcement
+// ---------------------------------------------------------------------------
+
+/**
+ * The next pattern label for a lane whose pool holds `poolCount` patterns:
+ * A..Z by pool index, then P27+ — the established addPattern call-site
+ * naming, ONE authority now that three creation paths must agree (the PAT
+ * menu's +N B tools, the global `n`, and the rail `+`).
+ */
+export function nextPatternLabel(poolCount: number): string {
+  return poolCount < 26
+    ? String.fromCharCode(65 + poolCount)
+    : `P${poolCount + 1}`;
+}
+
+/**
+ * E11 (BC-1): the creation announcement through the lane's rail status
+ * region — `PATTERN B CREATED · 1 BAR · APPENDED` (label = the actual next
+ * letter; bars pluralized; the appended+selected state rides the same line —
+ * one announcement, not three).
+ */
+export function patternCreatedAnnouncement(
+  label: string,
+  bars: number,
+): string {
+  return `PATTERN ${label} CREATED · ${bars} BAR${bars === 1 ? "" : "S"} · APPENDED`;
 }
 
 // ---------------------------------------------------------------------------

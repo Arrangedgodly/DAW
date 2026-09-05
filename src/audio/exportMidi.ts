@@ -51,6 +51,15 @@
  * Determinism (golden HW-3): pure function of the document; writeMidi is
  * deterministic; event order is fully ordered (tick, noteOff-before-noteOn,
  * note number, velocity). Identical documents produce byte-identical files.
+ *
+ * XP-1 (i3-5) — the LCM cycle law: the file spans EXACTLY ONE full export
+ * cycle. Lanes poly-loop (each chain wraps at its own total), so a lane
+ * whose chain is shorter than the cycle has its notes AND cue markers
+ * repeated at its chain length within the cycle — the same expansion law
+ * the offline WAV render applies (render.ts expandLaneEventsForLoop over
+ * computeLoopSteps). Equal-chain documents (cycle === every chain total)
+ * are the identity: their bytes are UNCHANGED by the law (the iteration-3
+ * zero-drift rule; pinned by midi/reference-project-v1).
  */
 
 import { writeMidi, type MidiData, type MidiEvent } from "midi-file";
@@ -65,7 +74,8 @@ import {
 } from "../document/schema";
 import { effectiveScale, degreeToMidi } from "../document/scales";
 import { getPreset } from "./presets";
-import { resolveChainPatterns } from "./song";
+import { laneCycleSteps, resolveChainPatterns } from "./song";
+import { computeLoopSteps } from "./render";
 import { safeFileStem, type DownloadSeam } from "../persist/fileIO";
 
 export const MIDI_EXTENSION = ".bitbounce.mid";
@@ -230,6 +240,51 @@ function gateDurationTicks(gate: LaneGate, bpm: number): number {
   return Math.max(1, gateTicks(gate, bpm));
 }
 
+/**
+ * XP-1 (i3-5): the export cycle in steps — the LCM of the lanes' chain
+ * totals through the SAME pure law the offline WAV render and the
+ * transport's cycle basis use (render.ts computeLoopSteps over
+ * laneCycleSteps; engineBridge's docCycleSteps is the identical derivation
+ * — one LCM for one-shot, position, WAV and MIDI). Chain totals are
+ * multiples of 16, so at the powers-of-two vocabulary the LCM is simply
+ * the longest lane (I3-d: drums 64B + bass 4B + chords 8B → 1024 steps);
+ * a degenerate all-empty document falls back to the constant 16.
+ */
+export function exportCycleSteps(doc: ProjectDocument): number {
+  return computeLoopSteps(LANE_IDS.map((lane) => laneCycleSteps(doc, lane)));
+}
+
+/**
+ * XP-1 (i3-5): fill one lane's chain-walked notes to the FULL export cycle:
+ * chain-local notes repeat at every k × chainSteps (exact tick offsets —
+ * chain steps are multiples of 16, so iteration offsets are even steps and
+ * the swing parity of pattern-local steps is preserved, the same law
+ * render.ts expandLaneEventsForLoop applies to audio). `cycleSteps` is a
+ * multiple of every lane's `chainSteps` by construction (both are LCM
+ * inputs); a cycle equal to or below the chain, or an impossible non-multiple,
+ * is the identity. Equal-chain documents therefore keep their exact bytes.
+ */
+export function repeatNotesToCycle(
+  notes: readonly MidiNote[],
+  chainSteps: number,
+  cycleSteps: number,
+): MidiNote[] {
+  if (
+    chainSteps <= 0 ||
+    cycleSteps <= chainSteps ||
+    cycleSteps % chainSteps !== 0
+  ) {
+    return [...notes];
+  }
+  const iterations = cycleSteps / chainSteps;
+  const out: MidiNote[] = [...notes];
+  for (let k = 1; k < iterations; k++) {
+    const offset = k * chainSteps * TICKS_PER_STEP;
+    for (const n of notes) out.push({ ...n, tick: n.tick + offset });
+  }
+  return out;
+}
+
 /** Drums lane → GM notes (piece identity maps directly; pattern walk). */
 export function buildDrumNotes(
   chain: readonly Pattern[],
@@ -271,6 +326,9 @@ export function buildDrumNotes(
  * chords lane stacks [degree, degree+2, degree+4], pitch = degreeToMidi(
  * effective scale, note degree + offset, preset octave base). Notes on degrees
  * outside the pattern's row manifest are skipped, exactly like the compiler.
+ * RC-1 (v3): the lane's `octave` register offset rides the SAME law — an
+ * offset on the preset's octave base (exported pitch = heard pitch), with the
+ * final note number clamped to 0..127 (the schema's consumer-side pitch law).
  */
 export function buildPitchedNotes(
   doc: ProjectDocument,
@@ -285,7 +343,8 @@ export function buildPitchedNotes(
     (presetId !== undefined ? getPreset(presetId) : undefined) ??
     getPreset("preset-lead-1");
   const octaveBase =
-    preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane];
+    (preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane]) +
+    ((laneConf && laneConf.id !== "drums" ? laneConf.octave : undefined) ?? 0);
   const scale = effectiveScale(doc, lane);
   const stack = lane === "chords" ? [0, 2, 4] : [0];
   const notes: MidiNote[] = [];
@@ -302,7 +361,10 @@ export function buildPitchedNotes(
       for (const off of stack) {
         notes.push({
           tick: cursor + stepTick(note.start, swing),
-          noteNumber: degreeToMidi(scale, note.degree + off, octaveBase),
+          noteNumber: Math.min(
+            127,
+            Math.max(0, degreeToMidi(scale, note.degree + off, octaveBase)),
+          ),
           velocity: PITCHED_VELOCITY,
           durationTicks,
         });
@@ -316,9 +378,15 @@ export function buildPitchedNotes(
 /**
  * Cue markers (DES-6 free win): every non-null chainCues label at its slot's
  * chain-start tick, deduped across lanes (same tick + same text = one event).
+ * XP-1 (i3-5): with `cycleSteps` (the export cycle), a lane's markers repeat
+ * at its chain length within the cycle — the file renders exactly one full
+ * LCM cycle, so a shorter lane's section labels recur on every chain
+ * iteration, exactly as its notes do. Equal-chain docs: one iteration, the
+ * previous bytes.
  */
 export function buildCueMarkers(
   doc: ProjectDocument,
+  cycleSteps?: number,
 ): { tick: number; text: string }[] {
   const cues = doc.chainCues;
   if (!cues) return [];
@@ -329,16 +397,26 @@ export function buildCueMarkers(
     const labels = cues[lane];
     if (!labels) continue;
     const chain = resolveChainPatterns(doc, lane);
+    const chainSteps = laneCycleSteps(doc, lane);
+    const iterations =
+      cycleSteps !== undefined &&
+      chainSteps > 0 &&
+      cycleSteps > chainSteps &&
+      cycleSteps % chainSteps === 0
+        ? cycleSteps / chainSteps
+        : 1;
     for (let slot = 0; slot < labels.length && slot < chain.length; slot++) {
       const label = labels[slot];
       if (!label) continue;
       let startStep = 0;
       for (let i = 0; i < slot; i++) startStep += chain[i].bars * 16;
-      const tick = startStep * TICKS_PER_STEP;
-      const key = `${tick}:${label}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ tick, text: label });
+      for (let k = 0; k < iterations; k++) {
+        const tick = (startStep + k * chainSteps) * TICKS_PER_STEP;
+        const key = `${tick}:${label}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ tick, text: label });
+      }
     }
   }
   // Stable tick sort (ties keep schema lane order — insertion order — then
@@ -397,6 +475,8 @@ function velocityOf(e: MidiEvent): number {
  */
 export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
   const bpm = doc.transport.bpm;
+  // XP-1 (i3-5): the whole file spans EXACTLY one export cycle.
+  const cycleSteps = exportCycleSteps(doc);
 
   // --- Track 0: tempo map + 4/4 + cue markers ------------------------------
   const tempoUs = Math.round(60_000_000 / bpm);
@@ -431,7 +511,7 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
         microsecondsPerBeat: tempoUs,
       },
     },
-    ...buildCueMarkers(doc).map((m) => ({
+    ...buildCueMarkers(doc, cycleSteps).map((m) => ({
       tick: m.tick,
       event: {
         deltaTime: 0,
@@ -451,6 +531,9 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
   for (const laneConf of doc.lanes) {
     const lane = laneConf.id;
     const chain = resolveChainPatterns(doc, lane);
+    // XP-1: the lane's notes fill the export cycle (identity for equal
+    // chains — the zero-drift law).
+    const laneSteps = laneCycleSteps(doc, lane);
     const events: PendingEvent[] = [
       {
         tick: 0,
@@ -464,7 +547,12 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
     ];
     if (lane === "drums") {
       // Drums: GM channel 9, no program change (channel 10 IS the program).
-      for (const note of buildDrumNotes(chain, laneConf.gate, bpm, swing)) {
+      const notes = repeatNotesToCycle(
+        buildDrumNotes(chain, laneConf.gate, bpm, swing),
+        laneSteps,
+        cycleSteps,
+      );
+      for (const note of notes) {
         events.push({
           tick: note.tick,
           event: {
@@ -501,7 +589,12 @@ export function buildMidiData(doc: ProjectDocument, swing = 0): MidiData {
           },
         });
       }
-      for (const note of buildPitchedNotes(doc, lane, chain, swing)) {
+      const pitched = repeatNotesToCycle(
+        buildPitchedNotes(doc, lane, chain, swing),
+        laneSteps,
+        cycleSteps,
+      );
+      for (const note of pitched) {
         events.push({
           tick: note.tick,
           event: {
@@ -541,21 +634,27 @@ export function encodeMidi(doc: ProjectDocument): Uint8Array {
   return Uint8Array.from(writeMidi(buildMidiData(doc, doc.transport.swing)));
 }
 
-/** Total note count across lane tracks (display + tests). */
+/**
+ * Total note count across lane tracks (display + tests). XP-1: counts the
+ * FILLED cycle — shorter chains repeat within the export LCM, so the toast's
+ * count is exactly what the file carries (equal-chain docs unchanged).
+ */
 export function noteCount(doc: ProjectDocument): number {
+  const cycleSteps = exportCycleSteps(doc);
   let n = 0;
   for (const laneConf of doc.lanes) {
     const chain = resolveChainPatterns(doc, laneConf.id);
-    n +=
+    const laneSteps = laneCycleSteps(doc, laneConf.id);
+    const notes =
       laneConf.id === "drums"
         ? buildDrumNotes(
             chain,
             laneConf.gate,
             doc.transport.bpm,
             doc.transport.swing,
-          ).length
-        : buildPitchedNotes(doc, laneConf.id, chain, doc.transport.swing)
-            .length;
+          )
+        : buildPitchedNotes(doc, laneConf.id, chain, doc.transport.swing);
+    n += repeatNotesToCycle(notes, laneSteps, cycleSteps).length;
   }
   return n;
 }
@@ -570,6 +669,11 @@ export interface ExportMidiSuccess {
   /** Always 5: tempo/cue track + 4 lanes. */
   readonly trackCount: number;
   readonly noteCount: number;
+  /**
+   * XP-1 (i3-5): bars in the export cycle (exportCycleSteps / 16) — the
+   * same LCM cycle the WAV render exports. Display (toast) + assertions.
+   */
+  readonly bars: number;
   readonly byteLength: number;
 }
 
@@ -620,6 +724,7 @@ export function exportMidi(
     filename,
     trackCount: TRACK_COUNT,
     noteCount: noteCount(project),
+    bars: exportCycleSteps(project) / 16,
     byteLength: bytes.byteLength,
   };
 }

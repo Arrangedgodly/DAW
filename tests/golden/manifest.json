@@ -46,8 +46,8 @@
     },
     "codec/demo-project-canonical-v3": {
       "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: v2 notes. SV-1: regenerated for schema v3 (transport drops loopBars; composition unchanged).",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v1-default-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 default-project bytes) — the walk now continues v2→v3 (loopBars drops). Migrating the v1 text must equal the shipped v3 default exactly. Pins the migration law; mismatch = hard failure.",
@@ -56,8 +56,8 @@
     },
     "migrate/v1-demo-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 WELCOME SONG bytes) — the walk now continues v2→v3 (loopBars drops). The demo is the only sustain-marker-heavy shipped project — its 6-step-gate chord pads must migrate to 15-step notes. Pins the duration-preserving law; mismatch = hard failure.",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v1-sustain-heavy-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps); the walk continues v2→v3 (loopBars drops). Pins the quantization corner; mismatch = hard failure.",
@@ -83,13 +83,30 @@
     },
     "migrate/v2-demo-to-v3": {
       "note": "SV-1 migration fixture: canonical v3 bytes of decode(v2 WELCOME SONG bytes) — the v2 text is exactly the pre-SV-1 demo save (version 2 + loopBars). Must equal the shipped v3 demo exactly. Mismatch = hard failure.",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v2-boundary-to-v3": {
       "note": "SV-1 migration fixture: canonical v3 bytes of decode(hand-authored v2 boundary neighbor) — 4-bar patterns (the v2 ceiling), notes at the v2 bounds (start 63, length 128), loopBars 4 paired with the bars. Every v2-boundary value must survive unchanged; only loopBars drops. Mismatch = hard failure.",
       "sha256": "96ffdcf3e15c1c5e878d1790c1e712358061da5aefe2c0012e87681ea38b87a3",
       "byteLength": 3455
+    },
+    "midi/lcm-cycle-project-v1": {
+      "note": "Byte-exact Type-1 MIDI of the XP-1 UNEQUAL-CHAIN LCM reference (drums chain [2B,2B], bass 2B, chords/lead 1B → 4-bar export cycle). Pins the i3-5 law: shorter chains' notes AND cue markers repeat at their chain length within the LCM cycle (bass ×2 at ticks 0/3840, the GROOVE cue recurs at the chain boundary); equal-chain docs are untouched (midi/reference-project-v1 unchanged — the zero-drift twin). Pure TS, hard failure on mismatch.",
+      "sha256": "71b8adf184dc3eacf8db517dae1190e6d14209b3a08cef3dfd97f378fd7157db",
+      "byteLength": 581
+    },
+    "wav/lcm-export-fp-v1": {
+      "note": "SHA-256 of the exported .wav FILE bytes for the XP-1 UNEQUAL-CHAIN LCM reference (drums chain [2B,2B] + bass 2B + chords/lead 1B → a 4-bar export cycle = the LCM of lane chain totals, 352,800 samples). The i3-5 LCM-cycle law's render-path canary: the loop length is the LCM with shorter lanes wrapping within it; the hard law proofs (64-bar probe, sample-exact math, seam, parse-back) live in tests/browser/exportWav.test.ts, and the hard MIDI twin is midi/lcm-cycle-project-v1. Environment-pinned like every render-derived fingerprint: mismatch is a console DRIFT warning, never a CI failure.",
+      "sha256": "a000a8f838fe6838c286e8206d6034be16a148e1ccee6f6b2c82e446c9920d61",
+      "byteLength": 1411244,
+      "kind": "render",
+      "renderEnv": {
+        "playwright": "playwright 1.62.1",
+        "chromium": "chromium (MacOS/Google Chrome for Testing)",
+        "sampleRate": 44100,
+        "loopSamples": 352800
+      }
     }
   }
 }

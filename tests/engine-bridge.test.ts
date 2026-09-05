@@ -16,6 +16,8 @@ import {
   togglePitchedCell,
   undo,
   addPattern,
+  appendBlankPattern,
+  resizePattern,
 } from "../src/state/store";
 import { connectStoreToEngine } from "../src/state/engineBridge";
 import type { Session } from "../src/engine/session";
@@ -28,23 +30,28 @@ interface FakeSession {
   sounds: Record<string, string>;
   scales: Record<string, EffectiveScale>;
   mixes: Record<string, LaneMix>;
+  /** RC-1: pushed lane register offsets (audition path). */
+  octaves: Record<string, number>;
   bpm: number;
   swing: number;
   metronome: boolean;
-  loopBars: number;
-  /** SV-1: how many times the transport basis was pushed (churn teeth). */
-  setLoopBarsCalls: number;
+  /** LL-2: the pushed transport cycle basis (LCM of lane chain totals). */
+  cycleSteps: number;
+  /** LL-2: how many times the transport basis was pushed (churn teeth). */
+  setCycleStepsCalls: number;
   compiles: LaneId[];
   setLaneSchedule(lane: LaneId, schedule: LaneSchedule): void;
   setLaneSound(lane: LaneId, id: string): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(lane: string, scale: EffectiveScale | null): void;
   setLaneMix(lane: LaneId, mix: LaneMix): void;
+  /** RC-1: the register offset push for auditions. */
+  setLaneOctave(lane: string, octave: number | null): void;
   setBpm(bpm: number): void;
   setSwingAmount(a: number): void;
   setMetronome(on: boolean): void;
   transport: {
-    setLoopBars(bars: number): void;
+    setCycleSteps(steps: number): void;
     snapshot: { bpm: number; swing: number };
   };
 }
@@ -55,11 +62,12 @@ function fakeSession(): FakeSession {
     sounds: {},
     scales: {},
     mixes: {},
+    octaves: {},
     bpm: -1,
     swing: -1,
     metronome: false,
-    loopBars: -1,
-    setLoopBarsCalls: 0,
+    cycleSteps: -1,
+    setCycleStepsCalls: 0,
     compiles: [],
     setLaneSchedule(lane, schedule) {
       s.schedules.set(lane, schedule);
@@ -78,6 +86,10 @@ function fakeSession(): FakeSession {
     setLaneMix(lane, mix) {
       s.mixes[lane] = mix;
     },
+    setLaneOctave(lane, octave) {
+      if (octave === null || octave === 0) delete s.octaves[lane];
+      else s.octaves[lane] = octave;
+    },
     setBpm(bpm) {
       s.bpm = bpm;
     },
@@ -88,9 +100,9 @@ function fakeSession(): FakeSession {
       s.metronome = on;
     },
     transport: {
-      setLoopBars(bars) {
-        s.loopBars = bars;
-        s.setLoopBarsCalls++;
+      setCycleSteps(steps) {
+        s.cycleSteps = steps;
+        s.setCycleStepsCalls++;
       },
       snapshot: { bpm: 120, swing: 0 },
     },
@@ -112,10 +124,10 @@ describe("connectStoreToEngine", () => {
     disconnect();
 
     expect(s.bpm).toBe(120);
-    // SV-1 (J6): the derived loop basis is authoritative through the compat
-    // window — the default's all-1-bar patterns derive 1 (the retired
-    // persisted field's value, engine-side).
-    expect(s.loopBars).toBe(1);
+    // LL-2 (E5 re-based): the transport cycle basis = the LCM of lane chain
+    // totals — the default's four 1-bar chains give 16 steps (v0.1's basis
+    // exactly; the zero-drift shape).
+    expect(s.cycleSteps).toBe(16);
     expect(s.sounds["drums"]).toBe("kit-default");
     expect(s.sounds["lead"]).toBe("preset-lead-1");
     // Pitched lanes got their effective scale (project default C minor).
@@ -176,34 +188,49 @@ describe("connectStoreToEngine", () => {
     s.compiles.length = 0;
     setTransport({ bpm: 150 });
     expect(s.bpm).toBe(150);
-    expect(s.loopBars).toBe(1); // unchanged transport object basis: still 1
+    expect(s.cycleSteps).toBe(16); // unchanged chain totals: still the LCM 16
     expect(new Set(s.compiles)).toEqual(
       new Set(["drums", "bass", "chords", "lead"]),
     );
     disconnect();
   });
 
-  it("SV-1 compat derivation: pattern-bars edits re-push the derived loop basis (E5)", () => {
+  it("LL-2 basis: the transport cycle = the LCM of lane CHAIN totals (E5 re-based — pool-only patterns never move it)", () => {
     const s = fakeSession();
     const disconnect = connectStoreToEngine(s as unknown as Session);
-    s.setLoopBarsCalls = 0;
+    s.setCycleStepsCalls = 0;
+    const doc = () => docStore.getState().doc;
+    const chainId = (lane: LaneId) => doc().songChain[lane][0]!;
 
-    // Widening the vocabulary through the store: a 2-bar pattern derives 2.
-    addPattern("drums", 2, "B");
-    expect(s.loopBars).toBe(2);
-    // The derivation CLAMPS at 4 through the compat window (the transport
-    // LoopBars type stays 1|2|4 until LL-2 re-bases it).
-    addPattern("lead", 8, "B");
-    expect(s.loopBars).toBe(4);
-    // …and stays 4 at the vocabulary ceiling.
-    addPattern("bass", 128, "B");
-    expect(s.loopBars).toBe(4);
+    // Resize the CHAINED drums pattern 1→2 bars: chain total 32 → LCM 32.
+    expect(resizePattern("drums", chainId("drums"), 2).ok).toBe(true);
+    expect(s.cycleSteps).toBe(32);
+
+    // IM-6 split (SE-1, the LL-2 half): an UNCHAINED pool pattern — however
+    // wide — never moves the playhead basis (grid extent follows pattern
+    // bars [LL-1]; playhead follows CHAIN totals [this law]).
+    const pool = addPattern("lead", 128, "B");
+    expect(doc().songChain.lead).not.toContain(pool);
+    expect(s.cycleSteps).toBe(32);
+
+    // Resize lead's CHAINED pattern to 8 bars: LCM(32, 128, 16, 16) = 128.
+    expect(resizePattern("lead", chainId("lead"), 8).ok).toBe(true);
+    expect(s.cycleSteps).toBe(128);
+
+    // A multi-slot chain makes an INCOMMENSURATE total: the rail `+`
+    // appends a 1-bar blank next to the 2-bar pattern → drums [2-bar,
+    // 1-bar] = 48 steps → the TRUE LCM (48, 128, 16, 16) = 384 — not the
+    // longest lane (the powers-of-two coincidence does not carry the law).
+    const blank = appendBlankPattern("drums", "E");
+    expect(doc().songChain.drums).toEqual([chainId("drums"), blank]);
+    expect(doc().patterns.drums.find((p) => p.id === blank)!.bars).toBe(1);
+    expect(s.cycleSteps).toBe(384);
 
     // Content-only edits do NOT re-push (value-compared derivation — no
-    // spurious setLoopBars churn on note toggles).
-    const callsBefore = s.setLoopBarsCalls;
+    // spurious setCycleSteps churn on note toggles).
+    const callsBefore = s.setCycleStepsCalls;
     togglePitchedCell("bass", 0, 0);
-    expect(s.setLoopBarsCalls).toBe(callsBefore);
+    expect(s.setCycleStepsCalls).toBe(callsBefore);
     disconnect();
   });
 

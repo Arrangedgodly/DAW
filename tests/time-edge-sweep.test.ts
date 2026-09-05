@@ -26,6 +26,9 @@ import {
 const BPMS: number[] = [];
 for (let bpm = 60; bpm <= 200; bpm += 10) BPMS.push(bpm);
 const SWINGS = [0, 0.25, 0.5, 0.75, 1] as const;
+// LL-2: the sweep rows stay BARS-shaped (the v2 vocabulary identity); the
+// stepIndexAtTime calls below are steps-typed (bars x 16) — the wider basis
+// the production seam now carries.
 const BARS = [1, 2, 4] as const;
 
 interface Row {
@@ -64,18 +67,18 @@ describe("timing edge sweep (15 bpm x 5 swing x 3 bars = 225 combos)", () => {
         const t = timeAtStep(i, opts);
         const next = i + 1 < steps ? timeAtStep(i + 1, opts) : loopLen;
         if (t < next) {
-          expect(stepIndexAtTime(t, { bars, ...opts })).toBe(i);
+          expect(stepIndexAtTime(t, { steps, ...opts })).toBe(i);
           // 3. Midpoint of a non-degenerate step interval maps to the earlier step.
-          expect(stepIndexAtTime((t + next) / 2, { bars, ...opts })).toBe(i);
+          expect(stepIndexAtTime((t + next) / 2, { steps, ...opts })).toBe(i);
         }
       }
 
       // 4. Exact loop boundary wraps to step 0 (and half a loop is well-formed).
-      expect(stepIndexAtTime(loopLen, { bars, ...opts })).toBe(0);
+      expect(stepIndexAtTime(loopLen, { steps, ...opts })).toBe(0);
       expect(
-        stepIndexAtTime(loopLen / 2, { bars, ...opts }),
+        stepIndexAtTime(loopLen / 2, { steps, ...opts }),
       ).toBeGreaterThanOrEqual(0);
-      expect(stepIndexAtTime(loopLen / 2, { bars, ...opts })).toBeLessThan(
+      expect(stepIndexAtTime(loopLen / 2, { steps, ...opts })).toBeLessThan(
         steps,
       );
     });

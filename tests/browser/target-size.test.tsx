@@ -691,7 +691,9 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           () =>
             document
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
-              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+              // RC-1 journey delta: windowed names append the ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           2000,
           "bass stage editable",
         );

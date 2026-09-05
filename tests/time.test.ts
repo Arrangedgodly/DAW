@@ -150,23 +150,23 @@ describe("stepIndexAtTime (inverse of timeAtStep)", () => {
   it("maps exact step times back to their step (half-open intervals)", () => {
     for (let step = 0; step < 16; step++) {
       const t = timeAtStep(step, { bpm: 60 });
-      expect(stepIndexAtTime(t, { bars: 1, bpm: 60 })).toBe(step);
+      expect(stepIndexAtTime(t, { steps: 16, bpm: 60 })).toBe(step);
     }
   });
 
   it("maps mid-step times correctly", () => {
-    expect(stepIndexAtTime(0.1, { bars: 1, bpm: 60 })).toBe(0);
-    expect(stepIndexAtTime(0.3, { bars: 1, bpm: 60 })).toBe(1);
-    expect(stepIndexAtTime(3.99, { bars: 1, bpm: 60 })).toBe(15);
+    expect(stepIndexAtTime(0.1, { steps: 16, bpm: 60 })).toBe(0);
+    expect(stepIndexAtTime(0.3, { steps: 16, bpm: 60 })).toBe(1);
+    expect(stepIndexAtTime(3.99, { steps: 16, bpm: 60 })).toBe(15);
   });
 
   it("handles exact loop boundaries (t == loop length wraps to step 0)", () => {
-    expect(stepIndexAtTime(4, { bars: 1, bpm: 60 })).toBe(0);
-    expect(stepIndexAtTime(8, { bars: 2, bpm: 60 })).toBe(0);
+    expect(stepIndexAtTime(4, { steps: 16, bpm: 60 })).toBe(0);
+    expect(stepIndexAtTime(8, { steps: 32, bpm: 60 })).toBe(0);
   });
 
   it("works with swing", () => {
-    const opts = { bars: 1, bpm: 120, swing: 0.5 } as const;
+    const opts = { steps: 16, bpm: 120, swing: 0.5 } as const;
     // step 0 spans [0, 0.1875), step 1 spans [0.1875, 0.25)
     expect(stepIndexAtTime(0.1874, opts)).toBe(0);
     expect(stepIndexAtTime(0.1875, opts)).toBe(1);
@@ -182,7 +182,7 @@ describe("stepIndexAtTime (inverse of timeAtStep)", () => {
     for (const bars of [1, 2, 4] as const) {
       for (let step = 0; step < totalSteps(bars) - 1; step++) {
         const t = timeAtStep(step, { bpm: 120 });
-        expect(stepIndexAtTime(t, { bars, bpm: 120 })).toBe(step);
+        expect(stepIndexAtTime(t, { steps: bars * 16, bpm: 120 })).toBe(step);
       }
     }
   });

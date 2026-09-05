@@ -450,6 +450,57 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// RC-1 (v3, i3-2): per-lane register transpose — writes the v3 `octave` field
+// (schema PitchedLane.octave, −3..+3). Canonical-empty at 0 (the lane-mix
+// law: default-shaped documents stay byte-stable on the wire, so every
+// pre-RC-1 document and both codec goldens are untouched). Rapid repeats
+// coalesce per `octave:<lane>` (held-key repeats = ONE undo gesture — the
+// note-resize discrete-commit precedent). The engineBridge treats octave as
+// a compile input, so the lane recompiles LIVE (audible); compile.ts and
+// exportMidi.ts consume it as an offset on the preset's octave base.
+// ---------------------------------------------------------------------------
+
+/**
+ * Set one PITCHED lane's octave register offset (clamped to the schema
+ * domain by validation; the UI funnel in selection.ts pre-clamps and
+ * announces). Writing 0 DELETES the field (canonical empty form).
+ */
+export function setLaneOctave(
+  lane: Exclude<LaneId, "drums">,
+  octave: number,
+): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane);
+  if (!conf || conf.id === "drums") return;
+  if ((conf.octave ?? 0) === octave) return; // no-op never commits
+  commit(
+    withLane(doc, lane, (l) => {
+      const merged = { ...l } as typeof l & { octave?: number };
+      if (octave === 0) delete merged.octave;
+      else merged.octave = octave;
+      return merged;
+    }),
+    `octave:${lane}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Document-replacement listeners (RC-1): view state that models "per
+// document" position (selection.ts's register windows) resets when a whole
+// document is LOADED — boot restore, project switch, NEW. Registered from
+// selection.ts through this seam so the store never imports view modules
+// (no cycle; ordinary edits and undo/redo never fire it).
+// ---------------------------------------------------------------------------
+
+const docReplacedListeners = new Set<() => void>();
+
+/** Subscribe to whole-document replacements; returns the unsubscribe. */
+export function onDocumentReplaced(fn: () => void): () => void {
+  docReplacedListeners.add(fn);
+  return () => docReplacedListeners.delete(fn);
+}
+
+// ---------------------------------------------------------------------------
 // PS-4 — sample-voice provenance maintenance (the PS-3 field's writer).
 //
 // Law (PS-3 schema): a project whose lanes use sample-backed sounds records
@@ -732,6 +783,40 @@ function newPatternId(lane: LaneId): string {
   return `${lane}-${n}`;
 }
 
+/** The blank-pattern construction shared by addPattern + appendBlankPattern. */
+function blankPattern(
+  lane: LaneId,
+  doc: ProjectDocument,
+  id: string,
+  name: string,
+  bars: PatternBars,
+): Pattern {
+  return lane === "drums"
+    ? {
+        kind: "drums",
+        id,
+        name,
+        bars,
+        steps: Object.fromEntries(
+          DRUM_PIECES.map((piece) => [
+            piece,
+            new Array(16 * bars).fill(false),
+          ]),
+        ) as Record<DrumPiece, boolean[]>,
+      }
+    : {
+        kind: "pitched",
+        id,
+        name,
+        bars,
+        rowDegrees: Array.from(
+          { length: pitchedRowCount(lane, doc) },
+          (_, degree) => degree,
+        ),
+        notes: [],
+      };
+}
+
 /** Append a new empty pattern to a lane. Returns the new pattern id. */
 export function addPattern(
   lane: LaneId,
@@ -740,31 +825,7 @@ export function addPattern(
 ): string {
   const doc = docStore.getState().doc;
   const id = newPatternId(lane);
-  const pattern: Pattern =
-    lane === "drums"
-      ? {
-          kind: "drums",
-          id,
-          name,
-          bars,
-          steps: Object.fromEntries(
-            DRUM_PIECES.map((piece) => [
-              piece,
-              new Array(16 * bars).fill(false),
-            ]),
-          ) as Record<DrumPiece, boolean[]>,
-        }
-      : {
-          kind: "pitched",
-          id,
-          name,
-          bars,
-          rowDegrees: Array.from(
-            { length: pitchedRowCount(lane, doc) },
-            (_, degree) => degree,
-          ),
-          notes: [],
-        };
+  const pattern = blankPattern(lane, doc, id, name, bars);
   commit({
     ...doc,
     patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
@@ -905,6 +966,43 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
   return true;
 }
 
+/**
+ * BC-1 (I3-a — the rail `+` law): create a NEW blank pattern (caller-supplied
+ * next-letter name; bars = addPattern's existing default, 1) AND append it to
+ * the lane's chain in ONE commit. The rail's `+` button and rail-local
+ * `+`/`=` key both land here; the caller selects the returned id for editing
+ * (selection is view state, selection.ts — never document).
+ *
+ * Undo discipline (the recorded production decision): one `+` press = ONE
+ * undo step — the create and its append co-revert, following the
+ * removePattern precedent (a patterns+chain structural rewrite in a single
+ * commit), NOT a coalescing family (those exist for rapid REPEAT edits
+ * within the 350 ms window — a family here would wrongly glue two deliberate
+ * `+` presses into one step; structural actions never coalesce).
+ */
+export function appendBlankPattern(
+  lane: LaneId,
+  name: string,
+  bars: PatternBars = 1,
+): string {
+  const doc = docStore.getState().doc;
+  const id = newPatternId(lane);
+  const pattern = blankPattern(lane, doc, id, name, bars);
+  commit(
+    // The appended slot's cue rides withChain's null padding (unlabeled).
+    withChain(
+      {
+        ...doc,
+        patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
+      },
+      lane,
+      [...doc.songChain[lane], id],
+      (old) => [...old],
+    ),
+  );
+  return id;
+}
+
 /** Append one chain slot playing `patternId` (unlabeled). */
 export function appendChainSlot(lane: LaneId, patternId: string): void {
   const doc = docStore.getState().doc;
@@ -916,6 +1014,119 @@ export function appendChainSlot(lane: LaneId, patternId: string): void {
       ...old,
     ]),
   );
+}
+
+// ---------------------------------------------------------------------------
+// LL-1 (iteration 3, i3-4): pattern RESIZE — the powers-of-two length ladder
+// (1·2·4·8·16·32·64·128) as an after-create edit. Policy (the Hulk
+// resolution, fixed): grow ALWAYS proceeds; shrink proceeds only when NO
+// note would be lost past the new end — otherwise a TYPED refusal (never a
+// silent truncation; the caller announces the blocking note). The blocking
+// note is deterministic: greatest end (start + length), ties broken by the
+// latest start (the focused-note determinism law, IN-2).
+// ---------------------------------------------------------------------------
+
+/** The blocking note a refusal names (row identity + extent, UI formats). */
+export interface ResizeBlockingNote {
+  /** Drum piece (drums patterns) or scale-degree row (pitched patterns). */
+  readonly row: DrumPiece | number;
+  /** Note anchor step (0-based). */
+  readonly start: number;
+  /** Note extent in steps (drums hits are always 1). */
+  readonly length: number;
+}
+
+export type ResizePatternResult =
+  | { readonly ok: true; readonly bars: PatternBars }
+  | { readonly ok: false; readonly reason: "not-found" | "no-op" }
+  | {
+      readonly ok: false;
+      readonly reason: "blocked";
+      readonly toBars: PatternBars;
+      readonly blocking: ResizeBlockingNote;
+    };
+
+/**
+ * Resize one pattern to `bars` (vocabulary size). Grow extends drum rows
+ * with empty steps (pitched notes never change on grow); a clean shrink
+ * truncates drum rows and leaves pitched notes byte-identical — every note
+ * fits the new extent. Refuses — store untouched — when any note would be
+ * lost past the new end: a drum hit at step ≥ newSteps, or a pitched note
+ * whose end (start + length) exceeds newSteps (no silent truncation; the
+ * overhang-wrap law never applies to the RESIZE path — the user moves or
+ * shortens the note first). Undo family `resize:<lane>:<pattern>` (KL-1:
+ * held-key ladder repeats coalesce like the octave family — one gesture).
+ */
+export function resizePattern(
+  lane: LaneId,
+  patternId: string,
+  bars: PatternBars,
+): ResizePatternResult {
+  const doc = docStore.getState().doc;
+  const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  if (!pattern) return { ok: false, reason: "not-found" };
+  if (pattern.bars === bars) return { ok: false, reason: "no-op" };
+  const newSteps = bars * 16;
+  if (bars < pattern.bars) {
+    // Shrink: scan for anything the truncation would lose.
+    if (pattern.kind === "drums") {
+      let blocking: ResizeBlockingNote | null = null;
+      for (const piece of DRUM_PIECES) {
+        const steps = pattern.steps[piece];
+        for (let step = newSteps; step < steps.length; step++) {
+          if (!steps[step]) continue;
+          // Deterministic: greatest end (a hit's end is step + 1).
+          if (
+            !blocking ||
+            step + 1 > blocking.start + blocking.length ||
+            (step + 1 === blocking.start + blocking.length &&
+              step > blocking.start)
+          ) {
+            blocking = { row: piece, start: step, length: 1 };
+          }
+        }
+      }
+      if (blocking) {
+        return { ok: false, reason: "blocked", toBars: bars, blocking };
+      }
+    } else {
+      let blocking: ResizeBlockingNote | null = null;
+      for (const note of pattern.notes) {
+        if (note.start + note.length <= newSteps) continue;
+        if (
+          !blocking ||
+          note.start + note.length > blocking.start + blocking.length ||
+          (note.start + note.length === blocking.start + blocking.length &&
+            note.start > blocking.start)
+        ) {
+          blocking = { row: note.degree, start: note.start, length: note.length };
+        }
+      }
+      if (blocking) {
+        return { ok: false, reason: "blocked", toBars: bars, blocking };
+      }
+    }
+  }
+  const nextPatterns = doc.patterns[lane].map((p) => {
+    if (p.id !== patternId) return p;
+    if (p.kind === "drums") {
+      const steps = {} as Record<DrumPiece, boolean[]>;
+      for (const piece of DRUM_PIECES) {
+        const row = p.steps[piece];
+        steps[piece] =
+          row.length < newSteps
+            ? [...row, ...new Array(newSteps - row.length).fill(false)]
+            : row.slice(0, newSteps);
+      }
+      return { ...p, bars, steps };
+    }
+    return { ...p, bars };
+  });
+  commit(
+    { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } },
+    `resize:${lane}:${patternId}`,
+  );
+  return { ok: true, bars };
 }
 
 /** Remove chain slot `index`; refuses (returns false) on the last slot. */
@@ -960,10 +1171,12 @@ export function setChainCue(
  * Replace the whole document (MF-2 boot restore). Decoded projects arrive
  * pre-normalized from validateProject, but `commit` re-validates anyway —
  * the boot path is untrusted-by-policy (IndexedDB row → codec → store).
- * Clears coalescing so the restore is not glued to any prior gesture.
+ * Clears coalescing so the restore is not glued to any prior gesture, and
+ * fires the document-replaced listeners (RC-1 view-state resets).
  */
 export function loadDocument(doc: ProjectDocument): void {
   commit(doc);
+  for (const fn of docReplacedListeners) fn();
 }
 
 export function undo(): void {

@@ -149,10 +149,11 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
       },
       setLaneChain: () => {},
       setLaneMix: () => {},
+      setLaneOctave: () => {}, // RC-1: the register push (audition path)
       setBpm: () => {},
       setSwingAmount: () => {},
       setMetronome: () => {},
-      transport: { setLoopBars: () => {}, snapshot: { bpm: 120, swing: 0 } },
+      transport: { setCycleSteps: () => {}, snapshot: { bpm: 120, swing: 0 } },
     };
     return s;
   }
