@@ -441,7 +441,10 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   tracked in production-log.md's iteration-3 tasks. Refinement i3-1
   (the vertical fill law — the fit's grow twin + the renderer geometry
   read seam + the window-step fence, measured same method): initial JS
-  **74.53 KB gz** (+0.28; 25% of budget), PASS.
+  **74.53 KB gz** (+0.28; 25% of budget), PASS. Refinement i3-2 (the
+  window-edge row quantization — the pane-height law rewrite + the
+  edit-flip re-pin, measured same method): initial JS **74.61 KB gz**
+  (+0.08), PASS.
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

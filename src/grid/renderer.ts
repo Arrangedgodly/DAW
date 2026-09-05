@@ -854,10 +854,13 @@ export class DomGridRenderer implements GridRenderer {
     // RC-1: the editing/view-only flip changes the CSS row RHYTHM (margins),
     // which moves every row's offset — re-anchor the window seat one frame
     // later (after the attribute-driven style re-applies) so the visible
-    // range and its name stay truthful.
+    // range and its name stay truthful. i3-2: the rhythm change also moves
+    // the boundary itself (the pane's quantized height = w × the LIVE pitch),
+    // so the pin re-applies BEFORE the seat measures against it.
     if (this.windowRows) {
       requestAnimationFrame(() => {
         if (!this.windowRows || this.disposed) return;
+        this.applyWindowHeight();
         this.scrollWindowTo(this.seatedStart, true);
       });
     }
@@ -999,7 +1002,29 @@ export class DomGridRenderer implements GridRenderer {
     );
   }
 
-  /** Pin the container height to exactly `windowRows` rows (+ own padding). */
+  /**
+   * Pin the pane height so the visible bottom edge lands EXACTLY on a row
+   * boundary (i3-2 — iteration-3 critique P2, the bisected-row sliver).
+   *
+   * THE LAW: the pane's BORDER-BOX height is exactly `windowRows` row
+   * pitches — the edge coincides with the NEXT row's top, so no row is ever
+   * bisected at the window edge, at boot or after any seat/re-fit. The old
+   * law pinned the CONTENT box to rows + padY, which under content-box
+   * sizing stacks the pane's own padding-bottom BELOW that: the edge ran
+   * (padTop + 2·padBottom − rowMargin) px past the boundary and permanently
+   * showed a sliver of the row under the window — 6px on view-only panes
+   * (pad 4+4 − margin 2; the critique's boot probe cut the manifest's LAST
+   * row 6px of 16), 4px on editing panes — after every key scroll, edit-tier
+   * flip, pattern switch, and fill re-fit. The recess below the last row is
+   * now the row rhythm's own margin (the editing tier's 4px reads exactly
+   * like the committed padding; a view-only pane's tighter 2px rhythm shows
+   * 2px — the pixels the old law spent cutting the row below).
+   *
+   * The pane's own horizontal scrollbar (eager long patterns scroll the
+   * pane itself; virtualized ones keep x inside .grid-hscroll) consumes the
+   * scrollport's bottom strip — the border box clears it too, so the
+   * boundary stays byte-exact with a bar present.
+   */
   private applyWindowHeight(): void {
     const w = this.windowRows;
     if (w == null) return;
@@ -1007,10 +1032,32 @@ export class DomGridRenderer implements GridRenderer {
     const style = getComputedStyle(container);
     const padY =
       Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+    const borderY =
+      Number.parseFloat(style.borderTopWidth) +
+      Number.parseFloat(style.borderBottomWidth);
     const first = this.rowEls[0]?.offsetHeight ?? this.rowHeightPx;
+    const marginBelow = this.rowEls[0]
+      ? Number.parseFloat(getComputedStyle(this.rowEls[0]).marginBottom)
+      : this.gapPx;
     const pitch = this.rowPitch();
-    const content = pitch * (w - 1) + first;
-    container.style.height = `${Math.ceil(content + padY)}px`;
+    // The boundary the edge must own: the next row's top in content coords
+    // (== pitch · w — the quantization the critique asked for).
+    const boundary = pitch * (w - 1) + first + marginBelow;
+    // Scrollbar coupling (classic-scrollbar platforms): the pin can itself
+    // flip the pane's vertical scrollbar (the manifest is always taller than
+    // the window), which narrows the scrollport and can raise a horizontal
+    // bar that eats the boundary from below. Widths are height-independent,
+    // so one re-measure pass converges (overlay-scrollbar platforms measure
+    // 0 and break on the first pass).
+    for (let pass = 0; pass < 2; pass++) {
+      const hsb = Math.max(
+        0,
+        container.offsetHeight - container.clientHeight - borderY,
+      );
+      const target = `${Math.round(boundary + hsb - padY - borderY)}px`;
+      if (container.style.height === target) break;
+      container.style.height = target;
+    }
   }
 
   /**
