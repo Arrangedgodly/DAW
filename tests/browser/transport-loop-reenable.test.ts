@@ -63,7 +63,7 @@ async function makeBlipHarness(): Promise<BlipHarness> {
     cancelScheduledEvents: () => {},
     intervalMs: 200,
     horizonSeconds: 1.5,
-    loopBars: 1,
+    cycleSteps: 16, // LL-2: the steps-typed basis (one bar — the v0.1 shape)
   });
   return {
     ctx,

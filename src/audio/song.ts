@@ -15,8 +15,9 @@
  *   segment chain). Unknown ids inside a non-empty chain are skipped.
  * - The chain loops as a whole (iteration = chainSteps). Per-lane chains may
  *   differ in length: each lane wraps independently against the transport's
- *   monotonic global step (poly-loop). Loop toggle/loopBars remain transport
- *   (playhead/stop) semantics; the chain is the arrangement.
+ *   monotonic global step (poly-loop). LL-2: the transport's cycle basis is
+ *   the LCM of the lane chain totals (playhead/position/one-shot semantics);
+ *   per-lane sweeps key on each lane's own chainSteps (laneCycleSteps).
  * - Events are grouped by chain-local STEP (byStep) so the session can deliver
  *   per scheduled tick and mutate the map for quantized live switching.
  */
@@ -84,6 +85,23 @@ export function resolveChainPatterns(
     .map((id) => patterns.find((p) => p.id === id))
     .filter((p): p is Pattern => p !== undefined);
   return resolved.length > 0 ? resolved : [patterns[0]];
+}
+
+/**
+ * LL-2 (i3-4, seam G4): the lane's CYCLE basis — its chain total in steps
+ * (sum of the resolved chain's pattern bars × 16; the same bounded
+ * resolveChainPatterns scan the compiler runs, LP-1 §10). This is the
+ * per-lane playhead sweep basis (LaneGrid's readFrame) and the per-lane
+ * half of the `p` position announcement. 0 when the lane has no resolvable
+ * pattern at all (empty pool — unreachable through the UI's store actions,
+ * but never a crash here; the LCM derivation skips zeros).
+ */
+export function laneCycleSteps(doc: ProjectDocument, lane: LaneId): number {
+  let steps = 0;
+  for (const pattern of resolveChainPatterns(doc, lane)) {
+    if (pattern) steps += pattern.bars * 16;
+  }
+  return steps;
 }
 
 /** Compile one lane's chain into a schedule. Pure; exact times. */

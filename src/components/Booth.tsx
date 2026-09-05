@@ -52,7 +52,7 @@ registerHelp([
   {
     id: "booth.loop",
     title: "LOOP",
-    text: "Keeps the song repeating from the top. With loop off, playback runs to the end of the pass and stops by itself.",
+    text: "Keeps the song repeating from the top. With loop off, playback runs to the end of the song cycle — every lane's pattern has come round once — and stops by itself.",
   },
   {
     id: "booth.metronome",
@@ -413,6 +413,13 @@ export default function Booth() {
         role="group"
         aria-label="Position"
       >
+        {/* LL-2 (KL-1 position law): this readout is the GLOBAL clock —
+            BAR.BEAT.STEP within the FULL LCM cycle of the lane chains (at
+            equal cycle lengths it wraps exactly at each lane's wrap, the
+            zero-drift shape; mechanism + format byte-identical to v0.1 —
+            only the wrap modulus grew from the retired loopBars to the
+            LCM). The beat announcement below keeps its on-beat-change-only
+            fence (the spam fence). */}
         <span class="booth-label" aria-hidden="true">
           BAR.BEAT.STEP
         </span>

@@ -116,12 +116,15 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         tiles(lane).findIndex((t) => t.dataset.state === "active");
       /**
        * The booth's BAR.BEAT.STEP readout (rAF-written from ctx.currentTime)
-       * wraps at the TRANSPORT's 1-bar loop grid — the demo's loopBars is 1,
-       * so its BAR digit stays 1 while the CHAIN advances. The chain clock is
-       * reconstructed exactly the way the transport counts: bars elapsed =
-       * wraps of the BEAT digit (4 beats per bar, monotone within a bar; each
-       * wrap = one 1-bar chain slot — the deterministic step-clock convention,
-       * no wall-clock timing anywhere in the follow laws).
+       * wraps at the TRANSPORT's cycle basis. LL-2: that basis is the LCM of
+       * lane chain totals — the demo's four 1-bar chains give 4 bars, so the
+       * BAR digit now advances 1..4 across each chain iteration (the
+       * deliberate KL-1 position-law swap; the readout format + mechanism
+       * are byte-identical). The chain clock below is reconstructed exactly
+       * the way the transport counts: bars elapsed = wraps of the BEAT digit
+       * (4 beats per bar, monotone within a bar; each wrap = one 1-bar chain
+       * slot — the deterministic step-clock convention, no wall-clock timing
+       * anywhere in the follow laws).
        */
       const readBeat = (): number => {
         const text = $<HTMLElement>(".booth-led").textContent?.trim() ?? "";

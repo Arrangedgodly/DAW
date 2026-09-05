@@ -272,10 +272,11 @@ export function createDemoProject(): ProjectDocument {
   return {
     name: "WELCOME SONG",
     version: SCHEMA_VERSION,
-    // v3 (SV-1): no loopBars — the retired field's engine basis derives
-    // engine-side (deriveLoopBarsCompat; all-1-bar demo patterns → 1, the
-    // v0.1 value exactly). LL-1/LL-2 replace the IM-6 agreement invariant
-    // with the extent/chain-basis laws.
+    // v3 (SV-1): no loopBars — LL-2's basis is the LCM of lane chain
+    // totals: the demo's four 1-bar chains per lane give LCM 64 steps (4
+    // bars — the deliberate LL-2 position-law swap: the booth readout counts
+    // BAR 1..4 across each chain iteration, while every lane's own sweep
+    // keeps its 1-bar wrap through the pattern-extent modulo).
     transport: { bpm: 112, swing: 0.2, metronome: false },
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,

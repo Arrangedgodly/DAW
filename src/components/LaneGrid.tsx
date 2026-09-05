@@ -44,6 +44,7 @@ import {
 } from "../document/schema";
 import { effectiveScale, modeSize } from "../document/scales";
 import { getSession } from "../engine/session";
+import { laneCycleSteps } from "../audio/song";
 import {
   DomGridRenderer,
   type PitchedNotesView,
@@ -543,13 +544,26 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       return h;
     };
 
+    // LL-2 (seam G4 — the per-lane playhead basis): the sweep basis is the
+    // LANE's OWN chain-cycle total. Primary source = the engine's LIVE
+    // schedule (post-substitution, iteration-mode rebuilds included — the
+    // honest sounding cycle); document fallback (song.ts laneCycleSteps)
+    // covers the boot window before the bridge has pushed schedules. The
+    // doc fallback is cached per patterns/songChain identity — readFrame
+    // runs at 60 Hz and never scans the document.
+    let docChainSteps = laneCycleSteps(docStore.getState().doc, lane);
+
     const readFrame = (): PlayheadFrame | null => {
       const snap = session.transport.snapshot;
       if (!snap.playing) return null;
       return {
         playing: true,
         loopTime: session.transport.getLoopTime(),
-        options: { bars: snap.loopBars, bpm: snap.bpm, swing: snap.swing },
+        options: {
+          steps: session.getLaneCycleSteps(lane) ?? docChainSteps,
+          bpm: snap.bpm,
+          swing: snap.swing,
+        },
       };
     };
 
@@ -823,6 +837,15 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         lastWindowHeight = h;
         applyRegisterWindow();
         return;
+      }
+      // LL-2: chain-total edits (a resize of a chained pattern, a rail +/RM
+      // chain mutation) refresh the sweep-basis fallback for readFrame (the
+      // engine's live schedule takes precedence once pushed).
+      if (
+        state.doc.patterns[lane] !== prev.doc.patterns[lane] ||
+        state.doc.songChain[lane] !== prev.doc.songChain[lane]
+      ) {
+        docChainSteps = laneCycleSteps(state.doc, lane);
       }
       // Re-sync on pattern-content identity only: IN-2 renders notes
       // natively (no gate/BPM-derived view left to invalidate).

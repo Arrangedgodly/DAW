@@ -153,8 +153,12 @@ export const NOTE_EDGE_HIT_PX = 5;
 
 export interface PlayheadFrame {
   readonly playing: boolean;
-  /** Loop-relative seconds (transport timeline; swing applied). */
+  /**
+   * Loop-relative seconds on the TRANSPORT's LCM-cycle basis (LL-2); the
+   * frame's options re-base it onto the lane's own chain cycle.
+   */
   readonly loopTime: number;
+  /** LL-2: the LANE's chain-cycle basis (steps) + groove. */
   readonly options: PlayheadOptions;
 }
 
@@ -1956,15 +1960,28 @@ export class DomGridRenderer implements GridRenderer {
         // D9: quantized column highlight, no sweep.
         this.setPlayhead(null);
       } else {
+        // LL-2: the frame's options carry the LANE's chain-cycle basis;
+        // playheadX wraps the position into THIS renderer's pattern extent
+        // (gridSteps) — same law as the glow modulus below.
         this.setPlayhead(
-          playheadX(frame.loopTime, frame.options, this.stepWidthPx),
+          playheadX(
+            frame.loopTime,
+            frame.options,
+            this.stepWidthPx,
+            this.opts.steps,
+          ),
         );
       }
-      const q = quantizedStep(frame.loopTime, frame.options);
-      // LL-1 (seam G5): the glow wrap modulus is the renderer's OWN step
-      // count (the pattern width) — self-consistent glow at any extent, even
-      // while the playhead basis still rides the transport's compat loopBars
-      // (LL-2 swaps that basis; today the two agree at every shipped shape).
+      const q =
+        quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
+      // LL-1/LL-2 (seam G5): BOTH the glow wrap modulus AND the sweep wrap
+      // are the renderer's OWN step count (the pattern width), while the
+      // frame's basis is the LANE's chain-cycle total (LaneGrid's readFrame)
+      // — self-consistent sweep + glow at any extent and any chain shape.
+      // A single-pattern chain is the identity (the sweep wraps exactly at
+      // the lane's own cycle — the poly-loop visual); a multi-slot chain
+      // (the demo's 4×1-bar) keeps the per-pattern wrap, byte-identical to
+      // the v0.1 sweep.
       const crossed = stepsCrossed(this.lastQuantized, q, this.opts.steps);
       for (const step of crossed) {
         if (reduced) this.highlightColumn(step);

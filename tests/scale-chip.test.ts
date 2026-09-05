@@ -153,7 +153,7 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
       setBpm: () => {},
       setSwingAmount: () => {},
       setMetronome: () => {},
-      transport: { setLoopBars: () => {}, snapshot: { bpm: 120, swing: 0 } },
+      transport: { setCycleSteps: () => {}, snapshot: { bpm: 120, swing: 0 } },
     };
     return s;
   }

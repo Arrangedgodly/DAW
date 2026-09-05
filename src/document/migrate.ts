@@ -129,10 +129,11 @@ function migrateV1ToV2(doc: Record<string, unknown>): Record<string, unknown> {
  * - `octave` (new, optional, canonical-empty at 0): v2 documents never
  *   carry it; migration does not inject it (byte-stability law).
  * - `transport.loopBars` DROPS with a defined re-derive rule: through the
- *   compat window the engine derives the basis engine-side
- *   (`deriveLoopBarsCompat`, schema.ts — SE-1 E5). Any loopBars value
- *   (including out-of-picklist ones from invalid v2 docs) is dropped the
- *   same way — v3 has no such field to launder.
+ *   compat window the engine derived the basis engine-side (the SV-1
+ *   derivation — retired at LL-2, which re-based the basis to the LCM of
+ *   lane chain totals). Any loopBars value (including out-of-picklist ones
+ *   from invalid v2 docs) is dropped the same way — v3 has no such field to
+ *   launder.
  * A structurally absent/malformed `transport` passes through untouched;
  * strict validation then rejects it typed (the migration adds nothing).
  */

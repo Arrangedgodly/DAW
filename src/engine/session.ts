@@ -483,6 +483,20 @@ export class Session {
   }
 
   /**
+   * LL-2 (seam G4): the lane's LIVE cycle basis — the chain total of the
+   * schedule the engine is actually sounding (post-substitution, including
+   * iteration-mode rebuilds that resized the chain mid-play; a queued
+   * pendingSchedule does NOT count until it lands). The per-lane playhead
+   * sweep (LaneGrid's readFrame) and the `p` announcement's lane half read
+   * this — the honest sounding truth, not the document's chain. Null before
+   * the bridge has pushed any schedule for the lane (callers fall back to
+   * the doc-derived song.ts laneCycleSteps).
+   */
+  getLaneCycleSteps(lane: LaneId): number | null {
+    return this.lanePlayback[LANE_IDS.indexOf(lane)]?.schedule.chainSteps ?? null;
+  }
+
+  /**
    * Refinement-7: the pattern this lane is SOUNDING at the audio clock's now
    * (the rail active-tile source). While playing: the latest entry that has
    * become audible — or, before the first step sounds (the pre-roll), the

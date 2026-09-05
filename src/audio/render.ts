@@ -77,7 +77,6 @@ import {
   LANE_IDS,
   type LaneId,
   type ProjectDocument,
-  deriveLoopBarsCompat,
   documentLaneMixGains,
 } from "../document/schema";
 
@@ -133,20 +132,21 @@ export function lcm(a: number, b: number): number {
 
 /**
  * Export loop length in steps: LCM over lanes with a non-empty chain.
- * Empty list → the v3 compat derivation × 16 (the retired transport
- * loopBars fallback, re-based engine-side at SV-1; degenerate all-empty
- * docs only — resolveChainPatterns falls back to first-pattern otherwise,
- * so real exports always take the LCM path, i3-5).
+ * LL-2: the fallback is a CONSTANT 16 (one bar — the v0.1 default basis);
+ * it fires only when EVERY lane has zero resolvable patterns (degenerate
+ * all-empty docs — resolveChainPatterns falls back to first-pattern
+ * otherwise, so real exports always take the LCM path, i3-5). The SV-1
+ * compat derivation that used to feed this slot retired with LL-2 (the
+ * transport's cycle basis now derives from the SAME LCM — one law).
  */
 export function computeLoopSteps(
   laneChainSteps: readonly number[],
-  fallbackBars: number,
 ): number {
   let steps = 0;
   for (const s of laneChainSteps) {
     if (s > 0) steps = steps === 0 ? s : lcm(steps, s);
   }
-  return steps > 0 ? steps : fallbackBars * 16;
+  return steps > 0 ? steps : 16;
 }
 
 /**
@@ -263,7 +263,6 @@ export async function renderProjectToBuffer(
   const schedules = LANE_IDS.map((lane) => laneScheduleFor(doc, lane, groove));
   const loopSteps = computeLoopSteps(
     schedules.map((s) => s?.chainSteps ?? 0),
-    deriveLoopBarsCompat(doc), // v3: the retired loopBars fallback, derived
   );
   const loopSamples = Math.round(
     loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,

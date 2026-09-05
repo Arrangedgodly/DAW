@@ -13,7 +13,7 @@
  */
 
 import * as v from "valibot";
-import { MAX_BPM, MIN_BPM, type LoopBars, secondsPerStep } from "../audio/time";
+import { MAX_BPM, MIN_BPM, secondsPerStep } from "../audio/time";
 import type { ModeName } from "./scales";
 
 // ---------------------------------------------------------------------------
@@ -46,10 +46,11 @@ import type { ModeName } from "./scales";
  *   `pitchRange.octaveBase`, so it bounds only the offset domain.
  * - The persisted `transport.loopBars` field RETIRES (no UI writer ever
  *   existed). v3 documents must NOT carry it (strict). Through the compat
- *   window the engine derives the transport basis engine-side
- *   (`deriveLoopBarsCompat` below, SE-1 E5); LL-1/LL-2 replace it with the
- *   two independent laws — grid extent = the edited pattern's real bars,
- *   playhead/one-shot basis = per-lane chain totals / one LCM cycle.
+ *   window the engine derived the transport basis engine-side (the SV-1
+ *   derivation, retired at LL-2 — see the retirement note below); LL-1/LL-2
+ *   replace it with the two independent laws — grid extent = the edited
+ *   pattern's real bars, playhead/one-shot basis = per-lane chain totals /
+ *   one LCM cycle.
  * - Migration v2→v3 (migrate.ts) is lossless by construction: bars widening
  *   is a no-op (v2's [1,2,4] ⊂ the v3 vocabulary — permissive-widen, no
  *   rejection class) and the loopBars drop has a defined re-derive rule
@@ -159,9 +160,9 @@ export const TransportSchema = v.strictObject({
   swing: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
   metronome: v.boolean(),
   // v3 (SV-1): `loopBars` RETIRED. A v3 document carrying it is rejected
-  // (strict) — migrate v2→v3 drops it; the engine basis derives engine-side
-  // (deriveLoopBarsCompat) through the compat window, then LL-2 re-bases to
-  // per-lane chain totals / one LCM cycle.
+  // (strict) — migrate v2→v3 drops it. LL-2 (landed): the engine basis is
+  // the LCM of lane chain totals, derived engine-side (engineBridge →
+  // Transport.setCycleSteps; per-lane sweeps on each lane's own total).
 });
 
 // ---------------------------------------------------------------------------
@@ -364,36 +365,18 @@ export function documentLaneMixGains(doc: ProjectDocument): number[] {
 }
 
 /**
- * v3 COMPAT DERIVATION (SV-1, SE-1 seam E5 — the loopBars retirement
- * bridge): `min(4, max pattern bars in the doc)`, derived ENGINE-side (the
- * engineBridge pushes it into the transport; the renderer reads the
- * transport snapshot, so zero renderer change). Reproduces every v0.1
- * engine value for every shipped doc class — default/demo 1, every
- * fingerprint/reference doc (loopBars paired with equal-or-smaller max
- * pattern bars: 1-bar refs, the 2-bar/4-bar hand-built browser fixtures).
- *
- * RECORDED DIVERGENCE CLASS (the log's named deviation): a doc whose v2
- * `transport.loopBars` was BELOW min(4, max pattern bars) sweeps a WIDER
- * basis under the derivation — playhead/one-shot only. This includes
- * UI-authored docs created by adding a 2B/4B pattern via the rail ADD
- * surface (persisted loopBars stayed 1 — no writer ever existed; SE-1's
- * "hand-authored only" reachability note is corrected in the SV-1 log
- * entry). Exports are unaffected either way (the LCM path, seam F6); no
- * golden or fingerprint pins the class.
- *
- * An empty-patterns doc derives 1 (the v0.1 default). LL-2 RETIRES this
- * derivation entirely (per-lane chain totals / one LCM cycle become the
- * basis) — do not build on it past that boundary.
+ * RETIRED at LL-2 (the boundary SV-1's comments named): the v3 compat
+ * derivation `deriveLoopBarsCompat(doc)` = min(4, max pattern bars) bridged
+ * the loopBars retirement through the SV-1→LL-2 window, reproducing v0.1
+ * engine values byte-identically. LL-2 re-based the playhead/position/
+ * one-shot basis to the LCM OF LANE CHAIN TOTALS (engineBridge →
+ * Transport.setCycleSteps, consuming render.ts's computeLoopSteps — the
+ * same LCM the export renders) with per-lane sweeps on each lane's OWN
+ * chain total (song.ts laneCycleSteps). The derivation has NO consumers
+ * left and is deleted; the historical record (divergence class, migration
+ * re-derive rule) lives in the SV-1/LL-2 production-log entries and in
+ * migrate.ts's drop note.
  */
-export function deriveLoopBarsCompat(doc: ProjectDocument): LoopBars {
-  let max = 1;
-  for (const lane of LANE_IDS) {
-    for (const pattern of doc.patterns[lane]) {
-      if (pattern.bars > max) max = pattern.bars;
-    }
-  }
-  return (max > 4 ? 4 : max) as LoopBars;
-}
 
 const LaneCommon = {
   gate: LaneGateSchema,
@@ -959,9 +942,8 @@ export function createDefaultProject(): ProjectDocument {
     // v3 (SV-1): no loopBars — the IM-6 "agrees with the grid extent"
     // invariant is replaced by two independent laws: grid extent follows the
     // edited pattern's real bars (LL-1) and the playhead/one-shot basis
-    // follows per-lane chain totals / one LCM cycle (LL-2). Through the
-    // compat window the engine derives the basis (deriveLoopBarsCompat);
-    // with all-1-bar default patterns that is 1 — v0.1 behavior exactly.
+    // follows per-lane chain totals / one LCM cycle (LL-2). The default's
+    // four 1-bar chains give LCM 16 steps = 1 bar — v0.1 behavior exactly.
     transport: { bpm: 120, swing: 0, metronome: false },
     scale: { root: 0, mode: "minor" },
     laneOverrides: null,

@@ -655,7 +655,7 @@ control inside an existing one-Tab-stop/roving region:
 | OCT − / OCT + + register readout (pitched lanes)        | Quadrant control strip (LaneHeader) — the always-operable COMPACT row, ALL FOUR quadrants ("tweak any lane without switching"; LaneHeader.tsx:1-27) | native buttons + value span (the preset/kit + gate stepper pattern); `]`/`[` quadrant keys keep working from among them | RC-1        |
 | LENGTH stepper (resize) in the PAT popover              | Pattern rail — tools popover while open (the REN/LENGTH−/LENGTH+/DUP/RM vocabulary since LL-1 retired the v2 +NB create buttons — creation is `+`/`n` at 1 bar; PatternRail.tsx) | native buttons; popover laws unchanged (focus first control on open, Escape closes + refocuses trigger; the stepper itself STAYS OPEN across presses — the rename-field precedent) | LL-1        |
 | Register window scroll                                 | Lane grid (selected quadrant) — NOT a control: two grid keys on the focused cell (§ below)                                          | grid-map keys, grid scope only                                                                        | RC-1        |
-| Per-lane playhead position query (`p`)                  | none — an on-demand announcement through the stage status region (selection.ts:120-137), never a focusable thing                    | n/a                                                                                                    | LL-2        |
+| Per-lane playhead position query (`p`)                  | none — an on-demand announcement through the stage status region (selection.ts:120-137), never a focusable thing                    | n/a                                                                                                    | LL-2 (live) |
 
 - The strip placement decision (COMPACT row, all four quadrants) follows the
   always-operable law: dropping the BASS an octave while editing LEAD must
@@ -933,7 +933,7 @@ shapes, announcement, extent remount, one-step undo, DUP-only duplicator,
 E11 wording) + the unit store tests in tests/pattern-rail.test.ts + the
 DA-3 step 12 journey delta.
 
-## Position & playhead at unequal cycle lengths [v3 · spec — lands with LL-2]
+## Position & playhead at unequal cycle lengths [v3 · live — LL-2 landed]
 
 The engine poly-loops (each lane wraps independently at its chain total —
 schema-v3-seams.md F11); LL-2 re-bases playhead/position/one-shot from the retired `loopBars`
@@ -982,8 +982,8 @@ field to per-lane chain totals / one LCM cycle. What the SR user hears:
 | Reach rows outside the default window                          | ↑/↓ walk the full manifest; the window follows focus (scroll-into-view law)                   | RC-1 (live) |
 | PAT menu LENGTH stepper resize                                 | global `b` / Shift+`b` (ladder steps) + the stepper buttons themselves                        | LL-1        |
 | Refuse a lossy shrink (refuse-by-default)                      | same refusal + announcement from every path (menu, keys, pointer — one funnel)                | LL-1 / HL-1 |
-| Watch per-lane playheads sweep at unequal cycles               | `p` on-demand position announcement + existing per-lane rail status (wrap) announcements      | LL-2        |
-| Read the global position during a long cycle                   | booth readout (unchanged mechanism, LCM basis) + `p`                                          | LL-2        |
+| Watch per-lane playheads sweep at unequal cycles               | `p` on-demand position announcement + existing per-lane rail status (wrap) announcements      | LL-2 (live) |
+| Read the global position during a long cycle                   | booth readout (unchanged mechanism, LCM basis) + `p`                                          | LL-2 (live) |
 
 No gesture in the iteration-3 brief lacks a keyboard row. The E7 contract
 law carries: new gesture proposals during production must add a row here

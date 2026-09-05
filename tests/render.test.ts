@@ -43,20 +43,22 @@ describe("lcm / computeLoopSteps", () => {
   });
 
   it("LCM over lanes; empty/zero chains skipped", () => {
-    expect(computeLoopSteps([16, 32, 64], 1)).toBe(64);
-    expect(computeLoopSteps([16, 0, 16], 1)).toBe(16);
-    expect(computeLoopSteps([0, 0], 2)).toBe(32); // fallback: loopBars × 16
+    expect(computeLoopSteps([16, 32, 64])).toBe(64);
+    expect(computeLoopSteps([16, 0, 16])).toBe(16);
+    // LL-2: the fallback is the constant 16 (one bar — the v0.1 default
+    // basis; the SV-1 compat derivation retired).
+    expect(computeLoopSteps([0, 0])).toBe(16);
   });
 
   it("loop length is exactly bars × beats × samples/beat at 44100", () => {
     // All 1-bar chains, bpm 120: 16 steps × 0.125 s × 44100 = 88200.
-    const steps = computeLoopSteps([16, 16, 16, 16], 1);
+    const steps = computeLoopSteps([16, 16, 16, 16]);
     expect(steps).toBe(16);
     expect(steps * secondsPerStep(120) * SR).toBe(88200);
     // bars(1) × beats(4) × (44100 × 60 / 120) — the AC formula, independently.
     expect(1 * 4 * ((SR * 60) / 120)).toBe(88200);
     // bpm 140, 2-bar loop: 32 steps × 60/(140·4) s × 44100 = 151200, integer.
-    const steps140 = computeLoopSteps([32], 2);
+    const steps140 = computeLoopSteps([32]);
     expect(steps140 * secondsPerStep(140) * SR).toBe(151200);
     expect(Number.isInteger(steps140 * secondsPerStep(140) * SR)).toBe(true);
   });

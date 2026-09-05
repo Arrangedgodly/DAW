@@ -9,10 +9,10 @@ import {
 } from "../src/document/migrate";
 import {
   createDefaultProject,
-  deriveLoopBarsCompat,
   pitchedCellAt,
   resolveGateSteps,
 } from "../src/document/schema";
+import { laneCycleSteps } from "../src/audio/song";
 import { createDemoProject } from "../src/document/demoSong";
 import { decode, encode } from "../src/document/codec";
 import { ProjectValidationError } from "../src/document/validate";
@@ -461,13 +461,17 @@ describe("v2 → v3 (SV-1): the long-loop widening migration", () => {
     expect(migrated.transport).toEqual(createDefaultProject().transport);
   });
 
-  it("v2 docs with loopBars 2/4 migrate with the paired pattern bars intact (engine basis re-derives the same value)", () => {
+  it("v2 docs with loopBars 2/4 migrate with the paired pattern bars intact (LL-2 engine basis re-derives the same value)", () => {
     const doc = decode(boundaryV2ProjectText()); // 4-bar patterns + loopBars 4
     for (const lane of ["drums", "bass", "lead"] as const) {
       expect(doc.patterns[lane][0]!.bars).toBe(4);
     }
-    // The compat derivation reproduces the retired field's value engine-side.
-    expect(deriveLoopBarsCompat(doc)).toBe(4);
+    // LL-2 (the derivation retired): the LCM-of-chain-totals basis
+    // reproduces the retired field's value engine-side — 4-bar chains →
+    // 64 steps per lane → LCM 64 = loopBars 4's 64 steps exactly.
+    for (const lane of ["drums", "bass", "lead"] as const) {
+      expect(laneCycleSteps(doc, lane)).toBe(64);
+    }
   });
 
   it("v2 boundary-note values survive unchanged (widening is a no-op on v2-legal values)", () => {

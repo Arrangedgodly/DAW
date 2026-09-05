@@ -45,6 +45,7 @@ const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
     title: "TRANSPORT / EDIT",
     bindings: [
       { keys: "SPACE", action: "play / stop (outside grid)" },
+      { keys: "P", action: "announce position (song cycle + active lane)" },
       { keys: "CTRL+Z", action: "undo" },
       { keys: "CTRL+SHIFT+Z / CTRL+Y", action: "redo" },
       { keys: "?", action: "this overlay" },

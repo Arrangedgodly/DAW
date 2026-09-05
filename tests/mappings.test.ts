@@ -3,6 +3,7 @@ import {
   clampBpmUi,
   formatBeatAnnouncement,
   formatPosition,
+  formatPositionAnnouncement,
   gainToVolumePercent,
   swingAmountToPercent,
   swingPercentToAmount,
@@ -44,5 +45,30 @@ describe("booth mappings", () => {
     expect(formatBeatAnnouncement({ bar: 1, beat: 2, step: 3 })).toBe(
       "BAR 2 · BEAT 3",
     );
+  });
+
+  // LL-2 (KL-1 §"Position & playhead at unequal cycle lengths", a11y E12):
+  // the `p` on-demand announcement — the SR twin of the four visible
+  // per-lane sweeps.
+  it("formats the p position announcement: global LCM half, lane half omitted at equal lengths", () => {
+    // The spec's exact example: global bar 12 of a 64-bar LCM cycle, the
+    // active lane (bass, 4-bar cycle) in its final bar.
+    expect(
+      formatPositionAnnouncement(
+        { bar: 11, bars: 64 },
+        { name: "BASS", bar: 3, bars: 4 },
+      ),
+    ).toBe("POSITION BAR 12 OF 64 · BASS BAR 4 OF 4");
+    // Equal cycle lengths: the lane half is OMITTED (the zero-drift shape).
+    expect(formatPositionAnnouncement({ bar: 2, bars: 4 }, null)).toBe(
+      "POSITION BAR 3 OF 4",
+    );
+    // 1-based everywhere; degenerate zero-width cycles read OF 1, never OF 0.
+    expect(
+      formatPositionAnnouncement(
+        { bar: 0, bars: 0 },
+        { name: "LEAD", bar: 0, bars: 0 },
+      ),
+    ).toBe("POSITION BAR 1 OF 1 · LEAD BAR 1 OF 1");
   });
 });

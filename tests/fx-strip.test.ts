@@ -281,7 +281,7 @@ interface FakeSession {
   setBpm(): void;
   setSwingAmount(): void;
   setMetronome(): void;
-  transport: { setLoopBars(): void; snapshot: { bpm: number; swing: number } };
+  transport: { setCycleSteps(): void; snapshot: { bpm: number; swing: number } };
 }
 
 function fakeSession(): FakeSession {
@@ -299,7 +299,7 @@ function fakeSession(): FakeSession {
     setBpm() {},
     setSwingAmount() {},
     setMetronome() {},
-    transport: { setLoopBars() {}, snapshot: { bpm: 120, swing: 0 } },
+    transport: { setCycleSteps() {}, snapshot: { bpm: 120, swing: 0 } },
   };
   return s;
 }

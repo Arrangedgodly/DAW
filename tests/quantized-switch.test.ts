@@ -388,4 +388,27 @@ describe("quantized live switching (IM-7)", () => {
     expect(step8.length).toBe(1); // C2's second kick on-grid
     h.session.transport.stop();
   });
+
+  // LL-2 (seam G4): the lane's LIVE cycle basis — what the per-lane
+  // playhead sweep and the `p` announcement's lane half read.
+  it("getLaneCycleSteps tracks the live schedule through substitutions and iteration rebuilds; null before any push", async () => {
+    const h = await makeHarness({ drums: scheduleFor([A1, B1]) });
+    // Pre-push lane (bass never scheduled here): null — callers fall back
+    // to the doc-derived chain total.
+    expect(h.session.getLaneCycleSteps("bass")).toBeNull();
+    // The pushed chain: A1(16) + B1(16) = 32 steps.
+    expect(h.session.getLaneCycleSteps("drums")).toBe(32);
+    // Same-bar-count switch (boundary substitution): the total is unchanged
+    // the moment it lands (slot-for-slot, by construction).
+    h.session.setActivePattern("drums", "A1", scheduleFor([A1]));
+    await h.deliverUpTo(16); // B1's slot boundary: substitution lands
+    expect(h.session.getLaneCycleSteps("drums")).toBe(32);
+    // A bar-count-changing switch (C2, 2 bars) rebuilds the iteration at
+    // the chain wrap, replacing slot 0: the LIVE cycle grows to
+    // [C2(32), B1(16)] = 48 the moment the rebuild lands.
+    h.session.setActivePattern("drums", "C2", scheduleFor([C2]));
+    await h.deliverUpTo(32); // chain wrap: the iteration rebuild lands
+    expect(h.session.getLaneCycleSteps("drums")).toBe(48);
+    h.session.transport.stop();
+  });
 });

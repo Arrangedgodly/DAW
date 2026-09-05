@@ -176,14 +176,15 @@ describe("LP-1 (c): bounded step lookup replaces the O(steps) scans", () => {
         }
       }
       // Parity with the PRODUCTION function at its legal vocab (1/2/4 bars):
-      // the bounded form is a drop-in at today's sizes too.
+      // the bounded form is a drop-in at today's sizes too. (LL-2: the
+      // production option is steps-typed — bars x 16.)
       for (const bars of [1, 2, 4] as const) {
         const groove = { bpm: 120, swing: 0.5 };
         const loopLen = bars * 16 * secondsPerStep(120);
         for (let k = 0; k < 500; k++) {
           const t = (k / 500) * loopLen;
           expect(stepIndexAtTimeBounded(t, bars * 16, groove)).toBe(
-            stepIndexAtTime(t, { bars, ...groove }),
+            stepIndexAtTime(t, { steps: bars * 16, ...groove }),
           );
         }
       }

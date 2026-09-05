@@ -14,6 +14,13 @@ export const MAX_BPM = 200;
 export const MIN_SWING = 0;
 export const MAX_SWING = 1;
 
+/**
+ * The v2 loop-bar picklist vocabulary. LL-2 retired it as a BASIS (the
+ * transport/sweep basis is steps-typed — see StepAtTimeOptions); the type
+ * and the two helpers below remain as the pure vocabulary math that node
+ * suites pin (they are the identity every wider basis must reproduce at
+ * 1/2/4 bars).
+ */
 export type LoopBars = 1 | 2 | 4;
 
 export function clampBpm(bpm: number): number {
@@ -87,8 +94,16 @@ export function stepIndex(pos: Position): number {
   return pos.bar * STEPS_PER_BAR + pos.beat * STEPS_PER_BEAT + pos.step;
 }
 
+/**
+ * Basis options for the wrapped step lookup. LL-2 (seam G1/A1 — the
+ * playhead-basis swap): the option is STEPS-typed and carries the caller's
+ * own cycle total (a lane's chain steps for per-lane sweeps, the LCM of
+ * lane chain totals for the transport's global clock). The v2 `bars:
+ * LoopBars` picklist vocabulary is gone from this seam — `steps` is any
+ * positive multiple of 16 up to the 128-bar ceiling (2048).
+ */
 export interface StepAtTimeOptions extends GrooveOptions {
-  readonly bars: LoopBars;
+  readonly steps: number;
 }
 
 /**
@@ -121,15 +136,16 @@ export function stepOfTimeBounded(
 }
 
 /**
- * Inverse of timeAtStep: the step index (within one loop, 0..steps-1)
- * sounding at time `t` (seconds from loop start, 0 <= t < loop length).
+ * Inverse of timeAtStep: the step index (within one cycle, 0..steps-1)
+ * sounding at time `t` (seconds from cycle start, 0 <= t < cycle length).
  * Boundary rule: a step occupies [timeAtStep(i), timeAtStep(i + 1)).
+ * LL-2: the basis is the caller's own step count (see StepAtTimeOptions).
  * LL-1: the O(steps) scan body is replaced by the bounded lookup above —
  * decisions are bit-identical (the predicates are the same timeAtStep calls
  * the scan made; the LP-1 sweep pins the equivalence).
  */
 export function stepIndexAtTime(t: number, opts: StepAtTimeOptions): number {
-  const steps = totalSteps(opts.bars);
+  const steps = opts.steps;
   const loopLen = steps * secondsPerStep(opts.bpm);
   // Single-modulo fast path for t >= 0: the ((t % L) + L) % L idiom rounds the
   // result by 1 ulp for positive t (found by the HW-1 timing sweep), which
