@@ -150,6 +150,43 @@ refresh. If you add a NEW golden, add its note in the same commit.
   untouched) and all three render/export fingerprints re-recorded
   IDENTICAL hashes (render `e87ae0ab…`, wav `3eff5771…`, mix `403361ca…`)
   — zero drift, no audio-path byte touched.
+- **2026-09-04 — PX-4 (the poly-loop demo; THREE entries regenerated, nothing
+  else).** The WELCOME SONG demo was re-composed as the i3-4 POLY-LOOP
+  demonstration — lanes at UNEQUAL powers-of-two cycles: the CHORDS are the
+  long lane at 4×2B = 8B against the 4×1B rhythm section (drums/lead/bass
+  4B each); the song cycle is the LCM = 8 bars, and the same 4-bar melody
+  phrase lands on a different chord each time the 8-bar chord cycle comes
+  round. Deliberate content change to pinned demo bytes — the sanctioned
+  "new default-project content" case. REGENERATED, all three to the SAME
+  new hash (they are one document's canonical bytes, and the two migration
+  fixtures still byte-equal the shipped demo — the SC-1/SV-1 identity laws
+  hold at the new shape):
+  `codec/demo-project-canonical-v3` (`76475955…` 6,874 B → `df53e967…`,
+  6,979 B — the 2-bar chord pads), `migrate/v1-demo-to-v3` (same),
+  `migrate/v2-demo-to-v3` (same), all via the sanctioned unit stage
+  (`UPDATE_GOLDENS=1 vitest run tests/golden`; the tripwire exit-red under
+  recording mode is the recorded pre-existing quirk). Recorded production
+  choices (each MEASURED against an established gate — the plan's "e.g.
+  drums 32/64B" shape was composed and measured RED at 8×4B, 4×8B and 4×4B,
+  see production-log.md "PX-4 worker"): four chain slots per lane (MB-3's
+  phone hit-box audit), drums patterns at 1 bar (the euclid rail's 220 px
+  pin + the drums quadrant's no-internal-scroll + phone default-view laws
+  are budgeted for 16-step rows, and TH-1's 50 ms pool-wide-toggle guard
+  scales with lane steps — 8-bar patterns measured a 52 ms worst block),
+  view-only patterns ≤ 2 bars with 2 the measured 1280×800 fit (a 2-bar
+  pitched row measures 615 px against a 606 px quadrant gutter; DA-2's axe
+  gate flags a scrollable view-only region with no tab stops — the long
+  lane is CHORDS, whose 7-row manifest keeps its scroller un-windowed and
+  empirically clean). Every demo pattern stays inside the v1/v2 vocabulary
+  {1,2,4} — the projections remain era-legal saves; the fixture helper
+  type widened to `PatternBars`, comments updated; no law changed.
+  NOT regenerated, deliberately (zero-drift law): every render/export
+  fingerprint (render `e87ae0ab…`, wav `3eff5771…`, mix `403361ca…`, LCM
+  wav `a000a8f8…`) — they pin REFERENCE projects, not the demo, and no
+  audio-path byte was touched; verified MATCHING in the post-change
+  browser run. `codec/default-project-canonical-v3`, `midi/*`,
+  `wav/encoder-*`, and the boundary/sustain migration fixtures byte-stable
+  (manifest diff = exactly the three demo entries).
 
 ## Review discipline
 

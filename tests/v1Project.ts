@@ -17,6 +17,7 @@ import { canonicalize } from "../src/document/codec";
 import {
   type LaneGate,
   type LaneId,
+  type PatternBars,
   type PitchedPattern,
   type PitchedRow,
   type ProjectDocument,
@@ -30,7 +31,7 @@ interface V1PitchedPattern {
   kind: "pitched";
   id: string;
   name: string;
-  bars: 1 | 2 | 4;
+  bars: PatternBars;
   rows: PitchedRow[];
 }
 
@@ -49,10 +50,11 @@ export function v1ProjectText(doc: ProjectDocument): string {
         kind: "pitched",
         id: pitched.id,
         name: pitched.name,
-        // v3 widened PatternBars past 4; the v1 projection only exists for
-        // v1-legal shapes ([1,2,4] — the default/demo are 1-bar), so the
-        // narrowing is total on every doc this helper receives.
-        bars: pitched.bars as 1 | 2 | 4,
+        // PX-4: the v1 projection carries the doc's real bars — the shipped
+        // demo law keeps every demo pattern inside the v1 vocabulary
+        // {1,2,4} (the poly-loop lives in the chain totals), so the text
+        // stays a legal v1 save.
+        bars: pitched.bars,
         rows: pitchedPatternView(pitched, gateSteps(lane)).rows,
       };
       return v1;

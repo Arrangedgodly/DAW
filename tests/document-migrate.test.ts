@@ -156,17 +156,24 @@ describe("v1 → v2 (SC-1): the note-model migration", () => {
   it("view ∘ migration = identity: the engine's v1 view of the migrated demo matches its v1 bytes", () => {
     const migrated = decode(v1DemoProjectText());
     // The demo's sustained notes re-project onto the authored v1 cells.
+    // PX-4 re-base: the poly-loop demo's chord patterns are 2-bar — one
+    // 15-step pad per bar downbeat (steps 0 and 16 of 32).
     const chords = migrated.patterns.chords[0];
     if (chords.kind !== "pitched") throw new Error("expected pitched");
-    expect(chords.notes).toEqual([{ degree: 0, start: 0, length: 15 }]);
+    expect(chords.notes).toEqual([
+      { degree: 0, start: 0, length: 15 },
+      { degree: 0, start: 16, length: 15 },
+    ]);
     const gateSteps = resolveGateSteps(
       { unit: "steps", value: 6 },
       migrated.transport.bpm,
     );
-    expect(pitchedCellAt(chords, gateSteps, 0, 0)).toBe(1);
-    for (let step = 1; step <= 9; step++)
-      expect(pitchedCellAt(chords, gateSteps, 0, step)).toBe(2);
-    expect(pitchedCellAt(chords, gateSteps, 0, 10)).toBe(0);
+    for (const downbeat of [0, 16]) {
+      expect(pitchedCellAt(chords, gateSteps, 0, downbeat)).toBe(1);
+      for (let step = 1; step <= 9; step++)
+        expect(pitchedCellAt(chords, gateSteps, 0, downbeat + step)).toBe(2);
+      expect(pitchedCellAt(chords, gateSteps, 0, downbeat + 10)).toBe(0);
+    }
   });
 
   it("sustain-heavy neighbor: runs become one note of gate + sustains; lone hits take the gate length", () => {

@@ -1,14 +1,16 @@
 /**
- * PX-1 tests — the WELCOME SONG demo.
+ * PX-1 tests — the WELCOME SONG demo; PX-4 re-based + extended for the
+ * POLY-LOOP arrangement (i3-4: lanes loop at unequal cycle lengths).
  *
- * Nobody can HEAR a unit test (human listen is explicitly R12's session),
+ * Nobody can HEAR a unit test (human listen stays the pending-human carry),
  * so the demo is verified STRUCTURALLY here: document validity (strict
- * schema + semantics), chord diatonicity, bass-root alignment, melody-in-
- * scale with breathing room, drum anchors, groove, cues, preset references;
- * plus the boot contract (first run → demo, NEW → empty default) and the
- * first-run nudge state machine. Acoustic/metric verification (energy,
- * onsets, peak) lives in tests/browser/demoSong.test.ts through the REAL
- * offline render; canonical bytes are pinned in tests/golden.
+ * schema + semantics), the poly-loop lane cycles + LCM song cycle, chord
+ * diatonicity, bass-root alignment, melody-in-scale with breathing room,
+ * drum anchors, groove, cues, preset references; plus the boot contract
+ * (first run → demo, NEW → empty default) and the first-run nudge state
+ * machine. Acoustic/metric verification (energy, onsets, peak) lives in
+ * tests/browser/demoSong.test.ts through the REAL offline render; canonical
+ * bytes are pinned in tests/golden.
  */
 
 import { describe, expect, it } from "vitest";
@@ -19,6 +21,8 @@ import { validateProject } from "../src/document/validate";
 import { degreeToMidi, toEffectiveScale } from "../src/document/scales";
 import { PRESET_LIBRARY, DRUM_KITS } from "../src/audio/presets";
 import { encode } from "../src/document/codec";
+import { laneCycleSteps } from "../src/audio/song";
+import { exportCycleSteps } from "../src/audio/exportMidi";
 import { expectGolden } from "./golden/golden";
 import { createMemoryProjectDb } from "../src/persist/db";
 import { initPersistence } from "../src/persist/boot";
@@ -62,14 +66,6 @@ describe("PX-1 demo document validity", () => {
     }
   });
 
-  it("chains four 1-bar patterns per lane into one 4-bar loop", () => {
-    for (const laneId of ["drums", "bass", "chords", "lead"] as const) {
-      expect(doc.patterns[laneId]).toHaveLength(4);
-      expect(doc.patterns[laneId].every((p) => p.bars === 1)).toBe(true);
-      expect(doc.songChain[laneId]).toHaveLength(4);
-    }
-  });
-
   it("has swing in the committed 15–25% pocket and a sane tempo", () => {
     expect(doc.transport.swing).toBeGreaterThanOrEqual(0.15);
     expect(doc.transport.swing).toBeLessThanOrEqual(0.25);
@@ -85,12 +81,60 @@ describe("PX-1 demo document validity", () => {
   });
 });
 
-describe("PX-1 structural musicality", () => {
-  it("chords: i–VI–III–VII, one diatonic triad per bar (stack semantics)", () => {
+describe("PX-4 poly-loop arrangement (i3-4)", () => {
+  /** The lane's CYCLE in bars: its chain total (LL-2 laneCycleSteps / 16). */
+  const cycleBars = (lane: "drums" | "bass" | "chords" | "lead"): number =>
+    laneCycleSteps(doc, lane) / 16;
+
+  it("runs the lanes at UNEQUAL powers-of-two cycles: chords 8B · drums 4B · lead 4B · bass 4B", () => {
+    expect(cycleBars("chords")).toBe(8);
+    expect(cycleBars("drums")).toBe(4);
+    expect(cycleBars("lead")).toBe(4);
+    expect(cycleBars("bass")).toBe(4);
+    // Genuinely unequal — the poly-loop demonstration is the lanes weaving,
+    // the harmonic long lane against the rhythm section, not four copies of
+    // one length.
+    expect(new Set([8, 4]).size).toBe(2);
+    // Every pattern is a powers-of-two member of the I3-d vocabulary, and
+    // the demo stays inside the v1/v2 vocabulary {1,2,4} — the migration
+    // fixtures project THIS document as an era-legal save (the poly-loop
+    // lives in the chain totals, the recorded PX-4 law). Four chain slots
+    // per lane (the phone-rail law: the condensed row keeps the `+` append
+    // reachable beside the tiles).
+    for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+      for (const pattern of doc.patterns[lane]) {
+        expect([1, 2, 4, 8, 16, 32, 64, 128]).toContain(pattern.bars);
+        expect([1, 2, 4]).toContain(pattern.bars);
+      }
+      expect(doc.songChain[lane]).toHaveLength(4);
+    }
+  });
+
+  it("the song CYCLE is the LCM = the longest lane (8 bars) — what one-shot and exports span", () => {
+    expect(exportCycleSteps(doc)).toBe(8 * 16);
+    expect(exportCycleSteps(doc) / 16).toBe(Math.max(8, 4, 4, 4));
+  });
+
+  it("chords: the LONG lane — four distinct 2-bar patterns (one chord held two bars each)", () => {
+    expect(doc.patterns.chords).toHaveLength(4);
+    expect(doc.patterns.chords.every((p) => p.bars === 2)).toBe(true);
+    expect(doc.songChain.chords).toHaveLength(4);
+    expect(new Set(doc.songChain.chords).size).toBe(4);
+  });
+
+  it("drums/bass/lead: four 1-bar patterns each (the rhythm section's 4-bar cycles)", () => {
+    expect(doc.patterns.drums.every((p) => p.bars === 1)).toBe(true);
+    expect(doc.patterns.bass.every((p) => p.bars === 1)).toBe(true);
+    expect(doc.patterns.lead.every((p) => p.bars === 1)).toBe(true);
+  });
+});
+
+describe("PX-1 structural musicality (PX-4 poly-loop re-base)", () => {
+  it("chords: i–VI–III–VII, one diatonic triad per 2-bar pattern, re-attacking each bar downbeat", () => {
     const roots = [0, 5, 2, 6];
     doc.patterns.chords.forEach((pattern, i) => {
       const on = noteOns(pattern as PitchedPattern);
-      expect(on.size).toBe(1); // exactly one chord per bar
+      expect(on.size).toBe(1); // exactly one chord root per pattern
       const degree = [...on.keys()][0]!;
       expect(degree).toBe(roots[i]);
       // The stacked triad [d, d+2, d+4] is diatonic by construction; assert
@@ -100,12 +144,12 @@ describe("PX-1 structural musicality", () => {
         const pc = degreeToMidi(scale, degree + off, 3) % 12;
         expect(scalePitchClasses.has(pc)).toBe(true);
       }
-      // Long pad: one note at the downbeat, sustained ≈ the whole bar
-      // (v1: note-on + 9 sustain markers; v2: gate 6 + 9 = length 15).
-      expect(on.get(degree)!).toEqual([0]);
-      const pad = pattern.notes.find((n) => n.degree === degree)!;
-      expect(pad.start).toBe(0);
-      expect(pad.length).toBe(15);
+      // Long pads: one note per BAR downbeat (steps 0 and 16 of the 2-bar
+      // pattern), each sustained ≈ the whole bar (gate 6 + 9 = length 15).
+      expect(on.get(degree)!).toEqual([0, 16]);
+      for (const pad of pattern.notes) {
+        expect(pad.length).toBe(15);
+      }
     });
   });
 
@@ -120,7 +164,8 @@ describe("PX-1 structural musicality", () => {
       expect(steps[0]).toBe(0); // anchored on the downbeat
       expect(steps.length).toBeGreaterThanOrEqual(4); // a real bass line, not a drone
     });
-    // Approach note: last bar's step-14 note walks B♭→C (deg 6→7) into the loop.
+    // Approach note: last bar's step-14 note walks B♭→C (deg 6→7) into the
+    // bass cycle's wrap.
     const lastBass = noteOns(doc.patterns.bass[3] as PitchedPattern);
     expect(lastBass.get(7)).toEqual([14]);
   });
@@ -146,8 +191,8 @@ describe("PX-1 structural musicality", () => {
     const firstBar = doc.patterns.lead[0] as PitchedPattern;
     expect(firstBar.notes.every((n) => n.start !== 0)).toBe(true);
     // Stepwise + triad motion: consecutive attacks move mostly by 1–2 scale
-    // degrees; a diatonic triad outline (≤4, e.g. the DROP's F5+B♭5 double
-    // stop) is the allowed leap, nothing wider.
+    // degrees; a diatonic triad outline (≤4, e.g. the peak bar's F5+B♭5
+    // double stop) is the allowed leap, nothing wider.
     for (const pattern of doc.patterns.lead as PitchedPattern[]) {
       const events: [number, number][] = [];
       for (const [degree, steps] of noteOns(pattern))
@@ -161,6 +206,14 @@ describe("PX-1 structural musicality", () => {
       }
       expect(stepwise).toBeGreaterThanOrEqual(Math.ceil(events.length / 2));
     }
+    // The RC-1 default-window law: the melody reads in the ROWS 6–12 window
+    // on first boot — degree 13 never carries a note.
+    const leadDegrees = new Set(
+      (doc.patterns.lead as PitchedPattern[]).flatMap((p) =>
+        p.notes.map((n) => n.degree),
+      ),
+    );
+    expect(leadDegrees.has(13)).toBe(false);
   });
 
   it("drums: kick/snare backbone anchored, hats groove, one real fill", () => {

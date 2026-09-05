@@ -3,11 +3,13 @@
  *
  * `v2ProjectText` re-stamps a live v3 document as v2: version → 2 and the
  * transport regains `loopBars` (required by v2's strict schema). For the
- * default/demo the result is EXACTLY the bytes the pre-SV-1 app saved (the
+ * default the result is EXACTLY the bytes the pre-SV-1 app saved (the
  * SC-1-era canonical goldens), so migration tests can prove
  * `decode(v2 view of X) === X` — the v2→v3 losslessness law — and that the
  * v2 bytes themselves did not churn (they equal the recorded v2 golden
- * hashes).
+ * hashes). PX-4 note: the poly-loop demo keeps every pattern inside the
+ * v1/v2 vocabulary {1,2,4} (the poly-loop lives in the chain totals), so
+ * the demo's v2 view stays a v2-legal save too.
  *
  * `boundaryV2ProjectText` is a hand-authored neighbor pinning the v2-side
  * boundaries that survive v3 unchanged: 4-bar patterns (the v2 ceiling)

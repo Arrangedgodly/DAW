@@ -200,10 +200,8 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 5. EUCLID FILL via keyboard ----------------------------------
         // The SNARE row's fill rail: + pulses twice (armed → dashed preview),
         // then SET commits. Row state is observable through data-on cells.
-        const snareCell = (i: number) =>
-          $$('.lane-floor[data-lane="drums"] .grid-row')[1]!.querySelectorAll(
-            ".cell",
-          )[i]!;
+        const snareRow = () =>
+          $$('.lane-floor[data-lane="drums"] .grid-row')[1]!;
         const fillRail = $('.row-fill[data-row="1"]');
         const morePulses = fillRail.querySelector<HTMLButtonElement>(
           'button[aria-label="More pulses for SNARE fill"]',
@@ -234,8 +232,8 @@ describe("DA-3 full keyboard journey (built app)", () => {
         );
         await poll(
           () => {
-            const onCount = Array.from({ length: 16 }, (_, i) =>
-              snareCell(i),
+            const onCount = Array.from(
+              snareRow().querySelectorAll(".cell"),
             ).filter((c) => c.dataset.on === "true").length;
             return (
               onCount === pulsesNow &&

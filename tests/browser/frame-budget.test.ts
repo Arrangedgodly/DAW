@@ -829,12 +829,20 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           // LL-1 journey delta: the +4B menu button retired with the LENGTH
           // stepper — create the blank via the rail `+` (1 bar, appended +
           // selected — BC-1), then grow it with the global `b` ladder ×2.
+          // PX-4 re-base: the rail-`+` blank rides at the chain's end of a
+          // DEMO whose chain length is per-lane (the poly-loop demo: drums
+          // carry 8 tiles, the other lanes 4) — expect one MORE tile, not a
+          // fixed count.
+          const tilesBefore = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
           $(`.rail-row[data-lane="${lane}"] .rail-append`).click();
           await poll(
             () =>
               doc().querySelectorAll(
                 `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
+              ).length ===
+              tilesBefore + 1,
             2_000,
             `${lane} blank appended`,
           );
@@ -864,27 +872,31 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         /**
          * BC-1 rework (I3-a): with `+` creating blanks, the dense 4-bar
          * pattern reaches the chain the drums-precedent way (the MB-6
-         * gate-integrity fix): strip the four demo patterns from the POOL
-         * (the PAT menu's RM tool — tile Delete only edits the chain). Each
+         * gate-integrity fix): strip the demo patterns from the POOL (the
+         * PAT menu's RM tool — tile Delete only edits the chain). Each
          * removal takes its chain occurrences with it, and removing the LAST
          * demo rebuilds the chain to the lane's one remaining pattern — the
          * dense 4-bar. Paint first (the dense pattern is the selection at
          * that point), then strip: the chain ends exactly [dense], so
          * playback AND rendering are dense for the whole measurement window.
+         * PX-4 re-base: the demo's POOL is per-lane (drums 8 patterns, the
+         * other lanes 4) — strip every tile except the appended blank,
+         * counted from the rail itself.
          */
         const removeDemoPatterns = async (lane: string): Promise<void> => {
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
-          for (let i = 0; i < 4; i++) {
+          const tilesNow = (): number =>
+            doc().querySelectorAll(
+              `.rail-row[data-lane="${lane}"] .rail-tile`,
+            ).length;
+          const start = tilesNow(); // demo tiles + the rail-`+` blank
+          for (let i = 0; i < start - 1; i++) {
             // Select the first (demo) tile, then remove it from the pool.
             (
               $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
             ).click();
             await poll(
-              () =>
-                doc().querySelectorAll(
-                  `.rail-row[data-lane="${lane}"] .rail-tile`,
-                ).length ===
-                5 - i, // LL-1: the rail-`+` blank rides at the chain's end
+              () => tilesNow() === start - i,
               2_000,
               `${lane} demo pattern ${i} selected (chain untouched yet)`,
             );
@@ -912,9 +924,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
             );
           }
           await poll(
-            () =>
-              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
-                .length === 1,
+            () => tilesNow() === 1,
             2_000,
             `${lane} pool = the dense 4-bar alone (chain followed it)`,
           );
@@ -972,15 +982,14 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // POOL-WIDE (read = any pattern of the lane, write = EVERY pattern)
         // and a step write past a pattern's own length fails validateProject
         // (sparse-array holes → codec reject → the click throws and lands
-        // NOTHING). With the demo's 1-bar patterns still in the pool, the
-        // original `clickCells` at steps ≥ 16 threw silently — the
-        // dense-drums quadrant was ~4× sparser than intended (only steps
-        // 0/8 ever landed, and even those obeyed the pool-wide read against
-        // demo hits). The honest setup strips the four demo patterns from
-        // the POOL first (the PAT menu's RM tool — tile Delete only edits
-        // the CHAIN; MB-5's own phone-gate fix), leaving the fresh 4-bar as
-        // the lane's only pattern: every click then lands ON, in-pattern,
-        // in-length. The gate now ASSERTS the intended density (48/48
+        // NOTHING). With demo patterns still in the pool (1-bar at the
+        // finding, the PX-4 poly-loop shapes today), the original
+        // `clickCells` at out-of-demo-length steps threw silently and
+        // in-length clicks obeyed the pool-wide read against demo hits. The
+        // honest setup strips EVERY demo pattern from the POOL first (the
+        // PAT menu's RM tool — tile Delete only edits the CHAIN; MB-5's own
+        // phone-gate fix), leaving the fresh 4-bar as the lane's only
+        // pattern: every click then lands ON, in-pattern, in-length. The gate now ASSERTS the intended density (48/48
         // painted hits), so the setup can never silently degrade again —
         // and the chain needs no separate strip (the pool removals take
         // the demo chain occurrences with them).
@@ -991,8 +1000,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         // the `+` button creates blanks and cannot chain the selected
         // pattern anymore; the drums RM flow was already doing exactly this).
         await removeDemoPatterns("drums");
-        // The grid follows the pool: back to the 4-bar shape (6 rows × 64)
-        // before the clicks — the intermediate removals left it 16-step.
+        // The grid follows the pool: back to the dense 4-bar alone (6 rows
+        // × 64) before the clicks — PX-4's demo drums are 4-bar too, so the
+        // intermediate removals kept a 64-step grid throughout.
         await poll(
           () => floor("drums").querySelectorAll(".cell").length === 6 * 64,
           3_000,
@@ -1714,12 +1724,18 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
          * selected — BC-1), then the global `b` ladder ×2 grows it.
          */
         const add4Bar = async (lane: string): Promise<void> => {
+          // PX-4 re-base: one MORE tile than the demo chain holds (the
+          // poly-loop demo's chains are per-lane — drums 8 tiles, others 4).
+          const tilesBefore = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
           ($(`.rail-row[data-lane="${lane}"] .rail-append`) as HTMLElement).click();
           await poll(
             () =>
               doc().querySelectorAll(
                 `.rail-row[data-lane="${lane}"] .rail-tile`,
-              ).length === 5,
+              ).length ===
+              tilesBefore + 1,
             2_000,
             `${lane} blank appended`,
           );
@@ -1754,7 +1770,12 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
          */
         const removeDemoPatterns = async (lane: string): Promise<void> => {
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
-          for (let i = 0; i < 4; i++) {
+          // PX-4 re-base: strip every tile except the appended blank (the
+          // demo pool is per-lane now — drums carry 8 patterns, others 4).
+          const start = doc().querySelectorAll(
+            `.rail-row[data-lane="${lane}"] .rail-tile`,
+          ).length;
+          for (let i = 0; i < start - 1; i++) {
             // Select the first (demo) tile, then remove it from the pool.
             (
               $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
@@ -1764,7 +1785,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
                 doc().querySelectorAll(
                   `.rail-row[data-lane="${lane}"] .rail-tile`,
                 ).length ===
-                5 - i, // LL-1: the rail-`+` blank rides at the chain's end
+                start - i, // LL-1: the rail-`+` blank rides at the chain's end
               2_000,
               `${lane} demo pattern ${i} selected (chain untouched yet)`,
             );
@@ -1870,11 +1891,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // toggle is POOL-WIDE (read = ANY pattern of the lane, write = EVERY
         // pattern) and a step write past a pattern's own length fails
         // validateProject (sparse-array holes → codec reject → the click
-        // throws and lands NOTHING). With the demo's 1-bar patterns in the
-        // pool, clicks at steps ≥17 throw and steps 0–15 obey the pool-wide
-        // read (a demo-hit cell reads "on" and the click turns it OFF — an
-        // invisible no-op). The honest dense setup strips the four demo
-        // patterns from the POOL first (the PAT menu's RM tool — tile Delete
+        // throws and lands NOTHING). With the demo's shorter patterns in
+        // the pool, clicks past their length throw and in-length clicks
+        // obey the pool-wide read (a demo-hit cell reads "on" and the click
+        // turns it OFF — an invisible no-op). The honest dense setup strips
+        // every demo pattern from the POOL first (the PAT menu's RM tool — tile Delete
         // only edits the chain), leaving the fresh 4-bar as the lane's only
         // pattern: every click then lands ON, in-pattern, in-length.
         await switchLane("drums");

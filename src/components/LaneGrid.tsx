@@ -98,7 +98,7 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       text:
         lane === "drums"
           ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
-          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key.`,
+          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time: Shift+arrows scroll that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
     },
   ]);
 }

@@ -52,7 +52,7 @@ registerHelp([
   {
     id: "booth.loop",
     title: "LOOP",
-    text: "Keeps the song repeating from the top. With loop off, playback runs to the end of the song cycle — every lane's pattern has come round once — and stops by itself.",
+    text: "Keeps the song repeating from the top. With loop off, playback runs ONE full song CYCLE — every lane's chain has come round once (with lanes of different lengths, that is the longest lane's cycle) — and stops by itself.",
   },
   {
     id: "booth.metronome",

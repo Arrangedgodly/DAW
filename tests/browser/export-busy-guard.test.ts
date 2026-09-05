@@ -198,7 +198,8 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
         }
 
         // Completion: the RENDERING toast is dismissed and the success
-        // toast reports the CYCLE bars — 32 (the longest lane), not 1.
+        // toast names the CYCLE — 64 bars (the longest lane), not 1. PX-4
+        // final wording: `· 64-BAR CYCLE` (XP-1 deferred the wording here).
         await waitFor(
           () => toastTexts().some((t) => t.includes("WAV EXPORTED")),
           60_000,
@@ -209,7 +210,7 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
           `[xp1] busy-guard gate: RENDERING visible after ${Math.round(busyVisibleAt)} ms; render+download busy window ${Math.round(busyMs)} ms (64-bar cycle)`,
         );
         const success = toastTexts().find((t) => t.includes("WAV EXPORTED"))!;
-        expect(success).toBe("WAV EXPORTED · 64 BARS");
+        expect(success).toBe("WAV EXPORTED · 64-BAR CYCLE");
         await waitFor(
           () => !toastTexts().some((t) => t === "RENDERING WAV…"),
           2000,
@@ -236,7 +237,9 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
         const midiToast = toastTexts().find((t) =>
           t.includes("MIDI EXPORTED"),
         )!;
-        expect(midiToast).toMatch(/^MIDI EXPORTED · 5 TRACKS · \d+ NOTES · 64 BARS$/);
+        expect(midiToast).toMatch(
+          /^MIDI EXPORTED · 5 TRACKS · \d+ NOTES · 64-BAR CYCLE$/,
+        );
         expect(blobs.filter((b) => b.type === "audio/midi")).toHaveLength(1);
         expect(blobs).toHaveLength(2); // no stray double renders anywhere
       } finally {

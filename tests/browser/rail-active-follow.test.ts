@@ -84,7 +84,10 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
       document.body.appendChild(iframe);
       const win = iframe.contentWindow!;
 
-      // Deterministic FIRST RUN (PX-1 demo: 4×1-bar slots per lane).
+      // Deterministic FIRST RUN (PX-4 poly-loop demo: 4 slots per lane at
+      // UNEQUAL pattern lengths — chords 2B, drums/lead/bass 1B — the
+      // follow laws below derive each lane's slot cadence from the rail's
+      // own tile badges).
       await new Promise<void>((resolve) => {
         const req = win.indexedDB.deleteDatabase("bitbounce");
         req.onsuccess = req.onerror = req.onblocked = () => resolve();
@@ -117,15 +120,25 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
       /**
        * The booth's BAR.BEAT.STEP readout (rAF-written from ctx.currentTime)
        * wraps at the TRANSPORT's cycle basis. LL-2: that basis is the LCM of
-       * lane chain totals — the demo's four 1-bar chains give 4 bars, so the
-       * BAR digit now advances 1..4 across each chain iteration (the
-       * deliberate KL-1 position-law swap; the readout format + mechanism
-       * are byte-identical). The chain clock below is reconstructed exactly
-       * the way the transport counts: bars elapsed = wraps of the BEAT digit
-       * (4 beats per bar, monotone within a bar; each wrap = one 1-bar chain
-       * slot — the deterministic step-clock convention, no wall-clock timing
-       * anywhere in the follow laws).
+       * lane chain totals — the PX-4 poly-loop demo gives 16 bars (drums 16B
+       * · chords 8B · lead 8B · bass 4B; the deliberate KL-1 position-law
+       * swap; the readout format + mechanism are byte-identical). The chain
+       * clock below is reconstructed exactly the way the transport counts:
+       * bars elapsed = wraps of the BEAT digit (4 beats per bar, monotone
+       * within a bar — the deterministic step-clock convention, no
+       * wall-clock timing anywhere in the follow laws). Each lane's EXPECTED
+       * slot comes from its own tile badges: PX-4 re-base — a lane sounds
+       * one CHAIN SLOT per its pattern length, not per bar.
        */
+      const slotBars = (lane: string): number => {
+        const badge = tiles(lane)[0]
+          ?.querySelector(".rail-tile-bars")
+          ?.textContent?.trim();
+        const bars = Number.parseInt(badge?.replace("B", "") ?? "1", 10);
+        return Number.isFinite(bars) && bars > 0 ? bars : 1;
+      };
+      const laneSlot = (lane: string, barsElapsed: number): number =>
+        Math.floor(barsElapsed / slotBars(lane)) % 4;
       const readBeat = (): number => {
         const text = $<HTMLElement>(".booth-led").textContent?.trim() ?? "";
         const beat = Number.parseInt(text.split(".")[1] ?? "1", 10);
@@ -165,8 +178,10 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
           "transport playing",
         );
 
-        // Bar ≈ 2.143 s at the demo's 112 bpm → 8 bars + margin.
-        const FOLLOW_MS = 19_500;
+        // Bar ≈ 2.143 s at the demo's 112 bpm. PX-4 re-base: the song cycle
+        // is 8 bars (the LCM) — sample ≥2 FULL cycles so every lane,
+        // including the 2-bar-slot chords, is observed wrapping twice.
+        const FOLLOW_MS = 40_000;
         const t0 = performance.now();
         /** Chain clock, advanced from the readout on every call (shared
          *  with the later park poll — one continuous count since play). */
@@ -196,11 +211,11 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         while (performance.now() - t0 < FOLLOW_MS) {
           samples++;
           const barsElapsed = tickChainClock();
-          const slot0Sounding = barsElapsed % 4 === 0;
           for (const lane of LANES) {
             const slot = activeSlot(lane);
             const seq = transitions[lane];
             if (slot >= 0 && seq[seq.length - 1] !== slot) seq.push(slot);
+            const slot0Sounding = laneSlot(lane, barsElapsed) === 0;
             if (slot0Sounding) {
               // Sounding slot === selected slot → tile 0 reads "selected"
               // (the stronger state; the v0 tile law) — no active tile then.
@@ -209,7 +224,7 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
                   `${lane}: bar ${barsElapsed + 1} tile 0 not selected (got ${tiles(lane)[0].dataset.state})`,
                 );
             } else {
-              const expected = barsElapsed % 4;
+              const expected = laneSlot(lane, barsElapsed);
               // No ACTIVE tile here is legal ONLY as the slot-0 wrap frame:
               // sounding === selected renders tile 0 "selected" (the v0 tile
               // law), one poll-frame on either side of the wrap. Anything
@@ -261,9 +276,10 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         ).toBe("");
         for (const lane of LANES) {
           const seq = transitions[lane];
-          // 2 iterations ≈ [1,2,3, 1,2,3, 1] in ACTIVE-tile terms: slot 0
-          // renders "selected" (sounding === selected at bar 1 — the v0
-          // tile law), so the wrap in the ACTIVE sequence is 3→1.
+          // 2 song cycles in ACTIVE-tile terms: slot 0 renders "selected"
+          // (sounding === selected — the v0 tile law), so the wrap in the
+          // ACTIVE sequence is 3→1. PX-4: the slowest lane (4-bar slots)
+          // still traverses its whole chain twice inside FOLLOW_MS.
           expect(
             seq.length,
             `${lane}: enough observed advance for ≥2 chain iterations`,

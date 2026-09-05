@@ -46,8 +46,8 @@
     },
     "codec/demo-project-canonical-v3": {
       "note": "Canonical JSON codec bytes of createDemoProject() — the WELCOME SONG first-run demo (PX-1). Pins the demo's composition bit-exactly (patterns, chains, cues, FX, transport): any deliberate demo edit shows up as a reviewable manifest diff. Pure TS, byte-stable everywhere; mismatch = hard failure. SC-1: v2 notes. SV-1: regenerated for schema v3 (transport drops loopBars; composition unchanged).",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v1-default-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 default-project bytes) — the walk now continues v2→v3 (loopBars drops). Migrating the v1 text must equal the shipped v3 default exactly. Pins the migration law; mismatch = hard failure.",
@@ -56,8 +56,8 @@
     },
     "migrate/v1-demo-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(v1 WELCOME SONG bytes) — the walk now continues v2→v3 (loopBars drops). The demo is the only sustain-marker-heavy shipped project — its 6-step-gate chord pads must migrate to 15-step notes. Pins the duration-preserving law; mismatch = hard failure.",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v1-sustain-heavy-to-v3": {
       "note": "SC-1 migration fixture, SV-1 re-pin: canonical v3 bytes of decode(hand-authored sustain-heavy v1 neighbor) — sustained runs, lone hits, orphan markers (dropped), a seconds-unit gate (0.25 s at 112 BPM -> 1.75 steps); the walk continues v2→v3 (loopBars drops). Pins the quantization corner; mismatch = hard failure.",
@@ -83,8 +83,8 @@
     },
     "migrate/v2-demo-to-v3": {
       "note": "SV-1 migration fixture: canonical v3 bytes of decode(v2 WELCOME SONG bytes) — the v2 text is exactly the pre-SV-1 demo save (version 2 + loopBars). Must equal the shipped v3 demo exactly. Mismatch = hard failure.",
-      "sha256": "764759551cc0574c285e0abb7522cee44a36fc5002007698683571871eae91ae",
-      "byteLength": 6874
+      "sha256": "df53e967e49707bee91ae5ea2296a83e8564499e9e27a80b04c82c685142564f",
+      "byteLength": 6979
     },
     "migrate/v2-boundary-to-v3": {
       "note": "SV-1 migration fixture: canonical v3 bytes of decode(hand-authored v2 boundary neighbor) — 4-bar patterns (the v2 ceiling), notes at the v2 bounds (start 63, length 128), loopBars 4 paired with the bars. Every v2-boundary value must survive unchanged; only loopBars drops. Mismatch = hard failure.",

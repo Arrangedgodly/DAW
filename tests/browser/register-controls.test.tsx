@@ -38,6 +38,7 @@ import {
   registerWindowStart,
   selectLane,
 } from "../../src/state/selection";
+import { setHelpMode } from "../../src/state/helpMode";
 import "../../src/styles/base.css";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
@@ -539,6 +540,32 @@ describe("RC-1 register controls (real app, demo document)", () => {
         expect(
           gridOf(host, "lead").getAttribute("aria-label"),
         ).not.toContain("ROWS");
+
+        // PX-4 (phone tap-to-inspect): with info mode ON, TAPPING the OCT
+        // group shows its refined entry — the KL-1 fence readable on the
+        // phone path (title says OCTAVE; text says SOUND vs SEE/HEAR).
+        setHelpMode(true);
+        await waitFor(() => host.querySelector(".info-view") !== null);
+        (
+          laneHost(host, "lead").querySelector(
+            '[data-help="lane.lead.oct"]',
+          ) as HTMLElement
+        ).dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await waitFor(
+          () =>
+            host.querySelector(".info-view-title")?.textContent?.trim() ===
+            "LEAD OCTAVE",
+          2000,
+          "tap-to-inspect shows the LEAD OCTAVE entry",
+        );
+        const octInfo =
+          host.querySelector(".info-view")?.textContent ?? "";
+        expect(octInfo).toContain("SOUND");
+        expect(octInfo).toContain("HEAR");
+        setHelpMode(false);
+        await waitFor(() => host.querySelector(".info-view") === null);
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

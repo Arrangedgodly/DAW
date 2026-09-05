@@ -63,12 +63,12 @@ registerHelp([
   {
     id: "projects.wav",
     title: "EXPORT WAV",
-    text: "Renders the song offline to a stereo WAV — exactly the loop you hear, seam-free, ready to share or drop in a video. Playback is never interrupted.",
+    text: "Renders the song offline to a stereo WAV — exactly ONE FULL CYCLE of what you hear: every lane's chain has come round once (the longest lane, when lanes differ), seam-free. Playback is never interrupted.",
   },
   {
     id: "projects.midi",
     title: "EXPORT MIDI",
-    text: "Saves the notes and section cues as a Standard MIDI File, one track per lane. It carries no sounds — other apps play it with their own instruments.",
+    text: "Saves the notes and section cues as a Standard MIDI File, one track per lane, spanning the same ONE FULL CYCLE as the WAV — shorter lanes repeat within it. It carries no sounds — other apps play it with their own instruments.",
   },
   {
     id: "projects.save",
@@ -206,9 +206,10 @@ export default function Projects(): JSX.Element {
    * XP-1 (i3-5): the render is EXACTLY one LCM cycle — up to ~4.3 min of
    * audio at a 128-bar worst case (12-15 s wall), so the busy-guard must
    * span the whole render: the RENDERING WAV… toast is STICKY (dismissed
-   * here when the render lands) and the buttons stay disabled throughout;
-   * the success toast reports the CYCLE bars (the LCM of lane chain
-   * lengths, re-based from the retired lane-local basis).
+   * here when the render lands) and the buttons stay disabled throughout.
+   * PX-4 final toast wording (XP-1 deferred it here): the success toast
+   * names WHAT the file is in cycle vocabulary — `· 32-BAR CYCLE` — the
+   * bars being the LCM of the lane chain totals (the longest lane).
    */
   const handleExportWav = async () => {
     if (busy()) return;
@@ -219,7 +220,7 @@ export default function Projects(): JSX.Element {
       const result = await exportWav(docStore.getState().doc);
       if (result.ok) {
         showSuccess(
-          `WAV EXPORTED · ${result.bars} BAR${result.bars === 1 ? "" : "S"}`,
+          `WAV EXPORTED · ${result.bars}-BAR CYCLE`,
         );
       } else {
         showError(result.message, { suggestion: result.suggestion });
@@ -234,7 +235,8 @@ export default function Projects(): JSX.Element {
    * MIDI export (MF-5): pure synchronous encode → typed result → download.
    * Same one-shot busy flag as WAV so the two exports can't interleave.
    * XP-1 (i3-5): the file spans EXACTLY one LCM cycle (shorter chains
-   * repeat within it); the success toast reports the CYCLE bars.
+   * repeat within it); PX-4 final toast wording — the CYCLE word closes
+   * the line, same vocabulary as the WAV toast.
    */
   const handleExportMidi = async (): Promise<void> => {
     if (busy()) return;
@@ -244,7 +246,7 @@ export default function Projects(): JSX.Element {
       const result = exportMidi(docStore.getState().doc);
       if (result.ok) {
         showSuccess(
-          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES \u00b7 ${result.bars} BAR${result.bars === 1 ? "" : "S"}`,
+          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES \u00b7 ${result.bars}-BAR CYCLE`,
         );
       } else {
         showError(result.message, { suggestion: result.suggestion });

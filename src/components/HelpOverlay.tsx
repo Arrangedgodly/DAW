@@ -15,7 +15,17 @@ interface Binding {
   readonly action: string;
 }
 
-const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
+/**
+ * PX-4 (i3-1..i3-4): the overlay now names every iteration-3 binding in the
+ * octave/cycle vocabulary — the OCTAVE transpose + the VIEW-only register
+ * window (the conflation fence), the LENGTH ladder in BARS, the rail `+` as
+ * a NEW blank clip (DUP stays the only duplicator), and the `p` position
+ * readout in CYCLE bars. Exported for the help-language unit tests.
+ */
+export const HELP_SECTIONS: readonly {
+  title: string;
+  bindings: readonly Binding[];
+}[] = [
   {
     title: "GRID",
     bindings: [
@@ -32,8 +42,10 @@ const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
   {
     title: "PATTERNS",
     bindings: [
-      { keys: "N", action: "new 1-bar pattern" },
-      { keys: "D", action: "duplicate pattern" },
+      { keys: "N", action: "new blank 1-bar pattern, appended" },
+      { keys: "+ / =", action: "new blank pattern (on a focused rail tile)" },
+      { keys: "B / SHIFT+B", action: "LENGTH ladder: grow / shrink pattern (bars)" },
+      { keys: "D", action: "duplicate pattern (the only duplicator)" },
       { keys: "R", action: "rename (focuses rail REN)" },
       { keys: "F2", action: "rename (on rail tile)" },
       { keys: "L", action: "label section cue" },
@@ -45,13 +57,18 @@ const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
     title: "TRANSPORT / EDIT",
     bindings: [
       { keys: "SPACE", action: "play / stop (outside grid)" },
-      { keys: "P", action: "announce position (song cycle + active lane)" },
+      {
+        keys: "P",
+        action: "announce position — song cycle bar + active lane's cycle bar when lane cycles differ",
+      },
       { keys: "CTRL+Z", action: "undo" },
       { keys: "CTRL+SHIFT+Z / CTRL+Y", action: "redo" },
       { keys: "?", action: "this overlay" },
     ],
   },
 ];
+
+const SECTIONS = HELP_SECTIONS;
 
 export default function HelpOverlay(): JSX.Element {
   let panel: HTMLDivElement | undefined;

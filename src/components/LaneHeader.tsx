@@ -102,13 +102,16 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
       text: `Isolates ${n}: every other lane ducks down until you press it again. Handy for checking one part.`,
     },
     // RC-1 (v3): the register transpose — SOUND-changing, fenced from the
-    // VIEW-only window scroll (the Professor X conflation fence, E9).
+    // VIEW-only window scroll (the Professor X conflation fence, E9). PX-4
+    // owns the final wording (KL-1): it must say OCTAVE, name the −3…+3
+    // clamps, and draw the fence — OCT changes which rows SOUND, never
+    // which rows are shown.
     ...(lane !== "drums"
       ? [
           {
             id: `lane.${lane}.oct`,
-            title: `${n} OCT`,
-            text: `Transposes the SOUND ${n} makes one octave per press (−3 to +3) — the notes stay put, the register moves, and exports follow. Not a view: Shift+arrows on the grid scroll which rows you SEE; this changes which rows SOUND.`,
+            title: `${n} OCTAVE`,
+            text: `Moves the octave ${n} plays in — the SOUND transposes one OCTAVE per press, clamped at −3 and +3, and exports follow. The notes stay exactly where you painted them. This is not a view: Shift+arrows on the grid scroll the octave you SEE; OCT changes the octave you HEAR. Keyboard twin: O, Shift+O.`,
           },
         ]
       : []),

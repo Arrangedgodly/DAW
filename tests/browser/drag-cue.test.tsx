@@ -295,15 +295,20 @@ describe("IN-3 multi-clip drag cueing (real app, pointer + keyboard)", () => {
 
         // ===== 3. SUPERSEDE + CANCEL + CLICK LAWS (cursor just past 16) ===
         // A NEW gesture supersedes the landed state per its own last-touched
-        // tiles (bass slot 1, chords slot 1; next boundary = slot 2 ≠ both).
+        // tiles (bass slot 1, chords slot 2). PX-4 journey delta: the
+        // poly-loop demo's CHORDS patterns are 2 bars, so at cursor just
+        // past 16 the chords lane's next boundary (step 32) already plays
+        // slot 1 — cueing slot 1 would be the IM-7 CANCEL; slot 2 is the
+        // real pending (the 1-bar lanes keep the original slot-1 law:
+        // their next boundary plays slot 2 ≠ slot 1).
         const b1 = center(tile("bass", 1));
-        const c1 = center(tile("chords", 1));
+        const c1 = center(tile("chords", 2));
         pe(tile("bass", 1), "pointerdown", b1.x, b1.y);
-        pe(tile("chords", 1), "pointermove", c1.x, c1.y);
-        pe(tile("chords", 1), "pointerup", c1.x, c1.y);
+        pe(tile("chords", 2), "pointermove", c1.x, c1.y);
+        pe(tile("chords", 2), "pointerup", c1.x, c1.y);
         expect(session.getPendingSwitch("bass")!.toPatternId).toBe("bass-2");
         expect(session.getPendingSwitch("chords")!.toPatternId).toBe(
-          "chords-2",
+          "chords-3",
         );
         expect(cueSummaryText()).toBe("QUEUED 2 LANES");
         // pointercancel mid-gesture: NOTHING commits, preview cleared.
@@ -322,7 +327,7 @@ describe("IN-3 multi-clip drag cueing (real app, pointer + keyboard)", () => {
         pe(tile("chords", 3), "pointerdown", c1.x, c1.y);
         pe(tile("chords", 3), "pointerup", c1.x, c1.y);
         expect(session.getPendingSwitch("chords")!.toPatternId).toBe(
-          "chords-2",
+          "chords-3",
         ); // unchanged by the pair
         // A plain synthetic click still cues one tile (v0 law) and NEVER
         // speaks the summary. Yield one macrotask first: the gesture's

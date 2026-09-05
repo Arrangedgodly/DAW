@@ -75,6 +75,11 @@ export default defineConfig({
     onConsoleLog: (log) => onRenderFingerprintConsoleLog(String(log)),
     projects: [
       {
+        // PX-4: the help-language unit tests import .tsx components for
+        // their module-scope registerHelp side effects (the I2-6 colocated
+        // law) — the same per-project JSX-transform registration the browser
+        // project documents below. Nothing mounts; node stays node.
+        plugins: [solid()],
         test: {
           name: "unit",
           environment: "node",

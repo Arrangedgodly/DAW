@@ -151,7 +151,7 @@ registerHelp([
   {
     id: "rail.tile",
     title: "CHAIN TILE",
-    text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
+    text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. The tile's number is its pattern's BARS; the tiles added together are the lane's CYCLE — how long it plays before coming round again, and lanes with different cycles weave against each other. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
   },
   {
     id: "rail.append",
@@ -161,7 +161,7 @@ registerHelp([
   {
     id: "rail.length",
     title: "LENGTH",
-    text: "Resizes the lane's SELECTED pattern one step along the length ladder — 1, 2, 4, 8, 16, 32, 64 or 128 bars (shortcut B grows, Shift+B shrinks). Growing always works; shrinking refuses while any note would be lost past the new end — move or shorten the note first. New patterns start at 1 bar and grow from here.",
+    text: "Resizes the lane's SELECTED pattern one step along the length ladder, counted in BARS — 1, 2, 4, 8, 16, 32, 64 or 128 (shortcut B grows, Shift+B shrinks). A pattern's bars set how long the lane's CYCLE runs, so lanes of different lengths loop against each other instead of in lockstep. Growing always works; shrinking refuses while any note would be lost past the new end — move or shorten the note first. New patterns start at 1 bar and grow from here.",
   },
   {
     id: "rail.duplicate",
@@ -186,7 +186,7 @@ registerHelp([
   {
     id: "rail.tools",
     title: "PATTERN TOOLS",
-    text: "Opens this lane's pattern toolbox: rename, LENGTH resize (1 to 128 bars — the field stays open while you step it), duplicate, remove. The keys reach them without opening it — N new, B longer, Shift+B shorter, D duplicate, R rename — and it closes itself after an action or on Escape.",
+    text: "Opens this lane's pattern toolbox: rename, LENGTH resize (1 to 128 BARS — the field stays open while you step it), duplicate, remove. The keys reach them without opening it — N new, B longer, Shift+B shorter, D duplicate, R rename — and it closes itself after an action or on Escape.",
   },
 ]);
 
@@ -963,10 +963,18 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     >
       <span class="rail-lane-name">{LANE_NAMES[props.lane]}</span>
 
+      {/*
+        PX-4 (i3-4): the lane's CYCLE length speaks through the row's group
+        name — the tiles' BARS added together, in cycle vocabulary. A tiny
+        label-text change only (the string lives here); no new visual
+        surface — the per-tile `4B` badges stay the visible numbers, and the
+        arrangement story ("how long until this lane comes round") rides the
+        same aria group the tiles already report through.
+      */}
       <div
         class="rail-tiles"
         role="group"
-        aria-label={`${LANE_NAMES[props.lane]} song chain`}
+        aria-label={`${LANE_NAMES[props.lane]} song chain · ${tiles().reduce((sum, tile) => sum + tile.bars, 0)}-BAR CYCLE`}
       >
         <For each={tiles()}>
           {(tile) => (
