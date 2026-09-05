@@ -22,6 +22,7 @@ import { createDemoProject } from "../../src/document/demoSong";
 import { encodeWav16 } from "../../src/audio/wav";
 import { encodeMidi } from "../../src/audio/exportMidi";
 import { referenceMidiProject } from "../midiReference";
+import { lcmCycleProject } from "../exportLcmReference";
 import {
   sustainHeavyV1ProjectText,
   v1DefaultProjectText,
@@ -83,6 +84,8 @@ function realBytesFor(name: string): Uint8Array {
       );
     case "midi/reference-project-v1":
       return encodeMidi(referenceMidiProject());
+    case "midi/lcm-cycle-project-v1":
+      return encodeMidi(lcmCycleProject());
     default:
       throw new Error(`test gap: no producer wired for golden '${name}'`);
   }

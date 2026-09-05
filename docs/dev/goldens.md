@@ -15,6 +15,8 @@ manifest.
 | `render/reference-loop-fp-v1`        | render fingerprint (**environment-pinned**)                                                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `RENDER FINGERPRINT DRIFT` warning |
 | `wav/reference-export-fp-v1`         | render fingerprint of the exported .wav file bytes (**environment-pinned**)                                               | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 | `wav/reference-export-mix-fp-v1`     | render fingerprint of the exported .wav file bytes WITH a non-default lane mix, drums muted + lead volume 0.75 (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
+| `midi/lcm-cycle-project-v1`          | bytes (pure TS; structure + LCM tick law asserted in-test; the 64-bar parse-back twin lives in `tests/browser/exportMidi.test.ts`) | `tests/golden/midi-lcm-export.golden.test.ts`       | **hard fail**                                    |
+| `wav/lcm-export-fp-v1`               | render fingerprint of the exported .wav file bytes for the UNEQUAL-CHAIN LCM reference (4-bar cycle) (**environment-pinned**) | `tests/browser/render-fingerprint.test.ts`          | soft: console `EXPORT FINGERPRINT DRIFT` warning |
 
 Decode-and-assert coverage (structure, not just hashes): the reference-project
 exported WAV's headers/sample-count/seam-continuity live in
@@ -124,6 +126,30 @@ refresh. If you add a NEW golden, add its note in the same commit.
   reproduced by the compat derivation; verified zero DRIFT warnings in the
   browser runs. v2 source texts live in `tests/v2Project.ts` (re-stamp
   version + loopBars over the live docs = exactly the pre-SV-1 bytes).
+- **2026-09-04 — XP-1 (the export LCM cycle law; TWO NEW entries, nothing
+  regenerated).** i3-5 completed the law: WAV AND MIDI render EXACTLY one
+  full LCM cycle (the LCM of lane chain totals = the longest lane at the
+  powers-of-two vocabulary). The WAV path already rendered the LCM (render.ts
+  computeLoopSteps — verified, not regenerated); the MIDI path previously
+  stopped each lane track at its OWN chain end and now repeats chain-local
+  notes AND cue markers at their chain length within the cycle
+  (exportMidi.ts repeatNotesToCycle — the same expansion law the offline
+  render applies). NEW hard entry `midi/lcm-cycle-project-v1`
+  (`71b8adf1…`, 581 B): the unequal-chain LCM reference (drums [2B,2B],
+  bass 2B, chords/lead 1B → 4-bar cycle; bass ×2 at ticks 0/3840, the
+  GROOVE cue recurs at the chain boundary), seeded via the sanctioned
+  unit stage (`UPDATE_GOLDENS=1 vitest run tests/golden`). NEW soft entry
+  `wav/lcm-export-fp-v1` (`a000a8f8…`, 1,411,244 B = 44 + 4×352,800):
+  the exported WAV FILE bytes of the same reference through the real
+  render, seeded via the sanctioned browser stage (stage 2 of the
+  documented command; the node stage's tripwire exit-red under
+  UPDATE_GOLDENS=1 is the recorded pre-existing quirk). NOT regenerated,
+  deliberately (the iteration-3 regression rule): every pre-existing entry
+  verified byte-stable — `midi/reference-project-v1` unchanged (equal
+  chains are the identity of the fill law; the golden test passes
+  untouched) and all three render/export fingerprints re-recorded
+  IDENTICAL hashes (render `e87ae0ab…`, wav `3eff5771…`, mix `403361ca…`)
+  — zero drift, no audio-path byte touched.
 
 ## Review discipline
 

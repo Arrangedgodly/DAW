@@ -90,6 +90,23 @@
       "note": "SV-1 migration fixture: canonical v3 bytes of decode(hand-authored v2 boundary neighbor) — 4-bar patterns (the v2 ceiling), notes at the v2 bounds (start 63, length 128), loopBars 4 paired with the bars. Every v2-boundary value must survive unchanged; only loopBars drops. Mismatch = hard failure.",
       "sha256": "96ffdcf3e15c1c5e878d1790c1e712358061da5aefe2c0012e87681ea38b87a3",
       "byteLength": 3455
+    },
+    "midi/lcm-cycle-project-v1": {
+      "note": "Byte-exact Type-1 MIDI of the XP-1 UNEQUAL-CHAIN LCM reference (drums chain [2B,2B], bass 2B, chords/lead 1B → 4-bar export cycle). Pins the i3-5 law: shorter chains' notes AND cue markers repeat at their chain length within the LCM cycle (bass ×2 at ticks 0/3840, the GROOVE cue recurs at the chain boundary); equal-chain docs are untouched (midi/reference-project-v1 unchanged — the zero-drift twin). Pure TS, hard failure on mismatch.",
+      "sha256": "71b8adf184dc3eacf8db517dae1190e6d14209b3a08cef3dfd97f378fd7157db",
+      "byteLength": 581
+    },
+    "wav/lcm-export-fp-v1": {
+      "note": "SHA-256 of the exported .wav FILE bytes for the XP-1 UNEQUAL-CHAIN LCM reference (drums chain [2B,2B] + bass 2B + chords/lead 1B → a 4-bar export cycle = the LCM of lane chain totals, 352,800 samples). The i3-5 LCM-cycle law's render-path canary: the loop length is the LCM with shorter lanes wrapping within it; the hard law proofs (64-bar probe, sample-exact math, seam, parse-back) live in tests/browser/exportWav.test.ts, and the hard MIDI twin is midi/lcm-cycle-project-v1. Environment-pinned like every render-derived fingerprint: mismatch is a console DRIFT warning, never a CI failure.",
+      "sha256": "a000a8f838fe6838c286e8206d6034be16a148e1ccee6f6b2c82e446c9920d61",
+      "byteLength": 1411244,
+      "kind": "render",
+      "renderEnv": {
+        "playwright": "playwright 1.62.1",
+        "chromium": "chromium (MacOS/Google Chrome for Testing)",
+        "sampleRate": 44100,
+        "loopSamples": 352800
+      }
     }
   }
 }

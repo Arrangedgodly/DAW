@@ -18,9 +18,14 @@
 import { describe, expect, it } from "vitest";
 import { Midi } from "@tonejs/midi";
 import { parseMidi } from "midi-file";
-import { exportMidi, PPQ, TICKS_PER_STEP } from "../../src/audio/exportMidi";
+import {
+  exportMidi,
+  PPQ,
+  TICKS_PER_STEP,
+} from "../../src/audio/exportMidi";
 import type { DownloadSeam } from "../../src/persist/fileIO";
 import { referenceMidiProject } from "../midiReference";
+import { wideUnequalChainProject } from "../exportLcmReference";
 
 function captureSeam(): { seam: DownloadSeam; blob: () => Blob | undefined } {
   let captured: Blob | undefined;
@@ -186,5 +191,60 @@ describe("MF-5 MIDI export — third-party parse-back (@tonejs/midi)", () => {
       "DROP",
     ]);
     for (const m of markers) expect(m.deltaTime).toBe(0); // slot 0 = tick 0
+  });
+
+  // XP-1 (i3-5): the MIDI file spans EXACTLY one full LCM cycle — the same
+  // cycle the WAV export renders (drums 64B + bass 4B + chords 8B → 64
+  // bars). Parse-back with the independent parser: every lane's content
+  // repeats at its own chain length within the cycle and reaches into the
+  // FINAL chain iteration; the toast reports the cycle bars.
+  it("XP-1: unequal chains — one LCM cycle, every lane spans it (64 bars)", async () => {
+    const doc = wideUnequalChainProject();
+    const cap = captureSeam();
+    const result = exportMidi(doc, { seam: cap.seam });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const CYCLE_BARS = 64;
+    const CYCLE_TICKS = CYCLE_BARS * 16 * TICKS_PER_STEP; // 122,880
+    expect(result.bars).toBe(CYCLE_BARS); // the toast's cycle-bar count
+
+    const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
+    const midi = new Midi(bytes.slice().buffer);
+    expect(midi.header.ppq).toBe(PPQ);
+    expect(midi.tracks).toHaveLength(4);
+
+    // Drums (64-bar chain): 1 iteration — a kick on every beat 0 of every
+    // bar through the whole cycle, so its last hit reaches bar 63.
+    const drums = midi.tracks[0];
+    const kicks = drums.notes.filter((n) => n.midi === 36);
+    expect(kicks).toHaveLength(CYCLE_BARS * 4); // four-on-the-floor × 64
+    // Last kick: step 1020 (bar 63, beat 3) — four steps before the cycle end.
+    expect(kicks[kicks.length - 1].ticks).toBe(CYCLE_TICKS - 4 * TICKS_PER_STEP);
+
+    // Bass (4-bar chain → ×16 iterations at exact k × 7680-tick offsets).
+    const bass = midi.tracks[1].notes.sort((a, b) => a.ticks - b.ticks);
+    expect(bass).toHaveLength(16);
+    expect(bass.map((n) => n.ticks)).toEqual(
+      Array.from({ length: 16 }, (_, k) => k * 4 * 16 * TICKS_PER_STEP),
+    );
+    // Chords (8-bar chain → ×8 iterations, triads).
+    const chords = midi.tracks[2].notes;
+    expect(chords).toHaveLength(8 * 3);
+    expect(Math.max(...chords.map((n) => n.ticks))).toBe(7 * 8 * 16 * TICKS_PER_STEP);
+    // Lead (1-bar chain → ×64 iterations).
+    const lead = midi.tracks[3].notes;
+    expect(lead).toHaveLength(64);
+
+    // Track durations = the full cycle: every content lane's last note
+    // lands inside the FINAL chain iteration (a lane-local export — the
+    // pre-XP-1 shape — would stop at its own chain end).
+    const lastTick = (notes: { ticks: number }[]) =>
+      Math.max(...notes.map((n) => n.ticks));
+    expect(lastTick(bass)).toBe(CYCLE_TICKS - 4 * 16 * TICKS_PER_STEP);
+    expect(lastTick(chords)).toBe(CYCLE_TICKS - 8 * 16 * TICKS_PER_STEP);
+    expect(lastTick(lead)).toBe(CYCLE_TICKS - 1 * 16 * TICKS_PER_STEP);
+    // Last drum event: the final hat at step 1022 — two steps shy of the end.
+    expect(lastTick(drums.notes)).toBe(CYCLE_TICKS - 2 * TICKS_PER_STEP);
   });
 });

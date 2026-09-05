@@ -51,6 +51,24 @@ describe("toast bus (HU-2)", () => {
     expect(toastStack()).toHaveLength(0);
   });
 
+  it("XP-1: sticky info toasts never auto-dismiss — the owner's dismiss is the only exit", () => {
+    // A 128-bar offline render outlives AUTO_DISMISS_MS; the RENDERING…
+    // state must stay on screen for the whole render.
+    const id = showInfo("RENDERING WAV…", { sticky: true });
+    vi.advanceTimersByTime(AUTO_DISMISS_MS * 10);
+    expect(toastStack()).toHaveLength(1);
+    expect(toastStack()[0]!.message).toBe("RENDERING WAV…");
+
+    // Explicit dismiss (the export handler's finally) removes it.
+    dismissToast(id);
+    expect(toastStack()).toHaveLength(0);
+
+    // Non-sticky twins still auto-dismiss (the default is unchanged).
+    showInfo("plain info");
+    vi.advanceTimersByTime(AUTO_DISMISS_MS + 1);
+    expect(toastStack()).toHaveLength(0);
+  });
+
   it("caps the stack at 3, dropping the OLDEST toast", () => {
     showInfo("one");
     showInfo("two");

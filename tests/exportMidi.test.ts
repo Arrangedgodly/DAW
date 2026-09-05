@@ -18,6 +18,8 @@ import {
   buildPitchedNotes,
   DRUM_CHANNEL,
   encodeMidi,
+  exportCycleSteps,
+  exportMidi,
   gateTicks,
   GM_DRUM_NOTES,
   GM_DRUM_VELOCITIES,
@@ -29,12 +31,17 @@ import {
   PPQ,
   PRESET_GM_PROGRAMS,
   PITCHED_VELOCITY,
+  repeatNotesToCycle,
   stepTick,
   TICKS_PER_STEP,
   TRACK_COUNT,
 } from "../src/audio/exportMidi";
 import { PRESET_LIBRARY } from "../src/audio/presets";
+import { computeLoopSteps } from "../src/audio/render";
+import { laneCycleSteps } from "../src/audio/song";
+import { LANE_IDS } from "../src/document/schema";
 import { referenceMidiProject } from "./midiReference";
+import { lcmCycleProject } from "./exportLcmReference";
 
 // ---------------------------------------------------------------------------
 // Tick math (16th = PPQ/4 at PPQ 480; verify midi-file's PPQ convention)
@@ -383,6 +390,268 @@ describe("hand-computed bytes through writeMidi", () => {
     expect(u16(9 + 1 - 1)).toBeDefined(); // (layout asserted via parseMidi above)
   });
 });
+
+// ---------------------------------------------------------------------------
+// XP-1 (i3-5) — the LCM cycle law: MIDI export spans EXACTLY one full
+// export cycle (the LCM of lane chain totals, the same computeLoopSteps law
+// the offline WAV render and the transport's cycle basis use). Shorter
+// chains repeat within the cycle; equal-chain docs are byte-identical.
+// ---------------------------------------------------------------------------
+
+describe("XP-1: exportCycleSteps — the one LCM for one-shot, WAV and MIDI", () => {
+  it("equal-chain documents keep the 1-bar v0.1 basis", () => {
+    expect(exportCycleSteps(referenceMidiProject())).toBe(16);
+    expect(exportCycleSteps(createDefaultProject())).toBe(16);
+  });
+
+  it("unequal chains → the LCM (= the longest lane at powers-of-two, I3-d)", () => {
+    // drums 64B + bass 4B + chords 8B + lead 1B → lcm(1024,64,128,16) = 1024.
+    const doc = createDefaultProject();
+    const drums = doc.patterns.drums[0];
+    if (drums.kind !== "drums") throw new Error("kind");
+    drums.bars = 64;
+    const bass = doc.patterns.bass[0];
+    if (bass.kind !== "pitched") throw new Error("kind");
+    bass.bars = 4;
+    const chords = doc.patterns.chords[0];
+    if (chords.kind !== "pitched") throw new Error("kind");
+    chords.bars = 8;
+    expect(exportCycleSteps(doc)).toBe(64 * 16);
+  });
+
+  it("incommensurate multi-slot chains give a TRUE LCM (the LL-2 case)", () => {
+    // A [2-bar, 1-bar] chain (48 steps) next to 1-bar lanes → 48, not 32/64.
+    const doc = createDefaultProject();
+    const a = doc.patterns.drums[0];
+    if (a.kind !== "drums") throw new Error("kind");
+    a.bars = 2;
+    const b: typeof a = {
+      ...a,
+      id: "drums-2",
+      bars: 1,
+      steps: {
+        kick: new Array<boolean>(16).fill(false),
+        snare: new Array<boolean>(16).fill(false),
+        hat: new Array<boolean>(16).fill(false),
+        openhat: new Array<boolean>(16).fill(false),
+        clap: new Array<boolean>(16).fill(false),
+        tom: new Array<boolean>(16).fill(false),
+      },
+    };
+    doc.patterns.drums = [a, b];
+    doc.songChain.drums = [a.id, b.id];
+    expect(laneCycleSteps(doc, "drums")).toBe(48);
+    expect(exportCycleSteps(doc)).toBe(48);
+    // The identity with the render path's own LCM derivation (render.ts
+    // computes it over compiled chain totals — the same numbers).
+    expect(exportCycleSteps(doc)).toBe(
+      computeLoopSteps(LANE_IDS.map((lane) => laneCycleSteps(doc, lane))),
+    );
+  });
+
+  it("an unchained pool pattern never moves the basis (IM-6 split parity)", () => {
+    const doc = referenceMidiProject();
+    const extra = { ...doc.patterns.lead[0], id: "lead-99" };
+    if (extra.kind !== "pitched") throw new Error("kind");
+    extra.bars = 128; // however wide — it is NOT in the chain
+    doc.patterns.lead = [...doc.patterns.lead, extra];
+    expect(exportCycleSteps(doc)).toBe(16);
+  });
+
+  it("the degenerate all-empty document falls back to the constant 16", () => {
+    const doc = createDefaultProject();
+    for (const lane of LANE_IDS) {
+      doc.patterns[lane] = [];
+      doc.songChain[lane] = [];
+    }
+    expect(exportCycleSteps(doc)).toBe(16);
+  });
+});
+
+describe("XP-1: repeatNotesToCycle — chain-local notes repeat at the chain length", () => {
+  const note = (tick: number) => ({
+    tick,
+    noteNumber: 36,
+    velocity: 105,
+    durationTicks: 120,
+  });
+
+  it("cycle === chain (or below / non-multiple) is the IDENTITY (zero-drift law)", () => {
+    const notes = [note(0), note(480)];
+    expect(repeatNotesToCycle(notes, 16, 16)).toEqual(notes);
+    expect(repeatNotesToCycle(notes, 16, 8)).toEqual(notes);
+    expect(repeatNotesToCycle(notes, 0, 64)).toEqual(notes);
+    // Impossible by construction (cycle is the LCM of chain totals) — but
+    // never silently mangle: identity, not truncation.
+    expect(repeatNotesToCycle(notes, 48, 64)).toEqual(notes);
+  });
+
+  it("repeats at exact k × chainSteps × TICKS_PER_STEP offsets", () => {
+    const out = repeatNotesToCycle([note(0), note(960)], 16, 64);
+    expect(out.map((n) => n.tick)).toEqual([
+      0, 960, 1920, 2880, 3840, 4800, 5760, 6720,
+    ]);
+    // Durations/velocities untouched — only the tick moves.
+    for (const n of out) {
+      expect(n.durationTicks).toBe(120);
+      expect(n.velocity).toBe(105);
+    }
+  });
+
+  it("iteration offsets are whole bars (even steps — swing parity preserved)", () => {
+    // Chain totals are multiples of 16 steps, so every k × chainSteps offset
+    // is an even step: pattern-local odd-step swing delays keep their exact
+    // magnitude at every iteration (the audio law, render.ts:41-42).
+    for (let chain = 16; chain <= 128; chain += 16) {
+      for (let k = 1; k < 8; k++) {
+        expect(((k * chain) % 2)).toBe(0);
+      }
+    }
+    const swung = repeatNotesToCycle(
+      [note(stepTick(1, 0.5))],
+      16,
+      64,
+    );
+    // Iteration 1 lands at 1920 + 180 — the same +60 swing delay.
+    expect(swung[1].tick).toBe(16 * TICKS_PER_STEP + stepTick(1, 0.5));
+  });
+
+  it("is pure (input untouched)", () => {
+    const notes = [note(120)];
+    const before = JSON.stringify(notes);
+    repeatNotesToCycle(notes, 16, 64);
+    expect(JSON.stringify(notes)).toBe(before);
+  });
+});
+
+describe("XP-1: the LCM-cycle export bytes (unequal chains)", () => {
+  const doc = lcmCycleProject();
+  // Cycle: lcm(64, 32, 16, 16) = 64 steps = 4 bars = 7680 ticks.
+
+  it("drums (the longest lane) walk the chain exactly once", () => {
+    const lane = doc.lanes.find((l) => l.id === "drums")!;
+    const single = buildDrumNotes(
+      doc.patterns.drums,
+      lane.gate,
+      120,
+      0,
+    ).sort((a, b) => a.tick - b.tick);
+    // A: 8 four-on-the-floor kicks in 2 bars; B: 4 snares + 16 hats.
+    expect(single).toHaveLength(28);
+    const last = single[single.length - 1];
+    expect(last.tick).toBeLessThan(64 * TICKS_PER_STEP); // inside the cycle
+    // B's content starts at chain step 32 (slot 1) — the cursor walk.
+    const snares = single.filter((n) => n.noteNumber === 38);
+    expect(snares.map((n) => n.tick)).toEqual([4320, 5280, 6240, 7200]);
+  });
+
+  it("bass repeats ×2, chords/lead ×4 within the cycle (parse-exact ticks)", () => {
+    const bass = repeatNotesToCycle(
+      buildPitchedNotes(doc, "bass", doc.patterns.bass, 0),
+      laneCycleSteps(doc, "bass"),
+      64,
+    );
+    expect(bass.map((n) => n.tick)).toEqual([0, 3840]); // 32 steps × 120
+
+    const chords = repeatNotesToCycle(
+      buildPitchedNotes(doc, "chords", doc.patterns.chords, 0),
+      laneCycleSteps(doc, "chords"),
+      64,
+    );
+    expect(chords).toHaveLength(3 * 4); // triad × 4 iterations
+    expect([...new Set(chords.map((n) => n.tick))]).toEqual([
+      0, 1920, 3840, 5760,
+    ]);
+
+    const lead = repeatNotesToCycle(
+      buildPitchedNotes(doc, "lead", doc.patterns.lead, 0),
+      laneCycleSteps(doc, "lead"),
+      64,
+    );
+    expect(lead.map((n) => n.tick)).toEqual([960, 2880, 4800, 6720]);
+  });
+
+  it("cue markers repeat with their lane's chain, deduped by tick+text", () => {
+    expect(buildCueMarkers(doc, 64)).toEqual([
+      { tick: 0, text: "VERSE" },
+      { tick: 0, text: "GROOVE" },
+      { tick: 3840, text: "DROP" },
+      { tick: 3840, text: "GROOVE" }, // bass slot 0 repeats at its chain length
+    ]);
+    // Without the cycle parameter: the previous single-chain walk.
+    expect(buildCueMarkers(doc)).toEqual([
+      { tick: 0, text: "VERSE" },
+      { tick: 0, text: "GROOVE" },
+      { tick: 3840, text: "DROP" },
+    ]);
+  });
+
+  it("encoded tracks carry the repeated notes at the lane channels", () => {
+    const parsed = parseMidi([...encodeMidi(doc)]);
+    // Bass track (index 2 in raw tracks: 0 = tempo, 1 = drums, 2 = bass…).
+    const bassOn = parsed.tracks[2].filter(
+      (e) => e.type === "noteOn" && e.channel === LANE_CHANNELS.bass,
+    );
+    expect(bassOn.map((e) => (e.type === "noteOn" ? e.deltaTime : -1)).length)
+      .toBe(2);
+    const bassTicks: number[] = [];
+    let t = 0;
+    for (const e of parsed.tracks[2]) {
+      t += e.deltaTime;
+      if (e.type === "noteOn" && e.channel === LANE_CHANNELS.bass)
+        bassTicks.push(t);
+    }
+    expect(bassTicks).toEqual([0, 3840]);
+
+    const leadTicks: number[] = [];
+    t = 0;
+    for (const e of parsed.tracks[4]) {
+      t += e.deltaTime;
+      if (e.type === "noteOn" && e.channel === LANE_CHANNELS.lead)
+        leadTicks.push(t);
+    }
+    expect(leadTicks).toEqual([960, 2880, 4800, 6720]);
+  });
+
+  it("noteCount counts the FILLED cycle; bars report the cycle length", () => {
+    // 28 drums + 2 bass + 12 chords + 4 lead.
+    expect(noteCount(doc)).toBe(46);
+    const cap = captureSeamForNotes();
+    const result = exportMidi(doc, { seam: cap.seam });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.bars).toBe(4);
+    expect(result.noteCount).toBe(46);
+    // The equal-chain reference is unchanged (19 notes, 1 bar).
+    const ref = exportMidi(referenceMidiProject(), { seam: cap.seam });
+    expect(ref.ok).toBe(true);
+    if (!ref.ok) return;
+    expect(ref.bars).toBe(1);
+    expect(ref.noteCount).toBe(19);
+  });
+
+  it("deterministic: identical documents → byte-identical files", () => {
+    expect(encodeMidi(doc)).toEqual(encodeMidi(lcmCycleProject()));
+  });
+});
+
+/** Capture seam reused by the LCM describe (typed result checks only). */
+function captureSeamForNotes() {
+  let captured: Blob | undefined;
+  const seam = {
+    createObjectURL: (blob: Blob) => {
+      captured = blob;
+      return "blob:x";
+    },
+    revokeObjectURL: () => undefined,
+    createElement: () => ({
+      click: () => undefined,
+      href: "",
+      download: "",
+    }),
+  };
+  return { seam, blob: () => captured };
+}
 
 // ---------------------------------------------------------------------------
 // Download (typed result, seam-captured)

@@ -35,7 +35,7 @@ import {
 } from "../persist/boot";
 import { createNewProject } from "../persist/newProject";
 import { loadProject, type ProjectMeta } from "../persist/projectStore";
-import { showInfo, showError, showSuccess } from "../state/toasts";
+import { showInfo, showError, showSuccess, dismissToast } from "../state/toasts";
 import { registerHelp } from "../help/registry";
 import { relativeTime } from "../lib/reltime";
 import "../styles/projects.css";
@@ -203,11 +203,17 @@ export default function Projects(): JSX.Element {
    * WAV export (MF-4): offline render (own OfflineAudioContext — playback is
    * untouched even while playing) → loop-tight stereo file download. Typed
    * result → success or error toast; busy flag keeps the action one-shot.
+   * XP-1 (i3-5): the render is EXACTLY one LCM cycle — up to ~4.3 min of
+   * audio at a 128-bar worst case (12-15 s wall), so the busy-guard must
+   * span the whole render: the RENDERING WAV… toast is STICKY (dismissed
+   * here when the render lands) and the buttons stay disabled throughout;
+   * the success toast reports the CYCLE bars (the LCM of lane chain
+   * lengths, re-based from the retired lane-local basis).
    */
   const handleExportWav = async () => {
     if (busy()) return;
     setBusy(true);
-    showInfo("RENDERING WAV…");
+    const renderingId = showInfo("RENDERING WAV…", { sticky: true });
     try {
       const { exportWav } = await import("../audio/exportWav");
       const result = await exportWav(docStore.getState().doc);
@@ -219,6 +225,7 @@ export default function Projects(): JSX.Element {
         showError(result.message, { suggestion: result.suggestion });
       }
     } finally {
+      dismissToast(renderingId);
       setBusy(false);
     }
   };
@@ -226,6 +233,8 @@ export default function Projects(): JSX.Element {
   /**
    * MIDI export (MF-5): pure synchronous encode → typed result → download.
    * Same one-shot busy flag as WAV so the two exports can't interleave.
+   * XP-1 (i3-5): the file spans EXACTLY one LCM cycle (shorter chains
+   * repeat within it); the success toast reports the CYCLE bars.
    */
   const handleExportMidi = async (): Promise<void> => {
     if (busy()) return;
@@ -235,7 +244,7 @@ export default function Projects(): JSX.Element {
       const result = exportMidi(docStore.getState().doc);
       if (result.ok) {
         showSuccess(
-          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES`,
+          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES \u00b7 ${result.bars} BAR${result.bars === 1 ? "" : "S"}`,
         );
       } else {
         showError(result.message, { suggestion: result.suggestion });
