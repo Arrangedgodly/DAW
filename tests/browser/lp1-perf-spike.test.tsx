@@ -202,6 +202,43 @@ function sweepScroll(el: HTMLElement, ms: number): Promise<void> {
   });
 }
 
+/**
+ * TH-5 DE-FLAKE (the LP-1 verifier's flag: this file's fling sweeps are the
+ * one load-sensitive committed assert — 88.9% < 95% ONLY under a foreign
+ * battery's full-parallel load, 99.2-100% in every quieter run): settle/poll
+ * for a QUIET MACHINE before the measured sweep — an idle calibration window
+ * (500 ms, warm-up sample dropped) must itself hold the frame law at a sane
+ * cadence, else settle 400 ms and re-poll up to the deadline. The sweep's
+ * ratio law stays HARD and UNCHANGED (never a threshold loosening); if the
+ * machine never quiets down we measure anyway and the assert fails LOUD.
+ */
+async function waitForQuietRaf(deadlineMs = 20_000): Promise<void> {
+  const t0 = performance.now();
+  for (;;) {
+    const quiet = await new Promise<boolean>((resolve) => {
+      const intervals: number[] = [];
+      let last = performance.now();
+      const start = last;
+      const frame = () => {
+        const now = performance.now();
+        const d = now - last;
+        last = now;
+        if (intervals.length > 0) intervals.push(d); // drop the warm-up tick
+        if (now - start < 500) requestAnimationFrame(frame);
+        else
+          resolve(
+            intervals.length >= 20 &&
+              intervals.every((d) => d < FRAME_BUDGET_MS),
+          );
+      };
+      requestAnimationFrame(frame);
+    });
+    if (quiet) return;
+    if (performance.now() - t0 > deadlineMs) return; // measure anyway — LOUD
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+
 /** DB hygiene (pointer-edge-states precedent): snapshot → restore. */
 async function snapshotDb(): Promise<{
   db: ProjectDb;
@@ -328,6 +365,9 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         );
 
         // -- (b) horizontal fling sweep on the 2048-column lead grid (HARD)
+        // TH-5 de-flake: quiet-precondition poll first (see waitForQuietRaf
+        // — the ratio law itself is unchanged and HARD).
+        await waitForQuietRaf();
         const sweepPromise = sweepScroll(leadH, 2000);
         const scrollStats = frameStats(
           (await measureFrames(2000, [playheads[3]!])).intervals,
@@ -497,6 +537,9 @@ describe("LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law)
         );
 
         // (b) windowed: full 2048-column sweep with rewindowing.
+        // TH-5 de-flake: quiet-precondition poll first (the ratio stays
+        // HARD — see waitForQuietRaf).
+        await waitForQuietRaf();
         const leadScroller = scrollers[3]!;
         const sweepPromise = sweepScroll(leadScroller, 2500);
         const scrollStats = frameStats(
