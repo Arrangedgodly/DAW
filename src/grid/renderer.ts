@@ -51,6 +51,8 @@ import {
 } from "./math";
 import {
   type CellPos,
+  clampedWindowScroll,
+  clampWindowStart,
   gridMoveForKey,
   isLaneMoveKey,
   nextCell,
@@ -214,6 +216,13 @@ export interface DomGridRendererOptions {
   readonly onDrumsPaint?: (
     cells: ReadonlyArray<{ row: number; step: number }>,
   ) => void;
+  /**
+   * RC-1 (v3): the register window MOVED from inside the grid (Shift+↑/↓
+   * keys, wheel scroll, the window-follows-focus law) — the owner persists
+   * the new start as lane view state (selection.ts). View-only by law: the
+   * owner never writes the document from this callback.
+   */
+  readonly onWindowScroll?: (start: number) => void;
 }
 
 export interface GridRenderer {
@@ -242,6 +251,24 @@ export interface GridRenderer {
    * construction.
    */
   setRowHeight(px: number): void;
+  /**
+   * RC-1 (v3): set the register window — the grid body becomes an internally
+   * scrolling pane showing `heightRows` rows, with the FULL row manifest
+   * staying in the DOM (the construction law: rows are bounded by the
+   * manifest — tens, not thousands; LP-1's windowing owns the column axis
+   * only). `null` (or a height covering the manifest) restores the
+   * unwindowed law byte-identically (chords/drums on heptatonic projects,
+   * every phone-stage grid). The accessible name carries the visible range
+   * while windowed (E9).
+   */
+  setWindow(heightRows: number | null, start?: number): void;
+  /**
+   * RC-1: scroll the window so `start` is the first visible row (clamped to
+   * the manifest; no-op when unwindowed). The ≥1-row snap guard keeps a free
+   * wheel scroll fractional — the renderer only re-seats on whole-window
+   * moves (keys / lane view state).
+   */
+  scrollWindowTo(start: number, force?: boolean): void;
   /** One-shot trigger glow on the sounding cells of a column. */
   triggerGlow(step: number): void;
   /** Recompute cached geometry (after resize / font load). */
@@ -315,15 +342,32 @@ export class DomGridRenderer implements GridRenderer {
   private rowHeightPx: number;
   /** One `.row-cells` per row — the vertical track pins (setRowHeight). */
   private readonly rowTracks: HTMLElement[] = [];
+  /** One `.grid-row` per row (RC-1: window scroll geometry). */
+  private readonly rowEls: HTMLElement[] = [];
   private gridEl: HTMLElement | null = null;
   /** IN-2 announcement span (E4 — the gate-stepper value pattern). */
   private lengthLiveEl: HTMLElement | null = null;
+  /** RC-1 window-scroll announcement span (E9 — grid-local, VIEW wording). */
+  private viewLiveEl: HTMLElement | null = null;
+  /** RC-1: visible register window in rows; null = unwindowed (full manifest). */
+  private windowRows: number | null = null;
+  /**
+   * RC-1: the AUTHORITATIVE semantic window start — the last INTENTIONAL
+   * seat (keys, lane view state, focus-follow). Never derived from layout:
+   * the scroll offset is geometry-dependent (row px + the editing/view-only
+   * margin rhythm), so a measured start can drift a row across a state
+   * flip; the name and the anchor math read THIS, and layout flips re-seat
+   * the scroll onto it.
+   */
+  private seatedStart = 0;
   /** IN-2 active pointer gesture; null = idle. */
   private gesture: Gesture | null = null;
   /** IN-2 preview bar for a create-drag (removed on end). */
   private previewRunEl: HTMLElement | null = null;
   /** IN-2: swallow the click that follows a committed/cancelled gesture. */
   private suppressClick = false;
+  /** RC-1: dispose() parks deferred seat re-anchors (rAF survives removal). */
+  private disposed = false;
   private suppressClearTimer = 0;
 
   constructor(opts: DomGridRendererOptions) {
@@ -464,6 +508,7 @@ export class DomGridRenderer implements GridRenderer {
 
       rowEl.append(cellsEl);
       body.append(rowEl);
+      this.rowEls.push(rowEl);
     }
 
     // Playhead light bar — compositor-only (transform), spans all rows.
@@ -487,6 +532,15 @@ export class DomGridRenderer implements GridRenderer {
     container.append(live);
     this.lengthLiveEl = live;
 
+    // RC-1 E9: the grid-local window-scroll announcement span — same shape,
+    // VIEW wording only (the conflation fence: window scrolls say VIEW,
+    // OCT transposes say OCTAVE, never the other way around).
+    const viewLive = document.createElement("span");
+    viewLive.className = "head-sr view-live";
+    viewLive.setAttribute("aria-live", "polite");
+    container.append(viewLive);
+    this.viewLiveEl = viewLive;
+
     // Roving tabindex seed: first cell (editable grids only — LY-1).
     const first = this.cells[0]?.[0];
     if (first && this.editable) {
@@ -498,6 +552,11 @@ export class DomGridRenderer implements GridRenderer {
 
     container.addEventListener("click", this.onClick);
     container.addEventListener("keydown", this.onKeyDown);
+    // RC-1: the windowed grid body scrolls internally — keep the semantic
+    // start (name + lane view state) in step with any scroll source (the
+    // pointer/wheel twin; no announcement fires for passive pointer scroll,
+    // the E9 spam fence — the window is always readable from the grid name).
+    container.addEventListener("scroll", this.onScroll, { passive: true });
     // IN-2 pointer gestures (capture-on-down keeps up-outside deliverable).
     container.addEventListener("pointerdown", this.onPointerDown);
     container.addEventListener("pointermove", this.onPointerMove);
@@ -512,9 +571,16 @@ export class DomGridRenderer implements GridRenderer {
     }
   }
 
-  /** E3 (a11y §7): the grid's accessible name carries the edit state in text. */
+  /** E3 (a11y §7): the grid's accessible name carries the edit state in text.
+   * RC-1 (E9): while windowed it also carries the VISIBLE row range —
+   * `<LANE> grid · EDITING · ROWS 8–14 OF 14` (0-based row indexes, `OF` the
+   * manifest's last index); when the whole manifest is visible the range is
+   * omitted (today's name, byte-identical — chords/drums defaults). */
   private gridAriaLabel(): string {
-    return `${this.opts.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
+    const base = `${this.opts.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
+    if (!this.windowRows) return base;
+    const start = this.seatedStart;
+    return `${base} · ROWS ${start}–${start + this.windowRows - 1} OF ${this.cells.length - 1}`;
   }
 
   /**
@@ -546,8 +612,11 @@ export class DomGridRenderer implements GridRenderer {
 
   focusRoving(): void {
     if (!this.editable) return;
-    if (this.rovingCell) this.rovingCell.focus();
-    else this.moveFocus(0, 0);
+    if (this.rovingCell) {
+      this.rovingCell.focus({ preventScroll: true });
+      // RC-1: the roving landing must be visible in the window (E2 extended).
+      this.ensureRowVisible(this.rovingRowIndex());
+    } else this.moveFocus(0, 0);
   }
 
   setEditable(editable: boolean): void {
@@ -571,6 +640,16 @@ export class DomGridRenderer implements GridRenderer {
       this.gridEl.setAttribute("aria-label", this.gridAriaLabel());
       this.gridEl.dataset.editing = String(editable);
     }
+    // RC-1: the editing/view-only flip changes the CSS row RHYTHM (margins),
+    // which moves every row's offset — re-anchor the window seat one frame
+    // later (after the attribute-driven style re-applies) so the visible
+    // range and its name stay truthful.
+    if (this.windowRows) {
+      requestAnimationFrame(() => {
+        if (!this.windowRows || this.disposed) return;
+        this.scrollWindowTo(this.seatedStart, true);
+      });
+    }
   }
 
   setPlayhead(x: number | null): void {
@@ -587,6 +666,186 @@ export class DomGridRenderer implements GridRenderer {
     if (px === this.rowHeightPx) return; // idempotent — observers converge
     this.rowHeightPx = px;
     for (const track of this.rowTracks) track.style.gridAutoRows = `${px}px`;
+    // RC-1: the pinned window height rides the track px (the budget fit
+    // re-pins tracks live); the seat re-anchors on its AUTHORITATIVE start
+    // (never a layout-derived one), and a focused row stays visible across
+    // the re-pitch (E2 extended).
+    if (this.windowRows) {
+      this.applyWindowHeight();
+      this.scrollWindowTo(this.seatedStart, true);
+      if (
+        this.rovingCell &&
+        document.activeElement === this.rovingCell &&
+        this.rovingCell.isConnected
+      ) {
+        this.ensureRowVisible(this.rovingRowIndex());
+      }
+    }
+  }
+
+  // -- RC-1: the register window ---------------------------------------------
+
+  setWindow(heightRows: number | null, start = 0): void {
+    const effective =
+      heightRows != null && heightRows < this.cells.length ? heightRows : null;
+    const container = this.opts.container;
+    if (effective === null) {
+      this.windowRows = null;
+      this.seatedStart = 0;
+      container.classList.remove("is-windowed");
+      container.style.height = "";
+      container.scrollTop = 0;
+      this.updateGridName();
+      return;
+    }
+    this.windowRows = effective;
+    container.classList.add("is-windowed");
+    this.applyWindowHeight();
+    this.scrollWindowTo(start, true);
+    // The seat is geometry-derived and a fresh mount can measure against
+    // not-yet-invalidated styles (the editing/view-only margin rhythm):
+    // re-anchor one frame later, on the SAME semantic start — idempotent
+    // when the first seat was already true.
+    requestAnimationFrame(() => {
+      if (this.disposed || !this.windowRows) return;
+      this.scrollWindowTo(this.seatedStart, true);
+    });
+  }
+
+  scrollWindowTo(start: number, force = false): void {
+    if (!this.windowRows) return;
+    const s = clampWindowStart(start, this.cells.length, this.windowRows);
+    const target = this.rowTopInScroll(s);
+    const container = this.opts.container;
+    // Snap guard: a free wheel scroll may rest between rows — only re-seat
+    // on WHOLE-window moves (the wheel path re-seats the semantic start
+    // itself via onScroll, so its echo never fights the user's scroll).
+    if (!force && Math.abs(container.scrollTop - target) < this.rowPitch()) {
+      return;
+    }
+    container.scrollTop = target;
+    this.seatedStart = s;
+    this.updateGridName();
+  }
+
+  /** The semantic window start: the FIRST row crossing the visible top. */
+  private currentStart(): number {
+    if (!this.windowRows) return 0;
+    const boxTop = this.opts.container.getBoundingClientRect().top;
+    for (let i = 0; i < this.rowEls.length; i++) {
+      const el = this.rowEls[i]!;
+      const top = el.getBoundingClientRect().top;
+      if (top + el.offsetHeight > boxTop + 1) return i;
+    }
+    return Math.max(0, this.rowEls.length - 1);
+  }
+
+  /** Row-to-row pitch in px (track height + the CSS row margin), from the DOM. */
+  private rowPitch(): number {
+    if (this.rowEls.length >= 2) {
+      const a = this.rowEls[0]!.getBoundingClientRect().top;
+      const b = this.rowEls[1]!.getBoundingClientRect().top;
+      const pitch = b - a;
+      if (pitch > 0) return pitch;
+    }
+    return this.rowHeightPx + this.gapPx;
+  }
+
+  /** A row's offsetTop in the scroll container's coordinate space. */
+  private rowTopInScroll(row: number): number {
+    const el = this.rowEls[row];
+    const container = this.opts.container;
+    if (!el) return 0;
+    return (
+      el.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop
+    );
+  }
+
+  /** Pin the container height to exactly `windowRows` rows (+ own padding). */
+  private applyWindowHeight(): void {
+    const w = this.windowRows;
+    if (w == null) return;
+    const container = this.opts.container;
+    const style = getComputedStyle(container);
+    const padY =
+      Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+    const first = this.rowEls[0]?.offsetHeight ?? this.rowHeightPx;
+    const pitch = this.rowPitch();
+    const content = pitch * (w - 1) + first;
+    container.style.height = `${Math.ceil(content + padY)}px`;
+  }
+
+  /**
+   * The window-follows-focus law: scroll the MINIMAL amount that keeps `row`
+   * visible (scroll-into-view, block:"nearest" semantics). View-only — no
+   * document write, no announcement; the focus move itself is the signal.
+   */
+  private ensureRowVisible(row: number): void {
+    if (!this.windowRows) return;
+    const container = this.opts.container;
+    const top = this.rowTopInScroll(row);
+    const height = this.rowEls[row]?.offsetHeight ?? this.rowHeightPx;
+    if (top < container.scrollTop) container.scrollTop = top;
+    else if (top + height > container.scrollTop + container.clientHeight)
+      container.scrollTop = top + height - container.clientHeight;
+    this.seatedStart = this.currentStart();
+    this.updateGridName();
+  }
+
+  private rovingRowIndex(): number {
+    const idx = this.rovingCell ? Number(this.rovingCell.dataset.row) : 0;
+    return Number.isFinite(idx) ? idx : 0;
+  }
+
+  /**
+   * The scroll twin of every USER scroll (wheel/drag): the semantic start
+   * follows the measured top row — the user's scroll IS the intent. Key and
+   * focus-follow seats keep their authoritative start instead.
+   */
+  private onScroll = (): void => {
+    if (!this.windowRows) return;
+    this.seatedStart = this.currentStart();
+    this.updateGridName();
+    this.opts.onWindowScroll?.(this.seatedStart);
+  };
+
+  private updateGridName(): void {
+    if (this.gridEl)
+      this.gridEl.setAttribute("aria-label", this.gridAriaLabel());
+  }
+
+  /**
+   * E9: Shift+↑/↓ — scroll the visible window ONE OCTAVE, VIEW ONLY (no
+   * focus move, no document write, no audition). The focus-anchor law bounds
+   * the target (keynav.clampedWindowScroll); a blocked press is a no-op that
+   * still announces the edge (never silent — the same VIEW AT TOP/BOTTOM
+   * wording serves both clamp kinds: the named rows are the CURRENT window).
+   */
+  private scrollWindowByKey(dir: -1 | 1, focusRow: number): void {
+    if (!this.windowRows) return;
+    const rows = this.cells.length;
+    const w = this.windowRows;
+    const start = this.seatedStart;
+    const target = clampedWindowScroll(start, dir, focusRow, rows, w);
+    const range = (s: number) =>
+      `ROWS ${this.opts.rowLabels[s] ?? s}–${this.opts.rowLabels[s + w - 1] ?? s + w - 1}`;
+    if (target === start) {
+      this.announceView(
+        `${dir > 0 ? "VIEW AT BOTTOM" : "VIEW AT TOP"} · ${range(start)}`,
+      );
+      return;
+    }
+    this.scrollWindowTo(target, true);
+    this.announceView(
+      `VIEW ${dir > 0 ? "DOWN" : "UP"} ONE OCTAVE · ${range(target)}`,
+    );
+  }
+
+  /** The ONE window-scroll announcement text, from every key path (E9). */
+  private announceView(text: string): void {
+    if (this.viewLiveEl) this.viewLiveEl.textContent = text;
   }
 
   triggerGlow(step: number): void {
@@ -648,6 +907,7 @@ export class DomGridRenderer implements GridRenderer {
   }
 
   dispose(): void {
+    this.disposed = true;
     cancelAnimationFrame(this.raf);
     for (const timer of this.glowTimers) window.clearTimeout(timer);
     this.glowTimers.clear();
@@ -655,6 +915,7 @@ export class DomGridRenderer implements GridRenderer {
     const { container } = this.opts;
     container.removeEventListener("click", this.onClick);
     container.removeEventListener("keydown", this.onKeyDown);
+    container.removeEventListener("scroll", this.onScroll);
     container.removeEventListener("pointerdown", this.onPointerDown);
     container.removeEventListener("pointermove", this.onPointerMove);
     container.removeEventListener("pointerup", this.onPointerUp);
@@ -809,6 +1070,24 @@ export class DomGridRenderer implements GridRenderer {
     if (laneDir !== null) {
       e.preventDefault();
       this.opts.onLaneMove?.(laneDir, pos);
+      return;
+    }
+
+    // RC-1 (v3): Shift+↑/↓ scroll the register window ONE OCTAVE — VIEW
+    // ONLY (focus does not move, nothing is written, nothing auditions).
+    // Pitched-windowed grids only: drums and full-manifest grids keep
+    // today's Shift+arrow behavior (the plain move — Shift is not a move
+    // modifier, so exactly today's no-op there).
+    if (
+      this.windowRows &&
+      e.shiftKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey &&
+      (e.key === "ArrowUp" || e.key === "ArrowDown")
+    ) {
+      e.preventDefault();
+      this.scrollWindowByKey(e.key === "ArrowDown" ? 1 : -1, pos.row);
       return;
     }
 
@@ -1210,7 +1489,15 @@ export class DomGridRenderer implements GridRenderer {
     const cell = rowCells[Math.min(Math.max(step, 0), rowCells.length - 1)];
     if (!cell) return;
     this.setRoving(cell);
-    cell.focus();
+    // preventScroll: the window-follows-focus law is OURS (ensureRowVisible
+    // below, block:"nearest") — the native focus scroll-into-view would
+    // fight the seat with uncoordinated offsets.
+    cell.focus({ preventScroll: true });
+    // RC-1 (E9): arrows walk the FULL manifest — when focus crosses the
+    // window edge the window scrolls the MINIMAL amount that keeps the
+    // focused row visible ("the cursor holds the window").
+    this.ensureRowVisible(rowIndex);
+    this.opts.onWindowScroll?.(this.seatedStart);
   }
 
   private setRoving(cell: HTMLElement): void {

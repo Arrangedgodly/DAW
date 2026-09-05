@@ -66,6 +66,8 @@ export interface LaneScheduleInput {
   readonly groove: GrooveOptions;
   readonly scale?: EffectiveScale;
   readonly stackChord?: boolean;
+  /** RC-1 (v3): per-lane register offset in octaves (see compile.ts). */
+  readonly octaveOffset?: number;
 }
 
 /**
@@ -99,6 +101,7 @@ export function compileLaneSchedule(input: LaneScheduleInput): LaneSchedule {
       groove: input.groove,
       scale: input.scale,
       stackChord: input.stackChord,
+      octaveOffset: input.octaveOffset,
     });
     for (const event of events) {
       // Compile times are loop-relative seconds; invert to the pattern-local
@@ -147,6 +150,8 @@ export function compileSong(
             groove,
             scale: effectiveScale(doc, lane),
             stackChord: lane === "chords",
+            // RC-1 (v3): the lane's register offset rides the one compiler.
+            octaveOffset: laneConf.octave ?? 0,
           });
   }
   return out;

@@ -450,6 +450,57 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// RC-1 (v3, i3-2): per-lane register transpose — writes the v3 `octave` field
+// (schema PitchedLane.octave, −3..+3). Canonical-empty at 0 (the lane-mix
+// law: default-shaped documents stay byte-stable on the wire, so every
+// pre-RC-1 document and both codec goldens are untouched). Rapid repeats
+// coalesce per `octave:<lane>` (held-key repeats = ONE undo gesture — the
+// note-resize discrete-commit precedent). The engineBridge treats octave as
+// a compile input, so the lane recompiles LIVE (audible); compile.ts and
+// exportMidi.ts consume it as an offset on the preset's octave base.
+// ---------------------------------------------------------------------------
+
+/**
+ * Set one PITCHED lane's octave register offset (clamped to the schema
+ * domain by validation; the UI funnel in selection.ts pre-clamps and
+ * announces). Writing 0 DELETES the field (canonical empty form).
+ */
+export function setLaneOctave(
+  lane: Exclude<LaneId, "drums">,
+  octave: number,
+): void {
+  const doc = docStore.getState().doc;
+  const conf = doc.lanes.find((l) => l.id === lane);
+  if (!conf || conf.id === "drums") return;
+  if ((conf.octave ?? 0) === octave) return; // no-op never commits
+  commit(
+    withLane(doc, lane, (l) => {
+      const merged = { ...l } as typeof l & { octave?: number };
+      if (octave === 0) delete merged.octave;
+      else merged.octave = octave;
+      return merged;
+    }),
+    `octave:${lane}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Document-replacement listeners (RC-1): view state that models "per
+// document" position (selection.ts's register windows) resets when a whole
+// document is LOADED — boot restore, project switch, NEW. Registered from
+// selection.ts through this seam so the store never imports view modules
+// (no cycle; ordinary edits and undo/redo never fire it).
+// ---------------------------------------------------------------------------
+
+const docReplacedListeners = new Set<() => void>();
+
+/** Subscribe to whole-document replacements; returns the unsubscribe. */
+export function onDocumentReplaced(fn: () => void): () => void {
+  docReplacedListeners.add(fn);
+  return () => docReplacedListeners.delete(fn);
+}
+
+// ---------------------------------------------------------------------------
 // PS-4 — sample-voice provenance maintenance (the PS-3 field's writer).
 //
 // Law (PS-3 schema): a project whose lanes use sample-backed sounds records
@@ -1007,10 +1058,12 @@ export function setChainCue(
  * Replace the whole document (MF-2 boot restore). Decoded projects arrive
  * pre-normalized from validateProject, but `commit` re-validates anyway —
  * the boot path is untrusted-by-policy (IndexedDB row → codec → store).
- * Clears coalescing so the restore is not glued to any prior gesture.
+ * Clears coalescing so the restore is not glued to any prior gesture, and
+ * fires the document-replaced listeners (RC-1 view-state resets).
  */
 export function loadDocument(doc: ProjectDocument): void {
   commit(doc);
+  for (const fn of docReplacedListeners) fn();
 }
 
 export function undo(): void {

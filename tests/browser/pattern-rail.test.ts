@@ -90,9 +90,11 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         selectLane("bass");
         await waitFor(
           () =>
-            host.querySelector(
-              '.lane-floor[data-lane="bass"] [role="grid"]',
-            )?.getAttribute("aria-label") === "BASS grid · EDITING",
+            host
+              .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
+              // RC-1 journey delta: windowed names append the ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           4000,
           "bass quadrant editable (demo loaded)",
         );

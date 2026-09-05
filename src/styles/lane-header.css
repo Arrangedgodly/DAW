@@ -99,6 +99,12 @@
   text-align: right;
 }
 
+/* RC-1 (v3): the OCT register readout — signed one/two-char value; the
+ * group's label + the SR region carry the words. */
+.head-oct-value {
+  min-width: 2ch;
+}
+
 .head-ctl-unit {
   margin-left: 2px;
   color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));

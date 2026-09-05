@@ -160,9 +160,12 @@ const gridLabel = (lane: string) =>
     `.lane-floor[data-lane="${lane}"] [role="grid"]`,
   )?.getAttribute("aria-label");
 
+// RC-1 (journey delta, equal-window default): a WINDOWED pitched grid's
+// accessible name appends `· ROWS a–b OF n` (E9) — gate on the edit-state
+// PREFIX; drums/chords names stay exact (they never window).
 const waitEditable = (lane: string, label: string) =>
   waitFor(
-    () => gridLabel(lane) === label,
+    () => gridLabel(lane)?.startsWith(label) === true,
     4000,
     `${lane} quadrant ${label}`,
   );
@@ -757,7 +760,7 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         selectLane("bass");
         await waitFor(
           () =>
-            gridLabel("lead") === "LEAD grid · VIEW ONLY" &&
+            gridLabel("lead")?.startsWith("LEAD grid · VIEW ONLY") === true &&
             cellAt("lead", 0, 63) !== null,
           6000,
           "4-bar view-only lead mounted",

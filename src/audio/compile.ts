@@ -41,12 +41,26 @@ export interface LaneCompileInput {
    * [degree, degree+2, degree+4] instead of a single note.
    */
   readonly stackChord?: boolean;
+  /**
+   * RC-1 (v3, i3-2): the lane's register transpose in octaves (schema
+   * PitchedLane.octave, −3..+3, 0 = absent). Applied as an OFFSET on the
+   * preset's pitchRange.octaveBase — one law, shared verbatim by the live
+   * session, the offline render and the MIDI exporter (export-reflected by
+   * construction; parse-back asserted in tests/exportMidi). The final MIDI
+   * number is clamped to 0..127 (the schema's consumer-side pitch law).
+   */
+  readonly octaveOffset?: number;
 }
 
 function gateSeconds(gate: LaneGate, groove: GrooveOptions): number {
   return gate.unit === "seconds"
     ? gate.value
     : gate.value * secondsPerStep(groove.bpm);
+}
+
+/** The absolute MIDI 0..127 clamp (schema's consumer-side pitch law, RC-1). */
+function clampMidi(midi: number): number {
+  return Math.min(127, Math.max(0, midi));
 }
 
 export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
@@ -85,7 +99,11 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
     if (!scale) {
       throw new Error("compileLaneEvents: pitched pattern requires a scale");
     }
-    const octaveBase = p.pitchRange?.octaveBase ?? 4;
+    // RC-1: the lane octave is an offset on the preset's base (0 = absent —
+    // byte-identical compilation for every pre-v3 document; the clamp is
+    // inert at offset 0, so render/export fingerprints cannot drift).
+    const octaveBase =
+      (p.pitchRange?.octaveBase ?? 4) + (input.octaveOffset ?? 0);
     const stack = input.stackChord === true;
     const degrees = stack ? [0, 2, 4] : [0];
     // SC-2: v2 notes are consumed NATIVELY — hold = note.length × step
@@ -100,7 +118,7 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
       if (!manifest.has(note.degree)) continue;
       const hold = note.length * stepSec;
       for (const off of degrees) {
-        const midi = degreeToMidi(scale, note.degree + off, octaveBase);
+        const midi = clampMidi(degreeToMidi(scale, note.degree + off, octaveBase));
         events.push(
           noteParamsFor(p, {
             time: timeAtStep(note.start, groove),

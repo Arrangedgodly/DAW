@@ -52,6 +52,10 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
       : {
           scale: effectiveScale(doc, lane),
           stackChord: lane === "chords",
+          // RC-1 (v3): the lane's register offset rides the one compiler —
+          // the OCT control's live recompile (audible) lands here.
+          octaveOffset:
+            (laneConf as { octave?: number }).octave ?? 0,
         }),
   });
 }
@@ -125,6 +129,10 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
     // LY-1: the quadrant mix (volume/mute/solo) rides the lane-object identity
     // too — any mix edit re-syncs all four lanes (solo ducks the others).
     session.setLaneMix(laneConf.id, effectiveLaneMix(laneConf));
+    // RC-1 (v3): the register offset rides the same identity for AUDITIONS
+    // (compilation consumes it as a compile input below).
+    if (laneConf.id !== "drums")
+      session.setLaneOctave(laneConf.id, laneConf.octave ?? null);
   }
   // PS-4: keep the current sounds' sample assets decoded (warm after the
   // first selection; a no-op for synth-only projects).
@@ -199,10 +207,16 @@ export function connectStoreToEngine(
           l.id === "drums"
             ? (l as { kitId: string }).kitId
             : (l as { presetId: string }).presetId;
+        // RC-1: the register offset is a compile input — an OCT change must
+        // recompile the lane (audible live). (A mix-only change still alters
+        // none of these, so it must not recompile.)
+        const octaveOf = (l: (typeof doc.lanes)[number]) =>
+          l.id === "drums" ? 0 : ((l as { octave?: number }).octave ?? 0);
         return (
           a.gate !== b.gate ||
           soundOf(a) !== soundOf(b) ||
-          a.fxChain !== b.fxChain
+          a.fxChain !== b.fxChain ||
+          octaveOf(a) !== octaveOf(b)
         );
       };
       const laneConfChanged =

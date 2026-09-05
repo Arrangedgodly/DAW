@@ -97,14 +97,20 @@ describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
           (c) => c.tabIndex === 0,
         ).length;
         expect(stops, `${lane} tab stops`).toBe(lane === "drums" ? 1 : 0);
-        // Grid names carry the edit state in text (E3).
-        expect(
-          floor.querySelector('[role="grid"]')!.getAttribute("aria-label"),
-        ).toBe(
-          lane === "drums"
-            ? "DRUMS grid · EDITING"
-            : `${lane.toUpperCase()} grid · VIEW ONLY`,
-        );
+        // Grid names carry the edit state in text (E3). RC-1 journey delta:
+        // windowed pitched names append `· ROWS a–b OF n` (E9) — prefix-match
+        // the edit state; drums stays exact (it never windows).
+        const label =
+          floor.querySelector('[role="grid"]')!.getAttribute("aria-label") ??
+          "";
+        if (lane === "drums") {
+          expect(label).toBe("DRUMS grid · EDITING");
+        } else {
+          expect(
+            label.startsWith(`${lane.toUpperCase()} grid · VIEW ONLY`),
+            `${lane} name carries VIEW ONLY`,
+          ).toBe(true);
+        }
       }
 
       // PLAY by keyboard: body-level Space (the DA-1 transport shortcut).

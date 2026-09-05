@@ -277,6 +277,7 @@ interface FakeSession {
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(): void;
   setLaneMix(): void;
+  setLaneOctave(): void; // RC-1: the register push (audition path)
   setBpm(): void;
   setSwingAmount(): void;
   setMetronome(): void;
@@ -294,6 +295,7 @@ function fakeSession(): FakeSession {
     },
     setLaneScale() {},
     setLaneMix() {},
+    setLaneOctave() {},
     setBpm() {},
     setSwingAmount() {},
     setMetronome() {},

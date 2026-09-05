@@ -224,6 +224,9 @@ function laneScheduleFor(
       : {
           scale: effectiveScale(doc, lane),
           stackChord: lane === "chords",
+          // RC-1 (v3): the register offset — the exported WAV is exactly what
+          // monitoring plays (IM-5 parity; offset 0 = byte-identical audio).
+          octaveOffset: (laneConf as { octave?: number }).octave ?? 0,
         }),
   });
 }

@@ -81,6 +81,40 @@
     transparent;
 }
 
+/*
+ * RC-1 (v3, I3-c): the REGISTER WINDOW — a pitched grid whose row manifest
+ * exceeds one octave (bass/lead on heptatonic projects) becomes an
+ * internally VERTICALLY scrolling pane showing exactly the window (the
+ * renderer pins the container height + scroll position inline; the FULL row
+ * manifest stays in the DOM — the construction law). The one-page law is a
+ * PAGE law, not a pane law: the internal scroll is the phone
+ * scrolling-grid precedent applied to the row axis. Drums/full-manifest
+ * grids never carry the class — byte-identical to before.
+ */
+.lane-grid-scroll.is-windowed {
+  overflow-y: auto;
+  /* The renderer owns the scroll seat (px-pinned window + semantic start);
+   * Chromium's scroll anchoring would "compensate" the pinned-height writes
+   * with arbitrary offsets (measured jumps of +62/−78 px mid-walk) — off. */
+  overflow-anchor: none;
+  /* Vertical wheel over the cells scrolls the window (the cells' pan-y
+   * touch law still lets the PAGE scroll on touch — the window is a desktop/
+   * tablet pointer-wheel concern; Shift+↑/↓ is the keyboard twin). */
+  overscroll-behavior-y: contain;
+}
+
+/*
+ * RC-1: a VIEW-ONLY quadrant's window is a STATIC MIRROR of the lane's
+ * window (the window is per-lane view state — the selected grid owns every
+ * scroll: keys, wheel, focus-follow). No overflow in view-only panes keeps
+ * the E2 law absolute (no focusable content, never a trap — the axe
+ * scrollable-region rule is satisfied by the editing pane's roving cell)
+ * and the one-click/key quadrant selection is already the reading path.
+ */
+.lane-floor[data-editing="false"] .lane-grid-scroll.is-windowed {
+  overflow-y: hidden;
+}
+
 .lane-grid {
   position: relative;
   width: max-content;

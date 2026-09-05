@@ -637,8 +637,9 @@ canonical-empty at 0 — schema.ts:296-303, 406-415; `loopBars` retired behind
 the engine-side compat derivation until LL-2's deliberate basis swap).
 **Everything in this delta is SPEC until its owning task lands** — the
 implementing tasks are BC-1 (rail `+` — **LANDED**, §"Rail `+` = new blank
-clip" is live law), RC-1 (OCT + register windows +
-manifest scroll), LL-1 (vocabulary + resize + extent), LL-2 (per-lane
+clip" is live law), RC-1 (OCT + register windows + manifest scroll —
+**LANDED**, §"Register controls" and §"Register window scroll" are live
+law), LL-1 (vocabulary + resize + extent), LL-2 (per-lane
 playhead/position basis); their browser gates assert these laws verbatim.
 The v2 laws above (one-Tab-stop regions, roving groups, no-wrap,
 text-entry guards, the exclusion list, drag-equivalent announcements)
@@ -669,7 +670,7 @@ control inside an existing one-Tab-stop/roving region:
   popover and consumes Escape through the existing popover law; window
   scroll and `p` consume nothing (view-state reads/writes only).
 
-## Register controls — per-lane OCT −/+ [v3 · spec — lands with RC-1]
+## Register controls — per-lane OCT −/+ [v3 · LANDED by RC-1]
 
 Per-lane octave transpose writes the v3 `octave` field (one octave per
 press, clamped −3..+3): the session recompiles the lane live (audible),
@@ -717,7 +718,29 @@ Pitched lanes only.
   SOUND-changing transpose from VIEW-only window scroll (below) is KL-1's
   (the Professor X conflation fence, keyboard side — a11y gate E9).
 
-## Register window scroll — the visible row window [v3 · spec — lands with RC-1]
+**RC-1 implementation record (production decisions, per the handoff):**
+- **Widget role:** the readout is a native-buttons stepper with a plain
+  value span (`OCT − [ +1 ] OCT +` — the preset/kit + gate stepper
+  pattern), NOT a slider — so no `aria-valuetext` is owed; the
+  announcement texts are identical either way (the load-bearing law).
+- **One funnel:** `selection.stepLaneOctave` (strip buttons, pointer, and
+  the global `o`/Shift+`o` all land there); it announces through a
+  strip-local `aria-live=polite` span rendered in EVERY lane's strip
+  (drums' only text is the refusal). The E5 parity law holds by
+  construction.
+- **Compile/export consumption:** the lane octave is an OFFSET on the
+  preset's `pitchRange.octaveBase` in `compileLaneEvents`,
+  `compileLaneSchedule` (live + offline render) and `buildPitchedNotes`
+  (MIDI) — exported pitch = heard pitch, final MIDI numbers clamped 0..127
+  (the schema's consumer-side pitch law). Auditions carry the same offset
+  (Session.setLaneOctave via the engineBridge's lane-config push), while
+  an OCT press itself never auditions. Canonical-empty at 0 keeps every
+  pre-RC-1 document byte-identical — zero render/export fingerprint drift.
+- **Undo:** the store action `setLaneOctave` coalesces per
+  `octave:<lane>`; a settled burst (+1→+3 within the 350 ms window) is ONE
+  gesture reverting to the burst's baseline.
+
+## Register window scroll — the visible row window [v3 · LANDED by RC-1]
 
 Every pitched lane's grid shows the SAME one-octave window by default
 (I3-c; equal-by-default across fresh + demo + migrated projects, ZERO
@@ -780,6 +803,43 @@ reachable: bass/lead carry ~2 octaves of rows (store.ts:81-104
   are RC-1's mobile-half concern, riding m1–m5 regression; no new phone
   keys are spec'd (Shift+arrows are grid keys and work wherever a grid is
   focused).
+
+**RC-1 implementation record (production decisions, per the handoff):**
+- **Default window position (the spec pins the window's SIZE equality, not
+  its position):** the default is the one-octave window showing the MOST
+  noted rows of the lane's patterns, ties broken toward the LOWEST window;
+  an empty lane starts at 0. Demo: bass roots visible at 0–6, lead melody
+  at 6–12 (15-row manifest; windows 6/7/8 tie at six melody rows). The
+  docs' `ROWS 8–14 OF 14` example remains reachable (one Shift+↓ from 6–12
+  under the anchor law).
+- **Scope:** the window rides the QUADRANT stages (tablet + desktop). The
+  phone stage KEEPS its committed full-manifest page-scroll law (m1 pins
+  the tall-lane document exceeding the viewport; I3-f forbids the phone
+  redesign) — there the whole manifest is the window, the scroll keys
+  lawfully clamp without announcing (the chords/drums precedent), and the
+  OCT strip control is reachable at phone width under the 44 px target
+  law.
+- **Anchor-blocked presses:** a Shift+↑/↓ stopped by the focus-anchor
+  announces the same VIEW AT TOP / VIEW AT BOTTOM wording as a
+  manifest-bound press (the named rows are the CURRENT window) — never a
+  silent no-op, one wording for both clamp kinds.
+- **View-only windows are static mirrors:** the window is per-LANE view
+  state, so the selected grid owns every scroll (keys, wheel,
+  focus-follow) and a view-only quadrant's pane carries NO overflow (the
+  pointer-twin clause governs the interactive grid). This keeps E2
+  absolute — no focusable content in a view-only grid, satisfying the axe
+  scrollable-region rule through the editing pane's roving cell — and the
+  one-click/key quadrant selection is already the reading path.
+- **Mechanism:** the renderer owns an AUTHORITATIVE semantic start
+  (`seatedStart` — updated only by intentional seats: keys, lane view
+  state, focus-follow, wheel) and re-anchors the scroll position on it
+  across layout-affecting flips (the editing/view-only row-margin rhythm,
+  budget-fit re-pins); `overflow-anchor: none` keeps Chromium's scroll
+  anchoring out of the seat. Focus calls use `preventScroll` so the
+  window-follows-focus law is the single scroller.
+- **LaneGrid remount key** now includes the pattern's row-manifest size —
+  a loaded document may put a different-height manifest under the same
+  id:kind:bars key, and the grid's row count is fixed at build.
 
 ## Pattern resize — LENGTH in bars [v3 · spec — lands with LL-1]
 
@@ -917,9 +977,9 @@ field to per-lane chain totals / one LCM cycle. What the SR user hears:
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
 | Rail `+` button creates a blank next-letter clip                | rail-local `+`/`=` key — same action, same announcement                                       | BC-1 (live) |
 | DUP a pattern (now the only duplication path)                   | global `d` (unchanged) + PAT menu DUP (unchanged)                                             | BC-1 (live, ledger only) |
-| Click OCT − / OCT + to transpose a lane                        | global `o` / Shift+`o` (active lane) + Tab→button→Enter on any lane's strip                   | RC-1        |
-| Wheel/drag-scroll the register window                          | Shift+`↑` / Shift+`↓` on a focused cell (view-only, clamped, announced)                       | RC-1        |
-| Reach rows outside the default window                          | ↑/↓ walk the full manifest; the window follows focus (scroll-into-view law)                   | RC-1        |
+| Click OCT − / OCT + to transpose a lane                        | global `o` / Shift+`o` (active lane) + Tab→button→Enter on any lane's strip                   | RC-1 (live) |
+| Wheel/drag-scroll the register window                          | Shift+`↑` / Shift+`↓` on a focused cell (view-only, clamped, announced)                       | RC-1 (live) |
+| Reach rows outside the default window                          | ↑/↓ walk the full manifest; the window follows focus (scroll-into-view law)                   | RC-1 (live) |
 | PAT menu LENGTH stepper resize                                 | global `b` / Shift+`b` (ladder steps) + the stepper buttons themselves                        | LL-1        |
 | Refuse a lossy shrink (refuse-by-default)                      | same refusal + announcement from every path (menu, keys, pointer — one funnel)                | LL-1 / HL-1 |
 | Watch per-lane playheads sweep at unequal cycles               | `p` on-demand position announcement + existing per-lane rail status (wrap) announcements      | LL-2        |
@@ -956,8 +1016,17 @@ LL-1/LL-2 are reviewed against.
    (RC-1): an AMENDMENT, not a binding change — ↑/↓ still clamp at a hard
    edge (the manifest bound replaces the visible-rows bound, identical in
    every project whose manifest fits the window, incl. all fresh/demo
-   chords/drums grids). No journey step changes (journeys that walk rows
-   reach the same cells); the no-wrap amendment is recorded in §Wrap rules.
+   chords/drums grids). **LANDED by RC-1** (journey deltas journaled, per
+   the rule): grid accessible names on windowed lanes (bass/lead with
+   manifests beyond one octave) append `· ROWS a–b OF n` — the ten
+   exact-name gates across drag-notes/-trusted, pointer-edge-states/
+   -trusted, e2e-iteration2, keyboard-journey, help-mode, help-coverage,
+   pattern-rail, target-size now prefix-match the edit state (drums and
+   one-octave lanes keep byte-exact names); quadrant-layout 1b pins
+   re-based to the windowed budget (bass tracks hold the committed 16 px
+   at 1280×800 — the window, not the 14-row manifest, is the quadrant's
+   vertical budget; the manifest stays in the DOM and the visible-window
+   rows are the inside-viewport law).
 3. **New bindings (additive, none replaces a v0/v2 binding):** global
    `o`/Shift+`o` (OCT transpose), global `b`/Shift+`b` (pattern resize
    ladder), global `p` (position query), grid Shift+`↑`/Shift+`↓`
@@ -979,10 +1048,13 @@ LL-1/LL-2 are reviewed against.
 ## Where things live (v3 additions — for the implementing tasks)
 
 - Register window state (per-lane window offset): `src/state/selection.ts`
-  (the two-tier law — ephemeral signal, never document, never undo)
+  (the two-tier law — ephemeral signal, never document, never undo);
+  RC-1 landed the default-position chooser + the document-replacement
+  re-default there, and the OCT funnel + strip-local announcement signal
+  (`stepLaneOctave` / `octaveStatus`) live beside it
 - OCT store action (`setLaneOctave`, clamp + undo family `octave:<lane>`)
   and resize action (`resizePattern`, refusal path + family
-  `resize:<lane>:<pattern>`): `src/state/store.ts` (RC-1 / LL-1)
+  `resize:<lane>:<pattern>`): `src/state/store.ts` (RC-1 landed / LL-1)
 - Global keys `o`/`b`/`p`: `src/components/KeyboardShortcuts.tsx` (the
   `isTextEntry` + AT-modifier guard family, :28-43)
 - Grid window-scroll keys + scroll-into-view: `src/grid/renderer.ts`

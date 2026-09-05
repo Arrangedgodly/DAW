@@ -28,6 +28,8 @@ interface FakeSession {
   sounds: Record<string, string>;
   scales: Record<string, EffectiveScale>;
   mixes: Record<string, LaneMix>;
+  /** RC-1: pushed lane register offsets (audition path). */
+  octaves: Record<string, number>;
   bpm: number;
   swing: number;
   metronome: boolean;
@@ -40,6 +42,8 @@ interface FakeSession {
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(lane: string, scale: EffectiveScale | null): void;
   setLaneMix(lane: LaneId, mix: LaneMix): void;
+  /** RC-1: the register offset push for auditions. */
+  setLaneOctave(lane: string, octave: number | null): void;
   setBpm(bpm: number): void;
   setSwingAmount(a: number): void;
   setMetronome(on: boolean): void;
@@ -55,6 +59,7 @@ function fakeSession(): FakeSession {
     sounds: {},
     scales: {},
     mixes: {},
+    octaves: {},
     bpm: -1,
     swing: -1,
     metronome: false,
@@ -77,6 +82,10 @@ function fakeSession(): FakeSession {
     },
     setLaneMix(lane, mix) {
       s.mixes[lane] = mix;
+    },
+    setLaneOctave(lane, octave) {
+      if (octave === null || octave === 0) delete s.octaves[lane];
+      else s.octaves[lane] = octave;
     },
     setBpm(bpm) {
       s.bpm = bpm;

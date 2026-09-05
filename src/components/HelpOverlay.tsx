@@ -25,6 +25,7 @@ const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
       { keys: "SHIFT+ENTER", action: "audition without toggle" },
       { keys: "CTRL+← / → · , / .", action: "jump one beat (4 steps)" },
       { keys: "PGUP / PGDN · CTRL+↑↓ · [ ]", action: "move lane" },
+      { keys: "SHIFT+↑↓", action: "scroll register window one octave (view)" },
       { keys: "ESC", action: "to lane header" },
     ],
   },
@@ -37,6 +38,7 @@ const SECTIONS: readonly { title: string; bindings: readonly Binding[] }[] = [
       { keys: "F2", action: "rename (on rail tile)" },
       { keys: "L", action: "label section cue" },
       { keys: "DEL", action: "remove chain slot" },
+      { keys: "O / SHIFT+O", action: "active lane octave +1 / −1 (sound)" },
     ],
   },
   {

@@ -168,7 +168,10 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
               document.querySelector(
                 '.lane-floor[data-lane="bass"] [role="grid"]',
               ) as HTMLElement
-            )?.getAttribute("aria-label") === "BASS grid · EDITING",
+            )
+              // RC-1 journey delta: windowed pitched names append ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           2000,
           "bass quadrant editable",
         );

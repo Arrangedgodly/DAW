@@ -271,6 +271,9 @@ export function buildDrumNotes(
  * chords lane stacks [degree, degree+2, degree+4], pitch = degreeToMidi(
  * effective scale, note degree + offset, preset octave base). Notes on degrees
  * outside the pattern's row manifest are skipped, exactly like the compiler.
+ * RC-1 (v3): the lane's `octave` register offset rides the SAME law — an
+ * offset on the preset's octave base (exported pitch = heard pitch), with the
+ * final note number clamped to 0..127 (the schema's consumer-side pitch law).
  */
 export function buildPitchedNotes(
   doc: ProjectDocument,
@@ -285,7 +288,8 @@ export function buildPitchedNotes(
     (presetId !== undefined ? getPreset(presetId) : undefined) ??
     getPreset("preset-lead-1");
   const octaveBase =
-    preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane];
+    (preset?.pitchRange?.octaveBase ?? LANE_OCTAVE_FALLBACK[lane]) +
+    ((laneConf && laneConf.id !== "drums" ? laneConf.octave : undefined) ?? 0);
   const scale = effectiveScale(doc, lane);
   const stack = lane === "chords" ? [0, 2, 4] : [0];
   const notes: MidiNote[] = [];
@@ -302,7 +306,10 @@ export function buildPitchedNotes(
       for (const off of stack) {
         notes.push({
           tick: cursor + stepTick(note.start, swing),
-          noteNumber: degreeToMidi(scale, note.degree + off, octaveBase),
+          noteNumber: Math.min(
+            127,
+            Math.max(0, degreeToMidi(scale, note.degree + off, octaveBase)),
+          ),
           velocity: PITCHED_VELOCITY,
           durationTicks,
         });

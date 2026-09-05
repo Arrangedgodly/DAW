@@ -44,7 +44,12 @@ import {
   setProjectScale,
 } from "../state/store";
 import { laneScaleChipLabel, announceScale } from "../state/scaleChip";
-import { announceStage } from "../state/selection";
+import {
+  announceStage,
+  octaveStatus,
+  octaveText,
+  stepLaneOctave,
+} from "../state/selection";
 import { laneFxChain } from "../state/fxStrip";
 import {
   closeFxConsole,
@@ -96,6 +101,17 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
       title: `${n} SOLO`,
       text: `Isolates ${n}: every other lane ducks down until you press it again. Handy for checking one part.`,
     },
+    // RC-1 (v3): the register transpose — SOUND-changing, fenced from the
+    // VIEW-only window scroll (the Professor X conflation fence, E9).
+    ...(lane !== "drums"
+      ? [
+          {
+            id: `lane.${lane}.oct`,
+            title: `${n} OCT`,
+            text: `Transposes the SOUND ${n} makes one octave per press (−3 to +3) — the notes stay put, the register moves, and exports follow. Not a view: Shift+arrows on the grid scroll which rows you SEE; this changes which rows SOUND.`,
+          },
+        ]
+      : []),
     {
       id: `lane.${lane}.scale`,
       title: `${n} SCALE`,
@@ -146,6 +162,8 @@ interface HeaderState {
   volume: number;
   mute: boolean;
   solo: boolean;
+  /** RC-1: the lane's register offset (pitched lanes; 0 default). */
+  octave: number;
 }
 
 function readState(lane: LaneId): HeaderState {
@@ -157,6 +175,7 @@ function readState(lane: LaneId): HeaderState {
     volume: gainToVolumePercent(conf.volume ?? 1),
     mute: conf.mute === true,
     solo: conf.solo === true,
+    octave: conf.id === "drums" ? 0 : (conf.octave ?? 0),
   };
 }
 
@@ -168,6 +187,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [volumePct, setVolumePct] = createSignal(initial.volume);
   const [mute, setMute] = createSignal(initial.mute);
   const [solo, setSolo] = createSignal(initial.solo);
+  const [octave, setOctave] = createSignal(initial.octave);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
   // Refinement-1 (critique P1-1): the FX console open-state is PAGE-level
   // (state/fxConsole.ts) so page-level Escape can close it. Only the
@@ -201,6 +221,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       setVolumePct(next.volume);
       setMute(next.mute);
       setSolo(next.solo);
+      setOctave(next.octave);
       setFxCount(laneFxChain(state.doc, props.lane).length);
     });
     onCleanup(unsubscribe);
@@ -313,6 +334,14 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     announceStage(next ? `SOLO ${LANE_NAMES[props.lane]}` : `SOLO OFF`);
   };
 
+  // RC-1 (v3, E8): the OCT funnel — pointer twin of global `o`/Shift+`o`,
+  // same path, same announcements (the E5 parity law). Operates on THIS
+  // lane from ANY quadrant (the always-operable compact-row law).
+  const stepOctave = (delta: -1 | 1) => {
+    stepLaneOctave(props.lane as Exclude<LaneId, "drums">, delta);
+    setOctave(readState(props.lane).octave);
+  };
+
   // `]` / `[` select the adjacent quadrant (the strip-side escape hatch —
   // these keys have no native meaning on any control, so nothing is hijacked).
   const onStripKeyDown = (e: KeyboardEvent) => {
@@ -395,6 +424,44 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             </button>
           </div>
         </div>
+
+        <Show when={props.lane !== "drums"}>
+          {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper — the
+              preset/kit + gate stepper pattern, always operable from every
+              quadrant (KL-1's COMPACT-row placement). SOUND-changing: the
+              help entry fences it from VIEW-only window scroll (E9). */}
+          <div
+            class="head-ctl"
+            role="group"
+            aria-label={`${LANE_NAMES[props.lane]} octave`}
+            data-help={`lane.${props.lane}.oct`}
+          >
+            <span class="head-ctl-label" aria-hidden="true">
+              OCT
+            </span>
+            <div class="head-stepper">
+              <button
+                type="button"
+                class="head-step-btn"
+                aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
+                onClick={() => stepOctave(-1)}
+              >
+                –
+              </button>
+              <span class="head-ctl-value head-oct-value">
+                {octaveText(octave())}
+              </span>
+              <button
+                type="button"
+                class="head-step-btn"
+                aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
+                onClick={() => stepOctave(1)}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </Show>
 
         <div
           class="head-ctl head-ctl-vol"
@@ -626,6 +693,20 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
 
       <span class="head-sr" role="status" aria-live="polite">
         {announce()}
+      </span>
+
+      {/* RC-1 (v3, E8): the strip-local OCT value/clamp region — ONE funnel
+          (selection.stepLaneOctave) writes it from every input path: the
+          strip buttons, the pointer, and the global `o`/Shift+`o` key on the
+          active lane. Rendered for drums too (its only text is the
+          DRUMS HAS NO OCTAVE refusal). */}
+      <span
+        class="head-sr oct-live"
+        role="status"
+        aria-live="polite"
+        data-lane={props.lane}
+      >
+        {octaveStatus(props.lane)}
       </span>
     </div>
   );

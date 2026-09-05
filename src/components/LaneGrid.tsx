@@ -60,7 +60,10 @@ import {
   activeLane,
   activePatterns,
   currentPatternFor,
+  getOrCreateRegisterWindow,
+  registerWindowStarts,
   selectLane,
+  setRegisterWindowStart,
   stageMode,
 } from "../state/selection";
 import {
@@ -508,6 +511,31 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     const steps = pattern.bars * 16;
     // (mode-aware preset chosen above — MB-1)
 
+    // RC-1 (v3, I3-c): the REGISTER WINDOW. The quadrant stages (tablet +
+    // desktop) show every pitched lane's grid through the SAME one-octave
+    // window — view state on the selection.ts two-tier law, never a
+    // document field, never undo history. The phone stage KEEPS its
+    // committed full-manifest page-scroll law (m1 pins it: the tall-lane
+    // document exceeds the viewport; I3-f forbids the phone redesign) —
+    // there the whole manifest is the window, so the scroll keys lawfully
+    // clamp (the chords/drums precedent) and rows scroll with the document.
+    const windowed = pitched && mode !== "phone";
+    const windowHeight = (): number =>
+      windowed ? modeSize(effectiveScale(docStore.getState().doc, lane).mode) : 0;
+    const applyRegisterWindow = (): number => {
+      const h = windowHeight();
+      if (!windowed || h >= rowLabels.length) {
+        rendererRef?.setWindow(null);
+        return rowLabels.length; // visible rows = the manifest
+      }
+      const start = getOrCreateRegisterWindow(
+        lane as Exclude<LaneId, "drums">,
+        h,
+      );
+      rendererRef?.setWindow(h, start);
+      return h;
+    };
+
     const readFrame = (): PlayheadFrame | null => {
       const snap = session.transport.snapshot;
       if (!snap.playing) return null;
@@ -683,20 +711,32 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           void session.audition(lane, degrees[row]);
         }
       },
+      // RC-1: the grid moved its register window (keys / wheel / focus
+      // follow) — persist the start as the lane's view state (never a
+      // document write; equal-guarded in the setter so the echo no-ops).
+      onWindowScroll: (start) => {
+        if (lane !== "drums") setRegisterWindowStart(lane, start);
+      },
     });
 
     rendererRef = renderer;
     renderer.sync(syncPatternFor(pattern));
+    // RC-1: the equal default register window (mount-time; the effect below
+    // tracks later view-state moves).
+    const visibleRows = applyRegisterWindow();
 
-    // Refinement-4 (critique P2-5): register for the viewport-budget fit —
-    // the quadrant's vertical row tracks flex within the 100dvh budget
-    // (see fitQuadrantRows). The strip is this quadrant's own (queried
-    // inside its lane-floor) so edit-tier toggles re-fit its budget.
+    // RC-1 (refinement-4): register for the viewport-budget fit — the
+    // quadrant's vertical row tracks flex within the 100dvh budget (see
+    // fitQuadrantRows). The strip is this quadrant's own (queried inside its
+    // lane-floor) so edit-tier toggles re-fit its budget. The BUDGET owns
+    // only the VISIBLE rows: a windowed grid's natural height is its WINDOW
+    // (the scrolled-out manifest rows cost nothing), so 14-row lanes now
+    // budget like 7-row ones — the equal-window default's whole point.
     // MB-1: the PHONE stage never registers — it scrolls by law, so there
     // is no budget to fit (the guard in fitQuadrantRows is the twin).
     const surface: QuadrantSurface = {
       row: lane === "drums" || lane === "bass" ? 0 : 1,
-      rowCount: rowLabels.length,
+      rowCount: visibleRows,
       minRowPx: geo.minRowPx,
       maxRowPx: geo.cellPx,
       renderer: () => rendererRef,
@@ -739,7 +779,37 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       else rendererRef?.focusCell(req.row, req.step);
     });
 
+    // RC-1: the lane's window start is lane-level view state — pattern
+    // switches (remounts) and cross-surface moves land here. The renderer's
+    // ≥1-row snap guard keeps the echo of its own wheel-derived writes inert.
+    // A cleared entry (document replacement — selection resets the map)
+    // re-derives the default for THIS grid instead of leaving the renderer
+    // parked at the replaced document's window.
+    if (lane !== "drums") {
+      createEffect(() => {
+        const start = registerWindowStarts()[lane];
+        if (start === undefined) {
+          if (windowed)
+            getOrCreateRegisterWindow(
+              lane,
+              windowHeight(),
+            );
+          return;
+        }
+        rendererRef?.scrollWindowTo(start);
+      });
+    }
+
+    let lastWindowHeight = windowHeight();
     const unsubscribe = docStore.subscribe((state, prev) => {
+      // RC-1: a scale/mode change re-derives the window height (one octave =
+      // the mode size) — the only document-side input of the window law.
+      const h = windowHeight();
+      if (h !== lastWindowHeight) {
+        lastWindowHeight = h;
+        applyRegisterWindow();
+        return;
+      }
       // Re-sync on pattern-content identity only: IN-2 renders notes
       // natively (no gate/BPM-derived view left to invalidate).
       if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;
@@ -785,7 +855,13 @@ export default function LaneGrid(props: { lane: LaneId }) {
     // MB-1: the stage mode rides the key — geometry is pinned at mount, so a
     // phone↔tablet↔desktop crossing (rotation, window resize) remounts the
     // grid surface with the right preset (the pattern-shape remount law).
-    return p ? `${p.id}:${p.kind}:${p.bars}:${stageMode()}` : "none";
+    // RC-1: the ROW-MANIFEST SIZE is shape too — a loaded document can put a
+    // taller/same-id pattern under the same id:kind:bars key (default
+    // lead-1 = 14 rows vs the demo's 15), and the renderer's row count is
+    // fixed at build — the register window's clamp and the ROWS range in
+    // the grid name are honest only against the real manifest.
+    const rows = p && p.kind === "pitched" ? p.rowDegrees.length : 0;
+    return p ? `${p.id}:${p.kind}:${p.bars}:${rows}:${stageMode()}` : "none";
   };
 
   // LY-1 pointer law: a click on any part of a VIEW-ONLY quadrant selects it

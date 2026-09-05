@@ -19,7 +19,7 @@ import {
   redo,
   undo,
 } from "../state/store";
-import { activeLane, activePatterns, selectPattern } from "../state/selection";
+import { activeLane, activePatterns, announceDrumsNoOctave, selectPattern, stepLaneOctave } from "../state/selection";
 import { helpOpen, openHelp } from "../state/helpOverlay";
 import { toggleHelp } from "../state/helpMode";
 import HelpOverlay from "./HelpOverlay";
@@ -117,6 +117,16 @@ export default function KeyboardShortcuts(): JSX.Element {
       // capture handler owns that keystroke).
       e.preventDefault();
       toggleHelp();
+    } else if (e.key === "o" || e.key === "O") {
+      // RC-1 (v3, i3-2): OCTAVE transpose of the ACTIVE lane — `o` +1,
+      // Shift+`o` −1. Pitched lanes only: drums answers with the refusal
+      // announcement (the drum voice model has no pitch resolution). Same
+      // guards as the pattern-ops family (text-entry + AT-modifier skips
+      // happened above). ONE funnel with the strip buttons (E8); the press
+      // never auditions and never scrolls the register window (E9 fence).
+      e.preventDefault();
+      if (lane === "drums") announceDrumsNoOctave();
+      else stepLaneOctave(lane, e.shiftKey ? -1 : 1);
     }
   };
 
