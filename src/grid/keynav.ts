@@ -161,6 +161,12 @@ export function clampWindowStart(
  * AND at the last position that keeps `focusRow` visible
  * (start ≤ focusRow ≤ start + windowRows − 1). A target equal to the current
  * start is the blocked no-op the renderer announces as the edge.
+ *
+ * i3-1 (vertical fill law): `stepRows` separates the STEP from the window
+ * HEIGHT — the fill grows windows past one octave, but the keys' committed
+ * meaning (and announcement) is ONE OCTAVE, so callers pass the mode size
+ * as the step; the anchor/bounds math stays on the LIVE window height.
+ * Default stepRows = windowRows (the unwindowed-growth law, byte-identical).
  */
 export function clampedWindowScroll(
   start: number,
@@ -168,10 +174,11 @@ export function clampedWindowScroll(
   focusRow: number,
   rows: number,
   windowRows: number,
+  stepRows: number = windowRows,
 ): number {
   const maxStart = Math.max(0, rows - windowRows);
   // Manifest bounds first …
-  let target = Math.min(Math.max(start + dir * windowRows, 0), maxStart);
+  let target = Math.min(Math.max(start + dir * stepRows, 0), maxStart);
   // … then the anchor window [focusRow − windowRows + 1, focusRow] (which is
   // never empty for windowRows ≥ 1), re-clamped at the manifest bounds so an
   // anchor row below the first window cannot push the start negative.

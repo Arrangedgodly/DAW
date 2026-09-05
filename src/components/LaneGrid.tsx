@@ -215,7 +215,7 @@ const PHONE_ROW_PX = 24;
  *     content loss: every row stays fully rendered, cells within
  *     readability);
  *   - horizontal laws untouched (long/1-bar patterns scroll INSIDE the
- *     quadrant exactly as today — entry-2's recorded 1280 trade stands);
+ *     quadrant exactly as before — entry-2's recorded 1280 trade stands);
  *   - rotation-safe: ResizeObservers on the stage/rail/every strip (booth
  *     wrap, rail growth, edit-row toggles — everything that changes the
  *     budget) re-run the fit, and the rAF-rendered playhead is untouched
@@ -223,13 +223,54 @@ const PHONE_ROW_PX = 24;
  * MB-1 (the mobile slice) extends this seam: its tablet scale re-uses the
  * parameterized geometry + this fit; its phone stage replaces the 2×2 but
  * keeps the same 100dvh shell.
+ *
+ * Refinement i3-1 (iteration-3 critique P1, the VERTICAL FILL LAW — the
+ * grow-to-fill twin refinement-4 lacked): the windowed grids shrank content
+ * height (a 15-row lead manifest renders as a 7-row window) while the
+ * quadrant rows stayed content-sized, so the default demo state left 283 px
+ * (31.4%) dead at 1440×900, 161 px at 1280×800 and 507 px (47%) at 1920×1080
+ * BELOW the floors — grow-on-miss without fill leaves the vacancy. The fit
+ * now distributes the height budget across the two quadrant rows (an equal
+ * rowH share per stage row): every lane fills its share by its own law —
+ *   - REGISTER-WINDOW HEIGHT FIRST: a windowed lane's window grows in whole
+ *     rows (quantized to the row pitch, so the pane edge never bisects a
+ *     row by more than the recorded pane-padding delta — entry 2's own
+ *     gate) in LOCKSTEP across windowed lanes (the RC-1 equal-window
+ *     default, grown; a lane whose manifest caps it keeps the committed
+ *     full-manifest law), never below the one-octave default;
+ *   - THEN ROW SCALE within the committed clamp [cellPx, FILL_MAX_ROW_PX]:
+ *     24 px is the world's own committed editing-row scale (the v0 floor
+ *     and the phone stage's row law; pads stay pinned in WIDTH — width
+ *     growth buys columns, never bigger cells);
+ *   - per-lane readability floors and the grow-on-miss law are UNCHANGED:
+ *     under a real deficit the window first returns to the one-octave
+ *     default (the reverse order), then tracks compress toward minRowPx
+ *     exactly as refinement-4 committed; past the floors the page grows.
+ * Every target is computed from the CANONICAL state (cellPx tracks + the
+ * default window), never from the current grown one — resize round-trips
+ * converge with no hysteresis, and measurement stays write-free (the
+ * TH-4(b) law): content heights are linear extrapolations of the live
+ * offsetHeight (which includes pane-padding deltas and h-scrollbar
+ * thickening), so a fit NEVER reads back its own writes.
  * ------------------------------------------------------------------------- */
+
+/**
+ * Refinement i3-1: the row-scale GROW ceiling — the committed clamp. 24 px is
+ * the editing-row scale the world already ships (the v0 floor and the phone
+ * stage's PHONE_ROW_PX); quadrant pads grow no taller than that law.
+ */
+const FILL_MAX_ROW_PX = 24;
 
 /** One live grid surface registered for the budget fit (GridSurface scope). */
 interface QuadrantSurface {
   /** Stage row (0 = drums|bass, 1 = chords|lead) — the 2×2 pairing. */
   readonly row: 0 | 1;
-  readonly rowCount: number;
+  /**
+   * The one-octave DEFAULT window (the scale mode's row count) — null when
+   * the lane never windows (drums, or a manifest that fits one octave). The
+   * fill grows and shrinks the LIVE window around this default.
+   */
+  readonly defaultWindowRows: number | null;
   readonly minRowPx: number;
   readonly maxRowPx: number;
   readonly renderer: () => DomGridRenderer | null;
@@ -252,26 +293,37 @@ function scheduleFit(): void {
 }
 
 /**
- * The fit itself — TWO PHASES, measured, never restated as constants (the
- * refinement-2 drift lesson):
+ * The fit itself — measured, never restated as constants (the refinement-2
+ * drift lesson). THREE phases, per the refinement-4 compression law + the
+ * i3-1 fill twin:
  *
- * Phase 1 (grow-on-miss preserved): measure every quadrant's NATURAL height
- * (strip + chrome + max-track content, at its CURRENT edit state — the
- * selected quadrant's strip carries the edit tier and 4px row margins) and
- * sum the two stage ROWS (each row = the taller of its pair). If the rows
- * fit the stage's real leftover (100dvh − booth-as-wrapped − rail-as-wrapped
- * − the floors' chrome), NOTHING compresses — viewports that fit keep the
- * committed scale byte-for-byte, exactly the pre-entry layout law.
+ * Measure (write-free): every quadrant's chrome (strip above, card padding
+ * below) + its CURRENT content height + live geometry through the
+ * renderer's read seam (track px, window rows, manifest, pitch). Content
+ * height at ANY (track, window) target is a linear extrapolation of the
+ * live offsetHeight — the honest flow height, pane-padding deltas and
+ * in-quadrant h-scrollbar thickening included — so the fit never reads back
+ * its own writes (a layout write mid-gesture is the TH-4(b) law).
  *
- * Phase 2 (shrink-to-fit, the critique's ask): only under a REAL total
- * deficit does each quadrant compress against an equal split of the budget
- * — the deficit is repaid in whole track px down to the lane's readability
- * floor. Natural heights are extrapolated from the CURRENT pinned track
- * (offsetHeight + rows × (max − current)) so measurement never writes to
- * the DOM (a layout write mid-gesture is the TH-4(b) zero-mutations law).
+ * Budget: rowsBudget = stage − rail − floors chrome; each of the two stage
+ * rows owns an equal rowH share. Per quadrant, available = rowH − above −
+ * below is what that lane's bed may fill. Targets are computed from the
+ * CANONICAL state (maxRowPx tracks + the one-octave default window), so
+ * grow/shrink round-trips converge with no hysteresis:
+ *
+ * Surplus (canonical fits the share) — GROW, i3-1's law: register-window
+ * heights first (whole rows, LOCKSTEP across windowed lanes — the
+ * equal-window default grown, capped by each manifest), then row scale
+ * within [maxRowPx, FILL_MAX_ROW_PX].
+ *
+ * Deficit — refinement-4's law, in reverse order: the window returns to the
+ * one-octave default (never below — the equal-window default is the floor),
+ * then tracks compress by whole px toward the lane's readability floor;
+ * past the floors the page honestly grows (the grow-on-miss law).
  *
  * Guards: no shell (bare component tests) or no layout (jsdom) → stand
- * down; provisional font metrics never compress (see ensureFitObservers).
+ * down; provisional font metrics neither compress NOR grow (the swap would
+ * undo either — tracks restore to the committed scale only).
  */
 function fitQuadrantRows(): void {
   // MB-1: the phone stage SCROLLS (the committed sticky-chrome + scrolling-
@@ -289,7 +341,9 @@ function fitQuadrantRows(): void {
   // Never COMPRESS on provisional metrics: before the pixel faces load,
   // fallback-font heights run a hair taller and the compression would be
   // undone by the font-swap observer — the TH-4(b) flip-flop write class.
-  // Restores stay allowed (no-op at the committed scale).
+  // Restores stay allowed (no-op at the committed scale); GROWTH waits for
+  // the same final metrics (a grown window on provisional pitches would be
+  // re-fit by the swap the same way).
   const fontsFinal =
     typeof document === "undefined" ||
     !document.fonts ||
@@ -303,15 +357,19 @@ function fitQuadrantRows(): void {
   const rowH = Math.floor(rowsBudget / 2);
   if (rowH <= 0) return;
 
-  // Phase 1: measure every quadrant's natural height (no DOM writes).
+  // Measure every quadrant's canonical + live geometry (no DOM writes).
   const measured: Array<{
     surface: QuadrantSurface;
     renderer: DomGridRenderer;
-    above: number;
-    below: number;
-    natural: number;
+    /** Visible-row count at the CANONICAL state (the default window). */
+    canonicalRows: number;
+    manifest: number;
+    /** Bed content height at (track, visibleRows) — write-free extrapolation. */
+    contentAt: (track: number, rows: number) => number;
+    available: number;
+    /** Whole rows of window-growth headroom at maxRowPx (canonical base). */
+    windowHeadroom: number;
   }> = [];
-  const rowNatural = [0, 0];
   for (const surface of liveSurfaces) {
     const renderer = surface.renderer();
     const scroll = surface.scrollEl;
@@ -326,37 +384,103 @@ function fitQuadrantRows(): void {
     const below =
       Number.parseFloat(floorStyle.paddingBottom) +
       Number.parseFloat(floorStyle.borderBottomWidth);
-    // Natural (max-track) content height WITHOUT touching the DOM:
-    // extrapolate linearly from the CURRENT pinned track — offsetHeight is
-    // the honest flow height (it includes the horizontal-scrollbar
-    // thickening of an in-quadrant h-scrolling grid, e.g. 4-bar patterns).
-    const firstTrack = scroll.querySelector<HTMLElement>(".row-cells");
-    if (!firstTrack) continue;
-    const currentPx = Number.parseFloat(firstTrack.style.gridAutoRows);
-    const natural =
-      scroll.offsetHeight + surface.rowCount * (surface.maxRowPx - currentPx);
-    measured.push({ surface, renderer, above, below, natural });
-    const total = above + below + natural;
-    if (total > rowNatural[surface.row]) rowNatural[surface.row] = total;
+    const g = renderer.fitGeometry();
+    // Live visible rows: the window when windowed, the manifest otherwise.
+    const liveRows = g.windowRows ?? g.manifestRows;
+    // The RC-1 default (one octave) is the canonical window; a lane whose
+    // manifest fits never windows.
+    const canonicalRows = Math.min(
+      surface.defaultWindowRows ?? g.manifestRows,
+      g.manifestRows,
+    );
+    // Linear extrapolation from the CURRENT pinned state (offsetHeight is
+    // the honest flow height; pitch = track + gap + margin from the DOM).
+    const contentAt = (track: number, rows: number): number =>
+      scroll.offsetHeight +
+      (rows - liveRows) * g.pitchPx +
+      rows * (track - g.trackPx);
+    const available = rowH - above - below;
+    const canonicalContent = contentAt(surface.maxRowPx, canonicalRows);
+    const windowHeadroom =
+      surface.defaultWindowRows != null && g.manifestRows > canonicalRows
+        ? Math.floor(
+            (available - canonicalContent) / g.pitchPx,
+          )
+        : 0;
+    measured.push({
+      surface,
+      renderer,
+      canonicalRows,
+      manifest: g.manifestRows,
+      contentAt,
+      available,
+      windowHeadroom,
+    });
   }
 
-  // Phase 2: fit — restore when the page fits naturally, else compress.
-  const fitsNaturally = rowNatural[0] + rowNatural[1] <= rowsBudget;
+  // i3-1 lockstep: windowed surplus lanes grow their windows EQUALLY — the
+  // RC-1 equal-window default, grown — capped by each lane's manifest.
+  let lockstep = Infinity;
   for (const m of measured) {
-    const { surface, renderer, above, below, natural } = m;
-    const available = rowH - above - below;
-    if (fitsNaturally || !fontsFinal || natural <= available) {
-      // Budget met — the committed scale (no-op restore when already max).
+    if (m.windowHeadroom <= 0) continue; // deficit/full lanes keep the default
+    lockstep = Math.min(lockstep, m.windowHeadroom);
+  }
+
+  // Fit: restore under provisional metrics, else grow (surplus) / repay the
+  // deficit (refinement-4's law, windows-first in reverse).
+  for (const m of measured) {
+    const { surface, renderer } = m;
+    if (!fontsFinal) {
+      // Restore-only: the committed track scale, windows untouched (the
+      // mount's default; compression AND growth wait for final metrics).
       renderer.setRowHeight(surface.maxRowPx);
       continue;
     }
-    const deficit = natural - available;
-    const target = Math.max(
+    const canonicalContent = m.contentAt(surface.maxRowPx, m.canonicalRows);
+    if (canonicalContent <= m.available) {
+      // Surplus — i3-1: windows first (whole rows, lockstep), then row
+      // scale within the committed clamp.
+      const rows =
+        m.windowHeadroom > 0
+          ? Math.min(m.canonicalRows + lockstep, m.manifest)
+          : m.canonicalRows;
+      const base = m.contentAt(surface.maxRowPx, rows);
+      const track = Math.min(
+        FILL_MAX_ROW_PX,
+        surface.maxRowPx +
+          Math.floor((m.available - base) / Math.max(1, rows)),
+      );
+      applyFit(renderer, surface, rows, track);
+      continue;
+    }
+    // Deficit — reverse order: the window returns to the one-octave default
+    // (never below), then tracks repay the remainder in whole px toward the
+    // lane's readability floor (refinement-4's committed law).
+    const deficit = canonicalContent - m.available;
+    const track = Math.max(
       surface.minRowPx,
-      surface.maxRowPx - Math.ceil(deficit / surface.rowCount),
+      surface.maxRowPx -
+        Math.ceil(deficit / Math.max(1, m.canonicalRows)),
     );
-    renderer.setRowHeight(target);
+    applyFit(renderer, surface, m.canonicalRows, track);
   }
+}
+
+/** Apply one lane's fit target (idempotent writes through the seams). */
+function applyFit(
+  renderer: DomGridRenderer,
+  surface: QuadrantSurface,
+  rows: number,
+  track: number,
+): void {
+  const g = renderer.fitGeometry();
+  const liveRows = g.windowRows ?? g.manifestRows;
+  if (rows !== liveRows) {
+    // The scroll STEP stays the lane's one-octave default (Shift+↑/↓ keep
+    // their ONE OCTAVE meaning at any grown height — the i3-1 fence).
+    renderer.setWindow(rows, g.windowStart, surface.defaultWindowRows ?? rows);
+  }
+  renderer.setRowHeight(track);
 }
 
 /** Observe everything that can change the budget (lazily, once). */
@@ -540,7 +664,9 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         lane as Exclude<LaneId, "drums">,
         h,
       );
-      rendererRef?.setWindow(h, start);
+      // i3-1: the window-scroll STEP is this one-octave default even when
+      // the fill later grows the height (Shift+↑/↓ stay ONE OCTAVE).
+      rendererRef?.setWindow(h, start, h);
       return h;
     };
 
@@ -806,20 +932,21 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     if (carried) renderer.focusCell(carried.row, carried.step);
     // RC-1: the equal default register window (mount-time; the effect below
     // tracks later view-state moves).
-    const visibleRows = applyRegisterWindow();
+    applyRegisterWindow();
 
-    // RC-1 (refinement-4): register for the viewport-budget fit — the
-    // quadrant's vertical row tracks flex within the 100dvh budget (see
-    // fitQuadrantRows). The strip is this quadrant's own (queried inside its
-    // lane-floor) so edit-tier toggles re-fit its budget. The BUDGET owns
-    // only the VISIBLE rows: a windowed grid's natural height is its WINDOW
-    // (the scrolled-out manifest rows cost nothing), so 14-row lanes now
-    // budget like 7-row ones — the equal-window default's whole point.
-    // MB-1: the PHONE stage never registers — it scrolls by law, so there
-    // is no budget to fit (the guard in fitQuadrantRows is the twin).
+    // RC-1 (refinement-4 + i3-1): register for the viewport-budget fit — the
+    // quadrant's vertical row tracks and register window flex within the
+    // 100dvh budget (see fitQuadrantRows). The strip is this quadrant's own
+    // (queried inside its lane-floor) so edit-tier toggles re-fit its budget.
+    // The budget owns the VISIBLE WINDOW (a windowed grid's natural height is
+    // its window — the scrolled-out manifest rows cost nothing), and the fit
+    // reads the LIVE window through the renderer's geometry seam, so growth
+    // never needs a re-registration. MB-1: the PHONE stage never registers —
+    // it scrolls by law, so there is no budget to fit (the guard in
+    // fitQuadrantRows is the twin).
     const surface: QuadrantSurface = {
       row: lane === "drums" || lane === "bass" ? 0 : 1,
-      rowCount: visibleRows,
+      defaultWindowRows: windowed ? windowHeight() : null,
       minRowPx: geo.minRowPx,
       maxRowPx: geo.cellPx,
       renderer: () => rendererRef,
@@ -887,10 +1014,13 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     const unsubscribe = docStore.subscribe((state, prev) => {
       // RC-1: a scale/mode change re-derives the window height (one octave =
       // the mode size) — the only document-side input of the window law.
+      // i3-1: the reset shrinks a GROWN window back to the new default, so
+      // the fill re-runs to redistribute the freed budget.
       const h = windowHeight();
       if (h !== lastWindowHeight) {
         lastWindowHeight = h;
         applyRegisterWindow();
+        scheduleFit();
         return;
       }
       // LL-2: chain-total edits (a resize of a chained pattern, a rail +/RM

@@ -27,6 +27,7 @@ import { page } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
 import { createDemoProject } from "../../src/document/demoSong";
+import { clampedWindowScroll } from "../../src/grid/keynav";
 import {
   createFreshProjectDocument,
   docStore,
@@ -131,6 +132,33 @@ function laneOctave(lane: string): number {
   return (conf as { octave?: number }).octave ?? 0;
 }
 
+/**
+ * i3-1 (vertical fill law): the desktop mount's budget GROWS the register
+ * window past the one-octave default, so every window assertion derives
+ * from the LIVE grid name instead of a hardcoded octave. Returns the
+ * windowed range {a, b, w} + the manifest's last index n, or null when the
+ * grid is unwindowed (full manifest).
+ */
+function winRangeOf(host: HTMLElement, lane: string): {
+  a: number;
+  b: number;
+  w: number;
+  n: number;
+} | null {
+  const m = /ROWS (\d+)–(\d+) OF (\d+)/.exec(
+    gridOf(host, lane).getAttribute("aria-label") ?? "",
+  );
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  return { a, b, w: b - a + 1, n: Number(m[3]) };
+}
+
+/** The OCT-scroll fence comparator: the window name, frozen for compare. */
+function winNameOf(host: HTMLElement, lane: string): string {
+  return gridOf(host, lane).getAttribute("aria-label") ?? "";
+}
+
 describe("RC-1 register controls (real app, demo document)", () => {
   it(
     "equal default windows + manifest scroll + OCT keyboard/pointer/undo + E8/E9 texts",
@@ -158,15 +186,18 @@ describe("RC-1 register controls (real app, demo document)", () => {
         );
 
         // ------------------------------------------------------------------
-        // 1. EQUAL DEFAULT REGISTER WINDOWS (i3-1)
+        // 1. EQUAL DEFAULT REGISTER WINDOWS (i3-1) + the i3-1 FILL twin
         // ------------------------------------------------------------------
-        // The tall lane is windowed at ONE octave; lanes whose manifest
-        // already fits are not (today's names, byte-identical). The demo
-        // presents 6/7/7/7 visible rows — no lane visually dominates.
-        expect(
-          scrollOf(host, "lead").classList.contains("is-windowed"),
-          "lead windowed (15-row manifest > one octave)",
-        ).toBe(true);
+        // The tall lane windows (grown past one octave by the desktop
+        // budget — the vertical fill law); lanes whose manifest already
+        // fits are not (today's names, byte-identical). The demo's grown
+        // count is budget-derived (≥ the one-octave default, ≤ manifest),
+        // so the assertions carry the LAW, not a hardcoded octave; the
+        // equal-window law itself is proven on the FRESH project below,
+        // where TWO lanes window and the fill grows them in lockstep.
+        const leadWin = winRangeOf(host, "lead");
+        expect(leadWin, "lead windowed (15-row manifest > one octave)").not
+          .toBeNull();
         for (const lane of ["bass", "chords", "drums"]) {
           expect(
             scrollOf(host, lane).classList.contains("is-windowed"),
@@ -188,18 +219,22 @@ describe("RC-1 register controls (real app, demo document)", () => {
             `${lane} full manifest in the DOM`,
           ).toBe(count);
         }
-        // Every pitched window shows the SAME number of visible rows.
+        // The fill law: the window never shrinks below the one-octave
+        // default and never passes the manifest.
+        expect(leadWin!.w).toBeGreaterThanOrEqual(7);
+        expect(leadWin!.w).toBeLessThanOrEqual(15);
         expect(visibleRowCount(host, "bass")).toBe(7);
-        expect(visibleRowCount(host, "lead")).toBe(7);
         expect(visibleRowCount(host, "chords")).toBe(7);
         expect(visibleRowCount(host, "drums")).toBe(6);
-        // The recorded default-position law: the window showing the most
-        // noted rows (demo: the lead melody at 6–12; bass fits whole).
+        expect(visibleRowCount(host, "lead")).toBe(leadWin!.w);
+        // The recorded default-position law survives growth: the window
+        // showing the most noted rows (demo: the lead melody at 6–12)
+        // stays INSIDE the grown window — growth never hides the content
+        // the default chose.
+        expect(leadWin!.a).toBeLessThanOrEqual(6);
+        expect(leadWin!.b).toBeGreaterThanOrEqual(12);
         expect(gridOf(host, "bass").getAttribute("aria-label")).toBe(
           "BASS grid · VIEW ONLY",
-        );
-        expect(gridOf(host, "lead").getAttribute("aria-label")).toBe(
-          "LEAD grid · VIEW ONLY · ROWS 6–12 OF 14",
         );
 
         // ------------------------------------------------------------------
@@ -226,13 +261,35 @@ describe("RC-1 register controls (real app, demo document)", () => {
 
         // --- keyboard path on the ACTIVE lane (global `o`) ----------------
         selectLane("lead");
+        // i3-1: freeze the window name only after the fill has settled —
+        // the budget grows the window shortly after mount, and SELECTING
+        // the lane flips the edit tier (a taller strip), which lawfully
+        // re-fits the share once more. The OCT-scroll fence below must not
+        // mistake either for a scroll, so the baseline waits for a grown
+        // window that has held the SAME range for 300ms (past the re-fit).
+        let winBaseline: { name: string; at: number } | null = null;
         await waitFor(
-          () =>
-            gridOf(host, "lead").getAttribute("aria-label") ===
-            "LEAD grid · EDITING · ROWS 6–12 OF 14",
-          2000,
-          "lead editing (windowed name)",
+          () => {
+            const r = winRangeOf(host, "lead");
+            if (r === null || r.w <= 7) {
+              winBaseline = null;
+              return false;
+            }
+            const name = winNameOf(host, "lead");
+            if (winBaseline && winBaseline.name === name) {
+              return Date.now() - winBaseline.at >= 300;
+            }
+            winBaseline = { name, at: Date.now() };
+            return false;
+          },
+          4000,
+          "lead window grown by the fill (fence baseline settles)",
         );
+        const leadName = winNameOf(host, "lead");
+        expect(
+          leadName.startsWith("LEAD grid · EDITING · ROWS "),
+          "lead editing (windowed name)",
+        ).toBe(true);
         key(document.body, "o");
         await waitFor(
           () => octLiveOf(host, "lead") === "LEAD OCTAVE +1",
@@ -261,9 +318,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // law — and the global key acts on the ACTIVE lane). --------------
         selectLane("lead");
         await waitFor(
-          () =>
-            gridOf(host, "lead").getAttribute("aria-label") ===
-            "LEAD grid · EDITING · ROWS 6–12 OF 14",
+          () => winNameOf(host, "lead") === leadName,
           2000,
           "lead re-selected",
         );
@@ -298,9 +353,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         expect(octReadoutOf(host, "lead")).toBe("+3");
 
         // --- transpose never scrolls the window (E9 fence) -----------------
-        expect(gridOf(host, "lead").getAttribute("aria-label")).toBe(
-          "LEAD grid · EDITING · ROWS 6–12 OF 14",
-        );
+        expect(winNameOf(host, "lead")).toBe(leadName);
 
         // --- ONE undo gesture per held burst (coalescing family) -----------
         key(document.body, "z", { ctrlKey: true });
@@ -332,24 +385,28 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // ------------------------------------------------------------------
         // 3. WINDOW SCROLL — VIEW ONLY (E9, the conflation fence)
         // ------------------------------------------------------------------
+        // i3-1: the window is FILL-GROWN at this viewport; every number
+        // below derives from the live range. The STEP stays ONE OCTAVE
+        // (7 rows — the mode size), decoupled from the grown height, so
+        // the announcement vocabulary stays honest at any window size.
         selectLane("lead");
         await waitFor(
-          () =>
-            gridOf(host, "lead").getAttribute("aria-label") ===
-            "LEAD grid · EDITING · ROWS 6–12 OF 14",
+          () => winNameOf(host, "lead") === leadName,
           2000,
           "lead re-selected",
         );
+        const win = winRangeOf(host, "lead")!;
+        const OCTAVE = 7; // the committed step (mode size), never the grown w
         const seed = [...laneHost(host, "lead").querySelectorAll(".cell")].find(
           (c) => c.tabIndex === 0,
         ) as HTMLElement;
         seed.focus();
-        // Walk focus down to the window's bottom row (12) — the anchor law
+        // Walk focus down to the window's bottom row (b) — the anchor law
         // needs the focus off the window's top edge for a DOWN scroll, and
         // the walk itself proves arrows traverse the full manifest.
-        for (let i = 0; i < 12; i++) key(document.activeElement!, "ArrowDown");
+        for (let i = 0; i < win.b; i++) key(document.activeElement!, "ArrowDown");
         const focusedCell = document.activeElement as HTMLElement;
-        expect(focusedCell.dataset.row).toBe("12");
+        expect(focusedCell.dataset.row).toBe(String(win.b));
         const docBeforeScroll = docStore.getState().doc;
 
         key(document.activeElement!, "ArrowDown", { shiftKey: true });
@@ -361,13 +418,22 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // E9: VIEW ONLY — the document is untouched and focus does not move.
         expect(docStore.getState().doc).toBe(docBeforeScroll);
         expect(document.activeElement).toBe(focusedCell);
-        // The window moved (start 6 → anchor- and manifest-clamped to 8).
-        // The name flips with the window; the announcement names the newly
-        // visible rows with the grid's OWN row labels (pitch names).
+        // The window moved one OCTAVE (7 rows), anchor- and manifest-
+        // clamped (the pure keynav law, step = the octave — never the
+        // grown height); the name flips with the window; the announcement
+        // names the newly visible rows with the grid's OWN row labels.
+        const newA = clampedWindowScroll(
+          win.a,
+          1,
+          win.b,
+          win.n + 1,
+          win.w,
+          OCTAVE,
+        );
         await waitFor(
           () =>
             gridOf(host, "lead").getAttribute("aria-label") ===
-            "LEAD grid · EDITING · ROWS 8–14 OF 14",
+            `LEAD grid · EDITING · ROWS ${newA}–${newA + win.w - 1} OF ${win.n}`,
           2000,
           "window scrolled one octave (anchor-clamped)",
         );
@@ -375,7 +441,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
           ...scrollOf(host, "lead").querySelectorAll(".row-label"),
         ].map((l) => l.textContent?.trim() ?? "");
         expect(viewLiveOf(host, "lead")).toBe(
-          `VIEW DOWN ONE OCTAVE · ROWS ${labels[8]}–${labels[14]}`,
+          `VIEW DOWN ONE OCTAVE · ROWS ${labels[newA]}–${labels[newA + win.w - 1]}`,
         );
 
         // At the manifest bottom the press is a no-op that announces.
@@ -389,7 +455,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
 
         // Walk focus UP through the manifest: the window follows minimally
         // and the focused row stays visible (the cursor holds the window).
-        for (let i = 0; i < 14; i++) key(document.activeElement!, "ArrowUp");
+        for (let i = 0; i < win.b; i++) key(document.activeElement!, "ArrowUp");
         await waitFor(
           () => (document.activeElement as HTMLElement).dataset.row === "0",
           2000,
@@ -427,25 +493,48 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // ------------------------------------------------------------------
         // 1b. FRESH project: the equal windows hold there too (i3-1 — fresh
         // bass/lead carry the 14-row double-octave manifests and BOTH
-        // window to one octave; zero document churn — the manifests stay).
+        // window; zero document churn — the manifests stay). i3-1 fill
+        // twin: TWO windowed lanes grow in LOCKSTEP — the equal-window
+        // default, grown — so both windows read the SAME row count (each
+        // capped by its own manifest), never below the one-octave default.
         // ------------------------------------------------------------------
         loadDocument(createFreshProjectDocument());
         // (Lead is the ACTIVE lane here — its name says EDITING.)
         await waitFor(
-          () =>
-            gridOf(host, "bass").getAttribute("aria-label") ===
-              "BASS grid · VIEW ONLY · ROWS 0–6 OF 13" &&
-            gridOf(host, "lead").getAttribute("aria-label") ===
-              "LEAD grid · EDITING · ROWS 0–6 OF 13",
+          () => {
+            const b = winRangeOf(host, "bass");
+            const l = winRangeOf(host, "lead");
+            return (
+              gridOf(host, "bass").getAttribute("aria-label")?.startsWith(
+                "BASS grid · VIEW ONLY · ROWS ",
+              ) === true &&
+              gridOf(host, "lead").getAttribute("aria-label")?.startsWith(
+                "LEAD grid · EDITING · ROWS ",
+              ) === true &&
+              b !== null &&
+              l !== null
+            );
+          },
           4000,
-          "fresh project: bass + lead windowed at the first octave",
+          "fresh project: bass + lead windowed",
         );
+        const freshBass = winRangeOf(host, "bass")!;
+        const freshLead = winRangeOf(host, "lead")!;
         expect(
           scrollOf(host, "bass").querySelectorAll(".grid-row").length,
           "fresh bass keeps its full 14-row manifest",
         ).toBe(14);
-        expect(visibleRowCount(host, "bass")).toBe(7);
-        expect(visibleRowCount(host, "lead")).toBe(7);
+        expect(scrollOf(host, "lead").querySelectorAll(".grid-row").length).toBe(
+          14,
+        );
+        expect(freshBass.w).toBeGreaterThanOrEqual(7);
+        expect(freshLead.w).toBeGreaterThanOrEqual(7);
+        expect(
+          freshBass.w,
+          "the fill grows both windows in LOCKSTEP (equal by default, grown equally)",
+        ).toBe(freshLead.w);
+        expect(visibleRowCount(host, "bass")).toBe(freshBass.w);
+        expect(visibleRowCount(host, "lead")).toBe(freshLead.w);
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

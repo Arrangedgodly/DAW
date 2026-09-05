@@ -176,27 +176,40 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // --- 2. E3: names carry the edit state in text ---------------------
         // RC-1 journey delta (equal-window default): a WINDOWED pitched
         // grid's name appends `· ROWS a–b OF n` (E9) — assert the prefix +
-        // the windowed/unwindowed split; drums/chords stay byte-exact.
+        // the windowed/unwindowed split. i3-1 delta (vertical fill law):
+        // the budget GROWS the lead window at this viewport — its 15-row
+        // manifest may fit whole (the full-manifest law) or window just
+        // under it — so the range is asserted against the LIVE window
+        // state, never a hardcoded octave.
         const assertNames = (editing: string) => {
           for (const lane of ["drums", "bass", "chords", "lead"]) {
             const label = gridOf(lane).getAttribute("aria-label") ?? "";
             const state =
               lane === editing ? "EDITING" : "VIEW ONLY";
+            const windowed = floor(lane)
+              .querySelector(".lane-grid-scroll")!
+              .classList.contains("is-windowed");
             // The demo's bass/chords manifests fit one octave; only the
-            // 15-row lead manifest windows.
+            // 15-row lead manifest can window.
             if (lane !== "lead") {
               expect(label, `${lane} grid name (fits one window)`).toBe(
                 `${lane.toUpperCase()} grid · ${state}`,
               );
+              expect(windowed, `${lane} never windows`).toBe(false);
+            } else if (windowed) {
+              expect(
+                label.startsWith(`LEAD grid · ${state} · ROWS `),
+                "lead windowed name prefix",
+              ).toBe(true);
+              expect(
+                label.endsWith(" OF 14"),
+                "lead windowed name carries the manifest",
+              ).toBe(true);
             } else {
               expect(
-                label.startsWith(`LEAD grid · ${state}`),
-                "lead grid name prefix",
-              ).toBe(true);
-              expect(
-                label.includes("· ROWS "),
-                "lead windowed name carries the range",
-              ).toBe(true);
+                label,
+                "lead full-manifest name (fill-grown window)",
+              ).toBe(`LEAD grid · ${state}`);
             }
           }
         };
@@ -675,20 +688,29 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         ).toBeLessThanOrEqual(MIN_W + 0.5);
 
         // --- 1b-2. Quadrants flexed per their own laws, no content loss --
-        // RC-1 journey delta (equal-window default): the budget owns the
-        // VISIBLE window (7 rows), so the 14-row bass lane no longer
-        // compresses at 1280×800 — tracks hold the committed 16px scale
-        // (the compression machinery stays for real deficits; drums keeps
-        // its 20px fill-rail law). The full manifest stays in the DOM; the
-        // VISIBLE rows are inside the viewport (the rest scroll inside the
-        // quadrant — the one-page law is a page law, not a pane law).
+        // i3-1 delta (the VERTICAL FILL LAW): the budget share now GROWS
+        // each lane — register-window rows first (whole-row quantized),
+        // then row scale within the committed clamp [cellPx, 24px]. At the
+        // 1280×800 minimum every lane's share admits the 24px clamp (the
+        // world's own v0/phone editing-row scale), and the 15-row lead
+        // manifest windows ABOVE one octave; the readability floors (drums
+        // 20 / pitched 11) stay the compression boundary for real deficits,
+        // which the windows prevent at the tested minimums. The full
+        // manifest stays in the DOM; every VISIBLE row is inside the
+        // viewport (the one-page law is a page law, not a pane law).
         const bassTrack = trackOf("bass");
-        expect(bassTrack, "bass tracks hold the committed scale under windows").toBe(16);
         expect(
-          trackOf("drums"),
-          "drums keeps its committed 20px floor (fill-rail control law)",
-        ).toBe(20);
+          bassTrack,
+          "bass tracks fill-grown to the committed 24px clamp",
+        ).toBe(24);
+        expect(trackOf("drums"), "drums fills to the 24px clamp").toBe(24);
         for (const lane of ["drums", "bass", "chords", "lead"]) {
+          const track = trackOf(lane);
+          expect(
+            track,
+            `${lane} track within the fill clamp`,
+          ).toBeGreaterThanOrEqual(lane === "drums" ? 20 : 16);
+          expect(track).toBeLessThanOrEqual(24);
           const scroll = $(
             `.lane-floor[data-lane="${lane}"] .lane-grid-scroll`,
           ) as HTMLElement;
@@ -703,10 +725,20 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             const r = row.getBoundingClientRect();
             return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
           });
-          expect(
-            visible.length,
-            `${lane} window holds one octave of visible rows`,
-          ).toBe(lane === "drums" ? 6 : 7);
+          if (lane === "lead") {
+            // The fill law: the lead window holds AT LEAST the one-octave
+            // default, grown by the budget share (never past the manifest).
+            expect(
+              visible.length,
+              "lead window grown past one octave",
+            ).toBeGreaterThanOrEqual(8);
+            expect(visible.length).toBeLessThanOrEqual(15);
+          } else {
+            expect(
+              visible.length,
+              `${lane} full manifest visible (fits one window)`,
+            ).toBe(lane === "drums" ? 6 : 7);
+          }
           expect(
             visible[visible.length - 1]!.getBoundingClientRect().height,
             `${lane} rows render at full track height`,
@@ -786,14 +818,18 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         );
 
         // --- 1b-5. Mid-session resize: rotation recovery ------------------
-        // 1280×800 → 1440×900: tracks restore to the committed scale and
-        // the entry-2 §9c law (1-bar drums, no internal scroll) returns.
+        // 1280×800 → 1440×900: the fill re-distributes the bigger share —
+        // the lead window grows to its manifest budget (the window count is
+        // the recovery signal; the tracks sit at the 24px clamp on BOTH
+        // sides of the crossing, so the window is the honest discriminator)
+        // and the entry-2 §9c law (1-bar drums, no internal scroll) holds
+        // at every step.
         iframe.style.width = `${VIEW_W}px`;
         iframe.style.height = `${VIEW_H}px`;
         await poll(
-          () => trackOf("bass") === 16,
+          () => trackOf("bass") === 24 && trackOf("lead") >= 17,
           5_000,
-          "tracks restored to the committed scale at 1440×900",
+          "the fill re-distributes the 1440×900 share",
         );
         expect(
           fits(VIEW_W, VIEW_H),
@@ -806,15 +842,15 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           drumsScroll.scrollWidth,
           "1-bar drums no-internal-scroll law restored at 1440",
         ).toBeLessThanOrEqual(drumsScroll.clientWidth);
-        // …and back down to the minimum: RC-1 journey delta — under the
-        // equal windows the committed scale FITS at 1280×800 (no deficit),
-        // so the page still fits with tracks at 16/20.
+        // …and back down to the minimum: the share shrinks, the lead window
+        // re-quantizes DOWN (never below the one-octave default), tracks
+        // hold inside the clamp, and the page still fits.
         iframe.style.width = `${MIN_W}px`;
         iframe.style.height = `${MIN_H}px`;
         await poll(
-          () => trackOf("bass") === 16,
+          () => trackOf("bass") === 24 && trackOf("lead") === 16,
           5_000,
-          "tracks hold the committed scale back at 1280×800 (windows fit)",
+          "the fill re-quantizes back down at 1280×800",
         );
         expect(fits(MIN_W, MIN_H), "page fits back at 1280×800").toBe(true);
 
@@ -856,11 +892,11 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         ).toBeGreaterThan(leadScroll.clientWidth);
 
         // --- 1b-7. Tallest-lane editing at the minimum --------------------
-        // RC-1 journey delta: with the equal one-octave windows even the
-        // tallest lane's EDITING state (strip edit tier + editing row
-        // margins) fits the committed scale at 1280×800 — the readability
-        // floor stays the compression boundary for real deficits, which the
-        // windows now prevent at the tested minimums.
+        // i3-1 delta: the tallest lane's EDITING state (strip edit tier +
+        // editing row margins) still fills its share lawfully at 1280×800 —
+        // the window takes the rows first, tracks hold within the clamp,
+        // and the readability floor stays the compression boundary for real
+        // deficits (which the windows prevent at the tested minimums).
         $(`.lane-floor[data-lane="bass"] .cell`).click();
         await poll(
           () => $(`.lane-floor[data-lane="bass"]`).dataset.editing === "true",
@@ -868,12 +904,10 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           "bass selected at 1280",
         );
         await poll(
-          () => trackOf("bass") === 16 && fits(MIN_W, MIN_H),
+          () =>
+            trackOf("bass") >= 16 && trackOf("bass") <= 24 && fits(MIN_W, MIN_H),
           5_000,
           "bass editing fit at 1280",
-        );
-        expect(trackOf("bass"), "bass tracks hold the committed scale").toBe(
-          16,
         );
         expect(
           fits(MIN_W, MIN_H),

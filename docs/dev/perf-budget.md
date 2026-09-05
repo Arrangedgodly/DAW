@@ -435,6 +435,13 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   **37.02 / 50 KB unchanged through the whole run** (zero new font or
   asset files M1→M3; the VT323 swap stayed declined; LICENSES.md never
   needed an update — correct).
+- Iteration-3 note (2026-09-05): the shipped iteration-3 state (RC-1
+  register windows, LL-1 virtualization, FV-1 full viewport) measured
+  **74.25 KB gz** at the closing critique — the interim growth is
+  tracked in production-log.md's iteration-3 tasks. Refinement i3-1
+  (the vertical fill law — the fit's grow twin + the renderer geometry
+  read seam + the window-step fence, measured same method): initial JS
+  **74.53 KB gz** (+0.28; 25% of budget), PASS.
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

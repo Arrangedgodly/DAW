@@ -580,8 +580,12 @@ describe("MB-1 responsive stage (built app)", () => {
           drumsScroll.clientWidth + 1,
           "1-bar drums quadrant needs no internal scroll at 768",
         );
-        // The overlay fill + the compressed/narrow tracks (the entry-4 fit
-        // within the narrow floors).
+        // The overlay fill + the narrow floors (the entry-4 fit) — i3-1
+        // delta: the vertical fill law GROWS the row track into the stage's
+        // budget (windows first, then row scale within the committed 24px
+        // clamp — the world's own v0/phone editing-row scale), so the track
+        // reads ABOVE the 15px narrow preset on a viewport this tall; the
+        // floors (≥11) and the 24px committed clamp bound the law.
         const fill = $(
           '.lane-floor[data-lane="drums"] .row-fill',
         ) as HTMLElement;
@@ -595,8 +599,8 @@ describe("MB-1 responsive stage (built app)", () => {
           ).toBeGreaterThanOrEqual(11);
           expect(
             px,
-            `${lane} track at/below the narrow max`,
-          ).toBeLessThanOrEqual(16);
+            `${lane} track within the i3-1 fill clamp (committed 24px max)`,
+          ).toBeLessThanOrEqual(24);
         }
 
         // Selection laws unchanged at tablet: a view-only quadrant click
@@ -640,17 +644,25 @@ describe("MB-1 responsive stage (built app)", () => {
           iframe.contentDocument!.documentElement.scrollHeight <= 800;
         await poll(fitsDesktop, 5_000, "1280×800 one-page (settled)");
         expect(fitsDesktop()).toBe(true);
-        // Desktop geometry law: the INLINE fill rail + the committed drums
-        // 20px track (the deep per-track byte-identity is quadrant-layout's
-        // own gate; this pins the boundary structurally).
+        // Desktop geometry law: the INLINE fill rail + the drums track within
+        // the i3-1 fill clamp. Delta: at 1280×800 the vertical fill law grows
+        // the committed 20px drums track to the 24px clamp (the budget
+        // allows it; the deep per-track law is quadrant-layout's own gate);
+        // the structural boundary pin is that the track is DESKTOP-inline
+        // and inside the fill clamp either way.
         const fill = $(
           '.lane-floor[data-lane="drums"] .row-fill',
         ) as HTMLElement;
         expect(fill.classList.contains("is-overlay")).toBe(false);
-        expect(
+        const drumsPx = Number.parseFloat(
           getComputedStyle($('.lane-floor[data-lane="drums"] .row-cells'))
             .gridAutoRows,
-        ).toBe("20px");
+        );
+        expect(
+          drumsPx,
+          "drums track within the fill clamp at the desktop boundary",
+        ).toBeGreaterThanOrEqual(20);
+        expect(drumsPx).toBeLessThanOrEqual(24);
 
         // The exact boundary: 1024 = desktop, 1023.98 = tablet.
         iframe.style.width = "1024px";

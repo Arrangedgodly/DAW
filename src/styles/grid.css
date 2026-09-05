@@ -91,8 +91,15 @@
 
 /* Long patterns scroll INSIDE the quadrant; rows never reflow on toggling.
  * T3: the pad bed — a machined recess the pads sit in (--metal-recess +
- * the --led-window inset stack; paint-only, zero layout px). */
+ * the --led-window inset stack; paint-only, zero layout px).
+ * i3-1 (vertical fill law): the bed is the pane's own positioning context —
+ * the renderer's two SR live spans (note-length + view) append AFTER the
+ * grid and position:absolute with no coordinates, so their static spot rode
+ * the full row manifest's tail and (once the floors own the viewport
+ * bottom) escaped the pane's clip to poke the page's scroll extent.
+ * Contained here, they stay the 1px clipped decorations they are. */
 .lane-grid-scroll {
+  position: relative;
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: var(--space-2);

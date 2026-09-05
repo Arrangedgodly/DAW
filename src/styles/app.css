@@ -28,9 +28,10 @@
 
 /*
  * LY-1: the four lane quadrants — 2×2 grid in visual reading order
- * (drums · bass / chords · lead). Rows size to content so a budget miss
- * grows the page (and fails the viewport assertion) instead of silently
- * clipping a quadrant.
+ * (drums · bass / chords · lead). Rows never SILENTLY clip a budget miss:
+ * each row's auto minimum is its content, so a real deficit (past the
+ * refinement-4 readability floors) grows the page and fails the viewport
+ * assertion instead — the grow-on-miss law.
  *
  * FV-1 (i3-6 / I3-b, 2026-09-04): the 1400px max-width cap is RETIRED —
  * the deliberate 1920-equals-1440 densification choice it encoded is
@@ -38,18 +39,33 @@
  * viewport width at EVERY desktop width: each quadrant's grid shows MORE
  * visible steps before its internal h-scroll (the RC-1 windowed grids'
  * whole point — width growth buys columns, never bigger cells; the
- * committed 16/20px cell scale is the readability law). The vertical
- * one-page budget is untouched (the refinement-4 fit owns that axis).
- * Scope: desktop-only by construction — below 1400px the cap was already
- * inert, so the tablet branch (768–1024) is byte-identical and the phone
- * branch below keeps its own committed `max-width: none` rule (MB-1,
- * byte-stable; the mobile family is regression-only, I3-f).
+ * committed 16/20px cell scale is the readability law).
+ *
+ * i3-1 (iteration-3 critique P1, the VERTICAL FILL LAW — the height twin of
+ * FV-1): the rows SHARE the vertical budget — `minmax(auto, 1fr)` grows
+ * each row into an equal share of the stage's free space above its content
+ * minimum, so the FLOORS FILL THEIR ROW and the stage paints edge to edge
+ * vertically at every desktop height; the i3-1 budget fit (LaneGrid) grows
+ * each quadrant's content — register-window rows first, then row scale
+ * within the committed 24px clamp — toward the same line, so the residue
+ * a lane cannot lawfully fill rides as its card's own panel space, never
+ * as a void below the stage. The vertical one-page law is unchanged (the
+ * fit's compression half owns deficits). Scope: desktop + tablet — the
+ * phone branch below keeps its own committed single-lane scrolling law
+ * (MB-1, byte-stable; the mobile family is regression-only, I3-f).
  */
 .stage-floors {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: minmax(auto, 1fr) minmax(auto, 1fr);
+  /* i3-1: own the stage's whole leftover height (the flex column under the
+   * rail) so the 1fr rows have a definite budget to share — a deficit
+   * instead overflows honestly and grows the page (the auto row minimum +
+   * the grow-on-miss law). Inert on the phone: its stage never stretches
+   * (flex:none shell) so there is no free space to grow into. */
+  flex: 1;
+  min-height: 0;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
   width: 100%;

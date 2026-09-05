@@ -339,6 +339,22 @@ export interface GridRenderer {
    */
   setRowHeight(px: number): void;
   /**
+   * Refinement i3-1 (critique P1, the vertical fill law): READ-ONLY geometry
+   * for the budget fit — the live row-track px, the register window's row
+   * count (null = unwindowed, the full manifest), the manifest row count,
+   * the currently SEATED window start (the semantic position, never a
+   * layout-derived one), and the row pitch (track + gap + margin,
+   * DOM-measured). The fit extrapolates content heights from these without
+   * writing; its writes go through setRowHeight/setWindow as today.
+   */
+  fitGeometry(): {
+    trackPx: number;
+    windowRows: number | null;
+    manifestRows: number;
+    windowStart: number;
+    pitchPx: number;
+  };
+  /**
    * RC-1 (v3): set the register window — the grid body becomes an internally
    * scrolling pane showing `heightRows` rows, with the FULL row manifest
    * staying in the DOM (the construction law: rows are bounded by the
@@ -347,8 +363,13 @@ export interface GridRenderer {
    * unwindowed law byte-identically (chords/drums on heptatonic projects,
    * every phone-stage grid). The accessible name carries the visible range
    * while windowed (E9).
+   *
+   * i3-1 (vertical fill law): `stepRows` pins the window-scroll STEP (the
+   * Shift+↑/↓ keys' ONE OCTAVE — the mode size) independently of the grown
+   * height; omitted, the step IS the height (the pre-fill law,
+   * byte-identical for every existing caller).
    */
-  setWindow(heightRows: number | null, start?: number): void;
+  setWindow(heightRows: number | null, start?: number, stepRows?: number): void;
   /**
    * RC-1: scroll the window so `start` is the first visible row (clamped to
    * the manifest; no-op when unwindowed). The ≥1-row snap guard keeps a free
@@ -438,6 +459,13 @@ export class DomGridRenderer implements GridRenderer {
   private viewLiveEl: HTMLElement | null = null;
   /** RC-1: visible register window in rows; null = unwindowed (full manifest). */
   private windowRows: number | null = null;
+  /**
+   * i3-1: the window-scroll STEP in rows — one OCTAVE (the mode size),
+   * decoupled from the (fill-grown) window height so Shift+↑/↓ and their
+   * ONE OCTAVE announcement stay honest at any grown size. Defaults to the
+   * height (the pre-fill law).
+   */
+  private windowStepRows = 0;
   /**
    * RC-1: the AUTHORITATIVE semantic window start — the last INTENTIONAL
    * seat (keys, lane view state, focus-follow). Never derived from layout:
@@ -870,14 +898,32 @@ export class DomGridRenderer implements GridRenderer {
     }
   }
 
+  /** Refinement i3-1: the budget fit's read seam (see the interface law). */
+  fitGeometry(): {
+    trackPx: number;
+    windowRows: number | null;
+    manifestRows: number;
+    windowStart: number;
+    pitchPx: number;
+  } {
+    return {
+      trackPx: this.rowHeightPx,
+      windowRows: this.windowRows,
+      manifestRows: this.cells.length,
+      windowStart: this.seatedStart,
+      pitchPx: this.rowPitch(),
+    };
+  }
+
   // -- RC-1: the register window ---------------------------------------------
 
-  setWindow(heightRows: number | null, start = 0): void {
+  setWindow(heightRows: number | null, start = 0, stepRows?: number): void {
     const effective =
       heightRows != null && heightRows < this.cells.length ? heightRows : null;
     const container = this.opts.container;
     if (effective === null) {
       this.windowRows = null;
+      this.windowStepRows = 0;
       this.seatedStart = 0;
       container.classList.remove("is-windowed");
       container.style.height = "";
@@ -886,6 +932,9 @@ export class DomGridRenderer implements GridRenderer {
       return;
     }
     this.windowRows = effective;
+    // i3-1: the step is the caller's octave when given, else the height
+    // (the pre-fill law — every non-fit caller passes the default window).
+    this.windowStepRows = Math.max(1, stepRows ?? effective);
     container.classList.add("is-windowed");
     this.applyWindowHeight();
     this.scrollWindowTo(start, true);
@@ -1027,7 +1076,16 @@ export class DomGridRenderer implements GridRenderer {
     const rows = this.cells.length;
     const w = this.windowRows;
     const start = this.seatedStart;
-    const target = clampedWindowScroll(start, dir, focusRow, rows, w);
+    // i3-1: the STEP is one octave (windowStepRows — the mode size), never
+    // the fill-grown height; bounds + the focus anchor stay on the live w.
+    const target = clampedWindowScroll(
+      start,
+      dir,
+      focusRow,
+      rows,
+      w,
+      this.windowStepRows,
+    );
     const range = (s: number) =>
       `ROWS ${this.opts.rowLabels[s] ?? s}–${this.opts.rowLabels[s + w - 1] ?? s + w - 1}`;
     if (target === start) {

@@ -79,6 +79,7 @@ import { Midi } from "@tonejs/midi";
 import { createDemoProject } from "../../src/document/demoSong";
 import { degreeToMidi, effectiveScale } from "../../src/document/scales";
 import { getPreset } from "../../src/audio/presets";
+import { clampedWindowScroll } from "../../src/grid/keynav";
 
 const bundleGlob = import.meta.glob("/dist/assets/index-*.js");
 const cssGlob = import.meta.glob("/dist/assets/index-*.css");
@@ -431,14 +432,32 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         );
         expect(chainCycleName("lead")).toBe("LEAD song chain · 4-BAR CYCLE");
         expect(chainCycleName("drums")).toBe("DRUMS song chain · 4-BAR CYCLE");
-        // i3-1: equal default register windows. Lead (15-row manifest)
-        // windows at one octave; fitting manifests keep today's names.
+        // i3-1: equal default register windows + the VERTICAL FILL twin. The
+        // lead (15-row manifest) windows — GROWN by the 1440×900 budget
+        // share (possibly to its full manifest, the unwindowed law) — while
+        // fitting manifests keep today's names. The grown count is
+        // budget-derived, so the boot asserts the LAW (≥ one octave, ≤
+        // manifest); the exact windowed journey runs at 1280×800 in §7,
+        // where the share windows deterministically below the manifest.
+        const visibleRows = (lane: string): number => {
+          const scroller = floor(lane).querySelector(".lane-grid-scroll")!;
+          const box = scroller.getBoundingClientRect();
+          let n = 0;
+          for (const row of scroller.querySelectorAll(".grid-row")) {
+            const r = row.getBoundingClientRect();
+            if (r.top >= box.top - 1 && r.bottom <= box.bottom + 1) n++;
+          }
+          return n;
+        };
+        const leadWindowed = floor("lead")
+          .querySelector(".lane-grid-scroll")!
+          .classList.contains("is-windowed");
+        expect(leadWindowed || visibleRows("lead") === 15).toBe(true);
         expect(
-          floor("lead")
-            .querySelector(".lane-grid-scroll")!
-            .classList.contains("is-windowed"),
-          "lead windowed (tall manifest)",
-        ).toBe(true);
+          visibleRows("lead"),
+          "lead window never below the one-octave default, never past the manifest",
+        ).toBeGreaterThanOrEqual(7);
+        expect(visibleRows("lead")).toBeLessThanOrEqual(15);
         for (const lane of ["bass", "chords", "drums"]) {
           expect(
             floor(lane)
@@ -452,26 +471,15 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect(rowCount("bass")).toBe(7);
         expect(rowCount("chords")).toBe(7);
         expect(rowCount("lead")).toBe(15);
-        const visibleRows = (lane: string): number => {
-          const scroller = floor(lane).querySelector(".lane-grid-scroll")!;
-          const box = scroller.getBoundingClientRect();
-          let n = 0;
-          for (const row of scroller.querySelectorAll(".grid-row")) {
-            const r = row.getBoundingClientRect();
-            if (r.top >= box.top - 1 && r.bottom <= box.bottom + 1) n++;
-          }
-          return n;
-        };
         expect(visibleRows("bass")).toBe(7);
         expect(visibleRows("chords")).toBe(7);
-        expect(visibleRows("lead")).toBe(7); // no lane visually dominates
         expect(visibleRows("drums")).toBe(6);
         // Select LEAD (the journey's lane) — the click-selects law.
         floor("lead").click();
         await poll(
-          () => gridName("lead") === "LEAD grid · EDITING · ROWS 6–12 OF 14",
+          () => gridName("lead").startsWith("LEAD grid · EDITING"),
           T.ui,
-          "lead selected (windowed edit name)",
+          "lead selected (edit name)",
         );
 
         // --- 2. PLAY: the LCM basis + unsynced per-lane sweeps -------------
@@ -963,7 +971,22 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect(firstDiffByte(wav0b, wav0)).toBe(-1);
 
         // --- 7. WINDOW SCROLL: view-only, clamped, focus-anchored ----------
+        // i3-1 delta: the 1440×900 share GROWS the lead window to (or
+        // within one row of) its full manifest, leaving no scroll room —
+        // so the windowed journey runs at 1280×800, where the share
+        // windows deterministically below the manifest. The live re-fit on
+        // the resize is itself the rotation-safe fill law (the observers
+        // re-distribute mid-session); every expectation derives from the
+        // LIVE window (the step stays ONE OCTAVE — 7 rows, the mode size —
+        // never the grown height).
         {
+          app.iframe.style.width = "1280px";
+          app.iframe.style.height = "800px";
+          await poll(
+            () => /ROWS (\d+)–(\d+) OF (\d+)/.test(gridName("lead")),
+            8_000,
+            "lead windowed after the 1280×800 re-fit",
+          );
           const cell = await (async () => {
             for (let i = 0; i < 40; i++) {
               const c = roving("lead");
@@ -981,6 +1004,12 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           const a0 = Number(m![1]);
           const b0 = Number(m![2]);
           const n = Number(m![3]); // the manifest's LAST row index
+          const w0 = b0 - a0 + 1; // the fill-grown window height
+          expect(
+            w0,
+            "the fill grew the window past the one-octave default",
+          ).toBeGreaterThan(7);
+          expect(w0).toBeLessThan(n + 1); // deterministically windowed here
           // Walk focus to the window's bottom row first (the anchor law
           // needs the focus off the top edge for a DOWN scroll — and the
           // walk itself proves arrows traverse the manifest).
@@ -990,7 +1019,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             Number((idoc().activeElement as HTMLElement).dataset.row),
           ).toBe(b0);
           const focused = idoc().activeElement as HTMLElement;
-          const newA = Math.min(a0 + 7, n - 7); // one octave, clamped
+          // One OCTAVE (the mode size), anchor- and manifest-clamped —
+          // the pure keynav law at the grown height.
+          const newA = clampedWindowScroll(a0, 1, b0, n + 1, w0, 7);
           key(focused, "ArrowDown", { shiftKey: true });
           await poll(
             () => viewLive("lead").startsWith("VIEW DOWN ONE OCTAVE"),
@@ -999,12 +1030,12 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           );
           const labels = rowLabels("lead");
           expect(viewLive("lead")).toBe(
-            `VIEW DOWN ONE OCTAVE · ROWS ${labels[newA]}–${labels[newA + 6]}`,
+            `VIEW DOWN ONE OCTAVE · ROWS ${labels[newA]}–${labels[newA + w0 - 1]}`,
           );
           await poll(
             () =>
               gridName("lead") ===
-              `LEAD grid · EDITING · ROWS ${newA}–${newA + 6} OF ${n}`,
+              `LEAD grid · EDITING · ROWS ${newA}–${newA + w0 - 1} OF ${n}`,
             T.ui,
             "the grid name carries the new window",
           );
@@ -1028,7 +1059,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             "arrows walked the full manifest to row 0",
           );
           await poll(
-            () => gridName("lead") === `LEAD grid · EDITING · ROWS 0–6 OF ${n}`,
+            () =>
+              gridName("lead") ===
+              `LEAD grid · EDITING · ROWS 0–${w0 - 1} OF ${n}`,
             T.ui,
             "the window followed focus to the top",
           );
@@ -1037,6 +1070,17 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             () => viewLive("lead").startsWith("VIEW AT TOP"),
             T.ui,
             "VIEW AT TOP clamp (anchor law)",
+          );
+          // Back to the journey's 1440×900 (the re-fit restores the share;
+          // §8's export flows and the one-page law ride on it).
+          app.iframe.style.width = `${VIEW_W}px`;
+          app.iframe.style.height = `${VIEW_H}px`;
+          await poll(
+            () =>
+              idoc().documentElement.scrollWidth <= VIEW_W &&
+              idoc().documentElement.scrollHeight <= VIEW_H,
+            8_000,
+            "one-page restored at 1440×900 after the window journey",
           );
         }
 
