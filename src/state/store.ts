@@ -1016,6 +1016,119 @@ export function appendChainSlot(lane: LaneId, patternId: string): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// LL-1 (iteration 3, i3-4): pattern RESIZE — the powers-of-two length ladder
+// (1·2·4·8·16·32·64·128) as an after-create edit. Policy (the Hulk
+// resolution, fixed): grow ALWAYS proceeds; shrink proceeds only when NO
+// note would be lost past the new end — otherwise a TYPED refusal (never a
+// silent truncation; the caller announces the blocking note). The blocking
+// note is deterministic: greatest end (start + length), ties broken by the
+// latest start (the focused-note determinism law, IN-2).
+// ---------------------------------------------------------------------------
+
+/** The blocking note a refusal names (row identity + extent, UI formats). */
+export interface ResizeBlockingNote {
+  /** Drum piece (drums patterns) or scale-degree row (pitched patterns). */
+  readonly row: DrumPiece | number;
+  /** Note anchor step (0-based). */
+  readonly start: number;
+  /** Note extent in steps (drums hits are always 1). */
+  readonly length: number;
+}
+
+export type ResizePatternResult =
+  | { readonly ok: true; readonly bars: PatternBars }
+  | { readonly ok: false; readonly reason: "not-found" | "no-op" }
+  | {
+      readonly ok: false;
+      readonly reason: "blocked";
+      readonly toBars: PatternBars;
+      readonly blocking: ResizeBlockingNote;
+    };
+
+/**
+ * Resize one pattern to `bars` (vocabulary size). Grow extends drum rows
+ * with empty steps (pitched notes never change on grow); a clean shrink
+ * truncates drum rows and leaves pitched notes byte-identical — every note
+ * fits the new extent. Refuses — store untouched — when any note would be
+ * lost past the new end: a drum hit at step ≥ newSteps, or a pitched note
+ * whose end (start + length) exceeds newSteps (no silent truncation; the
+ * overhang-wrap law never applies to the RESIZE path — the user moves or
+ * shortens the note first). Undo family `resize:<lane>:<pattern>` (KL-1:
+ * held-key ladder repeats coalesce like the octave family — one gesture).
+ */
+export function resizePattern(
+  lane: LaneId,
+  patternId: string,
+  bars: PatternBars,
+): ResizePatternResult {
+  const doc = docStore.getState().doc;
+  const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  if (!pattern) return { ok: false, reason: "not-found" };
+  if (pattern.bars === bars) return { ok: false, reason: "no-op" };
+  const newSteps = bars * 16;
+  if (bars < pattern.bars) {
+    // Shrink: scan for anything the truncation would lose.
+    if (pattern.kind === "drums") {
+      let blocking: ResizeBlockingNote | null = null;
+      for (const piece of DRUM_PIECES) {
+        const steps = pattern.steps[piece];
+        for (let step = newSteps; step < steps.length; step++) {
+          if (!steps[step]) continue;
+          // Deterministic: greatest end (a hit's end is step + 1).
+          if (
+            !blocking ||
+            step + 1 > blocking.start + blocking.length ||
+            (step + 1 === blocking.start + blocking.length &&
+              step > blocking.start)
+          ) {
+            blocking = { row: piece, start: step, length: 1 };
+          }
+        }
+      }
+      if (blocking) {
+        return { ok: false, reason: "blocked", toBars: bars, blocking };
+      }
+    } else {
+      let blocking: ResizeBlockingNote | null = null;
+      for (const note of pattern.notes) {
+        if (note.start + note.length <= newSteps) continue;
+        if (
+          !blocking ||
+          note.start + note.length > blocking.start + blocking.length ||
+          (note.start + note.length === blocking.start + blocking.length &&
+            note.start > blocking.start)
+        ) {
+          blocking = { row: note.degree, start: note.start, length: note.length };
+        }
+      }
+      if (blocking) {
+        return { ok: false, reason: "blocked", toBars: bars, blocking };
+      }
+    }
+  }
+  const nextPatterns = doc.patterns[lane].map((p) => {
+    if (p.id !== patternId) return p;
+    if (p.kind === "drums") {
+      const steps = {} as Record<DrumPiece, boolean[]>;
+      for (const piece of DRUM_PIECES) {
+        const row = p.steps[piece];
+        steps[piece] =
+          row.length < newSteps
+            ? [...row, ...new Array(newSteps - row.length).fill(false)]
+            : row.slice(0, newSteps);
+      }
+      return { ...p, bars, steps };
+    }
+    return { ...p, bars };
+  });
+  commit(
+    { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } },
+    `resize:${lane}:${patternId}`,
+  );
+  return { ok: true, bars };
+}
+
 /** Remove chain slot `index`; refuses (returns false) on the last slot. */
 export function removeChainSlot(lane: LaneId, index: number): boolean {
   const doc = docStore.getState().doc;

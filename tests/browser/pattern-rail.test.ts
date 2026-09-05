@@ -21,7 +21,7 @@ import App from "../../src/App";
 import { getHelp } from "../../src/help/registry";
 import { createDemoProject } from "../../src/document/demoSong";
 import { docStore } from "../../src/state/store";
-import { activePatterns, selectLane } from "../../src/state/selection";
+import { activePatterns, currentPatternFor, selectLane } from "../../src/state/selection";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 // Token sheet exactly as deployed (the DA-3-fix axe-gate precedent).
@@ -121,6 +121,14 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
             ?.textContent?.trim() ?? "";
         const bassFloor = () =>
           host.querySelector('.lane-floor[data-lane="bass"]')!;
+        /** LL-1: the SELECTED bass pattern's bars (the `b` ladder target) —
+         * through currentPatternFor (the funnel's authority: after §3's
+         * undo the ephemeral selection may still point at the reverted
+         * blank's id, which resolves back to the chain's first pattern). */
+        const selectedBars = (): number => {
+          void activePatterns();
+          return Number(currentPatternFor("bass")?.bars ?? 0);
+        };
 
         // --- 1. E11 WORDING: the control says NEW, never duplicate-by-+ ----
         const plus = $<HTMLButtonElement>(
@@ -183,21 +191,14 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
 
         // --- 4. IMMEDIATELY EDITABLE: the grid remounts to the blank --------
         // (Make the current selection 4-bar first, so the blank's 1-bar
-        // extent is an observable flip: PAT menu → +4B → selected 4-bar.)
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="bass"] .rail-tools-trigger',
-        ).click();
-        await waitFor(
-          () =>
-            host.querySelector(
-              '.rail-row[data-lane="bass"] button[aria-label="Add 4-bar pattern to BASS"]',
-            ) !== null,
-          2000,
-          "PAT menu open",
-        );
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="bass"] button[aria-label="Add 4-bar pattern to BASS"]',
-        ).click();
+        // extent is an observable flip. LL-1 journey delta: the PAT menu's
+        // +4B create button retired with the LENGTH stepper — the honest
+        // remaining path is the global `b` ladder, which this gate now
+        // exercises on the way: A 1→2→4.)
+        key(document.body, "b");
+        await waitFor(() => selectedBars() === 2, 2000, "b grows A 1→2");
+        key(document.body, "b");
+        await waitFor(() => selectedBars() === 4, 2000, "b grows A 2→4");
         const rowCount = () =>
           bassFloor().querySelectorAll(".grid-row").length;
         await waitFor(
@@ -239,14 +240,15 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         lastTile.focus();
         key(lastTile, "+");
         await waitFor(() => chainLen() === 6, 3000, "key + appends the blank");
-        // Pool: demo A–D, the 4-bar E, the blank F (button), the blank G (key).
-        expect(poolSize()).toBe(7);
+        // Pool: demo A–D (A now 4-bar via the §4 `b` ladder — the §3 undo
+        // reverted §2's blank), the blank E (§4 button), the blank F (key).
+        expect(poolSize()).toBe(6);
         const keyTile = tiles()[5]!;
         expect(keyTile.querySelector(".rail-tile-name")?.textContent).toBe(
-          "G",
+          "F",
         );
         await waitFor(
-          () => announce() === "PATTERN G CREATED · 1 BAR · APPENDED",
+          () => announce() === "PATTERN F CREATED · 1 BAR · APPENDED",
           2000,
           "key-path creation announcement",
         );

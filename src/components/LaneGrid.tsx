@@ -67,9 +67,11 @@ import {
   stageMode,
 } from "../state/selection";
 import {
+  carryGridFocusOnUnmount,
   focusRequest,
   requestLaneFocus,
   selectQuadrantFromPointer,
+  takeCarriedGridFocus,
 } from "../state/gridFocus";
 import { closeFxConsole, fxConsoleLane } from "../state/fxConsole";
 import { closeFillRails, fillRailsOpen } from "../state/fillRails";
@@ -726,6 +728,13 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
 
     rendererRef = renderer;
     renderer.sync(syncPatternFor(pattern));
+    // LL-1 (the resize-remount carry law): when the previous surface held
+    // DOM focus (its cleanup recorded the cursor), the fresh mount lands
+    // focus on the CARRIED cell — same row, step clamped to the new extent
+    // (focusCell clamps; the v0 carry-clamp law). Nothing consumed = focus
+    // was elsewhere (the no-yank law — `b` pressed from the rail).
+    const carried = takeCarriedGridFocus(lane);
+    if (carried) renderer.focusCell(carried.row, carried.step);
     // RC-1: the equal default register window (mount-time; the effect below
     // tracks later view-state moves).
     const visibleRows = applyRegisterWindow();
@@ -823,6 +832,9 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     onCleanup(() => {
+      // LL-1: record the resize-remount carry FIRST — while the dying
+      // container still contains DOM focus (the renderer is disposed below).
+      if (container) carryGridFocusOnUnmount(lane, container, rendererRef?.cursor() ?? null);
       unsubscribe();
       for (const dispose of fillDisposers) dispose();
       renderer.dispose();

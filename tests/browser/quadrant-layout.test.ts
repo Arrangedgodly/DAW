@@ -531,31 +531,28 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(pageFits(), "page still fits with the widened rail").toBe(true);
 
         // --- 10. One-page law under the Hulk extreme (4-bar pattern) -------
-        // Refinement-6: the tools live behind the row's PAT menu — open it,
-        // then act inside it (the `n` key twin bypasses the menu).
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] .rail-tools-trigger',
-        ).click();
-        await poll(
-          () =>
-            idoc().querySelector(
-              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-            ) !== null,
-          2_000,
-          "LEAD pattern tools menu open",
-        );
-        const add4B = $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-        );
-        // Clicking a rail tool adds AND selects the pattern (the lead
-        // quadrant grid switches to the 4-bar shape → internal h-scroll).
-        add4B.click();
-        await poll(
-          () =>
-            (floor("lead").querySelectorAll(".cell").length ?? 0) === 14 * 64,
-          5_000,
-          "4-bar lead pattern rendered (14 rows × 64 steps)",
-        );
+        // LL-1 journey delta: the +4B menu button retired with the LENGTH
+        // stepper — the honest path is select the lead quadrant, then the
+        // global `b` ladder ×2 on its selected pattern (the lead quadrant
+        // grid remounts to the 4-bar shape → internal h-scroll).
+        $<HTMLElement>('.lane-floor[data-lane="lead"]').click();
+        await new Promise((r) => setTimeout(r, 150));
+        for (const k of ["b", "b"]) {
+          idoc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
+        await poll(() => {
+          const rows = floor("lead").querySelectorAll(".grid-row");
+          return (
+            rows.length > 0 &&
+            floor("lead").querySelectorAll(".cell").length === rows.length * 64
+          );
+        }, 5_000, "4-bar lead pattern rendered (64 steps per row)");
         expect(
           pageFits(),
           "page must still fit with a 4-bar pattern (grid scrolls inside its quadrant, never the page)",
@@ -822,29 +819,32 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(fits(MIN_W, MIN_H), "page fits back at 1280×800").toBe(true);
 
         // --- 1b-6. Hulk extreme at the minimum ----------------------------
-        // Refinement-6: open the row's PAT menu, then add inside it.
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] .rail-tools-trigger',
-        ).click();
-        await poll(
-          () =>
-            idoc().querySelector(
-              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-            ) !== null,
-          2_000,
-          "LEAD pattern tools menu open at 1280",
+        // LL-1 journey delta: the +4B menu button retired with the LENGTH
+        // stepper — select the lead quadrant, then the global `b` ladder.
+        $(`.lane-floor[data-lane="lead"]`).dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-        ).click();
-        await poll(
-          () =>
-            ($(`.lane-floor[data-lane="lead"]`).querySelectorAll(".cell")
-              .length ?? 0) ===
-            14 * 64,
-          5_000,
-          "4-bar lead pattern rendered at 1280",
-        );
+        await new Promise((r) => setTimeout(r, 150));
+        for (const k of ["b", "b"]) {
+          idoc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
+        await poll(() => {
+          const rows = $(`.lane-floor[data-lane="lead"]`).querySelectorAll(
+            ".grid-row",
+          );
+          return (
+            rows.length > 0 &&
+            $(`.lane-floor[data-lane="lead"]`).querySelectorAll(".cell")
+              .length ===
+              rows.length * 64
+          );
+        }, 5_000, "4-bar lead pattern rendered at 1280 (64 steps per row)");
         expect(
           fits(MIN_W, MIN_H),
           "page fits with a 4-bar pattern at 1280×800 (grid scrolls inside its quadrant, never the page)",

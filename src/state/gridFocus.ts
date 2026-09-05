@@ -123,3 +123,42 @@ export function requestCellFocus(
   selectLane(lane);
   setFocusRequest({ lane, row, step, mode: "cell", seq: ++seq });
 }
+
+/* ---------------------------------------------------------------------------
+ * LL-1 (iteration 3, keyboard.md v3 §"Pattern resize"): the RESIZE REMOUNT
+ * carry. A resize rebuilds the grid at the new extent (the G9 remount key);
+ * when focus was IN that grid, the new mount lands it on the CARRIED cell —
+ * same row, step clamped to the new extent's last step (the v0 carry-clamp
+ * law). Focus anywhere else never moves (the no-yank law): the dying
+ * surface records the carry ONLY while it holds DOM focus.
+ * ------------------------------------------------------------------------- */
+
+/** The one-shot carry (lane + cursor); consumed by the next mount. */
+let resizeCarry: { lane: LaneId; row: number; step: number } | null = null;
+
+/**
+ * Record the carry as a grid unmounts UNDER FOCUS (call from the surface's
+ * cleanup — activeElement is still inside `container` there only when the
+ * grid held focus; the remount then lands focus instead of dropping to
+ * <body>).
+ */
+export function carryGridFocusOnUnmount(
+  lane: LaneId,
+  container: HTMLElement,
+  cursor: { row: number; step: number } | null,
+): void {
+  if (typeof document === "undefined") return;
+  const active = document.activeElement;
+  if (!active || !container.contains(active) || !cursor) return;
+  resizeCarry = { lane, row: cursor.row, step: cursor.step };
+}
+
+/** Consume the carry for `lane`'s fresh mount (null when none applies). */
+export function takeCarriedGridFocus(
+  lane: LaneId,
+): { row: number; step: number } | null {
+  if (!resizeCarry || resizeCarry.lane !== lane) return null;
+  const carry = resizeCarry;
+  resizeCarry = null;
+  return carry;
+}

@@ -22,7 +22,7 @@
  */
 
 import { compileLaneEvents } from "./compile";
-import { type GrooveOptions, timeAtStep } from "./time";
+import { type GrooveOptions, stepOfTimeBounded } from "./time";
 import {
   type DrumKit,
   type VoiceNoteOnEvent,
@@ -117,12 +117,17 @@ export function compileLaneSchedule(input: LaneScheduleInput): LaneSchedule {
   return { chainSteps: cursor, segments, byStep };
 }
 
-/** Inverse of timeAtStep within a pattern (boundary rule: [t(i), t(i+1))). */
+/**
+ * Inverse of timeAtStep within a pattern (boundary rule: [t(i), t(i+1))).
+ * LL-1 (LP-1 §10b — seam F5): the O(steps) scan is replaced by the shared
+ * bounded lookup (time.ts stepOfTimeBounded — the same division-floor guess
+ * + ≤3 exact predicates, bit-identical by construction). This runs once per
+ * compiled event inside compileLaneSchedule, which made every pitched edit
+ * recompile cost O(notes × steps) — 276-438 ms at 128 bars musical density
+ * before, 2.5-4.3 ms after (LP-1 §10c).
+ */
 function stepOfTime(t: number, groove: GrooveOptions, steps: number): number {
-  for (let i = 0; i < steps - 1; i++) {
-    if (t >= timeAtStep(i, groove) && t < timeAtStep(i + 1, groove)) return i;
-  }
-  return steps - 1;
+  return stepOfTimeBounded(t, groove, steps);
 }
 
 /** Compile every lane's chain (full-song scheduling). */

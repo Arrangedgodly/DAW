@@ -115,6 +115,50 @@
   overflow-y: hidden;
 }
 
+/*
+ * LL-1 (iteration 3, i3-4 — LP-1 §10a): COLUMN-WINDOW VIRTUALIZATION. Grids
+ * beyond the v0.1 4-bar maximum (renderer GRID_VIRTUALIZE_MIN_STEPS) keep a
+ * native, PATTERN-WIDE scroll extent via an invisible absolute sizer, while
+ * the grid itself lives in a sticky layer the compositor pins to the visible
+ * edge as the sizer scrolls under it — no JS on the per-scroll path; the
+ * renderer rebuilds only the window (hysteresis-gated, pool-recycled). The
+ * renderer pins the sizer's px inline; these classes hold only positioning.
+ *
+ * TWO-AXIS SPLIT (measured in-task): the sizer + sticky layer live in a
+ * DEDICATED single-axis horizontal scroller (.grid-hscroll), not in the RC-1
+ * vertical-window container — a sticky child inside a scroller overflowing
+ * on BOTH axes re-lays-out per horizontal scroll step (65 ms/frame fling on
+ * the windowed lead); split, the same sweep runs at ~16.7 ms. The outer
+ * .lane-grid-scroll keeps the entire RC-1 window law (vertical only now).
+ * overflow-anchor off for the same reason as the register window: Chromium's
+ * scroll anchoring would fight the pinned layer with compensating offsets.
+ */
+.grid-hscroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-anchor: none;
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+    transparent;
+}
+
+.grid-hscroll.is-col-windowed {
+  position: relative;
+}
+
+.grid-col-sizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 1px;
+  visibility: hidden;
+}
+
+.grid-col-layer {
+  position: sticky;
+  left: 0;
+  width: max-content;
+}
+
 .lane-grid {
   position: relative;
   width: max-content;
@@ -441,10 +485,15 @@
   outline-offset: -2px;
 }
 
-/* Gate-length raise: the note bar's literal width over the uniform grid. */
+/* Gate-length raise: the note bar's literal width over the uniform grid.
+ * LL-1: the runs layer carries the column window's offset as ONE transform
+ * and clips at the window edge — every run keeps its TRUE pattern geometry,
+ * so surviving runs never repaint across a rewindow (the glow shadow's
+ * raster is the measured paint cost otherwise). */
 .note-runs {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 

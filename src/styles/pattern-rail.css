@@ -409,6 +409,26 @@
   cursor: not-allowed;
 }
 
+/*
+ * LL-1 (i3-4): the LENGTH stepper group inside the PAT tools menu — the
+ * gate-stepper vocabulary (buttons flanking a value span; the span carries
+ * the live `LENGTH <n> BARS` readout). The menu's flex-wrap row carries it;
+ * the span is a plain chip (never interactive, always text-readable).
+ */
+.rail-length {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.rail-length-value {
+  font: var(--text-value);
+  color: var(--color-ink);
+  min-width: 11ch;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .rail-edit {
   font: var(--text-value);
   color: var(--color-ink);

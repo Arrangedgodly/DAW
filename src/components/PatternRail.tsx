@@ -2,7 +2,7 @@
  * PatternRail (DES-6 + IN-3): the song arrangement rail under the booth. Per
  * lane, one row of pattern TILES — chain instances in the lane's chain order
  * (repeats allowed; a tile = one chain slot referencing a pattern) — plus the
- * lane's pattern-management controls (ADD 1/2/4 bars, DUP, REN, RM) behind
+ * lane's pattern-management controls (LENGTH resize, DUP, REN, RM) behind
  * one PAT trigger per row (refinement-6: the six-tool row ×4 lanes competed
  * with the tiles for scan space — the tools are pool management, so they
  * distill into the popover vocabulary; every control keeps its function,
@@ -15,6 +15,14 @@
  * `PATTERN B CREATED · 1 BAR · APPENDED` through the lane's rail status
  * region. DUP (PAT menu + global `d`) is unchanged and is the ONLY
  * duplication path.
+ *
+ * LL-1 (i3-4, keyboard.md v3 §"Pattern resize"): pattern LENGTH is the only
+ * length control — the PAT menu's LENGTH stepper and the global `b`/
+ * Shift+`b` ladder resize the SELECTED pattern across
+ * 1·2·4·8·16·32·64·128 bars (grow always proceeds; shrink refuses by
+ * default when any note would be lost — the E10 refusal names the blocking
+ * note). The v2 +1B/+2B/+4B create buttons retired with it (creation is
+ * `+`/`n` at 1 bar; LENGTH grows it).
  *
  * Click a tile while playing → quantized switch request (engineBridge.
  * requestPatternSwitch); the tile shows PENDING (from session.
@@ -67,30 +75,29 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
   type JSX,
 } from "solid-js";
-import {
-  CUE_MAX_CHARS,
-  type LaneId,
-  type PatternBars,
-} from "../document/schema";
+import { CUE_MAX_CHARS, type LaneId } from "../document/schema";
 import { LANE_NAMES } from "./laneMeta";
 import { getSession } from "../engine/session";
 import { requestPatternSwitch } from "../state/engineBridge";
 import {
   appendBlankPattern,
-  addPattern,
   docStore,
   duplicatePattern,
   removeChainSlot,
   removePattern,
   renamePattern,
+  resizePattern,
   setChainCue,
 } from "../state/store";
 import {
+  barOfStep,
   clampCue,
   clampSlot,
   clampSlotTo,
+  nextPatternLength,
   nextPatternLabel,
   patternCreatedAnnouncement,
   patternPool,
@@ -102,6 +109,10 @@ import {
   rangeExtend,
   rangeIncludes,
   rangeRows,
+  resizeLimitAnnouncement,
+  resizeRefusalAnnouncement,
+  resizeRowLabel,
+  resizeSuccessAnnouncement,
   structurePendingAnnouncement,
   tileState,
   type RailCell,
@@ -121,6 +132,7 @@ import {
 import {
   activeLane,
   activePatterns,
+  currentPatternFor,
   selectPattern,
   stageMode,
   toggleViewMode,
@@ -147,9 +159,9 @@ registerHelp([
     text: "Creates a NEW blank pattern — next letter, one bar — appends it to the end of this lane's chain and selects it for editing. The + key on a focused tile does the same. To copy the selected pattern instead, use DUP: it is the only duplicator.",
   },
   {
-    id: "rail.add",
-    title: "ADD PATTERN",
-    text: "Creates a new pattern of this length (1, 2 or 4 bars) for the lane and selects it for editing. Shortcut: N.",
+    id: "rail.length",
+    title: "LENGTH",
+    text: "Resizes the lane's SELECTED pattern one step along the length ladder — 1, 2, 4, 8, 16, 32, 64 or 128 bars (shortcut B grows, Shift+B shrinks). Growing always works; shrinking refuses while any note would be lost past the new end — move or shorten the note first. New patterns start at 1 bar and grow from here.",
   },
   {
     id: "rail.duplicate",
@@ -174,7 +186,7 @@ registerHelp([
   {
     id: "rail.tools",
     title: "PATTERN TOOLS",
-    text: "Opens this lane's pattern toolbox: new 1, 2 or 4-bar patterns, duplicate, rename, remove. The keys reach them without opening it — N new, D duplicate, R rename — and it closes itself after an action or on Escape.",
+    text: "Opens this lane's pattern toolbox: rename, LENGTH resize (1 to 128 bars — the field stays open while you step it), duplicate, remove. The keys reach them without opening it — N new, B longer, Shift+B shorter, D duplicate, R rename — and it closes itself after an action or on Escape.",
   },
 ]);
 
@@ -196,6 +208,63 @@ const [cueSummary, setCueSummary] = createSignal("");
  * row's toolbox closes the first.
  */
 const [toolsLane, setToolsLane] = createSignal<LaneId | null>(null);
+
+/* ---------------------------------------------------------------------------
+ * LL-1 (iteration 3, i3-4 — keyboard.md v3 §"Pattern resize"): the LENGTH
+ * funnel. ONE path every input takes (PAT menu LENGTH −/+ buttons, global
+ * `b`/Shift+`b`; the E5 pointer/keyboard parity law): one vocabulary step
+ * along 1·2·4·8·16·32·64·128 on the lane's SELECTED pattern, through the
+ * store's `resizePattern` (grow always proceeds; shrink refuses by default
+ * when any note would be lost — never a silent truncation). Every outcome
+ * speaks through the lane's rail status region (E10): success/limit/
+ * refusal — the limit no-op still announces, the refusal names the blocking
+ * note deterministically.
+ *
+ * `lengthLine` renders over the region's pending/follow line; a SUCCESS
+ * additionally arms `pendingLengthFlush` — the resize commit is a chain
+ * STRUCTURE edit, which synchronously emits a lane switch event that bumps
+ * `switchVersion` and queues the announce effect: that exact run consumes
+ * the flush (the BC-1 creation-override law). Refusals/limits write no
+ * document, emit nothing — their line stands until the next real announce
+ * event replaces it.
+ * ------------------------------------------------------------------------- */
+const [lengthLine, setLengthLine] = createSignal<Partial<Record<LaneId, string>>>(
+  {},
+);
+const pendingLengthFlush = new Map<LaneId, string>();
+
+export function stepPatternLength(lane: LaneId, delta: 1 | -1): void {
+  const pattern = currentPatternFor(lane);
+  if (!pattern) return;
+  const next = nextPatternLength(pattern.bars, delta);
+  if (next === null) {
+    setLengthLine((prev) => ({
+      ...prev,
+      [lane]: resizeLimitAnnouncement(pattern.name, pattern.bars),
+    }));
+    return;
+  }
+  const result = resizePattern(lane, pattern.id, next);
+  if (result.ok) {
+    const text = resizeSuccessAnnouncement(pattern.name, next);
+    pendingLengthFlush.set(lane, text);
+    setLengthLine((prev) => ({ ...prev, [lane]: text }));
+    return;
+  }
+  if (result.reason === "blocked") {
+    const doc = docStore.getState().doc;
+    setLengthLine((prev) => ({
+      ...prev,
+      [lane]: resizeRefusalAnnouncement(
+        pattern.name,
+        result.toBars,
+        resizeRowLabel(doc, lane, result.blocking.row),
+        barOfStep(result.blocking.start),
+      ),
+    }));
+  }
+  // "no-op"/"not-found" cannot occur through the ladder — silent.
+}
 
 /**
  * Refinement-7 (critique P2-3 / deferred #14 — the HW-5 observation): the
@@ -569,6 +638,23 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       setAnnounce(text);
       return;
     }
+    // LL-1: a LENGTH success arms its flush BEFORE the resize commit emits
+    // this run (the BC-1 ordering law) — consume it and re-write the same
+    // line, so the region shows the resize text, not the follow line.
+    const lengthFlush = pendingLengthFlush.get(props.lane);
+    if (lengthFlush !== undefined) {
+      pendingLengthFlush.delete(props.lane);
+      setAnnounce(lengthFlush);
+      setLengthLine((prev) => ({ ...prev, [props.lane]: undefined }));
+      return;
+    }
+    // Any LATER announce event replaces a lingering refusal/limit line. The
+    // read is UNTRACKED: this effect must fire on switch events only — a
+    // tracked read would re-run it on the refusal's own write and wipe the
+    // line in the same tick it appeared.
+    if (untrack(() => lengthLine()[props.lane]) !== undefined) {
+      setLengthLine((prev) => ({ ...prev, [props.lane]: undefined }));
+    }
     const pending = session.getPendingSwitch(props.lane);
     if (pending)
       setAnnounce(pendingAnnouncement(LANE_NAMES[props.lane], pending));
@@ -609,11 +695,15 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     if (playing()) requestPatternSwitch(props.lane, tile.patternId);
   };
 
-  const handleAdd = (bars: PatternBars) => {
-    const n = patternPool(docStore.getState().doc, props.lane).length;
-    const id = addPattern(props.lane, bars, nextPatternLabel(n));
-    selectPattern(props.lane, id);
-  };
+  /**
+   * LL-1 (i3-4): the LENGTH stepper's live value — the SELECTED pattern's
+   * bars (the stepper resizes it; create-at-size = `+`/`n` then grow, the
+   * BC-1 ladder flow). The stepper OWNS ITS LIFECYCLE inside the popover
+   * (stays open across presses — the rename-field precedent), so this is
+   * read reactively per press.
+   */
+  const selectedBars = (): number =>
+    pool().find((p) => p.patternId === selectedId())?.bars ?? 1;
 
   /**
    * BC-1 (I3-a): THE rail `+` action — one press creates a NEW blank
@@ -1020,22 +1110,42 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
                 }}
               />
             </Show>
-            <For each={[1, 2, 4] as const}>
-              {(bars) => (
-                <button
-                  type="button"
-                  class="rail-tool"
-                  data-help="rail.add"
-                  aria-label={`Add ${bars}-bar pattern to ${LANE_NAMES[props.lane]}`}
-                  onClick={() => {
-                    handleAdd(bars);
-                    closeTools();
-                  }}
-                >
-                  +{bars}B
-                </button>
-              )}
-            </For>
+            {/*
+              LL-1 (i3-4): the LENGTH stepper — the resize surface (the v2
+              +1B/+2B/+4B create buttons retire here; the recorded
+              production decision: creation is `+`/`n` (1 bar, BC-1) and
+              LENGTH grows it — the KL-1 v3 coverage table's only PAT-menu
+              length row is this stepper). Owns its lifecycle inside the
+              popover: stays open across presses (the rename-field
+              precedent); announcements ride the lane's rail status region.
+            */}
+            <div
+              class="rail-length"
+              role="group"
+              aria-label={`Pattern length for ${LANE_NAMES[props.lane]} selected pattern`}
+            >
+              <button
+                type="button"
+                class="rail-tool"
+                data-help="rail.length"
+                aria-label={`Shrink ${LANE_NAMES[props.lane]} selected pattern one length step (Shift+B)`}
+                onClick={() => stepPatternLength(props.lane, -1)}
+              >
+                LENGTH −
+              </button>
+              <span class="rail-length-value" aria-live="polite">
+                {`LENGTH ${selectedBars()} BAR${selectedBars() === 1 ? "" : "S"}`}
+              </span>
+              <button
+                type="button"
+                class="rail-tool"
+                data-help="rail.length"
+                aria-label={`Grow ${LANE_NAMES[props.lane]} selected pattern one length step (B)`}
+                onClick={() => stepPatternLength(props.lane, 1)}
+              >
+                LENGTH +
+              </button>
+            </div>
             <button
               type="button"
               class="rail-tool"
@@ -1066,7 +1176,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       </div>
 
       <span class="head-sr" role="status" aria-live="polite">
-        {announce()}
+        {lengthLine()[props.lane] ?? announce()}
       </span>
     </div>
   );

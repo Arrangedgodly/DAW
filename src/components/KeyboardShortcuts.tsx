@@ -20,6 +20,8 @@ import {
   undo,
 } from "../state/store";
 import { activeLane, activePatterns, announceDrumsNoOctave, selectPattern, stepLaneOctave } from "../state/selection";
+import { nextPatternLabel } from "../state/patternRail";
+import { stepPatternLength } from "./PatternRail";
 import { helpOpen, openHelp } from "../state/helpOverlay";
 import { toggleHelp } from "../state/helpMode";
 import HelpOverlay from "./HelpOverlay";
@@ -92,10 +94,20 @@ export default function KeyboardShortcuts(): JSX.Element {
     const lane = activeLane();
     if (e.key === "n") {
       e.preventDefault();
+      // BC-1 deviation closure (LL-1): the naming rides the ONE authority
+      // (patternRail.nextPatternLabel) — the rail `+` and the PAT tools
+      // share it; the inline A..Z/P27+ copy is gone.
       const n = docStore.getState().doc.patterns[lane].length;
-      const name = n < 26 ? String.fromCharCode(65 + n) : `P${n + 1}`;
-      const id = addPattern(lane, 1, name);
+      const id = addPattern(lane, 1, nextPatternLabel(n));
       selectPattern(lane, id);
+    } else if (e.key === "b" || e.key === "B") {
+      // LL-1 (i3-4, keyboard.md v3): pattern LENGTH ladder — `b` one
+      // vocabulary step BIGGER (1→2→…→128), Shift+`b` one SMALLER. Works on
+      // drums patterns too; the at-limit press is a no-op that still
+      // announces; a lossy shrink refuses and names the blocking note (E10).
+      // ONE funnel with the PAT menu's LENGTH stepper (E5 parity).
+      e.preventDefault();
+      stepPatternLength(lane, e.shiftKey ? -1 : 1);
     } else if (e.key === "d") {
       e.preventDefault();
       const id = duplicatePattern(lane, activePatterns()[lane]);

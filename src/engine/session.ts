@@ -15,7 +15,7 @@ import {
   STEPS_PER_BEAT,
   STEPS_PER_BAR,
   clampSwing,
-  stepIndexAtTime,
+  stepOfTimeBounded,
 } from "../audio/time";
 import { type LaneSchedule, type LaneSegment } from "../audio/song";
 import { clamp } from "../lib/clamp";
@@ -740,6 +740,10 @@ export class Session {
 
   /**
    * Legacy single-pattern seam (DES-4 tests): builds a one-segment schedule.
+   * LL-1 (seam F10): the `bars: 4` HARD-CODE in the event→step bucketing is
+   * RETIRED — events bucket against the pattern's REAL step count at any
+   * vocabulary size (the bounded steps-typed lookup; previously every event
+   * past step 63 collapsed onto step 63 under a fixed 64-step window).
    */
   setLaneEvents(
     laneId: LaneId,
@@ -752,11 +756,7 @@ export class Session {
       swing: this.transport.snapshot.swing,
     };
     for (const event of events) {
-      const step = stepIndexAtTime(event.time, {
-        bars: 4,
-        bpm: groove.bpm,
-        swing: groove.swing,
-      });
+      const step = stepOfTimeBounded(event.time, groove, patternSteps);
       const bucket = byStep.get(step);
       if (bucket) bucket.push(event);
       else byStep.set(step, [event]);

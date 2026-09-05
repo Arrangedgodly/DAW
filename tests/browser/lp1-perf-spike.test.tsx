@@ -6,18 +6,17 @@
  * deltas are measured in-page exactly like the committed frame-budget
  * gates):
  *
- * (a) EAGER BASELINE — the real app at 1440×900 in the target state "a
- *     128-bar pattern visible on one lane while all four lanes play dense
- *     long chains" (drums 64B + bass 4B + chords 8B + the dense 128-bar
- *     lead, LCM = one 128-bar cycle): DOM cell count, 4 s of frame
- *     intervals while playing, per-quadrant playhead liveness, and the
- *     per-TOGGLE block (the store → validate → engineBridge recompile →
- *     renderer sync chain — where the O(steps) stepOfTime scan lands on
- *     every pitched edit today).
+ * (a) PRODUCTION VIRTUALIZATION (LL-1) — since LL-1 the real app renders
+ *     long patterns through the committed sticky-layer column window in
+ *     src/grid/renderer.ts (the eager baseline the spike measured is
+ *     retired; §10's eager numbers remain the recorded motivation). HARD
+ *     laws here: the windowed DOM census (≪ 100k, < 10k) + pattern-wide
+ *     native extents + the frame/toggle budgets. This block is the
+ *     production re-measure of §10a/§10c at the same dense-128 state.
  * (a′) PHONE WINDOW — the same dense state at 390×844 (the single-lane
- *     stage shows the 30,720-cell lead grid). Honest caveat: CI Chromium is
- *     desktop-class hardware emulating the viewport (the MB-5 stance) — a
- *     regression catch, not a device-class verdict.
+ *     stage's 2048-step lead grid rides the same column window). Honest
+ *     caveat: CI Chromium is desktop-class hardware emulating the viewport
+ *     (the MB-5 stance) — a regression catch, not a device-class verdict.
  * (a″) WINDOWED PROTOTYPE — the committed column-window approach
  *     (WindowedGridRenderer, tests/lp1-spike-harness.ts): the four eager
  *     grid DOM trees are detached (their renderer rAF loops keep running
@@ -242,11 +241,17 @@ function quadrantScroll(lane: string, host: HTMLElement): HTMLElement {
 const EAGER_CELLS = 6 * 1024 + 7 * 64 + 7 * 128 + 15 * 2048; // 38,208
 
 // ---------------------------------------------------------------------------
-// (a) EAGER BASELINE (RECORDED)
+// (a) PRODUCTION VIRTUALIZATION (LL-1 — the eager baseline is retired) —
+// the real app now renders long patterns through the sticky-layer column
+// window (src/grid/renderer.ts, LP-1 §10a). HARD laws: the DOM census stays
+// window-bounded (≪ the 38,208-cell eager census; < 10k) while every
+// long-pattern scroller keeps its PATTERN-WIDE native extent (the sizer).
+// The frame/toggle/sweep numbers are RECORDED `[LP-1 …]` lines — since LL-1
+// they are expected INSIDE budget (the production re-measure of §10a/§10c).
 // ---------------------------------------------------------------------------
 
-describe("LP-1 (a)(b): eager baseline at 128 bars (RECORDED)", () => {
-  it("dense 128-bar lead + dense long chains: DOM census, frame deltas, playhead liveness, scroll sweep, per-toggle block",
+describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
+  it("dense 128-bar lead + dense long chains: windowed DOM census + pattern-wide extents + frame deltas + playhead liveness + scroll sweep + per-toggle block",
     { timeout: 120_000 },
     async () => {
       await page.viewport(1440, 900);
@@ -266,20 +271,46 @@ describe("LP-1 (a)(b): eager baseline at 128 bars (RECORDED)", () => {
           "lead quadrant editable",
         );
 
-        // -- DOM census --------------------------------------------------
+        // -- DOM census (the virtualization law: bounded by the WINDOW) ----
         const cells = host.querySelectorAll(".cell").length;
         const runs = host.querySelectorAll(".note-run").length;
         const allEls = host.querySelectorAll("*").length;
-        // drums 6×1024 + bass 7×64 + chords 7×128 + lead 15×2048 (the
-        // register window bounds VISIBLE rows only — the full manifest
-        // stays in the DOM, RC-1's construction law).
-        expect(cells).toBe(EAGER_CELLS);
+        // Eager would be 38,208 (6×1024 + 7×64 + 7×128 + 15×2048); the bass
+        // 4-bar grid stays EAGER by law (≤ GRID_VIRTUALIZE_MIN_STEPS).
+        expect(cells).toBeLessThan(10_000);
         console.log(
-          `[LP-1 (a) eager census @dense-128] ${cells.toLocaleString()} cells (${runs.toLocaleString()} note-runs, ${allEls.toLocaleString()} elements total) across the four quadrants`,
+          `[LP-1 (a) PRODUCTION windowed census @dense-128] ${cells.toLocaleString()} cells (${runs.toLocaleString()} note-runs, ${allEls.toLocaleString()} elements total) across the four quadrants — eager baseline was ${EAGER_CELLS.toLocaleString()} (${((cells / EAGER_CELLS) * 100).toFixed(1)}%)`,
         );
+        // Every long-pattern scroller keeps its pattern-wide NATIVE extent
+        // (the sizer) + the sticky layer; the 4-bar bass grid keeps neither.
+        const leadScroll = quadrantScroll("lead", host);
+        const leadH = leadScroll.querySelector<HTMLElement>(".grid-hscroll")!;
+        expect(leadH, "the split horizontal scroller exists").toBeTruthy();
+        expect(
+          leadH.querySelector(".grid-col-sizer"),
+          "the sizer creates the native pattern-wide extent",
+        ).toBeTruthy();
+        expect(
+          leadH.querySelector(".grid-col-layer"),
+          "the sticky layer holds the grid",
+        ).toBeTruthy();
+        expect(leadH.scrollWidth).toBeGreaterThan(30_000); // 2048×17px
+        const drumsScroll = quadrantScroll("drums", host);
+        expect(
+          drumsScroll.querySelector(".grid-hscroll")!.scrollWidth,
+        ).toBeGreaterThan(15_000); // 1024×22px
+        expect(
+          quadrantScroll("bass", host).querySelector(".grid-col-sizer"),
+          "the ≤4-bar grid stays EAGER (byte-identical v0.1 law)",
+        ).toBeNull();
 
-        // -- 4 s pure-rendering frame window ------------------------------
+        // -- 4 s pure-rendering frame window (HARD: the committed law) ------
         await clickPlay();
+        // Settle first: the dense-128 load fires an autosave flush (the
+        // 2.2 MB canonical encode is a 100-200 ms JS block — LP-1 §10e) and
+        // the engine's first schedule generation; neither is per-frame
+        // render cost, and the law being pinned is the RENDER loop's.
+        await new Promise((r) => setTimeout(r, 1200));
         const playheads = ["drums", "bass", "chords", "lead"].map((lane) =>
           host.querySelector(
             `.lane-floor[data-lane="${lane}"] .grid-playhead`,
@@ -289,25 +320,37 @@ describe("LP-1 (a)(b): eager baseline at 128 bars (RECORDED)", () => {
         const idle = await measureFrames(MEASURE_MS, playheads as Element[]);
         const idleStats = frameStats(idle.intervals);
         console.log(
-          `[LP-1 (a) eager frames @dense-128, 4 s pure rendering] ${idleStats.n} frames, median ${idleStats.median.toFixed(1)} ms, p95 ${idleStats.p95.toFixed(1)} ms, max ${idleStats.max.toFixed(1)} ms, ${(idleStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms | playhead moves/s: ${idle.playheadMovesPerSec.map((m) => m.toFixed(0)).join("/")}`,
+          `[LP-1 (a) PRODUCTION windowed frames @dense-128, 4 s pure rendering] ${idleStats.n} frames, median ${idleStats.median.toFixed(1)} ms, p95 ${idleStats.p95.toFixed(1)} ms, max ${idleStats.max.toFixed(1)} ms, ${(idleStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms | playhead moves/s: ${idle.playheadMovesPerSec.map((m) => m.toFixed(0)).join("/")}`,
         );
+        expect(idleStats.ratio).toBeGreaterThanOrEqual(FRAME_PASS_RATIO);
         idle.playheadMovesPerSec.forEach((m) =>
           expect(m).toBeGreaterThanOrEqual(MIN_PLAYHEAD_MOVES_PER_SEC),
         );
 
-        // -- (b) horizontal scroll sweep on the 2048-column lead grid -----
-        const leadScroll = quadrantScroll("lead", host);
-        const sweepPromise = sweepScroll(leadScroll, 2000);
+        // -- (b) horizontal fling sweep on the 2048-column lead grid (HARD)
+        const sweepPromise = sweepScroll(leadH, 2000);
         const scrollStats = frameStats(
           (await measureFrames(2000, [playheads[3]!])).intervals,
         );
         await sweepPromise;
         console.log(
-          `[LP-1 (b) eager scroll sweep @2048 cols] ${scrollStats.n} frames, median ${scrollStats.median.toFixed(1)} ms, p95 ${scrollStats.p95.toFixed(1)} ms, max ${scrollStats.max.toFixed(1)} ms, ${(scrollStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms`,
+          `[LP-1 (b) PRODUCTION windowed scroll sweep @2048 cols] ${scrollStats.n} frames, median ${scrollStats.median.toFixed(1)} ms, p95 ${scrollStats.p95.toFixed(1)} ms, max ${scrollStats.max.toFixed(1)} ms, ${(scrollStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms`,
         );
-        leadScroll.scrollLeft = 0;
+        expect(scrollStats.ratio).toBeGreaterThanOrEqual(FRAME_PASS_RATIO);
+        leadH.scrollLeft = 0;
+        // The rewindow rides the async scroll event — let the window re-seat
+        // at column 0 before addressing cells by step.
+        await waitFor(
+          () =>
+            host.querySelector(
+              '.lane-floor[data-lane="lead"] .cell[data-row="1"][data-step="16"]',
+            ) !== null,
+          2000,
+          "window re-seated at column 0",
+        );
 
-        // -- per-TOGGLE block (the edit-recompile chain, today's scan) ----
+        // -- per-TOGGLE block (HARD: the O(1) lookup's law — the 50 ms
+        // long-task guard the O(steps) scan broke at 276-438 ms, §10c) ----
         const blocks: number[] = [];
         for (let k = 0; k < 5; k++) {
           const cell = host.querySelector<HTMLElement>(
@@ -320,8 +363,9 @@ describe("LP-1 (a)(b): eager baseline at 128 bars (RECORDED)", () => {
           await new Promise((r) => setTimeout(r, 120));
         }
         console.log(
-          `[LP-1 (a) eager toggle blocks @128-bar lead] ${blocks.map((b) => b.toFixed(0)).join("/")} ms per toggle (store → validate → engineBridge recompile → renderer sync; the O(steps) stepOfTime scan path — TH-4's <50 ms long-task guard for scale)`,
+          `[LP-1 (a) PRODUCTION toggle blocks @128-bar lead] ${blocks.map((b) => b.toFixed(0)).join("/")} ms per toggle (store → validate → engineBridge recompile → renderer sync on the O(1) step lookup)`,
         );
+        for (const b of blocks) expect(b).toBeLessThan(50);
         await stopPlay();
       } finally {
         await stopPlay();
@@ -501,9 +545,13 @@ describe("LP-1 (a′): phone window at 390×844 (RECORDED, emulation caveat)", (
           "phone lead grid mounted",
         );
         const cells = host.querySelectorAll(".cell").length;
-        // Phone stage renders ONE lane floor (lead, the selection) — its
-        // full manifest (15 rows × 2048).
-        expect(cells).toBe(15 * 2048);
+        // LL-1: the phone stage's 2048-step lead grid renders through the
+        // same column window (the m1 1-bar default-view law is untouched —
+        // only >4-bar patterns virtualize). Eager was 15 × 2048 = 30,720.
+        expect(cells).toBeLessThan(10_000);
+        console.log(
+          `[LP-1 (a′) phone PRODUCTION windowed census @dense-128 lead] ${cells.toLocaleString()} cells (eager was ${(15 * 2048).toLocaleString()})`,
+        );
         await clickPlay();
         const playheads = [
           host.querySelector('.app[data-stage="phone"] .grid-playhead'),

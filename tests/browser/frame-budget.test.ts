@@ -664,23 +664,28 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           );
         };
         const add4Bar = async (lane: string): Promise<void> => {
-          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
-          // Refinement-6: the tools live behind the row's PAT menu — open it
-          // first, then act inside it.
-          $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+          // LL-1 journey delta: the +4B menu button retired with the LENGTH
+          // stepper — create the blank via the rail `+` (1 bar, appended +
+          // selected — BC-1), then grow it with the global `b` ladder ×2.
+          $(`.rail-row[data-lane="${lane}"] .rail-append`).click();
           await poll(
             () =>
-              $(
-                `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
-              ) !== null,
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 5,
             2_000,
-            `${lane} pattern tools menu open`,
+            `${lane} blank appended`,
           );
-          (
-            $(
-              `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
-            ) as HTMLButtonElement
-          ).click();
+          await selectLane(lane); // the ladder acts on the ACTIVE lane
+          for (const k of ["b", "b"]) {
+            doc().body.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: k,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          }
           await poll(
             () => {
               const n = floor(lane).querySelectorAll(".cell").length;
@@ -717,7 +722,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
                 doc().querySelectorAll(
                   `.rail-row[data-lane="${lane}"] .rail-tile`,
                 ).length ===
-                4 - i,
+                5 - i, // LL-1: the rail-`+` blank rides at the chain's end
               2_000,
               `${lane} demo pattern ${i} selected (chain untouched yet)`,
             );
@@ -1541,16 +1546,31 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           pe("pointerup", end);
         };
 
-        /** The active lane's rail row carries ONE PAT trigger (refinement-6). */
+        /**
+         * LL-1 journey delta: the +4B menu button retired with the LENGTH
+         * stepper — the rail `+` creates the blank (1 bar, appended +
+         * selected — BC-1), then the global `b` ladder ×2 grows it.
+         */
         const add4Bar = async (lane: string): Promise<void> => {
-          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
-          $(".rail-tools-trigger").click();
+          ($(`.rail-row[data-lane="${lane}"] .rail-append`) as HTMLElement).click();
           await poll(
-            () => doc().querySelector(`button[aria-label="${label}"]`) !== null,
+            () =>
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 5,
             2_000,
-            `${lane} PAT menu open`,
+            `${lane} blank appended`,
           );
-          ($(`button[aria-label="${label}"]`) as HTMLElement).click();
+          await switchLane(lane); // the ladder acts on the ACTIVE lane
+          for (const k of ["b", "b"]) {
+            doc().body.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: k,
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+          }
           await poll(
             () => {
               const n = floor(lane).querySelectorAll(".cell").length;
@@ -1582,7 +1602,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
                 doc().querySelectorAll(
                   `.rail-row[data-lane="${lane}"] .rail-tile`,
                 ).length ===
-                4 - i,
+                5 - i, // LL-1: the rail-`+` blank rides at the chain's end
               2_000,
               `${lane} demo pattern ${i} selected (chain untouched yet)`,
             );
@@ -2060,21 +2080,31 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         expect(doc().querySelector(".info-view")).toBeNull();
 
         // --- setup: dense 4-bar bass grid + two resize-target notes ---------
+        // LL-1 journey delta: +4B retired with the LENGTH stepper — the
+        // rail `+` blank (1 bar) then the global `b` ladder ×2.
         await switchLane("bass");
-        ($(".rail-tools-trigger") as HTMLElement).click();
+        ($('.rail-row[data-lane="bass"] .rail-append') as HTMLElement).click();
         await poll(
           () =>
-            doc().querySelector(
-              'button[aria-label="Add 4-bar pattern to BASS"]',
-            ) !== null,
+            doc().querySelectorAll(
+              '.rail-row[data-lane="bass"] .rail-tile',
+            ).length === 5,
           2_000,
-          "bass PAT menu",
+          "bass blank appended",
         );
-        (
-          $('button[aria-label="Add 4-bar pattern to BASS"]') as HTMLElement
-        ).click();
+        for (const k of ["b", "b"]) {
+          doc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
         await poll(
-          () => floor("bass").querySelectorAll(".cell").length % 64 === 0,
+          () =>
+            floor("bass").querySelectorAll(".cell").length > 0 &&
+            floor("bass").querySelectorAll(".cell").length % 64 === 0,
           5_000,
           "bass 4-bar grid",
         );

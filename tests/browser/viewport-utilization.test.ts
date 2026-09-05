@@ -168,26 +168,24 @@ describe("FV-1 full-viewport densification (built app, 1280/1440/1920)", () => {
         return visible;
       };
 
-      /** Append a 4-bar LEAD pattern through the rail PAT menu (the
-       * quadrant-layout §10 path), wait for the 64-step remount. */
+      /** Grow the LEAD pattern to 4 bars (LL-1 journey delta: the +4B menu
+       * button retired with the LENGTH stepper — select the lead quadrant,
+       * then the global `b` ladder ×2), wait for the 64-step remount. */
       const add4BarLead = async (
         $: <T extends Element>(sel: string) => T,
         idoc: () => Document,
       ): Promise<void> => {
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] .rail-tools-trigger',
-        ).click();
-        await poll(
-          () =>
-            idoc().querySelector(
-              '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-            ) !== null,
-          2_000,
-          "LEAD pattern tools menu open",
-        );
-        $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] button[aria-label="Add 4-bar pattern to LEAD"]',
-        ).click();
+        $<HTMLElement>('.lane-floor[data-lane="lead"]').click();
+        await new Promise((r) => setTimeout(r, 150));
+        for (const k of ["b", "b"]) {
+          idoc().body.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: k,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
         await poll(
           () =>
             (idoc()
