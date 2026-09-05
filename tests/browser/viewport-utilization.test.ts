@@ -1,12 +1,17 @@
 /**
- * FV-1 browser gate (i3-6 desktop half) — FULL-VIEWPORT DENSIFICATION on the
- * REAL BUILT APP. The 1400px cap family is RETIRED (I3-b, user-approved
+ * FV-1 browser gate — THE CONSOLIDATED i3-6 GATE (re-indexed by HW-6's AC
+ * matrix, docs/dev/definition-of-done.md §7): FULL-VIEWPORT DENSIFICATION on
+ * the REAL BUILT APP. The 1400px cap family is RETIRED (I3-b, user-approved
  * 2026-09-04): `.stage-floors`'s cap plus its `.rail` twin — one
  * centered-vacancy law. The quadrant stage fills the viewport width at
  * every desktop width, and width growth buys MORE VISIBLE STEPS per
  * quadrant before the internal h-scroll (fixed step px is the readability
  * law — columns, never bigger cells; RC-1's windowed grids made columns
- * the thing width buys).
+ * the thing width buys). The i3-6 clause split: THIS gate owns the
+ * utilization + one-page + densification halves at all three viewports;
+ * the desktop perf half rides frame-budget.test.ts TH-5 (d); the mobile
+ * regression half rides the §6 matrix suite; the built-app wide probe on
+ * an edited document also rides the iteration-3 e2e journey (stage 10).
  *
  * UTILIZATION DEFINITION (recorded in-task — the plan's "bounding-box
  * utilization assertion"): the widest committed layout surfaces — the 2×2

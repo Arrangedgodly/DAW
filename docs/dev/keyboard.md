@@ -1063,3 +1063,48 @@ LL-1/LL-2 are reviewed against.
 - Announcements: strip value span + rail per-lane status + stage status
   region (selection.ts:120-137) — the E8–E12 gate list in
   docs/dev/accessibility.md §9 names each assertion when it lands
+
+## v3 ledger audit (HW-6, 2026-09-04 — COMPLETE, the regression-rule record)
+
+Every v3-spec'd path was verified against the SHIPPING code and its gates
+(the HW-5 §E7 precedent, applied to the v3 delta). Verdict: **every row is
+live and gated; no spec-code deviation exists** — the two clause-level
+gaps found were UNGATED LAWS (the code was right, no gate pinned it) and
+were closed in-task by the iteration-3 e2e journey
+(`tests/browser/e2e-iteration3.test.ts`):
+
+- **Verified live + gated:** `o`/Shift+`o` (register-controls.test.tsx +
+  tests/octave-register.test.ts + the journey) · pointer twins on any
+  lane's strip (same) · Shift+`↑`/`↓` window scroll with the E9 VIEW
+  wording + anchor law (register-controls + octave-register unit) ·
+  ↑/↓ walk the full manifest, window follows (register-controls + the
+  journey) · `b`/Shift+`b` ladder + AT-LIMIT no-ops (pattern-resize) ·
+  the PAT LENGTH stepper lifecycle incl. stays-open (pattern-resize +
+  the journey) · the refusal's one-funnel identical text naming the
+  blocking note (pattern-resize + pattern-resize-edges + the journey) ·
+  rail `+` button + rail-local `+`/`=` key twins with the E11
+  announcement, focus-on-new-tile law, one-step undo, DUP-only
+  (pattern-rail + the journey — the journey exercises the `=` char, the
+  BC-1 gate the `+` char) · `p` position announcement + guards
+  (per-lane-sweep + the journey) · focus carry through resize remounts +
+  the no-yank law (pattern-resize) · undo families `octave:<lane>` +
+  `resize:<lane>:<pattern>` (register-controls, pattern-resize, the
+  journey) · drums OCT refusal (register-controls).
+- **Closed in-task (ungated clause → gate):** (1) the help-mode
+  KEY pass-through ("`o`/`b`/`p` fire normally while the mode is on") —
+  held structurally (KeyboardShortcuts gates only the `?` overlay, never
+  the info mode) but no gate pinned it; the journey now presses `o`
+  inside info mode and asserts the announcement. (2) The stepper's
+  Escape exit clause ("focus returned to the trigger") — menu-close was
+  gated, focus-return was not; the journey asserts focus lands back in
+  the lane's rail row after Escape.
+- **Native-law note (no synthetic gate possible, the established
+  honesty rule):** "Tab → OCT button → Enter" is native-button
+  activation — a browser default synthetic keydowns cannot re-prove
+  (e2e-iteration2's header law). Tab reachability of the strips is
+  pinned by the axe/target-size focus-order gates; the action itself by
+  the pointer twin + global keys.
+- **Journey deltas journaled by this audit:** none new — the journey is
+  ADDITIVE (the ledger's own entries #1–#4 already record every
+  deliberate v3 change; DA-3/keyboard-journey-full and e2e-happy-path
+  were re-based by their owning tasks).
