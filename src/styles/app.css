@@ -194,6 +194,123 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * T9 — SHARED DETENT UTILITY (route.md "Press & motion feel": "steppers
+ * flash a 1-frame tick and settle the value digit 2px on change").
+ * Same law as the press-travel lists above: ONE recipe, every stepper key
+ * appends here — do not fork. All steppers in the app share the two key
+ * classes (.head-step-btn lane/euclid, .booth-step-btn tempo) and the three
+ * value classes (.head-ctl-value preset/gate, .row-fill-value euclid,
+ * .booth-led-input BPM).
+ *
+ * Timing semantics (the Thor note of record): the detent rides :active —
+ * the press-THROUGH — exactly like the shipped press travel, so the tick
+ * fires and the digit settles as the key crosses its detent; the value
+ * itself still commits on release (the unchanged click event). CSS-only on
+ * a discrete state change: ZERO JS-path latency, no timers, no rAF.
+ * :has() is the T2-precedented selector (booth breathing period switch).
+ * Motion law: tick + settle are transform/opacity-only one-shots ≤140ms on
+ * pseudo-element paint inside unchanged boxes — hit geometry byte-stable.
+ * ------------------------------------------------------------------------- */
+
+.head-step-btn,
+.booth-step-btn {
+  /* host of the tick pseudo (the phone hit-strap ::before on
+   * .booth-step-btn is a DIFFERENT pseudo — no conflict) */
+  position: relative;
+}
+
+/* The detent tick: a 1-frame bright notch flashed at the key's bottom edge
+ * as it is pressed through its detent. Fully lit only in the first ~20% of
+ * the 80ms one-shot (≈1 frame at 60Hz), gone by mid-press — a click, not a
+ * glow. Static at opacity 0 otherwise; decorative (the press travel + the
+ * value change carry the event). */
+.head-step-btn::after,
+.booth-step-btn::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 3px);
+  bottom: 2px;
+  width: 6px;
+  height: 1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-ink) 85%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.head-step-btn:active::after,
+.booth-step-btn:active::after {
+  animation: detent-tick var(--press-down) linear;
+}
+
+@keyframes detent-tick {
+  0% {
+    opacity: 0;
+  }
+  12.5% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The value settle: the stepper's readout digit drops --press-detent into
+ * place on the press (the counter-wheel loading against its detent; the new
+ * value lands on release). Scoped to the stepper GROUP whose key is being
+ * pressed — the volume readout (also .head-ctl-value) never rides a
+ * stepper group and is untouched. */
+.head-stepper:has(.head-step-btn:active) .head-ctl-value,
+.head-stepper:has(.head-step-btn:active) .row-fill-value,
+.booth-stepper:has(.booth-step-btn:active) .booth-led-input {
+  animation: detent-settle var(--press-return) var(--press-curve);
+}
+
+@keyframes detent-settle {
+  from {
+    transform: translateY(calc(-1 * var(--press-detent)));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* The switch-throw keyframes (shared by lane-header.css MUTE/SOLO and
+ * fx-strip.css BYP — defined ONCE here; the owning sheets paint the slot +
+ * thumb and apply the animation on their existing state classes). */
+@keyframes switch-throw {
+  0% {
+    transform: translateX(0);
+  }
+  70% {
+    /* the thrown position + the 1px end-bounce (the detent's stop) */
+    transform: translateX(calc(var(--press-throw) + var(--press-throw-bounce)));
+  }
+  100% {
+    transform: translateX(var(--press-throw));
+  }
+}
+
+/* The detent utility's reduced-motion twin: the tick dies (the press
+ * travel's twin in the block above already carries the press), the settle
+ * dies (the value change itself is the information). */
+@media (prefers-reduced-motion: reduce) {
+  .head-step-btn:active::after,
+  .booth-step-btn:active::after {
+    animation: none;
+  }
+
+  .head-stepper:has(.head-step-btn:active) .head-ctl-value,
+  .head-stepper:has(.head-step-btn:active) .row-fill-value,
+  .booth-stepper:has(.booth-step-btn:active) .booth-led-input {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * MB-1 (mobile slice) — the responsive stage. All narrow-stage CSS keys off
  * .app[data-stage] (set from the ONE stageMode signal in selection.ts, so
  * the JS mode and the stylesheet can never drift). Desktop (≥1024) computes

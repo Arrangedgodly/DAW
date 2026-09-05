@@ -204,6 +204,75 @@ viewport:
   nothing measurable — the pulse is one compositor class toggle per beat,
   the tiles are change-driven attribute writes, the LED accent is pure
   CSS.**
+- **T9 (measured 2026-09-04, v3 micro-interactions LIVE for the first
+  time in one full-suite run: switch throws on MUTE/SOLO toggles,
+  detent tick + value settle on every stepper tap, BYP throws — all
+  CSS-only one-shots ≤140ms on pseudo-element transform/opacity inside
+  unchanged hit boxes; the gate's own console lines from the green full
+  battery)**: `[TH-4 quadrant budget] frames=241 over33.4ms=0 max=28.7ms
+  p95=23.1ms median=16.8ms sustainedVoices=17` — 0/241 over, median
+  inside the 16.6–16.8 band, max/p95 better than the M2 record
+  (28.7/23.1 vs 31.9/25.2). `[TH-1] frames=241 over=0 max=22.6ms
+  median=16.7ms toggles=100 worstToggleBlock=3.50ms` — the TH-1
+  toggle storm exercises MUTE/SOLO WITH the throw animation on every
+  toggle: worst block 3.50ms vs M2's 4.80ms and T8's 5.60ms record;
+  **the throw adds no measurable toggle cost**. `[TH-4 storm totals]
+  frames=364 over=0 moves=1456 worstMove=3.10ms medianMove=0.30ms`;
+  `[MB-5 phone budget] frames=239 over=0 max=29.6ms p95=20.7ms
+  median=16.7ms edits=239 worstEditBlock=18.30ms`; `[MB-5 storm totals
+  @390] 365 frames, 0 over, worstMove=2.90ms`; `[MB-5 lazy decode @390]
+  stepperClicks=9 worstClickBlock=1.30ms` — nine stepper taps WITH the
+  detent tick+settle firing: worst click block 1.30ms, byte-identical
+  to the M2 no-detent record. **Verdict: the v3 micro-interactions are
+  free — compositor one-shots off the interaction critical path (zero
+  JS-path latency by construction: no timers, no rAF, no observers).**
+- **T10 (measured 2026-09-04, v3 chassis furniture + DEPTH-BAND wash LIVE
+  for the first time: static screw/vent/plate/legend paint on booth, rail,
+  floors and FX modules, the stage wash layer crossfading on density-band
+  changes; the gate's own console lines from the second of two green
+  full-suite runs)**: `[TH-4 quadrant budget] frames=241 over33.4ms=0
+  max=23.1ms p95=20.5ms median=16.7ms sustainedVoices=17` — 0/241 over,
+  median 16.7 inside the preserved 16.6–16.8 band, max/p95 BETTER than
+  the T9 record (23.1/20.5 vs 28.7/23.1) — the wash layer + furniture
+  paint cost nothing on the 128-bar grid path (static backgrounds +
+  one composited-opacity pseudo; no will-change added — the cap stays
+  playhead + 1 booth ambient layer). `[TH-1] frames=241 over=0
+  max=21.6ms median=16.7ms toggles=100 worstToggleBlock=2.70ms`;
+  `[TH-4 storm totals] frames=364 over=0 moves=1456 worstMove=2.10ms
+  medianMove=0.20ms` — the data-density attribute write only ever fires
+  at document-commit time (post-release), never mid-gesture: zero
+  mutation-law violations. `[MB-5 phone windows A/B] frames=122+121,
+  0 over, chromeTopDev=0.00px both windows` — the phone wash layer is
+  content:none (never painted); phone furniture = rail screws + floor
+  legend + save-window restyle only. **Wash amplitude record: painted
+  peak = 5% ink (the ambient clause ceiling); band steps 0 / 0.40 /
+  0.72 / 1.0 of that field; measured gutter pixels empty RGB(21,20,24) →
+  dense RGB(24,23,27) (+3/channel at band 3) — inside the ≤5% cap; real
+  text worst case ink-on-panel 15.62:1 → 13.81:1 under the full field,
+  every pair ≥4.5:1 (a11y numbers in production-log T10).**
+- **M3 checkpoint — the FINAL record (measured 2026-09-04, T11/M3; the merged
+  v3 state = T9 micro-interactions + T10 furniture/wash over M2; same
+  environment + method — solo re-run of `tests/browser/frame-budget.test.ts`
+  on the fresh build after a first-run-green full battery, the T8
+  protocol)**: `[TH-4 quadrant budget] frames=241 over33.4ms=0 max=22.7ms
+  p95=20.5ms median=16.7ms playheadMoves={"drums":241,"bass":241,
+  "chords":241,"lead":241} sustainedVoices=17` — **0/241 frames over (100%
+  ≥ the 95% floor), median 16.7 inside the preserved 16.6–16.8 band**; the
+  run-to-run max/p95 (22.7/20.5) sit between the T9 and T10 records.
+  `[TH-1] frames=242 over=0 max=20.0ms median=16.6ms
+  worstToggleBlock=2.50ms` — 100 MUTE/SOLO toggles WITH switch throws:
+  best toggle-block of the whole run (2.50 vs M2's 4.80). `[TH-4 storm
+  totals] frames=364 over=0 moves=1456 worstMove=2.60ms medianMove=0.30ms`
+  — zero illegal mid-gesture mutations. `[MB-5 phone budget] frames=242
+  over=0 max=21.3ms p95=18.6ms median=16.7ms worstEditBlock=9.30ms`;
+  `[MB-5 storm totals @390] 364 frames, 0 over, worstMove=1.70ms,
+  medianMove=0.20ms`; `[MB-5 lazy decode @390] 181 frames, 0 over,
+  worstClickBlock=2.20ms` (nine detent-firing stepper taps);
+  `[TH-4 lazy] paintMs=60 playMs=52`. **Composited-layer count at M3:
+  unchanged by law-audit — `will-change` appears exactly where M1 left it
+  (playhead + the one booth breathing layer); T9/T10 added none (grep over
+  the M3 diff: zero new `will-change` declarations).** R1/R7 verdict: the
+  complete v1+v2+v3 surface costs nothing measurable at the hot spot.
 
 ### 2b. Drag pointermove budgets (TH-4, iteration 2 — IN-2/IN-3 paths)
 
@@ -332,6 +401,37 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   (zero new font or asset files through all of v2 — the restyle-first
   typography law held through M2). M2 cumulative JS delta over M1:
   +0.28 KB (66.75 → 67.03) for the renderer callback + three consumers.
+- **T9 (measured 2026-09-04, v3 micro-interactions — CSS-driven, exactly
+  as the plan predicted "JS should barely move"; same method)**: initial
+  JS **67.03 KB gz BYTE-IDENTICAL to M2** (zero JS/component edits in
+  T9 — the entire task is CSS on existing state hooks), CSS
+  **16.63 KB gz (+0.49 over M2's 16.14)** for the switch anatomy +
+  shared detent utility + tokens + twins across four sheets
+  (+323 lines), fonts **37.02 / 50 KB unchanged** (no new assets; the
+  tick/slot/thumb are all gradient/pseudo paint).
+- **T10 (measured 2026-09-04, v3 chassis furniture + density wash; same
+  method)**: initial JS **67.14 KB gz (+0.11 over T9's 67.03)** — the
+  entire delta is the pure density module (`src/state/ambientDensity.ts`)
+  + the StageFloor subscription wiring (one attribute write per band
+  change); 22% of the 300 KB budget. CSS **17.44 KB gz (+0.81 over
+  T9's 16.63)**: the furniture vocabulary (one shared inline-SVG screw
+  data-URI ~450 raw bytes, vent gradient, serial plate, four legends),
+  the wash layer + band steps + twin, the status-cluster retirement
+  (inlay plate + save readout window) and the projects-popover machined
+  reskin. Fonts **37.02 / 50 KB unchanged** — the optional VT323 swap
+  was evaluated and **DECLINED** (zero-new-bytes law; no candidate
+  beats the current readout read; the phone wrap pin re-opens the
+  documented font-race risk — decision of record in production-log
+  T10). Total v3 CSS growth over M2: +1.30 KB for T9+T10 together.
+- **M3 checkpoint record (measured 2026-09-04, T11/M3 — the final
+  acceptance over the merged v3 tree; same method: `npm run build` +
+  `npm run check:bundle`)**: initial JS **67.14 KB gz** (claim-exact =
+  the T10 measurement, byte-stable; 22% of the 300 KB budget), CSS
+  **17.44 KB gz** (claim-exact; total run growth over the pre-run 13.16
+  baseline: +4.28 KB for the entire hardware-console reskin), fonts
+  **37.02 / 50 KB unchanged through the whole run** (zero new font or
+  asset files M1→M3; the VT323 swap stayed declined; LICENSES.md never
+  needed an update — correct).
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start
@@ -549,6 +649,21 @@ frame budget", built app in a 390×844 iframe).
   PAT menu's pool-remove); MB-6 ported the same setup to TH-4 (a) AND made
   it self-checking (the gate now asserts 48/48 intended painted hits, so
   the setup can never silently degrade again).
+
+## 10. Degradation matrix (Hulk lane — M3 final, 2026-09-04)
+
+The four degradation rows town-hall §6 assigned the Hulk, measured at the
+M3 final tree by the T11 checkpoint (own Playwright probes over the served
+fresh build, script `.impeccable/review/t11-capture.mjs`; the in-CI gates
+named per row all ran green inside the same checkpoint's 129/129 browser
+battery):
+
+| Row | Method (own probe) | Result |
+| --- | --- | --- |
+| **Reduced motion** | `reducedMotion: "reduce"` context, playing, computed-style sweep + capture | `matchMedia` honored; wash `transition-duration 0s` (band steps instant, field still painted at 0.72 — state info static); booth sheen `animation: none`; lane rim `animation: none` + `transition 0s`; beat-LED container `transition 0s`; cell `animation: none`; sounding rims still present statically (4/4). Vision read of `t11-1440x900-reduced-playing.png`: still reads hardware (7/10) — materials carry the metaphor with motion off. (CI twins: axe + the suite's dual-gate law; per-task twins live-verified T1–T10.) |
+| **Fallback fonts** | context route aborting every `.woff2` request (4 file-backed faces blocked: Departure Mono, Plex 400/500, PS2P, VT323; Silkscreen rides inlined data-URIs and cannot be network-blocked — 2 faces still resolve), `document.fonts.ready`, then pins | one-page EXACT at 1440×900 (900/900) AND 1280×800 (800/800) under fallback rendering; zero horizontal overflow (rail right edge 4px inside the viewport); the tempo 44px input pin is a fixed CSS width (probe's ad-hoc selector missed the node — recorded honestly; the res-9 worst-case-digits law is what guards the digits, and the one-page law held). Capture `t11-1440x900-fallback-fonts.png`. |
+| **Background tab** | the repo's documented synthetic `visibilitychange` override (headless Chromium does not natively clamp — perf-budget §6's honest caveat); play → on-beat → hidden 1.5s → refocus | on-beat 4/4 `.lane-floor.is-sounding`; while hidden the ~120ms decay removal PARKS the rims (count 0 — no stuck glow); on refocus the next beat fires (4/4) and the playhead recomputes from the live audio clock (93.2px → 2.1px across the loop wrap — resync-in-one-frame, no replay). Matches TH-3 (§6) and T5's park design. |
+| **Low-end / CPU throttle** | CDP `Emulation.setCPUThrottlingRate {rate: 4}` + own TH-4-style probe (rAF deltas, 4s window, demo playing at 1440×900; run twice) | **241 frames / 4s, 0 over 33.4ms (ratio 1.0), max 18.7ms, p95 18.3–18.5, median 16.6–16.7 — vsync cadence holds at quarter-speed CPU** (per-frame work is far under the 16.6ms budget; the compositor layers do the moving). The vitest browser harness does not expose CDP throttling, so the dense-state TH-4(a) CI floor ran unthrottled (green, §2a M3); this probe is the honest 4x statement on the standard demo state, and the §9 device-class honesty caveat stands (real mid-tier Android stays an R7 user-session item). |
 
 ## Harness notes (D8/RES-7)
 

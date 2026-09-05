@@ -1,6 +1,11 @@
 /* Projects (HU-3, absorbing MF-3's FileIO) — booth-corner PROJECTS button +
    popover: saved project list (name + relative time) and NEW / SAVE FILE /
-   OPEN FILE. Errors render through the shared toast bus (toasts.css). */
+   OPEN FILE. Errors render through the shared toast bus (toasts.css).
+   T10 (Machined Console): the popover retires the last pre-T1 overlay
+   vocabulary — a brushed --metal-panel chassis with the static --elev-3
+   popover cast (the scale-pop's twin treatment), rows as machined keys on
+   raised metal. Paint-only on identical boxes: min-width, paddings, fonts
+   and the phone 44px law (below) all byte-identical. */
 
 .projects {
   display: flex;
@@ -9,8 +14,9 @@
 }
 
 .projects-btn {
-  /* Inherits .booth-btn chassis; slightly quieter than transport. */
-  opacity: 0.9;
+  /* Inherits the .booth-btn machined key (T10: the old 0.9 dim read as a
+   * "quiet nav link" at page distance — the key stands at full chassis
+   * brightness now, one vocabulary with PLAY/LOOP). */
 }
 
 .projects-pop {
@@ -23,11 +29,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  background: var(--color-ground);
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--elev-3);
 }
 
 .projects-list {
@@ -36,7 +43,7 @@
   padding: 0;
   max-height: 40vh;
   overflow-y: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--metal-panel))
     transparent;
   display: flex;
   flex-direction: column;
@@ -52,10 +59,11 @@
   padding: 4px 8px;
   text-align: left;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 18%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   font: var(--text-ui);
   font-size: 12px;
   cursor: pointer;
@@ -63,7 +71,7 @@
 
 .projects-item:hover,
 .projects-item:focus-visible {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
   outline: none;
 }
 
@@ -83,7 +91,7 @@
 .projects-when {
   font-family: var(--font-label);
   font-size: 10px;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-raised));
   flex-shrink: 0;
 }
 
@@ -91,7 +99,7 @@
   display: flex;
   gap: var(--space-2);
   border-top: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   padding-top: var(--space-2);
 }
 
@@ -100,13 +108,13 @@
 }
 
 /* R3 note (DES-7): dimmed silkscreen chassis print, same treatment as the
-   popover's quiet labels (62% ink = 6.3:1, meets AA at this size). */
+   popover's quiet labels (62% ink on panel = 6.3:1, meets AA at this size). */
 .projects-note {
   margin: 0;
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 .projects-input {

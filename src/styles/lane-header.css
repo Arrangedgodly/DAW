@@ -238,6 +238,70 @@
   border-color: var(--lane-hue);
 }
 
+/* ---------------------------------------------------------------------------
+ * T9 — SWITCH THROW (route.md "Press & motion feel": "MUTE/SOLO/bypass
+ * thumbs are painted blocks that translate 3px between positions, 120ms,
+ * 1px end-bounce"). The mix keys read as LATCHING SLIDE SWITCHES: a milled
+ * slot along the key's bottom inner edge (::before, static paint) and a
+ * machined rider block — the thumb (::after) — resting at the OFF end and
+ * thrown --press-throw (3px) to the ON detent when the existing .is-on
+ * class arrives, with the switch-throw keyframes' 1px end-bounce (the
+ * detent stop; keyframes live once in app.css's shared T9 block).
+ *
+ * Motion law: the ONLY animated property is the thumb pseudo's transform;
+ * the thumb is decorative reinforcement — the state is already carried by
+ * the fill + border + aria-pressed (glow law: never the sole signal), and
+ * the throw adds the mechanical cause→effect of flipping a real switch.
+ * Both pseudos sit INSIDE the unchanged 20px key box (absolute, zero
+ * layout px, hit geometry byte-stable); the bottom band is glyph-free
+ * (10px/1 text centered in the 18px content box leaves ~4px below the
+ * baseline — the slot never touches the legend). The euclid fill-toggle
+ * (.head-mix-btn.head-fill-toggle) inherits the same vocabulary: it is the
+ * same latching function in the same family. Inherits press travel from
+ * the shared app.css lists: press the key, release, the switch THROWS.
+ * ------------------------------------------------------------------------- */
+.head-mix-btn {
+  position: relative; /* host of the slot + thumb pseudos (zero layout px) */
+}
+
+.head-mix-btn::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  bottom: 2px;
+  width: 14px; /* the thumb (8px) + its 3px travel + detent margins */
+  height: 2px;
+  border-radius: 1px;
+  background: var(--metal-recess);
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 55%); /* the milled groove */
+  pointer-events: none;
+}
+
+.head-mix-btn::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  bottom: 2px;
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  /* the rider: bright machined metal at the OFF end */
+  background: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 8%); /* catch-light on the cap */
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform var(--press-throw-time) var(--press-curve);
+}
+
+.head-mix-btn.is-on::after {
+  /* thrown to the ON detent; the seat color follows the Ink Law for lit
+   * keys (near-black rider on the lane-hue fill) */
+  transform: translateX(var(--press-throw));
+  background: var(--color-ink-on-fill);
+  box-shadow: none;
+  animation: switch-throw var(--press-throw-time) ease-out;
+}
+
 /* ---- Effective-scale chip (the R6 affordance) ---- */
 
 .head-scale-wrap {
@@ -444,6 +508,25 @@
   height: 44px;
 }
 
+/* T9 phone bump: the mix keys grow to ≥44px painted — the switch slot +
+ * thumb scale with the chassis (same travel: --press-throw is the law).
+ * The tick pseudo (app.css shared detent) sits fine at 44px as-is. */
+.app[data-stage="phone"] .head-mix-btn::before,
+.app[data-stage="phone"] .head-mix-btn::after {
+  bottom: 5px;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+.app[data-stage="phone"] .head-mix-btn::before {
+  width: 20px;
+}
+
+.app[data-stage="phone"] .head-mix-btn::after {
+  width: 11px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 8%);
+}
+
 .app[data-stage="phone"] .lane-strip-edit .scale-chip,
 .app[data-stage="phone"] .head-mix-btn,
 .app[data-stage="phone"] .head-fx {
@@ -469,4 +552,18 @@
 .app[data-stage="phone"] .scale-pop-commit,
 .app[data-stage="phone"] .scale-pop-detach {
   min-height: 44px;
+}
+
+/* T9 switch-throw reduced-motion twin (at the sheet foot so it cascades
+ * over the base thumb rules above): the throw motion dies; the thumb still
+ * OCCUPIES its per-state position (left end off / thrown detent on) and
+ * keeps its seat color — identical state information, statically. */
+@media (prefers-reduced-motion: reduce) {
+  .head-mix-btn::after {
+    transition: none;
+  }
+
+  .head-mix-btn.is-on::after {
+    animation: none;
+  }
 }

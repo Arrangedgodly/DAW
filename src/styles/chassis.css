@@ -198,3 +198,107 @@
     opacity: 1; /* static lit rim while playing — the twin's CSS half */
   }
 }
+
+/*
+ * ---- T10: the DEPTH-BAND density wash (route.md playback-reactivity #8) ----
+ * ONE ambient illumination field over the quadrant stage — a static warm
+ * pool painted once (radial, ink at the ambient amplitude ceiling of 5%,
+ * hue-free: hue is signal, never decoration), whose OPACITY steps with the
+ * arrangement's density band (data-density on .stage-floors, written by
+ * StageFloor from the document store — total set drum steps + pitched
+ * notes; NEVER signal analysis, never playback state). Denser arrangements
+ * sit in the warmer band; the crossfade is 600ms of OPACITY ONLY
+ * (--ambient-wash-fade); the field carries no information (a state signal
+ * it is not — the arrangement's real state lives in the grids themselves),
+ * so the phone stage ships without it (its stage scrolls; a scrolling
+ * illumination field would read as a bug, and the paint budget belongs to
+ * the grid).
+ *
+ * Layer law: this is the stage chassis's ONE ambient layer (the booth's
+ * breathing sheen is the booth chassis's — never both on one element);
+ * no will-change (a rare 600ms one-shot, not a hot layer — the cap stays
+ * playhead + 1 booth layer). Reduced-motion twin: the transition dies, the
+ * stepped intensity itself remains — identical (non-)information,
+ * statically.
+ */
+.stage-floors::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5; /* above the quadrant panels, below every popover (40+),
+                 the FX console (30), info bar (50), toasts/help/bezel */
+  pointer-events: none;
+  background: radial-gradient(
+    130% 100% at 50% 98%,
+    color-mix(in srgb, var(--color-ink) 5%, transparent) 0%,
+    color-mix(in srgb, var(--color-ink) 2.5%, transparent) 34%,
+    transparent 68%
+  );
+  opacity: 0;
+  transition: opacity var(--ambient-wash-fade) ease;
+}
+
+.stage-floors[data-density="1"]::before {
+  opacity: 0.4;
+}
+
+.stage-floors[data-density="2"]::before {
+  opacity: 0.72;
+}
+
+.stage-floors[data-density="3"]::before {
+  opacity: 1;
+}
+
+/* The phone stage paints no wash (above) — the attribute stays present
+ * (harmless, assertable) while the layer does not ship. */
+.app[data-stage="phone"] .stage-floors::before {
+  content: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-floors::before {
+    transition: none; /* the twin: the intensity STEP stands, statically */
+  }
+}
+
+/*
+ * ---- T10: silkscreen legends on the quadrant corners ----
+ * Each lane panel carries its section legend, silk-screened into the
+ * panel's bottom edge strip (the 4px floor padding + the grid well's 4px
+ * bottom padding — a true dead zone: no control, no cell, no scrollbar
+ * at the committed 1-bar default view). A pseudo-element: aria-free by
+ * construction, pointer-events none, zero layout px (absolute; the floor
+ * is already position:relative). Static paint — no animation, no twin
+ * owed. Decorative engraving (contrast-exempt per WCAG "pure decoration")
+ * yet held at an honest read (~4.4:1 over the band it straddles) — the
+ * amplitude lesson from T7's faint screws, applied to print.
+ */
+.lane-floor::before {
+  content: "";
+  position: absolute;
+  right: var(--space-4);
+  bottom: 0.5px;
+  font: 700 8px/1 var(--font-label); /* Silkscreen — the demoted legend face */
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-ink) 45%, transparent);
+  pointer-events: none;
+}
+
+.lane-floor[data-lane="drums"]::before {
+  content: "SEC A · PERCUSSION";
+}
+
+.lane-floor[data-lane="bass"]::before {
+  content: "SEC B · BASS VOICE";
+}
+
+.lane-floor[data-lane="chords"]::before {
+  content: "SEC C · CHORD VOICE";
+}
+
+.lane-floor[data-lane="lead"]::before {
+  content: "SEC D · LEAD VOICE";
+}

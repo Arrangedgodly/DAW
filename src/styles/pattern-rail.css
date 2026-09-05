@@ -548,3 +548,31 @@
 .stage-floors[data-view="focus"] .lane-floor[data-lane="chords"] .lane-grid {
   zoom: 1.25;
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * T10 — CHASSIS FURNITURE on the arrangement strip (route.md "Fine
+ * mechanical detailing"): two corner screws at the strip's top corners
+ * (the 8px top padding + 20px side padding dead zones — the rail-head's
+ * title row starts inside them, the screws sit outside every box).
+ * Static background paint only: aria-free, pointer-events:none (a
+ * background cannot receive them), ZERO layout px, no animation — no
+ * twin owed. The --furniture-screw token (tokens.css T10 block) is the
+ * ONE screw vocabulary, shared with the booth faceplate and the FX
+ * modules — amplitude calibrated to READ at page zoom (the T7 faintness
+ * follow-up this task owns). Painted on every stage: the phone's
+ * condensed rail keeps the same padding law at its corners.
+ * -------------------------------------------------------------------------
+ */
+.rail {
+  background-image:
+    var(--furniture-screw),
+    var(--furniture-screw),
+    var(--metal-brush-v);
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size:
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    auto;
+  background-position: left 6px top 2px, right 6px top 2px, 0 0;
+}

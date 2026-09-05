@@ -45,6 +45,7 @@ import {
   stageMode,
 } from "../state/selection";
 import { docStore } from "../state/store";
+import { densityBand } from "../state/ambientDensity";
 import { registerHelp } from "../help/registry";
 import LaneGrid from "./LaneGrid";
 import { LANE_NAMES } from "./laneMeta";
@@ -138,10 +139,18 @@ export default function StageFloor() {
   const [empty, setEmpty] = createSignal(
     isProjectEmpty(docStore.getState().doc),
   );
+  // T10 (route.md playback-reactivity #8): the DEPTH-BAND density wash —
+  // the stage's ambient illumination band, derived from the SAME document
+  // subscription (no new seam, no rAF; the attribute write fires only when
+  // the quantized BAND changes, i.e. at document-commit boundaries).
+  const [density, setDensity] = createSignal(
+    densityBand(docStore.getState().doc),
+  );
   onMount(() => {
     const unsubscribeDoc = docStore.subscribe((state, prev) => {
       if (state.doc === prev.doc) return;
       setEmpty(isProjectEmpty(state.doc));
+      setDensity(densityBand(state.doc));
     });
     onCleanup(unsubscribeDoc);
   });
@@ -170,6 +179,7 @@ export default function StageFloor() {
         <div
           class="stage-floors"
           data-view={viewMode()}
+          data-density={density()}
           aria-label="Lane quadrants"
         >
           {LANES.map((lane) => (
@@ -195,6 +205,7 @@ export default function StageFloor() {
       <div
         class="stage-floors stage-floors-phone"
         data-view={viewMode()}
+        data-density={density()}
         role="tabpanel"
         id="lane-stage"
         aria-label="Lane stage"

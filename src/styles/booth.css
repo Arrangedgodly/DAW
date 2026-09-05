@@ -444,49 +444,11 @@
  * the glow is decoration-only per the DES-1 contract. The relative-time label
  * ticks as TEXT ONLY — no animation anywhere, so prefers-reduced-motion is
  * honored by construction.
+ *
+ * T10: the visual rules moved to this sheet's T10 block (the recessed
+ * readout-window retirement of the old status chip) — the state CODING
+ * above is unchanged there.
  */
-
-.save-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin-left: auto;
-  font-family: var(--font-label);
-  color: var(--color-ink);
-}
-
-.save-indicator:focus-visible {
-  outline: var(--focus-on-metal);
-  outline-offset: var(--focus-on-metal-offset);
-}
-
-.save-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  background: transparent;
-  flex-shrink: 0;
-}
-
-.save-indicator[data-status="saved"] .save-dot,
-.save-indicator[data-status="idle"] .save-dot {
-  background: currentColor;
-}
-
-.save-indicator[data-status="saving"] .save-dot {
-  border-style: dashed;
-}
-
-.save-indicator[data-status="error"] {
-  opacity: 0.55;
-}
-
-.save-label {
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
 
 /*
  * First-run PLAY nudge (PX-1): a subtle in-world pulse on PLAY, first run
@@ -537,4 +499,152 @@
     animation: none;
     opacity: 0.78;
   }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * T10 — CHASSIS FURNITURE on the transport faceplate (route.md "Fine
+ * mechanical detailing"): four corner screws in the faceplate's padding
+ * dead zones, ONE vent-grille strip at the top edge (where heat leaves
+ * the unit, above the power-adjacent right side), and the serial plate
+ * on the underside edge. ALL static background/pseudo paint: aria-free,
+ * pointer-events:none, ZERO layout px (backgrounds paint under every
+ * control; the plate rides the bottom padding band), no animation — no
+ * twins owed for statics. Desktop/tablet only: the phone booth's 8px
+ * padding is the strap budget (MB-3) and its chrome is pinned — the
+ * phone keeps the faceplate treatment without the fine furniture.
+ * -------------------------------------------------------------------------
+ */
+.app:not([data-stage="phone"]) .booth {
+  background-image:
+    /* corner screws (true panel corners, padding dead zones) */
+    var(--furniture-screw),
+    var(--furniture-screw),
+    var(--furniture-screw),
+    var(--furniture-screw),
+    /* the vent grille: one strip, top edge, right side (heat rises; the
+     * PSU-side exhaust) — clear of the top-right screw (right ≥ 32px) */
+    var(--furniture-vent),
+    /* the vertical brush grain (T2's faceplate material, base layer) */
+    var(--metal-brush-v);
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat,
+    repeat;
+  background-size:
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    168px 5px,
+    auto;
+  background-position:
+    left 5px top 3px, right 5px top 3px, left 5px bottom 3px, right 5px
+    bottom 3px, right 32px top 4px, 0 0;
+}
+
+/*
+ * The serial plate — the unit's nameplate on the faceplate's underside
+ * edge (bottom padding band: no control ever paints there). A raised
+ * metal plate with the machined edge pair and the engraved model legend
+ * in the Silkscreen legend face. Decorative pseudo: aria-free,
+ * pointer-events none.
+ */
+.app:not([data-stage="phone"]) .booth::after {
+  content: "BITBOUNCE · MODEL BC-1 · NO 2026-0904";
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  transform: translateX(-50%);
+  padding: 1px 10px 1.5px;
+  font: 700 8px/1.2 var(--font-label);
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+  background: var(--metal-raised);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 var(--metal-edge-hi),
+    0 0 0 1px var(--metal-edge-lo);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/*
+ * T10 top-chrome retirement (the standing AC-9 residual): the position
+ * cluster (BAR.BEAT.STEP · beat LEDs · AUTOSAVE · PROJECTS) read as
+ * browser chrome — a save-status chip + nav, not instruments. It becomes
+ * ONE machined status module: an inlay plate (recessed strip, the edge-hi
+ * catch-light top + edge-lo ring) grouping the cluster on the faceplate.
+ * Paint + compensating negative margin only (the refinement-7 law): the
+ * group's margin box — and with it the booth's wraps, height and the
+ * one-page budget — is byte-identical.
+ */
+.booth-group-position {
+  padding-inline: var(--space-3);
+  margin-left: auto; /* restated: the plate must not eat the right-align */
+  margin-right: calc(-1 * var(--space-3));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-ink) 3%, var(--metal-panel));
+  box-shadow:
+    inset 0 1px 0 var(--metal-edge-hi),
+    inset 0 0 0 1px var(--metal-edge-lo);
+}
+
+/*
+ * The AUTOSAVE readout retires the last web cue: the floating status chip
+ * becomes a recessed readout window in the position module — the same
+ * --led-window vocabulary as BAR.BEAT.STEP (state coding unchanged:
+ * fill/shape carry it, the dot is a chrome-ringed LED, the label rides
+ * the VT323 LED face). Real text, real focus: ink on recess ≈ 17:1, the
+ * 2px focus ring survives the window (below). Layout note: VT323 is the
+ * narrowest face in the chain, so the window stays inside the old chip's
+ * footprint — the phone row law (SaveIndicator + PROJECTS, one row) holds.
+ */
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  padding: 3px var(--space-3);
+  border-radius: 3px;
+  background: var(--metal-recess);
+  box-shadow: var(--led-window), 0 0 0 1px var(--metal-edge-lo);
+  font-family: var(--font-led);
+  color: var(--led-on);
+}
+
+.save-indicator:focus-visible {
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
+}
+
+/* Chrome-ringed LED (the booth-beat-led vocabulary, neutral ink — autosave
+ * is a chassis state, deliberately not a lane hue). */
+.save-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 65%, transparent);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.save-indicator[data-status="saved"] .save-dot,
+.save-indicator[data-status="idle"] .save-dot {
+  background: currentColor;
+}
+
+.save-indicator[data-status="saving"] .save-dot {
+  border-style: dashed;
+}
+
+.save-indicator[data-status="error"] {
+  opacity: 0.55;
+}
+
+/* The label: VT323 readout digits in the window (12px — the readout size
+ * that keeps the phone row inside its footprint). */
+.save-label {
+  font: 400 12px/1 var(--font-led);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 40%, transparent);
 }

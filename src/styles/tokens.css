@@ -197,6 +197,42 @@
   --press-return: 140ms;
   --press-curve: cubic-bezier(0.2, 0.9, 0.3, 1.15); /* return-spring overshoot */
 
+  /* T9 (route.md "Press & motion feel", v3) — the switch-throw + detent
+   * values, same family law as D8: MUTE/SOLO/bypass thumbs are painted
+   * blocks that translate 3px between positions in 120ms with a 1px
+   * end-bounce; stepper values settle 2px. All consumers are pseudo-element
+   * paint inside unchanged key boxes (hit geometry byte-stable) and every
+   * motion carries its reduced-motion twin in the owning sheet. */
+  --press-throw: 3px; /* thumb travel between switch positions */
+  --press-throw-time: 120ms;
+  --press-throw-bounce: 1px; /* overshoot past the thrown position */
+  --press-detent: 2px; /* stepper value-digit settle amplitude */
+
+  /* ---- Chassis furniture (T10, route.md "Fine mechanical detailing" —
+   * v3; ALL static paint: aria-free backgrounds/pseudos, pointer-events
+   * none, zero layout px, zero animation — no twins owed for statics).
+   * Amplitudes deliberately read at page zoom: T7's console-scale screws
+   * (0.30-rim radial dots) read faint in review — the countersink ring,
+   * bright rim and dark slot here are the calibrated vocabulary every
+   * surface re-uses (ONE inline-SVG data-URI, self-authored, zero asset
+   * files). */
+  --furniture-screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Ccircle cx='3.5' cy='3.5' r='3.3' fill='%23000' fill-opacity='0.55'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='%232e2b33'/%3E%3Ccircle cx='3.5' cy='3.5' r='2.5' fill='none' stroke='%23f5f2e9' stroke-opacity='0.5' stroke-width='0.55'/%3E%3Cpath d='M1.8 5.2 5.2 1.8' stroke='%23000' stroke-opacity='0.9' stroke-width='0.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  --furniture-screw-size: 7px;
+  /* Vent grille: dark milled slots (heat exits here); one strip per chassis
+   * side, in padding dead zones only. */
+  --furniture-vent: repeating-linear-gradient(
+    90deg,
+    rgb(0 0 0 / 65%) 0 2px,
+    transparent 2px 5px
+  );
+  /* DEPTH-BAND wash (route.md playback-reactivity #8): the ONE ambient
+   * illumination field whose intensity steps with arrangement density —
+   * 600ms opacity crossfade at band boundaries, opacity-only, one layer
+   * per chassis, static twin under prefers-reduced-motion (chassis.css).
+   * The painted peak is the ambient amplitude ceiling (5%) — the field's
+   * dynamic range lives inside the clause caps by construction. */
+  --ambient-wash-fade: 600ms;
+
   /* ---- Focus on metal (law: may GROW vs the legacy rings, never
    * shrink; verified legible over every textured panel — a11y §5) ---- */
   --focus-on-metal: 2px solid var(--color-ink);

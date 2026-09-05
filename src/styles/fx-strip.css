@@ -320,11 +320,78 @@
 
 /* Bypass toggle: engaged = full lane-hue fill + near-black ink (DA-2: a 70%
  * tint dropped drums to 3.02:1 — full fill restores 5.17–10.91:1 on every
- * lane). The button is a machined key like its neighbors. */
+ * lane). The button is a machined key like its neighbors.
+ *
+ * T7's flagged ambiguity (production-log T7 follow-ups) — RESOLVED at T9,
+ * decision of record: the lit BYP key means ACTIVE PROCESSING (the module
+ * is in the circuit), NOT "bypass on". This is the established lit
+ * convention of the whole unit — light = the instrument is working
+ * (lit=sounding lane LEDs, lit module rim when processing, lit meters; the
+ * module itself DRAINS when bypassed, and its key drains with it — a lit
+ * key on a dead module would be a false work signal). The switch throw
+ * below makes the polarity legible to a first-time viewer: thrown thumb +
+ * lit key + LIVE module = processing; rested thumb + neutral key + DRAINED
+ * module (rim, meter, readouts at the idle register) = bypassed. aria
+ * stays the disambiguator of record (aria-pressed = bypassed; the label
+ * flips "Bypass X" / "Enable X"). */
 .fx-bypass-btn[aria-pressed="false"] {
   background: var(--lane-hue);
   border-color: var(--lane-hue);
   color: var(--color-ink-on-fill);
+}
+
+/* ---------------------------------------------------------------------------
+ * T9 — SWITCH THROW on the BYP key (same vocabulary as MUTE/SOLO in
+ * lane-header.css: milled slot ::before + rider thumb ::after, thrown
+ * --press-throw with the shared switch-throw keyframes' 1px end-bounce —
+ * keyframes live once in app.css's shared T9 block). THROWN + LIT = the
+ * module processes (aria-pressed="false"); RESTED + NEUTRAL = bypassed —
+ * the thumb's mechanical position echoes the module's own rim grammar, so
+ * the state no longer rests on the lit-fill reading alone.
+ * Motion law: the only animated property is the thumb pseudo's transform
+ * (≤120ms one-shot + 120ms release transition); both pseudos paint inside
+ * the unchanged key box — hit geometry byte-stable, zero layout px.
+ * ------------------------------------------------------------------------- */
+.fx-bypass-btn {
+  position: relative; /* host of the slot + thumb pseudos (zero layout px) */
+}
+
+.fx-bypass-btn::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  width: 14px; /* thumb (8px) + 3px travel + detent margins */
+  height: 2px;
+  border-radius: 1px;
+  background: var(--metal-recess);
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 55%); /* the milled groove */
+  pointer-events: none;
+}
+
+.fx-bypass-btn::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  /* the rider: bright machined metal at the rest (BYPASSED) end */
+  background: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 8%);
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform var(--press-throw-time) var(--press-curve);
+}
+
+.fx-bypass-btn[aria-pressed="false"]::after {
+  /* THROWN: module active — the rider seats near-black into the lit key
+   * (the Ink Law) exactly like MUTE/SOLO's engaged seat */
+  transform: translateX(var(--press-throw));
+  background: var(--color-ink-on-fill);
+  box-shadow: none;
+  animation: switch-throw var(--press-throw-time) ease-out;
 }
 
 .fx-remove-btn:hover:not(:disabled) {
@@ -665,6 +732,25 @@
   min-height: 44px;
 }
 
+/* T9 phone bump: the BYP key grows to 44×44 painted — the switch slot +
+ * thumb scale with the chassis (same --press-throw travel; the euclid/
+ * module action keys have no slot, only the bypass switch does). */
+.app[data-stage="phone"] .fx-bypass-btn::before,
+.app[data-stage="phone"] .fx-bypass-btn::after {
+  bottom: 5px;
+  height: 3px;
+  border-radius: 1.5px;
+}
+
+.app[data-stage="phone"] .fx-bypass-btn::before {
+  width: 20px;
+}
+
+.app[data-stage="phone"] .fx-bypass-btn::after {
+  width: 11px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 8%);
+}
+
 .app[data-stage="phone"] .fx-param-slider {
   height: 44px;
 }
@@ -677,4 +763,38 @@
   .fx-mod.is-flash::before {
     animation: none; /* static twin: the lit rim already codes active */
   }
+
+  /* T9 switch-throw twin: the throw motion dies; the thumb still occupies
+   * its per-state position (rested = bypassed, thrown = active) with its
+   * seat color — identical state information, statically. */
+  .fx-bypass-btn::after {
+    transition: none;
+  }
+
+  .fx-bypass-btn[aria-pressed="false"]::after {
+    animation: none;
+  }
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * T10 — SCREW AMPLITUDE (the T7 follow-up this task owns): at console
+ * scale the T7 radial-gradient screw dots read FAINT at page zoom (T7/T8
+ * verification both flagged it; the 0.30-rim dots sit below confident
+ * page-distance resolution). The modules now carry the shared calibrated
+ * --furniture-screw token (tokens.css T10 block: countersink ring, 0.50
+ * rim, dark diagonal slot — measured to READ at 1x) at the same two
+ * header-corner dead zones. Static background paint only; supersedes the
+ * T7 screw layers above by cascade (same selector, later in the sheet).
+ * -------------------------------------------------------------------------
+ */
+.fx-mod {
+  background-image:
+    var(--furniture-screw),
+    var(--furniture-screw);
+  background-repeat: no-repeat, no-repeat;
+  background-size:
+    var(--furniture-screw-size) var(--furniture-screw-size),
+    var(--furniture-screw-size) var(--furniture-screw-size);
+  background-position: left 3px top 3px, right 3px top 3px;
 }
