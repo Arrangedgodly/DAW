@@ -778,8 +778,9 @@ export const MidiNoteSchema = v.pipe(
  * Provenance echo limits, sized to the committed manifest (PS-2: longest
  * license "CC0", longest author 27 chars, longest sourceUrl 161 chars) with
  * headroom for future CC0/MIT-class rows — bounded so a hostile document
- * cannot stuff megabytes of "provenance" past the codec's 1 MB text cap
- * into per-entry strings (defense in depth, CA-2 stance).
+ * cannot stuff megabytes of "provenance" past the codec's 4 MB text cap
+ * (SV-1's measured raise; CA-2 defense in depth — the codec cap bounds the
+ * TOTAL, these bound per-entry strings).
  */
 export const PROVENANCE_LICENSE_MAX = 32;
 export const PROVENANCE_SOURCE_MAX = 256;

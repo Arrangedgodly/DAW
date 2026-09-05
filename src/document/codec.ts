@@ -186,7 +186,8 @@ export function encode(doc: ProjectDocument): string {
 export function decode(text: string): ProjectDocument {
   // CA-2 DoS guards, before any parsing: size cap + linear depth pre-scan.
   // JSON.parse/valibot recursion is unbounded; these two checks bound both
-  // total work (<=1 MB input) and recursion depth (<=64) up front.
+  // total work (<=4 MB input, DECODE_MAX_CHARS — SV-1/SV-2) and recursion
+  // depth (<=64) up front.
   if (text.length > DECODE_MAX_CHARS) {
     throw new TextTooLargeError(text.length);
   }

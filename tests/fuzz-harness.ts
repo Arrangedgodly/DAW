@@ -10,6 +10,15 @@
  * textual shapes (canonical, pretty-printed, key-shuffled) so mutations start
  * from realistic neighbors of the golden inputs.
  *
+ * SV-2 corpus v3: the rotation additionally carries v3 shapes — a
+ * v3-boundary neighbor (bars 8..128 incl. the ceiling, `octave` at ±3,
+ * unequal per-lane chains, notes at the 2047/2048/0.25 edges) and two dense
+ * 128-bar seeds — plus the v2-in-the-wild texts (tests/v2Project.ts) so
+ * mutations keep exercising the v2→v3 migration inside the real parse path.
+ * The 2.63 MB maximally-dense worst case is deliberately NOT in the rotation
+ * (measured ~90 ms/decode — rotation cost); it is exercised by the dedicated
+ * 4 MB-boundary class in tests/fuzz-codec.test.ts.
+ *
  * Invariant asserted for EVERY case (Captain America: the parse surface must
  * be total — validate or typed-reject, never anything else):
  *   1. decode(text) either returns a ProjectDocument or throws
@@ -23,15 +32,18 @@
  *
  * Hang-freedom via OPERATION COUNTING, not wall time: every per-case step is
  * linear-bounded by construction — (a) mutations apply ≤1 rewrite each over a
- * corpus text (≤1 MB, asserted), (b) the pre-parse depth scan touches each
- * char exactly once (asserted below via a counting twin of scanJsonDepth),
- * (c) JSON.parse is bounded by the 1 MB cap, (d) validation/canonicalize
- * recursion is bounded by the 64-depth cap (deep inputs are rejected before
- * parse). So no case can spin without bound, and the counting scan proves the
- * linear bound empirically per case.
+ * corpus text (≤ DECODE_MAX_CHARS, asserted), (b) the pre-parse depth scan
+ * touches each char exactly once (asserted below via a counting twin of
+ * scanJsonDepth), (c) JSON.parse is bounded by the 4 MB decode cap
+ * (DECODE_MAX_CHARS — SV-1's measured raise from 1 MB; both guards are
+ * linear in input, so the raise scales the stack by construction), (d)
+ * validation/canonicalize recursion is bounded by the 64-depth cap (deep
+ * inputs are rejected before parse). So no case can spin without bound, and
+ * the counting scan proves the linear bound empirically per case.
  */
 
 import {
+  DECODE_MAX_CHARS,
   DecodeError,
   decode,
   encode,
@@ -40,10 +52,18 @@ import {
 import { MigrationError } from "../src/document/migrate";
 import { ProjectValidationError } from "../src/document/validate";
 import {
+  DRUM_PIECES,
   createDefaultProject,
+  type DrumPattern,
+  type FxDevice,
   type ProjectDocument,
 } from "../src/document/schema";
 import { sustainHeavyV1ProjectText, v1DefaultProjectText } from "./v1Project";
+import {
+  boundaryV2ProjectText,
+  v2DefaultProjectText,
+  v2DemoProjectText,
+} from "./v2Project";
 import { importProjectFile } from "../src/persist/fileIO";
 import { createMemoryProjectDb } from "../src/persist/db";
 
@@ -99,7 +119,7 @@ function keyShuffled(value: unknown): string {
 
 export function seedCorpus(midiProject: () => ProjectDocument): string[] {
   return [
-    encode(createDefaultProject()), // golden codec bytes (tests/golden, v2)
+    encode(createDefaultProject()), // golden codec bytes (tests/golden, v3)
     JSON.stringify(createDefaultProject(), null, 2), // pretty-printed neighbor
     encode(midiProject()), // golden MIDI reference project (tests/midiReference)
     encode(wavLineageProject()), // golden WAV render lineage project
@@ -113,6 +133,18 @@ export function seedCorpus(midiProject: () => ProjectDocument): string[] {
     // shapes — dotted asset-id keys, CC0/https strings) so mutations hit the
     // new field's keys, values, and nesting too, not only its absence.
     encode(sampleProvenanceProject()),
+    // SV-2: v3 shapes in the rotation — the widened-edge neighbor (bars
+    // 8..128, octave ±3 lanes, unequal chains, 2047/2048/0.25 boundary
+    // notes) + two dense 128-bar seeds (boolean-step max density; single-row
+    // pitched density). v2-in-the-wild texts: real pre-v3 saves (default,
+    // demo, v2-boundary neighbor) so mutations keep hitting the v2→v3
+    // migration inside the real parse path.
+    encode(v3BoundaryProject()),
+    encode(dense128DrumsProject()),
+    encode(dense128PitchedProject()),
+    v2DefaultProjectText(),
+    v2DemoProjectText(),
+    boundaryV2ProjectText(),
   ];
 }
 
@@ -137,6 +169,264 @@ function sampleProvenanceProject(): ProjectDocument {
 }
 
 // ---------------------------------------------------------------------------
+// SV-2 v3 corpus shapes (bars 8..128, octave, unequal chains, density)
+// ---------------------------------------------------------------------------
+
+function cloneDefault(): ProjectDocument {
+  return JSON.parse(JSON.stringify(createDefaultProject()));
+}
+
+function drumSteps(
+  bars: number,
+  on: (piece: (typeof DRUM_PIECES)[number], step: number) => boolean,
+): DrumPattern["steps"] {
+  const len = bars * 16;
+  return Object.fromEntries(
+    DRUM_PIECES.map((piece) => [
+      piece,
+      Array.from({ length: len }, (_, i) => on(piece, i)),
+    ]),
+  ) as DrumPattern["steps"];
+}
+
+/**
+ * SV-2: v3-boundary neighbor — every widened edge as REAL canonical bytes so
+ * mutations start adjacent to the v3 laws: pattern bars across the vocabulary
+ * incl. the 128 ceiling (1/2/4/8/16/64/128 lanes), `octave` at the ±3/±1
+ * edges on pitched lanes (non-zero — octave 0 is canonical-empty, so the
+ * text must carry ±3 for mutations to hit the key), UNEQUAL per-lane chains
+ * with repeats (drums 3 slots, bass 1, chords 2, lead 4 — the i3-5 poly-loop
+ * shape), positional chainCues, and notes at the space edges (start 2047,
+ * length 2048, length 0.25, degree 23).
+ */
+export function v3BoundaryProject(): ProjectDocument {
+  const doc = cloneDefault();
+  doc.name = "V3 boundary";
+  doc.lanes = doc.lanes.map((lane) => {
+    if (lane.id === "bass") return { ...lane, octave: -3 };
+    if (lane.id === "chords") return { ...lane, octave: 1 };
+    if (lane.id === "lead") return { ...lane, octave: 3 };
+    return lane;
+  });
+  doc.patterns.drums = [
+    {
+      kind: "drums",
+      id: "drums-1",
+      name: "A",
+      bars: 1,
+      steps: drumSteps(1, (_p, i) => i % 4 === 0),
+    },
+    {
+      kind: "drums",
+      id: "drums-2",
+      name: "B",
+      bars: 128,
+      steps: drumSteps(128, (_p, i) => i % 16 === 0),
+    },
+  ];
+  doc.patterns.bass = [
+    {
+      kind: "pitched",
+      id: "bass-1",
+      name: "A",
+      bars: 8,
+      rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+      notes: [{ degree: 0, start: 127, length: 128 }],
+    },
+  ];
+  doc.patterns.chords = [
+    {
+      kind: "pitched",
+      id: "chords-1",
+      name: "A",
+      bars: 4,
+      rowDegrees: [0, 2, 4, 6],
+      notes: [{ degree: 0, start: 0, length: 64 }],
+    },
+    {
+      kind: "pitched",
+      id: "chords-2",
+      name: "B",
+      bars: 64,
+      rowDegrees: [0, 2, 4, 6],
+      notes: [{ degree: 4, start: 1023, length: 1 }],
+    },
+  ];
+  doc.patterns.lead = [
+    {
+      kind: "pitched",
+      id: "lead-1",
+      name: "A",
+      bars: 2,
+      rowDegrees: [0, 3, 5],
+      notes: [{ degree: 3, start: 0, length: 32 }],
+    },
+    {
+      kind: "pitched",
+      id: "lead-2",
+      name: "B",
+      bars: 16,
+      rowDegrees: [0, 3, 5],
+      notes: [{ degree: 5, start: 255, length: 0.25 }],
+    },
+    {
+      kind: "pitched",
+      id: "lead-3",
+      name: "C",
+      bars: 128,
+      rowDegrees: [0, 3, 5, 23],
+      notes: [
+        { degree: 3, start: 2047, length: 2048 }, // the space ceiling + full-span note
+        { degree: 23, start: 0, length: 0.25 }, // degree + length floors
+      ],
+    },
+  ];
+  doc.songChain = {
+    drums: ["drums-1", "drums-2", "drums-1"], // 3 slots, A repeats (unequal chains)
+    bass: ["bass-1"],
+    chords: ["chords-1", "chords-2"],
+    lead: ["lead-1", "lead-2", "lead-3", "lead-2"], // 4 slots, B repeats
+  };
+  doc.chainCues = {
+    drums: ["VERSE", null, "DROP"],
+    bass: [null],
+    chords: [null, null],
+    lead: [null, null, null, null],
+  };
+  return doc;
+}
+
+/**
+ * SV-2 dense seed #1: drums at MAXIMUM density — every piece, every step of
+ * the full 2048-step 128-bar space. Measured 62,485 canonical chars ≈ 61 KB
+ * at ~1 ms/decode (boolean arrays are the cheapest payload to validate), so
+ * the widest per-step shape rides the 50k rotation for free.
+ */
+export function dense128DrumsProject(): ProjectDocument {
+  const doc = cloneDefault();
+  doc.name = "Dense 128 drums";
+  doc.patterns.drums = [
+    {
+      kind: "drums",
+      id: "drums-1",
+      name: "A",
+      bars: 128,
+      steps: drumSteps(128, () => true),
+    },
+  ];
+  return doc;
+}
+
+/**
+ * SV-2 dense seed #2: pitched density — a 128-bar bass with a note on EVERY
+ * step of one row (2,048 notes, the single-row maximum), plus a half-dense
+ * lead row (every 2nd step). Note objects are the expensive payload to
+ * validate, so rotation density stops here to keep the 50k soak bounded;
+ * the FULL 4-lane max-dense worst case is the boundary class's job (below).
+ */
+export function dense128PitchedProject(): ProjectDocument {
+  const doc = cloneDefault();
+  doc.name = "Dense 128 pitched";
+  doc.patterns.bass = [
+    {
+      kind: "pitched",
+      id: "bass-1",
+      name: "A",
+      bars: 128,
+      rowDegrees: [0, 1],
+      notes: Array.from({ length: 2048 }, (_, i) => ({
+        degree: 0,
+        start: i,
+        length: 1,
+      })),
+    },
+  ];
+  doc.patterns.lead = [
+    {
+      kind: "pitched",
+      id: "lead-1",
+      name: "A",
+      bars: 128,
+      rowDegrees: [0, 3],
+      notes: Array.from({ length: 1024 }, (_, i) => ({
+        degree: 3,
+        start: i * 2,
+        length: 1,
+      })),
+    },
+  ];
+  return doc;
+}
+
+/**
+ * SV-2 (shared with tests/fuzz-codec.test.ts's 4 MB-boundary class; the same
+ * synthetic worst case SV-1 measured for the raise — see
+ * tests/document-codec-property.test.ts §"SV-1 codec-cap measurement"):
+ * a dense 128-bar × 4-lane canonical doc — ONE pattern per lane, maximally
+ * dense (a note on every step of every row; every drum step on), 3 max-FX
+ * per lane. 2,693,1xx chars ≈ 2.63 MB — the demand for SV-1's 4 MB raise.
+ * NOT in the mutation rotation (measured ~90 ms/decode); the boundary class
+ * exercises it a bounded number of times.
+ */
+export function maximallyDenseV3Doc(): ProjectDocument {
+  const doc = cloneDefault();
+  const maxFx: FxDevice[] = [
+    {
+      type: "filter",
+      bypassed: false,
+      params: { kind: "bandpass", cutoffHz: 20000, q: 18 },
+    },
+    {
+      type: "delay",
+      bypassed: false,
+      params: { timeSteps: 64, feedback: 0.95, mix: 1 },
+    },
+    { type: "reverb", bypassed: false, params: { size: 1, mix: 1 } },
+  ];
+  for (const lane of doc.lanes) lane.fxChain = maxFx;
+  doc.patterns.drums = [
+    {
+      kind: "drums",
+      id: "drums-1",
+      name: "A",
+      bars: 128,
+      steps: drumSteps(128, () => true),
+    },
+  ];
+  for (const lane of ["bass", "lead"] as const) {
+    doc.patterns[lane] = [
+      {
+        kind: "pitched",
+        id: `${lane}-1`,
+        name: "A",
+        bars: 128,
+        rowDegrees: Array.from({ length: 14 }, (_, d) => d),
+        notes: Array.from({ length: 14 * 2048 }, (_, i) => ({
+          degree: Math.floor(i / 2048),
+          start: i % 2048,
+          length: 1,
+        })),
+      },
+    ];
+  }
+  doc.patterns.chords = [
+    {
+      kind: "pitched",
+      id: "chords-1",
+      name: "A",
+      bars: 128,
+      rowDegrees: Array.from({ length: 7 }, (_, d) => d),
+      notes: Array.from({ length: 7 * 2048 }, (_, i) => ({
+        degree: Math.floor(i / 2048),
+        start: i % 2048,
+        length: 1,
+      })),
+    },
+  ];
+  return doc;
+}
+
+// ---------------------------------------------------------------------------
 // Mutations (each: seeded, single pass, O(n))
 // ---------------------------------------------------------------------------
 
@@ -150,7 +440,8 @@ export type MutationName =
   | "unicode-edge"
   | "proto-keys"
   | "dup-key"
-  | "nan-literal";
+  | "nan-literal"
+  | "v3-literal";
 
 const KEY_POOL = [
   "__proto__",
@@ -168,12 +459,46 @@ const KEY_POOL = [
   "start",
   "length",
   "degree",
+  // SV-2 v3 keys: the octave register field, the widened bars vocabulary's
+  // key, and the chain surfaces (songChain/chainCues) so unequal-chain
+  // shapes mutate structurally too.
+  "octave",
+  "bars",
+  "songChain",
+  "chainCues",
   // PS-3 sample-voice provenance keys (same law: hit the new shape).
   "sampleProvenance",
   "license",
   "sourceUrl",
   "author",
   "nope",
+];
+
+/**
+ * SV-2: v3 boundary literals — every widened edge as a NUMBER the mutator can
+ * splice over any numeric field, driving the v3 laws (bars vocabulary, note
+ * start/length space, octave register, degree ceiling, length grid) through
+ * the real decode path from every seed shape.
+ */
+const V3_BOUNDARY_LITERALS = [
+  "-3", // octave floor (accepted)
+  "-4", // octave rejection neighbor
+  "3", // octave ceiling (accepted)
+  "4", // octave rejection neighbor
+  "1.5", // octave/length off-grid neighbor
+  "0.25", // MIN_NOTE_LENGTH (the length grid)
+  "8", // bars vocabulary (v3-only members below)
+  "16",
+  "32",
+  "64",
+  "128", // bars ceiling (accepted)
+  "127", // bars rejection neighbor (off the powers-of-two list)
+  "129", // bars rejection neighbor
+  "2047", // note start ceiling (accepted)
+  "2048", // start rejection neighbor / MAX_NOTE_LENGTH (accepted as length)
+  "2049", // length rejection neighbor
+  "23", // degree ceiling (accepted)
+  "24", // degree rejection neighbor
 ];
 
 const UNICODE_EDGES = [
@@ -264,6 +589,12 @@ function applyMutation(
       const lit = ["NaN", "Infinity", "-Infinity", "1e999", "0x10"][pos(5)]!;
       return text.slice(0, n.start) + lit + text.slice(n.end);
     }
+    case "v3-literal": {
+      const n = firstNumberIndex(text);
+      if (!n) return text;
+      const lit = V3_BOUNDARY_LITERALS[pos(V3_BOUNDARY_LITERALS.length)]!;
+      return text.slice(0, n.start) + lit + text.slice(n.end);
+    }
   }
 }
 
@@ -278,6 +609,7 @@ export const MUTATIONS: readonly MutationName[] = [
   "proto-keys",
   "dup-key",
   "nan-literal",
+  "v3-literal",
 ];
 
 // ---------------------------------------------------------------------------
@@ -393,9 +725,12 @@ export async function runFuzz(
         `case ${i} (${mutation}): pre-scan iterations exceeded input length`,
       );
     }
-    if (text.length > 1_048_576) {
+    // SV-2: the corpus bound scales with the decode cap — every mutated text
+    // must stay inside the guarded parse surface (4 MB since SV-1's measured
+    // raise; the max-dense rotation seeds leave ~2.5 MB of mutation room).
+    if (text.length > DECODE_MAX_CHARS) {
       summary.crashes.push(
-        `case ${i} (${mutation}): mutated text exceeded 1 MB (${text.length})`,
+        `case ${i} (${mutation}): mutated text exceeded the decode cap (${text.length} > ${DECODE_MAX_CHARS})`,
       );
     }
     scanJsonDepth(text); // the production scan must terminate too (same invariant)
