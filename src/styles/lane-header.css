@@ -41,6 +41,51 @@
   white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------------------
+ * T6 — the LANE LED ACCENT (route.md playback-reactivity #5 → #6 tie).
+ * A chrome-ringed LED before the lane name, carrying the lane hue as an
+ * ANODIZED value at rest (T3's static grammar — dim hue on metal) and
+ * lighting to full emission while the lane sounds (T5's pulse): it rides
+ * the SAME `.is-sounding` class LaneGrid's onStepPulse consumer already
+ * toggles on `.lane-floor` once per beat — ZERO new wiring, no new DOM
+ * (pseudo-element: aria-free by construction, decorative reinforcement —
+ * the sounding state is already carried by the rim pulse, the on-cell
+ * fills, and aria).
+ *
+ * Motion law: the ONLY animation is the pseudo's own OPACITY (0.35 → 1,
+ * pre-painted fill + halo, compositor), decaying on --rim-pulse-decay —
+ * the same 120ms the rim pulse uses (one propagation vocabulary:
+ * cell → rim → LED). Reduced-motion twin, dual-gated: the CSS half below
+ * kills the transition, and the consumer's JS half (matchMedia) HOLDS the
+ * class for the whole playing span — the LED reads as a static lit state,
+ * same information.
+ * ------------------------------------------------------------------------- */
+.lane-name::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-right: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 55%, transparent);
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--lane-hue);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--lane-hue) 55%, transparent);
+  opacity: 0.35; /* the anodized idle value (the --led-idle 35% register) */
+  transition: opacity var(--rim-pulse-decay) ease-out;
+}
+
+.lane-floor.is-sounding .lane-name::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-name::before {
+    transition: none; /* twin's CSS half — the JS half holds the class */
+  }
+}
+
 .lane-strip-edit {
   display: flex;
   flex-wrap: wrap;

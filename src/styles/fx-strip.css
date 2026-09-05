@@ -1,12 +1,22 @@
 /*
- * FX console strips (DES-5). Lit console modules beside/below each lane —
- * lane-hue border + fill tint when active, dimmed chassis when bypassed,
- * silkscreen labels, --font-value live numeric readouts.
+ * FX console strips (DES-5). Machined Console reskin (T7): the console is a
+ * MODULE BANK — an opaque machined overlay chassis (the popover vocabulary:
+ * brushed panel metal, machined edge, static --elev-3 cast) whose title
+ * strip is the faceplate (chrome-ringed lane-hue LED, CLOSE machined key),
+ * and each device a RAISED instrument module: --metal-raised on the panel,
+ * the --elev-key bezel + cast (a key sits ON its panel), corner screws
+ * (radial-gradient, the furniture vocabulary introduced HERE at console
+ * scale only — T10 propagates), recessed readout windows (--metal-recess +
+ * --led-window) and one recessed rest-state METER window per module.
  *
- * Ink law (D9): info-critical text = warm white on the ground; the lane hue
- * lives on borders/fills/states only. Glow law: one ≤3px layer,
- * decoration-only over the border/fill coding; the add-flash is a ≤180 ms
- * one-shot and goes static under prefers-reduced-motion.
+ * Ink law (D9): info-critical text = warm white on the module; the lane hue
+ * lives on rims/fills/LED values only (anodized accents, never body text).
+ * Glow law v2: one ≤3px layer, decoration-only over the rim/fill coding;
+ * the add-flash is a ≤180 ms one-shot decaying as the OPACITY of the
+ * pre-painted ::before layer (box-shadow animation is banned — the legacy
+ * fx-mod-flash keyframe was the last remnant and is migrated here), and it
+ * goes static under prefers-reduced-motion (CSS media gate AND the
+ * component's matchMedia gate).
  */
 
 /*
@@ -21,10 +31,21 @@
  * pins the exact top inline (measured from the strip's bottom edge) and the
  * value below is the measured fallback (strip bottom 49px + 4px gap at the
  * supported viewports). The chassis itself is a visible boundary — opaque
- * ground + 1px 25%-ink border, the popover vocabulary — so even the EMPTY
- * console reads as an open surface (it used to be chassis-on-chassis
- * invisibility), and its title strip carries the CLOSE affordance on the
- * chassis, never under it.
+ * panel metal + 1px machined border, the popover vocabulary — so even the
+ * EMPTY console reads as an open surface, and its title strip carries the
+ * CLOSE affordance on the chassis, never under it.
+ *
+ * T7 backdrop-filter decision (route.md): the FX overlay was the ONE
+ * sanctioned candidate for backdrop-filter, gated on TH-4(a)/MB-5 staying
+ * green with no regression. Measured with the console open over live
+ * playback at both viewports (blur 6px + 78% panel): the gates PASSED with
+ * zero regression (medians byte-identical 16.6/16.7, 0/241 frames over,
+ * both variants) — and adoption was DECLINED anyway on the world register:
+ * the frosted glass reads glassmorphism/software, not machined chassis
+ * (probe vision verdict), and the committed material language is opaque
+ * panels everywhere. The property stays ABSENT from the codebase by this
+ * decision (production-log T7 carries the numbers). Do not re-add it
+ * without re-running BOTH the perf gate and the visual read.
  */
 .lane-fx-wrap {
   position: absolute;
@@ -36,18 +57,26 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--color-ground))
+  scrollbar-color: color-mix(in srgb, var(--color-ink) 30%, var(--metal-panel))
     transparent;
+  /* T7: the console chassis — brushed top-face panel metal (the quadrant
+   * floor's own grain direction), machined 1px boundary, the --elev-3
+   * popover cast. Paint-only: geometry byte-identical to the reskin. */
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
-  background: var(--color-ground);
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  /* + the machined top catch-light: the chassis edge reads as a raised
+   * panel sitting on the quadrant floor, not a flat modal (probe note). */
+  box-shadow: var(--elev-3), inset 0 1px 0 var(--metal-edge-hi);
 }
 
-/* Console title strip: the chassis's silkscreened name plate. Sticky so the
- * CLOSE affordance never scrolls away. The lane-hue LED is decoration over
- * the text identity (lane name in the title — never color alone). */
+/* Console title strip: the faceplate of the chassis — silkscreened name
+ * plate (Silkscreen keeps the engraved chassis word-mark duty, T1), sticky
+ * so the CLOSE affordance never scrolls away. The lane-hue LED is the
+ * chrome-ringed power light (decoration over the text identity — the lane
+ * name in the title carries it, never color alone). */
 .lane-fx-title {
   position: sticky;
   top: 0;
@@ -56,17 +85,23 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  background: var(--color-ground);
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
+  border-bottom: 1px solid var(--metal-edge-lo);
 }
 
 .lane-fx-title-led {
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 50%;
+  /* Chrome ring + the one static ≤3px halo (glow law: decoration over the
+   * title text identity, never a state signal — the console has no
+   * playback state of its own). */
   background: var(--lane-hue);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 65%, transparent);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--lane-hue) 55%, transparent);
 }
 
 .lane-fx-title-name {
@@ -77,16 +112,19 @@
   white-space: nowrap;
 }
 
-/* CLOSE: control-grade button (the .fx-mod-btn language — 3px radius,
- * 7%-ink fill, 18%-ink border, 20px tall). */
+/* CLOSE: a machined key (raised metal + --elev-1 bezel + the Plex
+ * panel-label voice; press travel via the shared app.css utility). */
 .lane-fx-close {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   height: 20px;
   padding: 0 var(--space-3);
   cursor: pointer;
@@ -94,12 +132,12 @@
 }
 
 .lane-fx-close:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .lane-fx-close:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .fx-strip {
@@ -119,67 +157,142 @@
   margin: 0;
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-panel));
   padding: var(--space-4) 0;
 }
 
-/* ---- One lit module ---- */
+/* ---- One instrument module ---- */
 
 .fx-mod {
+  position: relative; /* host of the pre-painted ::before bloom layer */
   flex: 0 1 236px;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--color-ink) 5%, var(--color-ground));
-  /* Active = lit: lane-hue border + fill tint carry the state (never glow). */
-  border: 2px solid color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+  /* T7: raised module chassis — --metal-raised with the --elev-key bezel +
+   * key cast (the module SITS on the console panel). Two corner screws
+     (radial-gradient dots in the padding dead zones) introduce the T10
+     furniture vocabulary at console scale; ≤4/surface, static paint,
+     background-only (aria-free, no hit boxes). */
+  background-color: var(--metal-raised);
+  background-image:
+    radial-gradient(
+      circle at 40% 35%,
+      color-mix(in srgb, var(--color-ink) 30%, transparent),
+      var(--metal-edge-lo) 65%,
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 40% 35%,
+      color-mix(in srgb, var(--color-ink) 30%, transparent),
+      var(--metal-edge-lo) 65%,
+      transparent 70%
+    );
+  background-repeat: no-repeat;
+  background-size: 6px 6px, 6px 6px;
+  background-position: left 3px top 3px, right 3px top 3px;
+  /* Active = lit: lane-hue rim + the raised fill carry the state (never
+   * glow; the rim is the 1px hairline discipline, EMISSION-RAIL). */
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--metal-raised));
+  box-shadow: var(--elev-key);
   cursor: grab;
 }
 
 .fx-mod.is-drop {
   border-color: var(--lane-hue);
+  border-style: var(--rim-pending); /* a drop target is a pending move */
 }
 
-/* Bypassed = dimmed chassis: hue drains from border + fill, readouts dim
- * (DA-2: all dimmed text ≥4.5:1 — 55% ink mix measures 5.70:1 on ground). */
+/* Bypassed = dimmed chassis: hue drains from rim + fill, readouts dim
+ * (DA-2: all dimmed text ≥4.5:1 — 55% ink mix measures 5.28:1 on raised). */
 .fx-mod.is-bypassed {
-  border-color: color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
-  background: color-mix(in srgb, var(--color-ink) 2%, var(--color-ground));
+  border-color: color-mix(in srgb, var(--color-ink) 16%, var(--metal-raised));
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink) 3%,
+    var(--metal-raised)
+  );
 }
 
 .fx-mod.is-bypassed .fx-mod-name {
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
 }
 
 .fx-mod-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-3);
 }
 
+/*
+ * T7 REST-STATE METER (route.md playback-reactivity #7): one recessed
+ * meter window per module, first thing in the header. The fill width is
+ * --fx-meter (0..1) — the module's CHARACTER param, written additively by
+ * FxStrip from the DOCUMENT STORE (cutoff log position, drive amount, bit
+ * depth, delay feedback, reverb size). Cosmetic param echo at rest-state
+ * fidelity: NO level animation, NO analyser (D2 absolute). Bypass dims the
+ * whole window (below), so bypass + param value — the deterministic
+ * document state — are exactly what the meter carries. A pseudo-element:
+ * decorative, aria-free by construction (the param's real state lives in
+ * the slider position, the readout window, and aria-valuetext).
+ */
+.fx-mod-head::before {
+  content: "";
+  flex: none;
+  width: 44px;
+  height: 6px;
+  border-radius: 2px;
+  background-color: var(--metal-recess);
+  /* LED SEGMENTS, not a progress bar (probe note): 4px lit segments with
+   * 2px unlit gaps — the first layer (segment separators, the window's own
+   * recess color) paints OVER the lane-hue fill, whose width carries
+   * --fx-meter. */
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 4px,
+      var(--metal-recess) 4px 6px
+    ),
+    linear-gradient(var(--lane-hue), var(--lane-hue));
+  background-repeat: no-repeat;
+  background-size:
+    100% 100%,
+    calc(var(--fx-meter, 0) * 100%) 100%;
+  box-shadow: var(--led-window);
+}
+
+.fx-mod.is-bypassed .fx-mod-head::before {
+  opacity: 0.5; /* unpowered meter — bypass echoed as the idle register */
+}
+
 .fx-mod-name {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
 }
 
 .fx-mod-actions {
   display: flex;
   gap: var(--space-1);
+  margin-left: auto; /* meter + name group left, action keys right */
 }
 
 .fx-mod-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   min-width: 20px;
   height: 20px;
   padding: 0 4px;
@@ -189,10 +302,10 @@
 }
 
 .fx-mod-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
-/* DA-2: disabled labels keep ≥3:1 (UI-component floor) — 55% ink = 5.70:1,
+/* DA-2: disabled labels keep ≥3:1 (UI-component floor) — 55% ink = 5.28:1,
  * well past AA text; the native disabled state still reads inert via
  * cursor + no hover fill. */
 .fx-mod-btn:disabled {
@@ -201,12 +314,13 @@
 }
 
 .fx-mod-btn:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
-/* Bypass toggle: lit = full lane-hue fill + near-black ink (DA-2: a 70% tint
- * dropped drums to 3.02:1 — full fill restores 5.17–10.91:1 on every lane). */
+/* Bypass toggle: engaged = full lane-hue fill + near-black ink (DA-2: a 70%
+ * tint dropped drums to 3.02:1 — full fill restores 5.17–10.91:1 on every
+ * lane). The button is a machined key like its neighbors. */
 .fx-bypass-btn[aria-pressed="false"] {
   background: var(--lane-hue);
   border-color: var(--lane-hue);
@@ -217,7 +331,7 @@
   border-color: color-mix(
     in srgb,
     var(--color-lane-drums) 55%,
-    var(--color-ground)
+    var(--metal-raised)
   );
 }
 
@@ -237,17 +351,22 @@
 }
 
 .fx-param-label {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-raised));
 }
 
 .fx-mod.is-bypassed .fx-param-label {
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
 }
 
-/* Range inputs styled in-world: chassis track, warm-white square thumb with a
- * lane-hue edge. Native keyboard + a11y for free (arrow keys, home/end). */
+/* Range inputs styled in-world (instrument-grade surface ONLY — no rotary,
+ * no new gesture, Professor X fence): recessed well track + warm-white
+ * fader cap with the lane-hue edge and the 1px fader-cap cast (the T2/T3
+ * one-slider vocabulary). Native keyboard + a11y for free (arrow keys,
+ * home/end). */
 .fx-param-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -261,17 +380,15 @@
 .fx-param-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .fx-param-slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--color-ink) 14%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: var(--metal-recess);
+  border: 1px solid var(--metal-edge-lo);
 }
 
 .fx-param-slider::-webkit-slider-thumb {
@@ -283,6 +400,7 @@
   border-radius: 1px;
   background: var(--color-ink);
   border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 60%); /* the fader-cap cast */
 }
 
 .fx-param-slider::-moz-range-thumb {
@@ -291,11 +409,12 @@
   border-radius: 1px;
   background: var(--color-ink);
   border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 60%); /* the fader-cap cast */
 }
 
 .fx-param-slider:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .fx-mod.is-bypassed .fx-param-slider::-webkit-slider-thumb {
@@ -306,33 +425,68 @@
   border-color: color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
 }
 
+/*
+ * The native select, retired from its web look (T4/T6's flagged residual):
+ * still a native <select> (DOM freeze, free a11y, keyboard map untouched)
+ * but painted as a machined key — appearance:none, raised metal + --elev-1
+ * bezel, a CSS-drawn caret (two linear-gradient triangles — zero assets),
+ * and the Plex/panel surface. The dropdown list itself stays the
+ * platform's own; the closed control reads as hardware.
+ */
 .fx-param-select {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   font: var(--text-value);
   color: var(--color-ink);
-  background: var(--color-ground);
+  background-color: var(--metal-raised);
+  /* The machined caret: an inline-SVG data-URI ▼ (route.md sanctions
+   * CSS-gradient OR data-URI drawing — zero asset files, zero network).
+   * fill = --color-ink at 70% (the token is byte-frozen law, safe to pin
+   * inside the URI; SVG cannot read CSS vars). */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6Z' fill='%23f5f2e9' fill-opacity='.7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 10px 6px;
+  background-position: right 6px center;
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
-  padding: 2px 4px;
+  box-shadow: var(--elev-1);
+  padding: 2px 22px 2px 6px;
   width: 100%;
+  cursor: pointer;
+}
+
+.fx-param-select:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink) 8%,
+    var(--metal-raised)
+  );
 }
 
 .fx-param-select:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
-/* Live numeric readout — the variable-font-specimen raise. */
+/* Live numeric readout — the variable-font-specimen raise, set into a
+ * RECESSED READOUT WINDOW (--metal-recess well + the --led-window inset
+ * stack; warm-white digits, --font-value keeps value duty). */
 .fx-param-readout {
   font: var(--text-value);
   color: var(--color-ink);
+  background: var(--metal-recess);
+  box-shadow: var(--led-window);
+  border-radius: 2px;
+  padding: 2px 6px;
   min-width: 7ch;
   text-align: right;
   white-space: nowrap;
 }
 
 .fx-mod.is-bypassed .fx-param-readout {
-  color: color-mix(in srgb, var(--color-ink) 50%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 50%, var(--metal-recess));
 }
 
 /* ---- Add menu / footer ---- */
@@ -345,32 +499,39 @@
 }
 
 .fx-add-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px dashed
-    color-mix(in srgb, var(--lane-hue) 45%, var(--color-ground));
+  background: var(--metal-raised);
+  border: 1px solid
+    color-mix(in srgb, var(--lane-hue) 45%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: 4px 10px;
   cursor: pointer;
 }
 
 .fx-add-btn:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .fx-add-btn:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .fx-strip-cap {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-panel));
 }
 
+/* The add menu: a floating machined chassis (the scale-pop / rail-tools
+ * vocabulary — brushed panel metal + the --elev-3 popover cast). */
 .fx-add-menu {
   position: absolute;
   bottom: calc(100% + var(--space-2));
@@ -379,73 +540,100 @@
   display: flex;
   gap: var(--space-1);
   padding: var(--space-2);
-  background: var(--color-ground);
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 4px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--elev-3);
 }
 
 .fx-add-item {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: 5px 8px;
   cursor: pointer;
 }
 
 .fx-add-item:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
-  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--metal-raised));
 }
 
 .fx-add-item:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 /* ---- Header FX entry (activated from placeholder) ---- */
 
 .head-fx {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid color-mix(in srgb, var(--lane-hue) 35%, var(--color-ground));
+  background: var(--metal-raised);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: 4px 10px;
   cursor: pointer;
 }
 
 .head-fx:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .head-fx:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .head-fx.is-open {
-  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--metal-raised));
   border-color: var(--lane-hue);
 }
 
 /* ---- One-shot add flash (D9: ≤180 ms, one ≤3px lane-hue layer,
- * decoration-only over the border/fill coding above) ---- */
+ * decoration-only over the rim/fill coding above) ----
+ * T7 glow-law-v2 migration: the legacy keyframe animated box-shadow (the
+ * pattern Thor banned). The bloom is now a PRE-PAINTED ::before layer —
+ * a 1px lane-hue ring + the one ≤3px halo, painted once — and the ONE-SHOT
+ * decays that layer's OPACITY (compositor-only). Reduced-motion twin: the
+ * CSS half below kills the animation (the component's matchMedia half
+ * never sets .is-flash), so the module simply appears already-lit by its
+ * rim/fill coding. */
+.fx-mod::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--lane-hue) 70%, transparent),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--lane-hue) 60%, transparent);
+  opacity: 0;
+}
+
+.fx-mod.is-flash::before {
+  animation: fx-mod-flash var(--glow-trigger-decay) ease-out 1 both;
+}
 
 @keyframes fx-mod-flash {
   from {
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.45),
-      0 0 3px color-mix(in srgb, var(--lane-hue) 60%, transparent);
+    opacity: 1;
   }
   to {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+    opacity: 0;
   }
 }
 
@@ -462,6 +650,14 @@
 .app[data-stage="phone"] .fx-add-btn,
 .app[data-stage="phone"] .fx-add-item {
   min-height: 44px;
+  min-width: 44px; /* MB-3: the Plex panel-label voice is narrower than the
+   * Silkscreen box it replaced — the painted key keeps the 44px law */
+}
+
+/* Same law for the strip's FX entry (it lives in this sheet): the audit's
+ * fresh-project state paints a bare "FX" at 40px wide in the Plex voice. */
+.app[data-stage="phone"] .head-fx {
+  min-width: 44px;
 }
 
 .app[data-stage="phone"] .fx-mod-btn {
@@ -477,12 +673,8 @@
   min-height: 44px;
 }
 
-.fx-mod.is-flash {
-  animation: fx-mod-flash 180ms ease-out 1 both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .fx-mod.is-flash {
-    animation: none; /* static on-state: the lit border already codes active */
+  .fx-mod.is-flash::before {
+    animation: none; /* static twin: the lit rim already codes active */
   }
 }

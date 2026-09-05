@@ -104,7 +104,21 @@
 .scale-pop-mode,
 .scale-pop-commit,
 .scale-pop-detach,
-.lane-switch-tab {
+.lane-switch-tab,
+/* T6 rail tools (this sheet's REUSE law): the rail's painted CONTROLS —
+ * view toggle, PAT trigger + toolbox keys, the + append. NOT the tiles:
+ * they are the cue-sweep gesture surface (:active spans a whole drag). */
+.rail-view-toggle,
+.rail-tool,
+.rail-append,
+/* T7 FX console (same REUSE law): the console's painted CONTROLS — the
+ * module action keys (move/bypass/remove), the title CLOSE, the + ADD FX
+ * entry and its menu items. NOT the modules themselves (drag surfaces) and
+ * not the native select (a control, not a painted key). */
+.fx-mod-btn,
+.lane-fx-close,
+.fx-add-btn,
+.fx-add-item {
   transition: transform var(--press-return) var(--press-curve);
 }
 
@@ -116,7 +130,14 @@
 .scale-pop-mode:active,
 .scale-pop-commit:active,
 .scale-pop-detach:active,
-.lane-switch-tab:active {
+.lane-switch-tab:active,
+.rail-view-toggle:active,
+.rail-tool:active,
+.rail-append:active,
+.fx-mod-btn:active,
+.lane-fx-close:active,
+.fx-add-btn:active,
+.fx-add-item:active {
   transform: translateY(var(--press-travel)) scale(0.985);
   transition-duration: var(--press-down);
   transition-timing-function: ease-out;
@@ -141,7 +162,14 @@
   .scale-pop-mode,
   .scale-pop-commit,
   .scale-pop-detach,
-  .lane-switch-tab {
+  .lane-switch-tab,
+  .rail-view-toggle,
+  .rail-tool,
+  .rail-append,
+  .fx-mod-btn,
+  .lane-fx-close,
+  .fx-add-btn,
+  .fx-add-item {
     transition: none;
   }
 
@@ -153,7 +181,14 @@
   .scale-pop-mode:active,
   .scale-pop-commit:active,
   .scale-pop-detach:active,
-  .lane-switch-tab:active {
+  .lane-switch-tab:active,
+  .rail-view-toggle:active,
+  .rail-tool:active,
+  .rail-append:active,
+  .fx-mod-btn:active,
+  .lane-fx-close:active,
+  .fx-add-btn:active,
+  .fx-add-item:active {
     transform: none;
   }
 }

@@ -1,9 +1,31 @@
 /*
  * Pattern rail (DES-6, LY-1 compact) — the song arrangement surface under
- * the booth. Arcade Stage Floor vocabulary: silkscreen labels, lane hue codes
- * state on border + fill only (ink law: info-critical text stays warm white
- * on the ground; near-black ink on fills). Pending is coded by fill + border
- * + a shape mark (diamond flag) + text in the aria-label — never color alone.
+ * the booth. Machined Console reskin (T6): the rail strip is a --metal-panel
+ * chassis (the .chassis-panel vocabulary — brushed vertical grain, machined
+ * edge, static --elev-2 bezel + cast) with INLAY labels (T1 typography: the
+ * Plex panel-label workhorse for row labels, Silkscreen for the SONG CHAIN
+ * chassis word-mark).
+ *
+ * EMISSION-RAIL state grammar (route.md; tokens.css EMISSION-RAIL family) —
+ * the tile rim's LINE FORM carries playback state, hue layers on top as
+ * signal, never alone:
+ *   solid  = idle (neutral machined hairline);
+ *   dashed = pending / cued (the quantized switch is queued — plus the
+ *            diamond flag + hatch fill + aria text, the shape-mark law);
+ *   doubled = SOUNDING (border + inset outline = two 1px lane-hue hairlines
+ *            with a 3px gap — the same border+outline doubling chassis.css
+ *            paints on the editing lane floor — plus the one static ≤3px
+ *            underglow the glow law permits; carried by the ADDITIVE
+ *            data-sounding attribute so it survives tileState's
+ *            sounding+selected collapse onto whichever tiles sound).
+ *   Selected (the grid's editing target, a UI state not an emission state)
+ *   keeps the solid hairline in lane hue + the strongest fill; the doubled
+ *   line stays reserved for sounding (layering over selected when a
+ *   selected pattern IS the one sounding).
+ * The sounding treatment rides the EXISTING document/switch seams (the
+ * getSoundingPattern follow + subscribeSwitches → data-state/data-sounding
+ * writes) — zero new renderer wiring; the lane-header LED accents
+ * (lane-header.css) ride T5's .is-sounding class for the same vocabulary.
  *
  * LY-1 one-page law: the rail compacts to single-line rows (cue inline with
  * pattern name + bars) so booth + rail + all four quadrants fit 1440×900.
@@ -11,6 +33,13 @@
  * lane name, tiles, the + append — while pattern-pool management (REN/+NB/
  * DUP/RM) distills into the PAT popover, so the tiles keep the scan space
  * the six-tool rows used to compete for.
+ *
+ * T6 layout law: every change below is PAINT (color/background/box-shadow/
+ * outline) — borders stay 1px, padding, font sizes and box geometry are
+ * untouched, so the one-page law and every width pin hold byte-identically.
+ * No animation ships on the tiles (the sounding treatment is STATIC by
+ * route law) — press travel for the rail TOOLS (not the sweep-surface
+ * tiles) rides the shared app.css utility.
  */
 
 /*
@@ -29,8 +58,15 @@
   width: calc(100% - 2 * var(--space-5));
   margin: 0 auto;
   padding: var(--space-3) var(--space-5) 0;
-  border-top: 1px solid
-    color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  /* T6 chassis: the rail strip is a machined panel module on the deck (the
+   * .chassis-panel vocabulary, painted here — brushed vertical grain, the
+   * machined top catch-light as the seam against the booth's dark lower
+   * edge, static --elev-2 bezel + cast). Paint-only: the border stays the
+   * same 1px it always was, so the one-page box is byte-identical. */
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush-v);
+  border-top: 1px solid var(--metal-edge-hi);
+  box-shadow: var(--elev-2);
 }
 
 /*
@@ -115,23 +151,32 @@
 .rail-title {
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
-  color: var(--color-ink);
+  /* T6 inlay: the chassis word-mark reads as printed INTO the panel —
+   * dimmed panel-ink (62% = 6.69:1, the head-ctl-label value), Silkscreen
+   * keeping its T1 "engraved legend accent" role. */
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
 }
 
 .rail-view-toggle {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  /* T6: a machined key (raised metal, --elev-1 bezel, press travel via the
+   * shared app.css utility). Font metrics pinned to the old box (10px/1 —
+   * line-height 1 keeps the 16px key height byte-identical); only the face
+   * and voice change (Plex workhorse + panel tracking). */
+  font: 500 10px/1 var(--font-ui);
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
 .rail-view-toggle:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 .rail-view-toggle:focus-visible {
@@ -165,9 +210,14 @@
 .rail-lane-name {
   flex: none;
   width: 64px;
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: var(--color-ink);
+  /* T6 inlay label: the Plex panel-label workhorse (T1 typography — 500
+   * weight, panel tracking, uppercase) dimmed into the panel (62% ink,
+   * 6.69:1). The 10px/1.2 label box stays under the row's tile height, so
+   * the single-line row law is untouched. */
+  font: var(--text-panel-label-sm);
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
   /* MB-2: a non-interactive origin — swipes from the lane name keep the
    * browser's default panning (the phone strip h-scrolls from here). */
   user-select: none;
@@ -189,9 +239,15 @@
   padding: var(--space-1) var(--space-3);
   min-width: 48px;
   border-radius: 3px;
+  /* T6 idle tile: a machined key on the rail panel — raised metal, the
+   * neutral SOLID hairline (EMISSION-RAIL idle line form), static --elev-1
+   * bezel. Same 1px border, same geometry — paint only. No press travel
+   * here: the tile is the cue-SWEEP gesture surface (:active would pin the
+   * origin tile "down" for a whole drag). */
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 16%, var(--color-ground));
-  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  background: var(--metal-raised);
+  box-shadow: var(--elev-1);
   cursor: pointer;
   font: var(--text-value);
   white-space: nowrap;
@@ -208,7 +264,7 @@
 }
 
 .rail-tile:hover {
-  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--metal-raised));
 }
 
 .rail-tile:focus-visible {
@@ -223,10 +279,11 @@
   color: var(--color-ink);
 }
 
-/* Empty-cue dash = placeholder text; DA-2 raised from 30% (2.46:1) to 55%
- * ink (5.70:1) — placeholders must meet AA here, they're the only cue hint. */
+/* Empty-cue dash = placeholder text; DA-2 raised to 55% ink (5.70:1 on the
+ * old ground) — T6 re-mixes onto the raised tile key: 55% on --metal-raised
+ * measures 5.28:1, still AA (placeholders are the only cue hint). */
 .rail-tile-cue.is-empty {
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
 }
 
 .rail-tile-name {
@@ -234,41 +291,75 @@
 }
 
 .rail-tile-bars {
-  color: color-mix(in srgb, var(--color-ink) 55%, var(--color-ground));
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
 }
 
-/* DA-3 fix: the 55% dim mix (5.70:1 on plain ground tiles) drops to
- * 3.12–4.14:1 on the lane-hue-tinted fills of state tiles (selected 28%,
- * active 18%, pending hatch) — the bar count is info-critical, so state
- * tiles carry it at full ink (≥8.5:1 measured on every lane hue). */
+/* DA-3 fix carried through the T6 metal key: the 55% dim mix (5.28:1 on the
+ * raised idle tile) drops below AA on the lane-hue-tinted fills of state
+ * tiles (selected 28%, active 18%, pending hatch) — the bar count is
+ * info-critical, so state tiles carry it at full ink (6.79–12.67:1 measured
+ * on every lane hue over the raised key). */
 .rail-tile[data-state="selected"] .rail-tile-bars,
 .rail-tile[data-state="active"] .rail-tile-bars,
 .rail-tile[data-state="pending"] .rail-tile-bars {
   color: var(--color-ink);
 }
 
-/* State coding: border + fill carry it; the diamond flag is the shape mark. */
+/* ---- State coding: the EMISSION-RAIL line-form grammar (T6). Fill + flag +
+ * aria text always ride along (hue is signal, never the sole carrier). ---- */
+
+/* SOUNDING (data-state from the getSoundingPattern follow): the lane-hue
+ * hairline + the 18% signal fill. The DOUBLED second line + the underglow
+ * live on [data-sounding] below — the raw seam, so they survive tileState's
+ * sounding+selected collapse (T6 probe finding: the lit tile must never
+ * vanish on the lane the user last touched). Static by law: the tile marks
+ * WHICH pattern sounds; the BEAT vocabulary is T5's rim pulse + the LED
+ * accents. */
 .rail-tile[data-state="active"] {
   border-color: var(--lane-hue);
-  background: color-mix(in srgb, var(--lane-hue) 18%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 18%, var(--metal-raised));
 }
 
+/* SELECTED (the grid's editing target — a UI state, not an emission state):
+ * keeps the SOLID hairline in lane hue + the strongest fill; the doubled
+ * line stays reserved for sounding. */
 .rail-tile[data-state="selected"] {
   border-color: var(--lane-hue);
-  background: color-mix(in srgb, var(--lane-hue) 28%, var(--color-ground));
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--lane-hue) 60%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 28%, var(--metal-raised));
+  box-shadow: var(--elev-1);
 }
 
-/* PENDING: pattern-bordered with a marching fill — the quantized switch is
- * queued but has NOT landed yet (Hulk: pending must be visible). */
+/* PENDING: the DASHED lane-hue hairline — the quantized switch is queued
+ * but has NOT landed yet (Hulk: pending must be visible). The dashed line
+ * IS the EMISSION-RAIL "cued" shape-mark; the hatch fill + diamond flag +
+ * "switch pending" aria text keep the state off hue-alone. */
 .rail-tile[data-state="pending"] {
-  border-color: var(--color-ink);
+  border-color: var(--lane-hue);
+  border-style: var(--rim-pending);
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--lane-hue) 32%, var(--color-ground)) 0 4px,
-    color-mix(in srgb, var(--lane-hue) 12%, var(--color-ground)) 4px 8px
+    color-mix(in srgb, var(--lane-hue) 32%, var(--metal-raised)) 0 4px,
+    color-mix(in srgb, var(--lane-hue) 12%, var(--metal-raised)) 4px 8px
   );
+  box-shadow: var(--elev-1);
+}
+
+/* The DOUBLED hairline + static underglow, on the RAW sounding seam
+ * (PatternRail's additive data-sounding — the same follow signal that
+ * drives data-state): the 1px border PLUS a second 1px line as an inset
+ * outline (border + 3px gap + line; zero layout px, the same border+
+ * outline doubling chassis.css paints on the editing lane floor — gap
+ * sized at the T6 probe: 2px read as one thick line at 1x) and the ONE
+ * static ≤3px lane-hue underglow the glow law permits (pre-painted, never
+ * animated — route.md #6). Layers over BOTH active and selected tiles so
+ * the fill hierarchy stays while the doubled line tracks what sounds. */
+.rail-tile[data-sounding="true"] {
+  border-color: var(--lane-hue);
+  outline: var(--rim-width) var(--rim-idle)
+    color-mix(in srgb, var(--lane-hue) 80%, var(--metal-raised));
+  outline-offset: -5px;
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--lane-hue) 55%, transparent);
 }
 
 /* Pending stays STATIC (token law 4: no infinite pulses) — hatch + flag.
@@ -293,23 +384,25 @@
  * only (token law 4). ---- */
 
 /* Swept = touched by the gesture; target = the tile that WILL cue (each
- * lane's last-touched). Lane-hue border + fill, full-ink bars (the DA-3
- * state-tile law: dim bars over tinted fills measured below AA). */
+ * lane's last-touched). T6: the swept tile carries the DASHED lane-hue
+ * hairline — the gesture previews the EMISSION-RAIL "cued" line form it is
+ * about to request; the target adds the fill + inner ring. Lane-hue border
+ * + fill, full-ink bars (the DA-3 state-tile law). */
 .rail-tile[data-cue-preview="swept"] {
   border-color: var(--lane-hue);
-  border-style: dashed;
+  border-style: var(--rim-pending);
 }
 
 .rail-tile[data-cue-preview="target"] {
   border-color: var(--lane-hue);
-  background: color-mix(in srgb, var(--lane-hue) 22%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 22%, var(--metal-raised));
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--lane-hue) 70%, var(--color-ground));
+    color-mix(in srgb, var(--lane-hue) 70%, var(--metal-raised));
 }
 
 .rail-tile[data-in-range="true"] {
   border-color: var(--lane-hue);
-  background: color-mix(in srgb, var(--lane-hue) 14%, var(--color-ground));
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--metal-raised));
 }
 
 .rail-tile[data-in-range="true"] .rail-tile-bars,
@@ -320,16 +413,20 @@
 .rail-append {
   font: var(--text-value);
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 6%, var(--color-ground));
+  /* T6: the ghost slot key — raised metal + the dashed neutral hairline
+   * (an empty chain slot in the emission vocabulary; not lane-hued — it
+   * cues nothing yet). */
+  background: var(--metal-raised);
   border: 1px dashed
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
 .rail-append:hover {
-  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--color-ground));
+  border-color: color-mix(in srgb, var(--lane-hue) 55%, var(--metal-raised));
 }
 
 .rail-append:focus-visible,
@@ -342,9 +439,11 @@
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   color: var(--color-ink);
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 35%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 35%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: var(--space-1) var(--space-3);
 }
 
@@ -373,27 +472,34 @@
   gap: var(--space-2);
   max-width: 216px;
   padding: var(--space-3);
-  background: var(--color-ground);
+  /* T6: the floating machined chassis (the scale-pop vocabulary — brushed
+   * panel metal + machined edge + the --elev-3 popover cast). */
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush-v);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--elev-3);
 }
 
 .rail-tool {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  /* T6: machined key + the Plex panel-label voice (line-height 1 — the
+   * 16px key box is byte-identical to the Silkscreen box it replaces). */
+  font: 500 10px/1 var(--font-ui);
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  background: var(--metal-raised);
   border: 1px solid
-    color-mix(in srgb, var(--color-ink) 22%, var(--color-ground));
+    color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
+  box-shadow: var(--elev-1);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
 
 .rail-tool:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
 }
 
 /* DA-2: 0.4 opacity measured 3.51:1 — 0.55 = 5.70:1; native disabled still
@@ -406,9 +512,13 @@
 .rail-edit {
   font: var(--text-value);
   color: var(--color-ink);
-  background: var(--color-ground);
+  /* T6: the text entry as a recessed readout well (the --led-window inset
+   * stack over --metal-recess — the world's window vocabulary; the lane-hue
+   * border stays as the field's focus affordance). Paint only. */
+  background: var(--metal-recess);
   border: 1px solid var(--lane-hue);
   border-radius: 3px;
+  box-shadow: var(--led-window);
   padding: var(--space-1) var(--space-2);
   width: 9ch;
   /* MB-2: the tile's gesture-surface user-select must not inherit into the

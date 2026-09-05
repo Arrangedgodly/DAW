@@ -115,6 +115,95 @@ viewport:
   playhead's compositor transform for a layout-inducing write fails the
   per-quadrant playhead-liveness assertion (the D9 transform law is pinned
   by measurement, not just review).
+- **T5 (measured 2026-09-04, v2 lane-rim pulses ACTIVE — the R1 hot spot
+  the M2 gate measures; one `.is-sounding` class toggle per beat per lane
+  on each `.lane-floor`, ~15 writes/s total at the demo's 112 bpm, from
+  the renderer's EXISTING crossed-steps loop via the new optional
+  `onStepPulse` host callback — zero new rAF loops; same environment +
+  method)**: `[TH-4 quadrant budget] frames=238 over33.4ms=3 max=48.5ms
+  p95=24.9ms median=16.6ms` (full-suite battery run — 235/238 = 98.7%
+  ≥ the 95% floor; a first full-suite run the same hour measured 240
+  frames / 1 over / max 34.8 / p95 23.0 / median 16.6). **Median
+  byte-identical to the M1 preserved standard (16.6)**; the over-count
+  moved with runner load, not the pulse (concurrent sessions on the box;
+  an isolated TH-1 re-run in the same state: 239 frames, 1 over, max
+  33.6, median 16.6, worst toggle 7.50 ms). `[TH-4 storm totals] 319
+  frames, 3 over (runner load; 0 over in the first run), worstMove
+  3.40ms, median 0.30ms, zero non-preview mutations` — the beat toggle
+  rides TH-4(b)'s named legal set (§2b) and adds no gesture-path cost.
+  `[MB-5 phone budget] 233 frames, 1 over, max 27.9, p95 20.2, median
+  16.5; [MB-5 storm totals @390] 339 frames, 1 over, worstMove 8.60ms`
+  (0-over in the first run). `[TH-4 lazy] paint 58ms, PLAY 71ms`.
+- **T6 (measured 2026-09-04, v2 rail sounding tiles + lane-header LED
+  accents live — CSS-dominant; the rail follow's `data-state`/
+  `data-sounding` attribute writes stay change-driven (pattern boundaries
+  only) and gesture-frozen (the follow's TH-4(b) heldPointers guard covers
+  both attributes); same environment + method)**: `[TH-4 quadrant budget]
+  frames=233 over33.4ms=7 max=53.5ms p95=24.9ms median=16.6ms` — 226/233 =
+  96.99% ≥ the 95% floor, **median byte-identical to the preserved
+  standard (16.6)**; over-counts tracked concurrent runner load (three
+  green full-suite runs same hour). `[TH-4 storm totals] 364 frames,
+  0 over, worstMove 3.00ms, medianMove 0.30ms, zero non-preview
+  mutations` — the LED accent rides the SAME `.is-sounding` class (CSS
+  descendant opacity transition, zero new JS writes). `[MB-5 phone
+  budget] 243 frames, 0 over, max 32.8, p95 20.1, median 16.6`. Rail
+  density pins re-measured green: PAT cluster 38px/lane (≤88), 15-tile
+  chains single-line at BOTH viewports, one-page exact 1440×900 +
+  1280×800 (paint-only reskin).
+- **T7 (measured 2026-09-04, v2 FX console module bank live — CSS-dominant
+  + ONE additive inline custom property per module; the `--fx-meter` style
+  write fires only on FX param commits with the console OPEN (storms run
+  closed), so the TH-4(b) named legal set needed NO addition; same
+  environment + method)**: `[TH-4 quadrant budget] frames=241 over33.4ms=0
+  max=30.7ms p95=22.1ms median=16.7ms` — 0/241 over, median within the
+  16.6–16.8 run-to-run band of the preserved standard. `[TH-1] 241
+  frames, 1 over, max 34.5, median 16.6, worst toggle 5.60ms`. `[TH-4
+  storm totals] 364 frames, 0 over, worstMove 3.70ms, medianMove 0.30ms,
+  zero non-preview mutations`. `[MB-5 phone budget] 243 frames, 0 over,
+  max 19.9, p95 19.2, median 16.6; MB-5 storms @390: 364 frames, 0 over,
+  worstMove 2.40ms`. The legacy animated-box-shadow `fx-mod-flash`
+  keyframe is migrated to law v2 — the built CSS now carries
+  `@keyframes fx-mod-flash{0%{opacity:1}to{opacity:0}}` over a pre-painted
+  `::before` (no animated box-shadow/filter anywhere in the sheet).
+- **T7 backdrop-filter gate (route.md's one sanctioned candidate, measured
+  with the console OPEN over live playback — the in-repo TH-4(a)/MB-5
+  states run with the console closed and could never see the property;
+  Playwright rAF-interval protocol, 4 s windows, fresh context per run,
+  back-to-back OFF/ON pairs, both viewports)**: OFF `1440×900` 241
+  frames / 0 over / max 19.0–21.3 / median 16.6–16.7; ON (blur 6px +
+  78% panel) 241 / 0 over / max 19.3–22.0 / median 16.6–16.7; phone
+  390×844 OFF 241 / 0 / 16.7 vs ON 240–241 / 0 over / 16.6–16.7. **Gates
+  green, zero regression — adoption DECLINED anyway on the world register**
+  (probe vision verdict: the frosted glass reads glassmorphism/software,
+  not machined chassis; the committed material language is opaque panels).
+  The property is ABSENT from the codebase; the decision + numbers live in
+  production-log T7 and the fx-strip.css chassis comment.
+- **M2 checkpoint — the MERGED v2 hot spot (measured 2026-09-04, T8/M2;
+  all three v2 reactivity layers LIVE simultaneously for the first time in
+  one gate run: lane-rim `.is-sounding` beat pulses on every `.lane-floor`,
+  rail sounding tiles with the doubled lane-hue hairline + underglow, and
+  the lane-name LED accent riding the same class — plus the FX module bank
+  paint; same environment + method — the gate's own console lines, solo
+  re-run of `tests/browser/frame-budget.test.ts` on the fresh build after
+  a first-run-green full battery)**: `[TH-4 quadrant budget] frames=240
+  over33.4ms=0 max=31.9ms p95=25.2ms median=16.6ms
+  playheadMoves={"drums":240,"bass":240,"chords":240,"lead":240}
+  sustainedVoices=17` — **0/240 frames over (100% ≥ the 95% floor),
+  median byte-identical to the preserved 16.6 ms standard**; max/p95 sit
+  within the run-to-run band the T5–T7 entries recorded (the box ran the
+  full 48-file battery minutes earlier). `[TH-1] frames=241 over=1
+  max=38.1ms median=16.6ms worstToggleBlock=4.80ms` (one frame, ≤95%-law
+  green). `[TH-4 storm totals] frames=364 over33.4ms=0 moves=1456
+  worstMove=3.00ms medianMove=0.30ms` — zero illegal mutations with the
+  beat toggle in the named legal set. `[MB-5 phone budget] frames=243
+  over=0 max=21.3ms p95=19.2ms median=16.6ms worstEditBlock=11.50ms`;
+  `[MB-5 storm totals @390] 364 frames, 0 over, worstMove=2.60ms,
+  median 0.20ms`; `[MB-5 lazy decode @390] 181 frames, 0 over, max 20.9,
+  median 16.6, worstClickBlock=1.30ms`; `[TH-4 lazy] paintMs=71 playMs=305`
+  (budgets 3000/3000 ms). **R1 verdict: the merged reactive state costs
+  nothing measurable — the pulse is one compositor class toggle per beat,
+  the tiles are change-driven attribute writes, the LED accent is pure
+  CSS.**
 
 ### 2b. Drag pointermove budgets (TH-4, iteration 2 — IN-2/IN-3 paths)
 
@@ -135,6 +224,16 @@ viewport:
   commits). A store write mid-gesture (aria-selected/`data-on` cell flips,
   a rail rebuild, a reactive re-render) FAILS the gate — asserted with a
   MutationObserver over the whole app document during every move window.
+- **T5 named-legal-set addition (2026-09-04, sanctioned by plan T5 — the
+  one sanctioned edit to this gate's filter)**: the lane-rim sounding
+  pulse joins the always-running legal set — class mutations on
+  `.lane-floor` (`.is-sounding`, one add per beat per lane + its ~120 ms
+  decay removal, fired from the renderer's existing crossed-steps loop
+  through the `onStepPulse` host callback; route.md playback-reactivity
+  #5). It is the ONLY class write on `.lane-floor` anywhere in src (grep
+  -verified), so naming the element in `allowedMutation` admits exactly
+  that toggle and nothing broader; no selector renames, no other filter
+  change.
 - Commits still land on release (the same gate asserts the post-release
   effects: the note exists, `LENGTH n ST` announced, painted hits on,
   pending switch visible) — zero-writes mid-gesture, one write on release.
@@ -196,6 +295,43 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   restyle-first typography law held). The M1 CSS delta per task:
   T1 +1.49 → 14.65, T2 +0.46 → 15.11, T3 +0.37 → 15.48, T4 amplitude
   pass +0.03 → 15.51 (script numbers).
+- **T5 (measured 2026-09-04, v2 lane-rim pulses — the first JS movement
+  off the 66.75 M1 pin; same method)**: initial JS **66.88 KB gz (+0.13)**
+  — the optional `onStepPulse` host callback in the grid renderer + the
+  LaneGrid consumer wiring (beat gate, reduced-motion hold, timer);
+  22% of the 300 KB budget. CSS **15.57 KB gz (+0.06)**: the
+  `.lane-floor::after` pre-painted rim layer + `lane-rim-pulse` keyframes
+  + reduced-motion twin (chassis.css) and the `--rim-pulse-decay` token.
+  Fonts **37.02 / 50 KB unchanged**.
+- **T6 (measured 2026-09-04, v2 rail emission grammar)**: initial JS
+  **66.91 KB gz (+0.03)** — the additive `data-sounding` attribute + the
+  `isSounding` helper in PatternRail (the tileState sounding+selected
+  collapse fix; rides the EXISTING follow signal, no new subscription).
+  CSS **15.74 KB gz (+0.17)**: the pattern-rail metal-chassis reskin +
+  the EMISSION-RAIL tile state grammar (pattern-rail.css), the
+  lane-header LED accent + twin (lane-header.css), and the rail-tool
+  press-travel selector appends (app.css, the sheet's own REUSE law).
+  Fonts **37.02 / 50 KB unchanged**.
+- **T7 (measured 2026-09-04, v2 FX console module bank)**: initial JS
+  **67.03 KB gz (+0.12)** — the `moduleMeter` document-state helper + the
+  `--fx-meter` inline custom property in FxStrip (one cutoffToSlider
+  import added; no store/engine/document code touched). CSS **16.13 KB
+  gz (+0.39)**: the fx-strip.css module-chassis reskin (overlay chassis,
+  raised modules + screws, segmented rest-state meters, recessed readout
+  windows, the machined-key select/steppers, the law-v2 flash migration)
+  + the press-travel selector appends (app.css REUSE law). Fonts
+  **37.02 / 50 KB unchanged** (the select caret is an inline-SVG
+  data-URI, ~130 raw bytes inside the CSS — zero asset files).
+- **M2 checkpoint record (measured 2026-09-04, T8/M2 — the committed M2
+  state = T5+T6+T7 merged; same method: `npm run build` +
+  `npm run check:bundle` on the fresh build)**: initial JS **67.03 KB gz**
+  (byte-identical to the T7 measurement — no JS touched after T7; 22% of
+  the 300 KB budget), CSS **16.14 KB gz** (T7's sheet, the 0.01 KB drift
+  vs the worker's 16.13 claim is gz rounding, ungated — total v2 CSS
+  growth over M1's 15.51: +0.63 KB), fonts **37.02 / 50 KB unchanged**
+  (zero new font or asset files through all of v2 — the restyle-first
+  typography law held through M2). M2 cumulative JS delta over M1:
+  +0.28 KB (66.75 → 67.03) for the renderer callback + three consumers.
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

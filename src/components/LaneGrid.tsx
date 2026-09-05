@@ -521,6 +521,33 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     let rendererRef: DomGridRenderer | null = null;
     const fillDisposers: Array<() => void> = [];
 
+    /*
+     * T5 (route.md playback-reactivity #5): the lane-rim sounding pulse.
+     * The renderer's EXISTING rAF loop fires onStepPulse per crossed step
+     * (and null when the transport parks); this surface owns the policy —
+     * ONE class toggle per BEAT per lane (the plan's AC law), on the
+     * quadrant chassis (.lane-floor, the element carrying T3's rim grammar;
+     * chassis.css paints the pre-painted ::after rim layer — opacity only,
+     * ~120ms decay, compositor-only). ZERO new rAF loops. Reduced-motion
+     * twin is dual-gated: the matchMedia check here switches the policy to
+     * add-and-HOLD (static lit rim while playing, one write, no churn) and
+     * the CSS media query kills the animation (chassis.css) — same
+     * information, statically.
+     */
+    const floorEl = container.closest<HTMLElement>(".lane-floor");
+    const RIM_PULSE_HOLD_MS = 120; // = --rim-pulse-decay (tokens.css; the renderer glow-timer precedent)
+    let soundingTimer = 0;
+    const stopSounding = (): void => {
+      if (soundingTimer) {
+        window.clearTimeout(soundingTimer);
+        soundingTimer = 0;
+      }
+      floorEl?.classList.remove("is-sounding");
+    };
+    const prefersReducedMotion = (): boolean =>
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
     const renderer = new DomGridRenderer({
       container,
       laneId: lane,
@@ -671,6 +698,34 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           }
         }
       },
+      // T5: the sounding rim pulse — the beat gate (step % 4) is the ONE
+      // toggle per beat per lane law; view-only quadrants pulse too (their
+      // renderers run the same loop). The class joins TH-4(b)'s named legal
+      // set (frame-budget.test.ts documents the addition).
+      onStepPulse: (step) => {
+        if (step === null) {
+          // Transport parked — no phantom lit rim at idle.
+          stopSounding();
+          return;
+        }
+        if (step % 4 !== 0) return; // beat downbeats only
+        if (prefersReducedMotion()) {
+          // Static twin: lit while playing (add-and-hold, idempotent adds
+          // write nothing after the first — cleared by the null edge).
+          if (soundingTimer) {
+            window.clearTimeout(soundingTimer);
+            soundingTimer = 0;
+          }
+          floorEl?.classList.add("is-sounding");
+          return;
+        }
+        floorEl?.classList.add("is-sounding");
+        if (soundingTimer) window.clearTimeout(soundingTimer);
+        soundingTimer = window.setTimeout(() => {
+          soundingTimer = 0;
+          floorEl?.classList.remove("is-sounding");
+        }, RIM_PULSE_HOLD_MS);
+      },
       // DA-1 lane moves → LY-1 quadrant selection: this grid asks the
       // coordinator; the target quadrant's surface consumes the request.
       onLaneMove: (dir, from) =>
@@ -750,6 +805,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     onCleanup(() => {
       unsubscribe();
       for (const dispose of fillDisposers) dispose();
+      stopSounding(); // T5: never strand a lit rim across a remount
       renderer.dispose();
     });
   });

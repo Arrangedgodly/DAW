@@ -54,6 +54,11 @@
   --rim-idle: solid; /* idle */
   --rim-pending: dashed; /* pending / cued (inherits the shape-mark law) */
   --rim-sounding: double; /* sounding / active (two 1px lines) */
+  /* T5 (route.md playback-reactivity #5): the sounding rim-pulse one-shot
+   * decay — opacity of the pre-painted rim layer only (glow law v2), beat
+   * cadence, compositor-only. The LaneGrid hold timer pins the same 120ms
+   * in JS (the renderer glow-timer precedent). */
+  --rim-pulse-decay: 120ms;
 
   /* ---- Metal materials (chassis surfaces only — NEVER per-cell;
    * all CSS gradients, zero image assets) ---- */

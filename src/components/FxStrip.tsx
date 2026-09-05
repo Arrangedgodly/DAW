@@ -48,6 +48,7 @@ import {
   FX_DEVICE_SPECS,
   FX_DEVICE_TYPES,
   canMoveFx,
+  cutoffToSlider,
   formatFxParam,
   fxChainFull,
   fxModuleList,
@@ -307,6 +308,30 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
 // One module
 // ---------------------------------------------------------------------------
 
+/**
+ * T7 rest-state meter (route.md playback-reactivity #7): the module's
+ * document-state meter value, 0..1 — the CHARACTER param (the spec's first
+ * slider: cutoff log position, drive amount, bit depth, delay feedback,
+ * reverb size) normalized. Painted as the fill width of the module header's
+ * recessed meter window through the `--fx-meter` custom property (ADDITIVE
+ * inline style on .fx-mod; classes/DOM untouched). STATIC param echo only:
+ * no level animation, NO analyser (D2 absolute) — the value derives solely
+ * from the document store's params, never the audio graph. Bypass dims the
+ * whole window via `.fx-mod.is-bypassed` (fx-strip.css), so both
+ * document-state signals — bypass + param value — are carried cosmetically.
+ */
+function moduleMeter(mod: FxModule): number {
+  const spec = mod.spec.sliders[0];
+  if (!spec) return 0;
+  const raw = (mod.device.params as Record<string, number | string>)[
+    spec.key
+  ] as number;
+  const t = spec.log
+    ? cutoffToSlider(raw) / 1000
+    : (raw - spec.min) / (spec.max - spec.min || 1);
+  return Math.round(Math.min(1, Math.max(0, t)) * 100) / 100;
+}
+
 function FxModuleView(props: {
   lane: LaneId;
   mod: FxModule;
@@ -326,6 +351,7 @@ function FxModuleView(props: {
   return (
     <section
       class="fx-mod"
+      style={{ "--fx-meter": moduleMeter(m()) }}
       classList={{
         "is-bypassed": m().device.bypassed,
         "is-flash": props.flash,

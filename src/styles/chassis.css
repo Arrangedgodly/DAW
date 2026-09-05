@@ -143,3 +143,58 @@
     color-mix(in srgb, var(--lane-hue) 35%, transparent);
   outline-offset: -3px;
 }
+
+/*
+ * ---- T5: the sounding rim pulse (route.md playback-reactivity #5) ----
+ * One PRE-PAINTED lane-hue rim layer per quadrant floor, opacity 0 at rest.
+ * LaneGrid's onStepPulse consumer toggles `.is-sounding` on this element
+ * once per BEAT per lane (from the renderer's existing crossed-steps loop —
+ * zero new rAF loops); the toggle lights the layer and it decays over
+ * --rim-pulse-decay as OPACITY ONLY (glow law v2: the box-shadow ring +
+ * halo below are static paint, never animated; no animated box-shadow /
+ * filter anywhere in this pulse).
+ *
+ * The layer's form is the EMISSION-RAIL sounding grammar lit at signal
+ * strength: a 1px lane-hue ring at the panel edge (the same line the
+ * editing outline draws — the pulse lights the SAME grammar) plus the ONE
+ * ≤3px halo the glow law permits. Hue is signal, never the sole carrier:
+ * the beat information also lives in the booth's beat LEDs and the
+ * on-cell fills.
+ *
+ * Reduced-motion twin (dual-gated): the CSS half — animation none, the
+ * layer statically lit while the class is held (LaneGrid's JS half holds
+ * the class for the whole playing span and clears it on the transport's
+ * park edge) — same information, statically. No will-change (event-driven
+ * one-shot, like the cell bloom — the cap stays playhead + ambient).
+ */
+.lane-floor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--lane-hue) 70%, var(--metal-panel)),
+    0 0 3px color-mix(in srgb, var(--lane-hue) 45%, transparent);
+  opacity: 0;
+}
+
+.lane-floor.is-sounding::after {
+  animation: lane-rim-pulse var(--rim-pulse-decay) ease-out 1;
+}
+
+@keyframes lane-rim-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-floor.is-sounding::after {
+    animation: none;
+    opacity: 1; /* static lit rim while playing — the twin's CSS half */
+  }
+}

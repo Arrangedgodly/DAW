@@ -580,6 +580,20 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     });
   };
 
+  /**
+   * T6 (EMISSION-RAIL grammar): the RAW sounding seam, independent of
+   * tileState. tileState deliberately collapses sounding+selected into
+   * "selected" (the strongest fill) — but the rail's DOUBLED sounding
+   * hairline must survive that collapse or the arrangement read loses the
+   * lit tile exactly on the lane the user last touched (the T6 probe
+   * finding). `data-sounding` is an ADDITIVE attribute riding the same
+   * getSoundingPattern follow signal that drives data-state — no new seam,
+   * no new writes while a pointer gesture is armed (the follow's TH-4(b)
+   * freeze covers both attributes).
+   */
+  const isSounding = (tile: RailTile): boolean =>
+    sounding()[props.lane] === tile.patternId;
+
   const triggerTile = (tile: RailTile) => {
     selectPattern(props.lane, tile.patternId);
     if (playing()) requestPatternSwitch(props.lane, tile.patternId);
@@ -843,11 +857,12 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               type="button"
               class="rail-tile"
               data-state={stateFor(tile)}
+              data-sounding={isSounding(tile) ? "true" : undefined}
               data-cue-preview={sweepPreview(tile)}
               data-in-range={inRange(tile) ? "true" : undefined}
               data-help="rail.tile"
               tabindex={tile.slot === focusedSlot() ? 0 : -1}
-              aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
+              aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" || isSounding(tile) ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
               onFocus={() => setFocusedSlot(tile.slot)}
               onPointerUp={(e) => onTileTapUp(e, tile)}
               onClick={() => {

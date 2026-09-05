@@ -328,12 +328,16 @@ async function clickPlayAndWait(
  * only legal DOM mutations are renderer-local previews (data-preview
  * attrs, the dashed preview bar, the resize width, cue-preview attrs)
  * plus the always-running non-gesture loops: playback UI (playhead
- * transform, trigger glow classes, the booth's direct-DOM readout —
- * textContent writes surface as childList on the LED spans) and the
- * debounced persistence UI (.save-indicator state, fired from earlier
- * legitimate RELEASE commits). Anything else — a store-driven sync
- * (aria-selected/data-on cell flips), a rail rebuild, a focus shuffle — is
- * a mid-gesture write and FAILS the gate.
+ * transform, trigger glow classes, the T5 lane-rim sounding pulse — one
+ * .is-sounding class toggle per beat per lane on the quadrant chassis,
+ * from the renderer's existing crossed-steps loop; route.md playback #5;
+ * the ONLY class write on .lane-floor in src, so naming the element pins
+ * exactly that toggle) and the booth's direct-DOM readout (textContent
+ * writes surface as childList on the LED spans) and the debounced
+ * persistence UI (.save-indicator state, fired from earlier legitimate
+ * RELEASE commits). Anything else — a store-driven sync (aria-selected/
+ * data-on cell flips), a rail rebuild, a focus shuffle — is a mid-gesture
+ * write and FAILS the gate.
  */
 function allowedMutation(m: MutationRecord): boolean {
   const t = m.target as Element;
@@ -344,7 +348,13 @@ function allowedMutation(m: MutationRecord): boolean {
         t.classList.contains("grid-playhead") ||
         t.classList.contains("note-run")
       );
-    if (a === "class") return t.classList.contains("cell");
+    if (a === "class")
+      return (
+        t.classList.contains("cell") ||
+        // T5 named-set addition (plan T5 sanctions this and ONLY this
+        // test edit): the lane-rim sounding pulse class toggle.
+        t.classList.contains("lane-floor")
+      );
     if (a === "data-preview") return t.classList.contains("cell");
     if (a === "data-cue-preview") return t.classList.contains("rail-tile");
     if (a === "data-active") return t.classList.contains("booth-beat-led");

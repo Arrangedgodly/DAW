@@ -214,6 +214,19 @@ export interface DomGridRendererOptions {
   readonly onDrumsPaint?: (
     cells: ReadonlyArray<{ row: number; step: number }>,
   ) => void;
+  /**
+   * T5 (route.md playback-reactivity #5): fired from the EXISTING crossed-
+   * steps computation in the render loop — once per crossed step while
+   * playing, and once with `null` on the playing→parked transition (the
+   * stop edge, so consumers can clear held state; no repeat fires while
+   * parked). Host-side observation ONLY: the renderer writes nothing for
+   * this and the audio path is untouched (R2 fence — the payload is step
+   * identity alone, no engine coupling). Consumers own the policy; the
+   * sanctioned v2 consumer toggles ONE `.is-sounding` class per beat per
+   * lane on the quadrant chassis (LaneGrid) — those class writes join
+   * TH-4(b)'s named legal set.
+   */
+  readonly onStepPulse?: (step: number | null) => void;
 }
 
 export interface GridRenderer {
@@ -1223,6 +1236,10 @@ export class DomGridRenderer implements GridRenderer {
   private loop = (): void => {
     const frame = this.opts.host.readFrame();
     if (!frame) {
+      // T5: the playing→parked edge — fire the pulse callback's null step
+      // ONCE (lastQuantized is non-null only on the first parked frame after
+      // playback; consumers clear held sounding state, no idle phantoms).
+      if (this.lastQuantized !== null) this.opts.onStepPulse?.(null);
       this.setPlayhead(null);
       this.clearColumnHighlight();
       this.lastQuantized = null;
@@ -1246,6 +1263,9 @@ export class DomGridRenderer implements GridRenderer {
       for (const step of crossed) {
         if (reduced) this.highlightColumn(step);
         else this.triggerGlow(step);
+        // T5: host-side step observation (fires in BOTH motion modes — the
+        // consumer owns the reduced-motion policy; see onStepPulse).
+        this.opts.onStepPulse?.(step);
       }
       if (reduced && crossed.length > 0) {
         this.clearColumnHighlight(crossed[crossed.length - 1]);
