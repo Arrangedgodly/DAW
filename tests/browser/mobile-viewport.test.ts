@@ -50,6 +50,18 @@
  * only ever asserts the SETTLED boot state. The LAW is untouched: <50% of
  * the viewport stays <50% (400 at 360×800), and the first-run proof (PX-1
  * nudge) is unchanged.
+ *
+ * CI-run 34045838282 deflake (round 2) — the FIRST-RUN PROOF now polls.
+ * The documented test-side race (state.md's final-acceptance record: the
+ * bare-battery load flakes, solo-green): bootIframe returns as soon as
+ * the booth + demo rail tiles PAINT, but the `booth-nudge` class is armed
+ * by armFirstRunNudge(), which boot.ts runs only AFTER the first-run
+ * saveProject IDB write resolves — a fire-and-forget gap the 2-core CI
+ * runner stretches past the old immediate read (`expected false to be
+ * true`, first CI firing). Fix: poll until armed with a bounded deadline
+ * (the MB-6 settle/poll precedent). NO assertion weakening — a restored
+ * boot never arms the nudge, so the bounded poll still PROVES first-run
+ * and fails LOUD on the wrong state; only the read settles.
  */
 
 import { describe, expect, it } from "vitest";
@@ -487,6 +499,16 @@ describe("MB-1 responsive stage (built app)", () => {
         // projects); a silently-restored boot carries no nudge, so a wiped
         // gate that quietly measured a restored boot now reds HERE instead
         // of passing on the wrong state.
+        // CI-run 34045838282 deflake (the header's documented race): the
+        // nudge class arms only AFTER the first-run saveProject IDB write
+        // resolves, while bootIframe returns at paint — poll until armed
+        // instead of reading immediately (NO weakening: a restored boot
+        // never arms it, so the bounded poll reds on the wrong state).
+        await poll(
+          () => $(".booth-btn-play").classList.contains("booth-nudge"),
+          5_000,
+          "the boot is genuinely FIRST-RUN (PX-1 nudge armed)",
+        );
         expect(
           $(".booth-btn-play").classList.contains("booth-nudge"),
           "the boot is genuinely FIRST-RUN (PX-1 nudge armed)",
@@ -784,13 +806,20 @@ describe("MB-1 responsive stage (built app)", () => {
         held.close();
       }
       // Released, the retry path recovers: a normal first-run boot completes
-      // (and the nudge reasserts the honest state).
+      // (and the nudge reasserts the honest state). Same deflake as the
+      // 360×800 gate above — the nudge arms after the first-run saveProject
+      // IDB write, later than bootIframe's paint-based return; poll first.
       const { iframe, $ } = await bootIframe(360, 800);
       try {
         await poll(
           () => $(".app").getAttribute("data-stage") === "phone",
           5_000,
           "phone after unblock",
+        );
+        await poll(
+          () => $(".booth-btn-play").classList.contains("booth-nudge"),
+          5_000,
+          "PX-1 nudge armed after unblock (the boot is genuinely first-run)",
         );
         expect($(".booth-btn-play").classList.contains("booth-nudge")).toBe(
           true,

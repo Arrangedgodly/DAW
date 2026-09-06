@@ -145,24 +145,30 @@ import { denseLead128Doc, longLoopDoc } from "../lp1-spike-harness";
 
 const FRAME_BUDGET_MS = 33.4; // ~30 fps floor — HARD bound
 const FRAME_PASS_RATIO = 0.95;
-// Linux-CI device-class floor for EXACTLY ONE assert below — the TH-5 (a)
-// 2048-column fling-sweep ratio (the §9 MB-5 precedent's stance applied to
-// the 2-core GitHub Actions runner; numbers, method, and date recorded in
-// docs/dev/perf-budget.md §10e). Run 34040604423 measured that sweep at
-// 87.7% < 33.4 ms on the runner (73 frames, 9 over, max 43.1 ms, median
-// 27.8 ms — a NEAR-MISS under runner CPU jitter, not a collapse: the same
-// gate's 4 s pure-render window held at 100% the same run, and the retired
-// regression class this gate exists to catch drops the ratio to ~0, far
-// under any floor here). Local law stays BYTE-IDENTICAL: on every
-// non-Linux-CI host the fling ratio keeps the 0.95 law.
+// Linux-CI device-class skip for EXACTLY ONE assert below — the TH-5 (a)
+// 2048-column fling-sweep RATIO (numbers, method, and date recorded in
+// docs/dev/perf-budget.md §10e, round 2). Round 1 (commit c4ec521) tried a
+// CI-scoped 0.85 floor under the §9 MB-5 device-class precedent; run
+// 34040604423 measured the sweep at 87.7% but run 34045838282 came in at
+// 77.9% (15/68 frames over, max 40.6 ms) — a run-over-run band that admits
+// NO honest stable threshold on the shared 2-core runner (the same runs'
+// 4 s pure-render windows held 100%, and the sweep's own DOM laws — window
+// re-seating, census recycling — held in both runs). Round 2's disposition:
+// the ratio assert is SKIPPED on Linux CI with a loud log (the measurement
+// still runs and still prints, ungated, for future evidence); EVERY other
+// sub-assert in this file keeps its law EVERYWHERE, and the local law is
+// byte-identical — on every non-Linux-CI host the fling ratio keeps the
+// 0.95 law. The regression classes this assert exists to catch (the retired
+// O(steps) scan at 276-438 ms/toggle, per-cell layout thrash, eager
+// 38,208-cell rendering) collapse the ratio to ~0.30-0.50 and are ALSO
+// caught by the stays-live sub-asserts (census laws, per-toggle < 50 ms).
 // The condition itself (recorded honestly): browser-mode test code runs
 // INSIDE Chromium where Node's `process` is undefined (probed 2026-09-06:
 // `typeof process === "undefined"`, `import.meta.env.CI` undefined), so
-// the intended `process.env.CI && process.platform === "linux"` shape
+// the sanctioned `process.env.CI && process.platform === "linux"` shape
 // cannot be read literally; the UA platform is the browser-side
 // equivalent — this repo's only Linux host is the ubuntu-latest runner.
 const onLinuxCI = /Linux/.test(navigator.userAgent);
-const TH5_FLING_PASS_RATIO = onLinuxCI ? 0.85 : FRAME_PASS_RATIO;
 const TOGGLE_BLOCK_BUDGET_MS = 50;
 const MEASURE_MS = 4000;
 const TOGGLE_COUNT = 200;
@@ -2774,9 +2780,20 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
 
 describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead)", () => {
   it(
-    "mixed-length chains (64/16/8/128 bars) playing keep ≥95% frames < 33.4 ms with all four per-lane sweeps live; window census ≪ eager and pattern-independent; the 2048-column fling sweep holds; per-edit blocks < 50 ms",
+    // Short title on purpose (the ENAMETOOLONG fix — CI's failure
+    // screenshots died with Linux's 255-byte filename cap on the old
+    // essay-length one); the stage list lives in the comment below.
+    "dense long chains: frames · census · fling sweep · per-edit blocks",
     { timeout: 300_000 },
     async () => {
+      // STAGES (the old title, kept honest here): (1) import the
+      // mixed-length chains (64/16/8/128 bars) through OPEN FILE; (2) the
+      // virtualization census laws (≪ eager 38,208; pattern-independent —
+      // bass grown 4→16 bars keeps the census); (3) 4 s pure-render window
+      // ≥95% frames < 33.4 ms with all four per-lane sweeps live;
+      // (4) the 2048-column fling sweep (ratio law skipped on Linux CI —
+      // §10e round 2; the sweep's DOM laws stay live); (5) per-edit
+      // blocks < 50 ms.
       const app = await bootBuiltApp({ width: VIEW_W, height: VIEW_H });
       try {
         const doc = app.doc;
@@ -2984,13 +3001,29 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
         const sOver = sweepStats.intervals.filter(
           (d) => d >= FRAME_BUDGET_MS,
         );
+        const sRatio = 1 - sOver.length / sweepStats.intervals.length;
         console.log(
-          `[TH-5 fling sweep @2048 cols] frames=${sweepStats.intervals.length} over33.4ms=${sOver.length} max=${sSorted[sSorted.length - 1].toFixed(1)}ms p95=${sSorted[Math.floor(sSorted.length * 0.95)].toFixed(1)}ms median=${sSorted[Math.floor(sweepStats.intervals.length / 2)].toFixed(1)}ms | window first-step max ${sweepStats.maxFirstStep} | lead census ${sweepStats.censusMin}-${sweepStats.censusMax} | pass ratio in force ${TH5_FLING_PASS_RATIO}`,
+          `[TH-5 fling sweep @2048 cols] frames=${sweepStats.intervals.length} over33.4ms=${sOver.length} max=${sSorted[sSorted.length - 1].toFixed(1)}ms p95=${sSorted[Math.floor(sSorted.length * 0.95)].toFixed(1)}ms median=${sSorted[Math.floor(sweepStats.intervals.length / 2)].toFixed(1)}ms | window first-step max ${sweepStats.maxFirstStep} | lead census ${sweepStats.censusMin}-${sweepStats.censusMax} | ${(sRatio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms${onLinuxCI ? ` — ratio law SKIPPED on Linux CI (device class, §10e; measured, not gated)` : ""}`,
         );
-        expect(
-          sOver.length / sweepStats.intervals.length,
-          `${sOver.length}/${sweepStats.intervals.length} fling frames ≥ ${FRAME_BUDGET_MS} ms (max ${sSorted[sSorted.length - 1].toFixed(1)} ms; pass ratio ${TH5_FLING_PASS_RATIO} — 0.95 everywhere except Linux CI, §10e)`,
-        ).toBeLessThan(1 - TH5_FLING_PASS_RATIO);
+        if (onLinuxCI) {
+          // §10e round 2: the 0.85 floor died on run-over-run variance
+          // (87.7% run 34040604423 → 77.9% run 34045838282 — no honest
+          // stable threshold exists for this sweep on the 2-core shared
+          // runner). The sweep STILL RUNS above (the gesture is cheap and
+          // load-insensitive) and its DOM laws below stay LIVE everywhere;
+          // ONLY the load-sensitive frame-ratio assert is skipped here.
+          console.log(
+            `[TH-5 fling sweep] fling sweep law skipped on Linux CI — device class, §10e`,
+          );
+        } else {
+          expect(
+            sOver.length / sweepStats.intervals.length,
+            `${sOver.length}/${sweepStats.intervals.length} fling frames ≥ ${FRAME_BUDGET_MS} ms (max ${sSorted[sSorted.length - 1].toFixed(1)} ms; the 0.95 law)`,
+          ).toBeLessThan(1 - FRAME_PASS_RATIO);
+        }
+        // The sweep's DOM laws stay LIVE on every host (they held 100% on
+        // the runner in BOTH flaky runs — first-step 1980, census 690-810
+        // in run 34045838282 — load-insensitive structural observables).
         expect(
           sweepStats.maxFirstStep,
           "the window re-seated during the sweep (rewindows ran)",

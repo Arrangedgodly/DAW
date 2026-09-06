@@ -902,7 +902,7 @@ cadence, else settle 400 ms and re-poll up to 20 s; the HARD ratio then
 runs unchanged; a machine that never quiets fails LOUD — the MB-6
 stance). On the quiet fence the calibration passes on its first window.
 
-### 10e. Linux-CI device-class disposition for the two 2048-column sweep ratios (2026-09-06)
+### 10e. Linux-CI device-class disposition for the two 2048-column sweep ratios (2026-09-06; round 2 same day)
 
 The v0.2-merge CI run 34040604423 (GitHub Actions ubuntu-latest, 2-core
 shared runner, headless Chromium 151) put the FIRST Linux-CI numbers on
@@ -916,36 +916,61 @@ pure-render windows:
 | TH-5 (a) fling sweep — `tests/browser/frame-budget.test.ts` | ≥95% frames < 33.4 ms | 73 frames, **9 over** → **87.7%**, max 43.1 ms, p95 35.3 ms, median 27.8 ms (the same test's 4 s pure-render window: 241 frames, **0 over**, max 18.5 ms, median 16.7 ms) |
 | LP-1 (b) PRODUCTION sweep — `tests/browser/lp1-perf-spike.test.tsx` | ≥95% frames < 33.4 ms | 71 frames, median 27.5 ms, p95 36.8 ms, max 44.3 ms → **85.9%** (the same file: 4 s pure render **100.0%** — 237 frames, p95 18.6 ms, max 33.0 ms; the (a″) prototype sweep **97.8%**) |
 
-**Disposition (a) — CI-scoped floor, chosen over skip-if precisely because
-the runner HOLDS the law everywhere except the sweep's rewindow-under-load
-phases**: exactly these two asserts now read
+**Round 1 — disposition (a) CI-scoped floor (commit c4ec521), chosen over
+skip-if precisely because the runner HELD the law everywhere except the
+sweep's rewindow-under-load phases**: exactly these two asserts read
 `onLinuxCI ? 0.85 : FRAME_PASS_RATIO` (`TH5_FLING_PASS_RATIO` /
-`LP1_SWEEP_PASS_RATIO` in the two files). Every other ratio in both files
-keeps the 0.95 law byte-identical EVERYWHERE (the (a″) prototype sweep
-included — it measured 97.8% on the runner and stays HARD); the local
-law for the two scoped asserts is byte-identical on every non-Linux-CI
-host. 0.85 sits just under the measured runner band (85.9%/87.7%) so the
-runner passes honestly, and the gates keep real teeth: the regression
-classes these asserts exist to catch (the retired O(steps) scan at
-276-438 ms per toggle, layout thrash per cell per frame, eager 38,208-cell
-rendering) collapse the ratio to ~0.30-0.50 — far under 0.85 — exactly as
-§9's MB-5 stance frames it: gates catch REGRESSIONS, not device class.
-Method note (recorded honestly): browser-mode test code executes inside
-Chromium where Node's `process` is undefined (probed 2026-09-06 in the
-tester: `typeof process === "undefined"`, `import.meta.env.CI`
+`LP1_SWEEP_PASS_RATIO` in the two files), with 0.85 sitting just under
+the measured runner band (85.9%/87.7%). Every other ratio in both files
+kept the 0.95 law byte-identical EVERYWHERE (the (a″) prototype sweep
+included); the local law stayed byte-identical on every non-Linux-CI
+host. Method note (recorded honestly): browser-mode test code executes
+inside Chromium where Node's `process` is undefined (probed 2026-09-06 in
+the tester: `typeof process === "undefined"`, `import.meta.env.CI`
 undefined), so the sanctioned `process.env.CI && process.platform ===
 "linux"` condition is read as its browser-side equivalent — the UA
 platform. This repo's only Linux host is the ubuntu-latest runner; the
 local dev platform is macOS, so a "Linux" UA in this project's world IS
-Linux CI. Teeth proven locally (2026-09-06): the condition forced true +
-floor forced to 1.01 redds EXACTLY the two scoped asserts (engagement);
-restored, both files green at the original 0.95 local law; the class-1 skip-if
-teeth (condition forced true → 3 skips observed, restored → 0 skips) are
-recorded in the two touch gate headers. The same run's class-1
-disposition (the
-Linux headless `Input.synthesizeTapGesture` click-synthesis gap — 3 touch
-tests skipped on Linux CI only, runs 33919576870/33922353594/34040604423)
-is recorded in the two touch gate headers, not here.
+Linux CI.
+
+**Round 2 — the floor DIED on run-over-run variance; disposition (b)
+skip-on-Linux-CI of exactly the two ratio asserts (2026-09-06, CI run
+34045838282).** The very next runner firing of the same two sweeps came
+in UNDER the 0.85 floor round 1 had pinned from the first firing:
+
+| Gate | Round 1 (run 34040604423) | Round 2 (run 34045838282) |
+|---|---|---|
+| TH-5 (a) fling sweep | **87.7%** (73 frames, 9 over, max 43.1 ms) | **77.9%** (68 frames, 15 over, max 40.6 ms, p95 37.1, median 29.7) |
+| LP-1 (b) PRODUCTION sweep | **85.9%** (71 frames, max 44.3 ms) | **74.2%** (66 frames, median 30.2 ms, p95 40.6 ms, max 46.7 ms) |
+
+A threshold approach needs a floor under the runner's WORST honest run
+and above the regression class (~0.30-0.50); with the observed band at
+74.2-87.7% across two consecutive runs of identical code, no such number
+exists — the 2-core shared runner's CPU jitter moves this sweep's ratio
+by more than the entire honest margin. CONCLUSION (decisive, per the §9
+MB-5 stance that gates catch REGRESSIONS, not device class): the two
+fling/sweep RATIO asserts are now SKIPPED on Linux CI with a loud
+in-log line ("fling sweep law skipped on Linux CI — device class, §10e"
+/ "sweep ratio law skipped on Linux CI — device class, §10e"). The
+measurement itself STILL RUNS on the runner and still logs its numbers
+(ungated) so future evidence keeps accumulating. EVERYTHING ELSE in the
+two tests stays LIVE on CI, and held 100% there in BOTH flaky runs: the
+pure-render 0.95 windows, the sweep DOM laws (TH-5 window re-seating
+(first-step 1980) + census recycling (690-810, delta ≤ 200), LP-1 (a″)
+prototype sweep at its 0.95 law), the census laws, per-toggle < 50 ms,
+the phone and 1920 gates. The local law is byte-identical on every
+non-Linux-CI host: both sweeps enforce the 0.95 law. Teeth (probed
+2026-09-06, method as round 1): `onLinuxCI` forced true locally → the
+skip engages observably (the skip log prints and the ratio assert is
+bypassed while the sweep's DOM laws and the rest of the test stay live
+and green); restored → the 0.95 law enforces again (floor forced to 1.01
+locally → RED exactly on the fling/sweep ratio asserts, the round-1
+probe). The same round-2 run's third
+failure (MB-1 mobile-viewport 360×800 "PX-1 nudge armed") was the
+documented test-side boot race — nudge-armed check now polls (the MB-6
+settle/poll precedent), recorded in that gate's header, not here. The
+class-1 touch disposition (runs 33919576870/33922353594/34040604423)
+remains recorded in the two touch gate headers, not here.
 
 ## 11. Degradation matrix (Hulk lane — M3 final, 2026-09-04)
 
