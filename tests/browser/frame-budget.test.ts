@@ -140,8 +140,22 @@ import {
 // TH-5 (c): the real offline render pipeline (source-mount block — the
 // LP-1 (d) precedent; globalSetup builds this exact source).
 import { encode } from "../../src/document/codec";
+import {
+  DRUM_PIECES,
+  createDefaultProject,
+} from "../../src/document/schema";
 import { renderProjectToBuffer } from "../../src/audio/render";
 import { denseLead128Doc, longLoopDoc } from "../lp1-spike-harness";
+// VZ-TH-4: the VIZ gate runs under VZ-HU-3's clamp LAW — pinned against the
+// real module the built bundle ships (the VOICES_PER_LANE precedent): if a
+// clamp constant is ever retuned without R1-grade evidence, this gate goes
+// red before any frame measurement runs.
+import {
+  VIZ_ACCEPT_CAP_GLOBAL_PER_SECOND,
+  VIZ_ACCEPT_CAP_PER_LANE_PER_SECOND,
+  VIZ_MAX_LIVE_OBJECTS,
+  VIZ_RETRIGGER_REFRESH_SECONDS,
+} from "../../src/viz/clamps";
 
 const FRAME_BUDGET_MS = 33.4; // ~30 fps floor — HARD bound
 const FRAME_PASS_RATIO = 0.95;
@@ -640,11 +654,9 @@ function heapUsed(): number | undefined {
 /** The rail badge a lane's first tile carries ("<bars>B" — the LL-1 law). */
 function railBadge(doc: () => Document, lane: string): string {
   return (
-    doc()
-      .querySelector(
-        `.rail-row[data-lane="${lane}"] .rail-tile .rail-tile-bars`,
-      )
-      ?.textContent ?? ""
+    doc().querySelector(
+      `.rail-row[data-lane="${lane}"] .rail-tile .rail-tile-bars`,
+    )?.textContent ?? ""
   );
 }
 
@@ -920,9 +932,8 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         const removeDemoPatterns = async (lane: string): Promise<void> => {
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
           const tilesNow = (): number =>
-            doc().querySelectorAll(
-              `.rail-row[data-lane="${lane}"] .rail-tile`,
-            ).length;
+            doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+              .length;
           const start = tilesNow(); // demo tiles + the rail-`+` blank
           for (let i = 0; i < start - 1; i++) {
             // Select the first (demo) tile, then remove it from the pool.
@@ -1763,7 +1774,9 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           const tilesBefore = doc().querySelectorAll(
             `.rail-row[data-lane="${lane}"] .rail-tile`,
           ).length;
-          ($(`.rail-row[data-lane="${lane}"] .rail-append`) as HTMLElement).click();
+          (
+            $(`.rail-row[data-lane="${lane}"] .rail-append`) as HTMLElement
+          ).click();
           await poll(
             () =>
               doc().querySelectorAll(
@@ -1825,7 +1838,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             );
             $(".rail-tools-trigger").click();
             await poll(
-              () => doc().querySelector(`button[aria-label="${rmLabel}"]`) !== null,
+              () =>
+                doc().querySelector(`button[aria-label="${rmLabel}"]`) !== null,
               2_000,
               `${lane} PAT menu (pool remove)`,
             );
@@ -1838,8 +1852,9 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           }
           await poll(
             () =>
-              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
-                .length === 1,
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 1,
             2_000,
             `${lane} pool = the dense 4-bar alone (chain followed it)`,
           );
@@ -2303,9 +2318,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         ($('.rail-row[data-lane="bass"] .rail-append') as HTMLElement).click();
         await poll(
           () =>
-            doc().querySelectorAll(
-              '.rail-row[data-lane="bass"] .rail-tile',
-            ).length === 5,
+            doc().querySelectorAll('.rail-row[data-lane="bass"] .rail-tile')
+              .length === 5,
           2_000,
           "bass blank appended",
         );
@@ -2847,8 +2861,14 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
         const leadH = floor("lead").querySelector<HTMLElement>(
           ".lane-grid-scroll .grid-hscroll",
         )!;
-        expect(leadH.querySelector(".grid-col-sizer"), "lead sizer").toBeTruthy();
-        expect(leadH.querySelector(".grid-col-layer"), "lead sticky layer").toBeTruthy();
+        expect(
+          leadH.querySelector(".grid-col-sizer"),
+          "lead sizer",
+        ).toBeTruthy();
+        expect(
+          leadH.querySelector(".grid-col-layer"),
+          "lead sticky layer",
+        ).toBeTruthy();
         expect(leadH.scrollWidth).toBeGreaterThan(30_000); // 2048 steps × 17 px
         const drumsH = floor("drums").querySelector<HTMLElement>(
           ".lane-grid-scroll .grid-hscroll",
@@ -2983,9 +3003,8 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
             // Window observables (the virtualization laws, DOM-side): the
             // first rendered cell's PATTERN step (the window origin) and the
             // census (the pool size).
-            const first = floor("lead").querySelector<HTMLElement>(
-              ".row-cells .cell",
-            );
+            const first =
+              floor("lead").querySelector<HTMLElement>(".row-cells .cell");
             if (first)
               maxFirstStep = Math.max(maxFirstStep, Number(first.dataset.step));
             const c = floor("lead").querySelectorAll(".cell").length;
@@ -2998,9 +3017,7 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
         });
         await sweep;
         const sSorted = [...sweepStats.intervals].sort((a, b) => a - b);
-        const sOver = sweepStats.intervals.filter(
-          (d) => d >= FRAME_BUDGET_MS,
-        );
+        const sOver = sweepStats.intervals.filter((d) => d >= FRAME_BUDGET_MS);
         const sRatio = 1 - sOver.length / sweepStats.intervals.length;
         console.log(
           `[TH-5 fling sweep @2048 cols] frames=${sweepStats.intervals.length} over33.4ms=${sOver.length} max=${sSorted[sSorted.length - 1].toFixed(1)}ms p95=${sSorted[Math.floor(sSorted.length * 0.95)].toFixed(1)}ms median=${sSorted[Math.floor(sweepStats.intervals.length / 2)].toFixed(1)}ms | window first-step max ${sweepStats.maxFirstStep} | lead census ${sweepStats.censusMin}-${sweepStats.censusMax} | ${(sRatio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms${onLinuxCI ? ` — ratio law SKIPPED on Linux CI (device class, §10e; measured, not gated)` : ""}`,
@@ -3103,9 +3120,8 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
               doc().querySelectorAll(".lane-grid").length === 1 &&
               doc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
                 lane &&
-              doc().querySelector(
-                `.lane-floor[data-lane="${lane}"] .cell`,
-              ) !== null,
+              doc().querySelector(`.lane-floor[data-lane="${lane}"] .cell`) !==
+                null,
             4_000,
             `${lane} phone stage (single floor + cells)`,
           );
@@ -3304,8 +3320,7 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
           };
           const floor = (lane: string): HTMLElement =>
             $(`.lane-floor[data-lane="${lane}"]`);
-          const sleep = (ms: number) =>
-            new Promise((r) => setTimeout(r, ms));
+          const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
           await poll(
             () =>
@@ -3333,10 +3348,9 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
           }
           await poll(
             () =>
-              (
-                floor("lead").querySelector(".grid-row .row-cells")
-                  ?.querySelectorAll(".cell").length ?? 0
-              ) === 64,
+              (floor("lead")
+                .querySelector(".grid-row .row-cells")
+                ?.querySelectorAll(".cell").length ?? 0) === 64,
             5_000,
             "4-bar lead pattern rendered (first row = 64 steps)",
           );
@@ -3414,5 +3428,280 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
       }
     },
     180_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// VZ-TH-4 — VIZ frame budget with teeth (the densest standard pattern)
+//
+// The gate metric is FRAME INTERVALS ONLY, never draw-call timings — R1's
+// committed lesson (docs/ultron/research/r1r2-canvas-perf-dpr.md): the naive
+// shadowBlur model showed 0.2 ms main-thread draws while collapsing to 2 fps;
+// the cost lives in rasterization OFF the main thread. Measured here at the
+// committed worst case on the REAL built bundle:
+//   - 200 BPM 16ths (the tempo input's max — R1's worst-case tempo), one
+//     pitch/drum row painted across a fresh 4-bar pattern per lane → the
+//     offered sustained rate ≈ 50 events/s (bass/drums/lead 13.33 each;
+//     chords every 4th 16th because a chords note stacks a 3-voice triad at
+//     compile → 3 events per hit, 3.33 hits/s × 3 = 10/s — shaping decision
+//     recorded in docs/dev/perf-budget.md §12), all four lanes on the SAME
+//     16th tick: the true worst frame carries 4 bursts, 13.33×/s.
+//   - VIZ OPEN over the playing stage (full-bleed canvas + the still-mounted
+//     stage's four playhead loops — the maximal concurrent load).
+//   - DPR forced to 2 (Object.defineProperty on the iframe window before the
+//     bundle module runs): the committed cap min(devicePixelRatio, 2) and
+//     R1's measured cliff regime (~440 live objects at DPR 2; the clamp law
+//     holds the engine ≥2× under it at 192).
+// Teeth: (1) ≥95% of frame intervals < 33.4 ms — HARD; (2) worst single
+// frame (the hit-batch long-task guard — one frame carries one full ignite
+// batch) < 50 ms; (3) canvas activity asserted (reactions actually firing,
+// load-robust ≥2 change-frames/s); (4) DPR-2 backing store asserted; (5) the
+// VZ-HU-3 clamp constants pinned at source (see the import block); (6) the
+// RED/GREEN TOOTH — a deliberate main-thread thrash injection must FAIL the
+// same ratio, proving the gate can go red (per the gate-tooth precedent).
+// ---------------------------------------------------------------------------
+
+describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ open at DPR 2)", () => {
+  it(
+    "≥95% frames < 33.4 ms with 4-lane dense 16ths @ 200 BPM + VIZ open at DPR 2; worst hit-batch frame < 50 ms; canvas live; clamps pinned; thrash injection goes red",
+    { timeout: 300_000 },
+    async () => {
+      // (5) The clamp law the gate runs under — pinned to the REAL module
+      // (retuning without R1-grade evidence breaks this before any timing).
+      expect(VIZ_ACCEPT_CAP_GLOBAL_PER_SECOND).toBe(64);
+      expect(VIZ_ACCEPT_CAP_PER_LANE_PER_SECOND).toBe(20);
+      expect(VIZ_MAX_LIVE_OBJECTS).toBe(192);
+      expect(VIZ_RETRIGGER_REFRESH_SECONDS).toBeCloseTo(0.12, 10);
+
+      const app = await bootBuiltApp({
+        width: VIEW_W,
+        height: VIEW_H,
+        beforeWrite: (win) => {
+          // Force the committed DPR-2 regime regardless of the host display
+          // (the renderer's resolveDpr caps at min(dpr, 2) — 2 is the cap).
+          Object.defineProperty(win, "devicePixelRatio", {
+            value: 2,
+            configurable: true,
+          });
+        },
+      });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+        // --- The dense state through the REAL OPEN FILE path (the TH-5 (a)(b)
+        // precedent — the retired "Add 4-bar pattern" rail flow was removed by the
+        // KL-1/BC-1 rail rework; the built app itself owns the state under
+        // measurement, imported as a saved file through the canonical codec):
+        // 4 lanes × one dense 4-bar pattern at 200 BPM. bass/lead/drums: a hit on
+        // EVERY 16th (13.33 events/s each); chords: every 4th 16th — a chords note
+        // stacks a 3-voice triad (3 events per hit), so 3.33 hits/s × 3 = 10
+        // events/s keeps the offered total at the committed ≈ 50–53 events/s
+        // envelope (shaping decision, §12).
+        const vizDoc = createDefaultProject();
+        vizDoc.transport.bpm = 200;
+        const drumSteps = {} as (typeof vizDoc.patterns.drums)[number]["steps"];
+        for (const piece of DRUM_PIECES)
+          drumSteps[piece] = Array.from({ length: 64 }, () => piece === "kick");
+        const denseDrums = {
+          kind: "drums" as const,
+          id: "vz-drums-1",
+          name: "A",
+          bars: 4,
+          steps: drumSteps,
+        };
+        const densePitched = (id: string, stride: number) => ({
+          kind: "pitched" as const,
+          id,
+          name: "A",
+          bars: 4,
+          rowDegrees: [0],
+          notes: Array.from({ length: 64 / stride }, (_, i) => ({
+            degree: 0,
+            start: i * stride,
+            length: 1,
+          })),
+        });
+        vizDoc.patterns = {
+          drums: [denseDrums],
+          bass: [densePitched("vz-bass-1", 1)],
+          chords: [densePitched("vz-chords-1", 4)],
+          lead: [densePitched("vz-lead-1", 1)],
+        };
+        vizDoc.songChain = {
+          drums: ["vz-drums-1"],
+          bass: ["vz-bass-1"],
+          chords: ["vz-chords-1"],
+          lead: ["vz-lead-1"],
+        };
+        // Boot readiness before import (the TH-5 precedent: the demo's
+        // VERSE cue marks the app as fully loaded — importing earlier races
+        // the first-run persistence pass).
+        await poll(
+          () =>
+            [...doc().querySelectorAll(".rail-tile-cue")].some(
+              (c) => c.textContent === "VERSE",
+            ),
+          5000,
+          "demo cues (boot readiness)",
+        );
+        importDocFile(app, encode(vizDoc), "vz-th4-dense-4bar.bitbounce.json");
+        await poll(
+          () =>
+            ["drums", "bass", "chords", "lead"].every(
+              (lane) => railBadge(doc, lane) === "4B",
+            ),
+          10_000,
+          "imported VZ dense doc (4-bar singles, all lanes, 200 BPM)",
+        );
+
+        // --- PLAY, open VIZ, settle ---------------------------------------
+        await clickPlayAndWait(app);
+        ($(".booth-btn-viz") as HTMLButtonElement).click();
+        await poll(
+          () => doc().querySelector(".viz-page") !== null,
+          5000,
+          "viz page mounted",
+        );
+        const cnv = $<HTMLCanvasElement>(".viz-canvas");
+        await poll(
+          () => cnv.width > 1 && cnv.height > 1,
+          5000,
+          "viz canvas backing store sized",
+        );
+        await sleep(700); // settle into the sustained dense regime
+
+        // (4) DPR-2 law: the backing store is (≥1.9×) the CSS size.
+        const rect = cnv.getBoundingClientRect();
+        expect(
+          cnv.width / rect.width,
+          `canvas backing ${cnv.width} vs CSS ${rect.width.toFixed(0)} — the DPR-2 regime`,
+        ).toBeGreaterThanOrEqual(1.9);
+
+        // (1)/(2)/(3) — the measurement: frame INTERVALS + canvas activity.
+        // Coarse whole-canvas signature (cost-safe probe): downscale the full
+        // backing store to 48×30 through a tiny offscreen canvas each frame —
+        // ANY lit pixel change anywhere in the field moves the hash, so the
+        // activity law cannot go blind to a calm probe region.
+        const probe = document.createElement("canvas");
+        probe.width = 48;
+        probe.height = 30;
+        const pctx = probe.getContext("2d")!;
+        const sig = (): number[] => {
+          pctx.drawImage(cnv, 0, 0, probe.width, probe.height);
+          return Array.from(pctx.getImageData(0, 0, 48, 30).data);
+        };
+        const stats = await new Promise<{
+          intervals: number[];
+          changeFrames: number;
+        }>((resolve) => {
+          const intervals: number[] = [];
+          let changeFrames = 0;
+          let prev = sig();
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            const s = sig();
+            let diff = s.length !== prev.length;
+            if (!diff)
+              for (let i = 0; i < s.length; i += 7)
+                if (s[i] !== prev[i]) {
+                  diff = true;
+                  break;
+                }
+            if (diff) changeFrames++;
+            prev = s;
+            if (now - start < MEASURE_MS) requestAnimationFrame(frame);
+            else resolve({ intervals, changeFrames });
+          };
+          requestAnimationFrame(frame);
+        });
+
+        const sorted = [...stats.intervals].sort((a, b) => a - b);
+        const over = stats.intervals.filter((d) => d >= FRAME_BUDGET_MS);
+        const worst = sorted[sorted.length - 1]!;
+        console.log(
+          `[VZ-TH-4 viz budget] frames=${stats.intervals.length} ` +
+            `over33.4ms=${over.length} ` +
+            `max=${worst.toFixed(1)}ms ` +
+            `p95=${sorted[Math.floor(sorted.length * 0.95)]!.toFixed(1)}ms ` +
+            `median=${sorted[Math.floor(sorted.length / 2)]!.toFixed(1)}ms ` +
+            `canvasChangeFrames=${stats.changeFrames} ` +
+            `backing=${cnv.width}x${cnv.height}@DPR2`,
+        );
+
+        // Transport never stopped; the viz page is still up.
+        expect(app.playBtn().textContent).toBe("STOP");
+        expect(doc().querySelector(".viz-page")).not.toBeNull();
+
+        // (3) Canvas activity (load-robust law: ≥2 change-frames/s proves the
+        // reactions fire while the hard ratio above polices the frame rate).
+        expect(
+          stats.changeFrames,
+          `canvas changed on only ${stats.changeFrames} frames — reactions not firing?`,
+        ).toBeGreaterThanOrEqual(
+          (MEASURE_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC,
+        );
+
+        // rAF alive + the HARD budget.
+        expect(stats.intervals.length).toBeGreaterThan(MEASURE_MS / 50);
+        expect(
+          over.length / stats.intervals.length,
+          `${over.length}/${stats.intervals.length} frames ≥ ${FRAME_BUDGET_MS} ms ` +
+            `(max ${worst.toFixed(1)} ms, median ` +
+            `${sorted[Math.floor(sorted.length / 2)]!.toFixed(1)} ms)`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+
+        // (2) Hit-batch long-task guard: one frame carries one full ignite
+        // batch (4 bursts in one frame, 13.33×/s) — no single frame may
+        // block the loop ≥ 50 ms.
+        expect(
+          worst,
+          `worst frame (hit-batch block) ${worst.toFixed(1)} ms`,
+        ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
+
+        // (6) RED/GREEN TOOTH — the same ratio must FAIL under a deliberate
+        // main-thread thrash (70 ms busy per frame for 1.5 s): proof the gate
+        // has teeth, not a tautology. Runs on the same live app AFTER the
+        // green measurement; teardown below closes it.
+        const red = await new Promise<number[]>((resolve) => {
+          const intervals: number[] = [];
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            const t0 = performance.now();
+            while (performance.now() - t0 < 70) {
+              /* deliberate main-thread thrash — the gate's negative control */
+            }
+            if (now - start < 1500) requestAnimationFrame(frame);
+            else resolve(intervals);
+          };
+          requestAnimationFrame(frame);
+        });
+        const redOver = red.filter((d) => d >= FRAME_BUDGET_MS).length;
+        console.log(
+          `[VZ-TH-4 viz tooth] frames=${red.length} over33.4ms=${redOver} ` +
+            `(injected 70ms/frame thrash — must break the ratio)`,
+        );
+        expect(
+          redOver / red.length,
+          `thrash injection did NOT break the gate (${redOver}/${red.length} over budget) — the tooth is dead`,
+        ).toBeGreaterThanOrEqual(1 - FRAME_PASS_RATIO);
+      } finally {
+        await app.teardown();
+      }
+    },
+    300_000,
   );
 });

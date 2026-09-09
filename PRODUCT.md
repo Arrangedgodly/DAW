@@ -70,6 +70,19 @@ Confirmed v0 scope (approved brief, `docs/ultron/town-hall.md`):
 - Audition on cell placement/click; no live performance keyboard or recording.
 - Undo/redo (~50 steps); demo song preloaded on first run.
 
+In-flight on branch `visualizer` (approved brief `docs/ultron/town-hall.md`, 2026-09-04;
+scoping defaults recorded by the coordinator after the user went unattended mid-run —
+labeled inferred, correctable at delivery):
+
+- VIZ second surface: full-screen MIDI-driven visual instrument; every audible note-on
+  fires the active preset's generative reactions (lane hue, pitch, intensity shape them);
+  audio engine and FX chains untouched by visuals.
+- Built-in visual preset library (~8–12); user cycles presets and rerolls the current
+  preset's node arrangement with seeded randomness (reproducible); no preset save/share,
+  no node editor, no audio-analysis input in v1.
+- Last preset + seed remembered in lightweight local state only — never in the project
+  document schema.
+
 Explicit v0 non-goals: samples, flexible tracks, arrangement timeline, session-clip
 launcher, master FX chain, automation, live performance/recording, arpeggiator, live
 Euclidean mode, stems export, mobile/touch, accounts/cloud/collab/backend, plugin SDK,
@@ -93,7 +106,9 @@ file contents).
 ## Evidence on Hand
 
 - Approved scoping brief: `docs/ultron/town-hall.md` (2026-09-01, all 10 hero lanes
-  signed off). The authoritative product record behind this file.
+  signed off). The authoritative product record behind this file. On the `visualizer`
+  branch checkout, that path holds the 2026-09-04 visualizer brief (gitignored artifact
+  directory; the 2026-09-01 original lives in the main checkout).
 - No shipped assets yet: demo song, presets, and drum kits are to be created during
   production. No testimonials, usage data, or press exist — future work must not
   fabricate them.

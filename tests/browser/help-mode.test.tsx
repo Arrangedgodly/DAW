@@ -89,6 +89,9 @@ import scalePopoverSrc from "../../src/components/ScalePopover.tsx?raw";
 import toastsSrc from "../../src/components/Toasts.tsx?raw";
 import bannerSrc from "../../src/components/Banner.tsx?raw";
 import audioStatusSrc from "../../src/components/AudioStatus.tsx?raw";
+// VZ-DD-1: the viz remote registers three entries (viz.preset/reroll/exit)
+// — the surface joins the registry, so it joins the census.
+import vizRemoteSrc from "../../src/components/VizRemote.tsx?raw";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
@@ -535,6 +538,7 @@ const SOURCES = [
   toastsSrc,
   bannerSrc,
   audioStatusSrc,
+  vizRemoteSrc,
 ] as const;
 
 /** Every LITERAL `data-help="…"` id stamped in the component sources. */

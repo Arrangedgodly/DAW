@@ -26,6 +26,17 @@
   pointer-events: none;
 }
 
+/*
+ * VZ-DD-1: while the VIZ surface is on, the info bar lifts ONE step above
+ * the full-bleed page (55) — "help coverage available" on the surface
+ * means READABLE there, not buried under the show (the remote's controls
+ * focus into view and drive this bar). Still below toasts (60): failure
+ * chrome outranks both surfaces.
+ */
+.app[data-viz-mode="on"] .info-view {
+  z-index: 56;
+}
+
 /* The mode's "?" badge — a control-corner (3px) chassis chip. */
 .info-view-tag {
   flex: 0 0 auto;

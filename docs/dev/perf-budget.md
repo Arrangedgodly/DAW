@@ -350,9 +350,19 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   13.13 KB gz (+0.34 / +0.04; 22% of budget). Later still (measured
   2026-09-03, refinement-7 — the rail sounding-follow ledger + read seam
   and the flag/booth polish, same method): initial JS 65.01 KB gz, CSS
-  13.16 KB gz (+0.36 / +0.03; 22% of budget). Vite's own build report
+  13.16 KB gz (+0.36 / +0.03; 22% of budget). Later still (measured
+  2026-09-04, VZ-TH-4 — the M4 bundle-delta record for the viz feature,
+  same method): initial JS **81.73 KB gz** (27% of budget), CSS 14.39 KB
+  gz. The VIZ capability shipped EAGER (VZ-IM-2's recorded decision,
+  re-measured and KEPT by VZ-TH-4, §10): the delta since VZ-IM-2's
+  67.18 KB record is +14.55 KB gz — the full viz engine (renderer,
+  presets/vocabulary, clamps, phases, pipeline) on the eager entry chunk.
+  No flip to a lazy chunk: 3.7× headroom against the 300 KB law, VIZ is
+  the one-click headline surface (a lazy chunk would put a fetch+parse on
+  J1's first open), and the decision's tripwire was budget pressure,
+  which is absent. Vite's own build report
   prints slightly different gzip figures
-  (e.g. 66.41 KB initial) because it uses its default gzip settings, not
+  (e.g. 84.41 KB initial) because it uses its default gzip settings, not
   -9; the gate's numbers above are the contract.
 - **M1 checkpoint record (measured 2026-09-04, hardware-console M1 —
   tokens v2 + chassis + booth + grid surface + the checkpoint's AC-9
@@ -994,6 +1004,74 @@ battery):
 | **Background tab** | the repo's documented synthetic `visibilitychange` override (headless Chromium does not natively clamp — perf-budget §6's honest caveat); play → on-beat → hidden 1.5s → refocus | on-beat 4/4 `.lane-floor.is-sounding`; while hidden the ~120ms decay removal PARKS the rims (count 0 — no stuck glow); on refocus the next beat fires (4/4) and the playhead recomputes from the live audio clock (93.2px → 2.1px across the loop wrap — resync-in-one-frame, no replay). Matches TH-3 (§6) and T5's park design. |
 | **Low-end / CPU throttle** | CDP `Emulation.setCPUThrottlingRate {rate: 4}` + own TH-4-style probe (rAF deltas, 4s window, demo playing at 1440×900; run twice) | **241 frames / 4s, 0 over 33.4ms (ratio 1.0), max 18.7ms, p95 18.3–18.5, median 16.6–16.7 — vsync cadence holds at quarter-speed CPU** (per-frame work is far under the 16.6ms budget; the compositor layers do the moving). The vitest browser harness does not expose CDP throttling, so the dense-state TH-4(a) CI floor ran unthrottled (green, §2a M3); this probe is the honest 4x statement on the standard demo state, and the §9 device-class honesty caveat stands (real mid-tier Android stays an R7 user-session item). |
 
+## 12. VIZ frame budget (VZ-TH-4 — the densest standard pattern, with teeth)
+
+The viz gate in `tests/browser/frame-budget.test.ts` ("VZ-TH-4 viz frame
+budget"): the densest standard pattern playing with VIZ OPEN holds the
+committed budget, on the REAL built bundle. **The gate metric is frame
+INTERVALS ONLY, never draw-call timings** — R1's committed lesson
+(`docs/ultron/research/r1r2-canvas-perf-dpr.md`): the naive shadowBlur
+model showed 0.2 ms main-thread draws while collapsing to 2 fps; the cost
+lives in rasterization off the main thread, which only frame intervals
+see.
+
+- **State**: 200 BPM 16ths (the tempo input's max — R1's worst-case
+  tempo), one row painted across a fresh 4-bar pattern per lane (demo
+  patterns stripped from the POOL first, the MB-6 self-checking setup
+  law), all four lanes on the SAME 16th tick — the true worst frame
+  carries 4 ignite bursts, 13.33×/s. Offered sustained rate ≈ 50
+  events/s: bass/drums/lead 13.33 each; **chords painted every 4th 16th**
+  (shaping decision, recorded): a chords note stacks a 3-voice diatonic
+  triad at compile (`compileLaneEvents` stack law) = 3 note-on events per
+  hit, so 3.33 hits/s × 3 voices = 10 events/s — painting every 16th
+  would offer 80/s, past the 64/s accept cap, and would measure the
+  clamp's DENIAL path rather than the committed honest worst case
+  (~53 events/s, R1 §3). VIZ open over the still-playing stage (the
+  full-bleed canvas + the four stage playhead loops — maximal concurrent
+  load), help mode off. **DPR forced to 2** (defineProperty on the iframe
+  window pre-boot): the committed `min(devicePixelRatio, 2)` cap and R1's
+  cliff regime (~440 live objects at DPR 2; the clamp law holds the
+  engine ≥2× under it). The DPR-2 backing store is asserted in-gate
+  (2880×1800 at the 1440×900 viewport).
+- **Laws (all asserted, not logged)**: (1) ≥95% of frame intervals
+  < 33.4 ms — HARD, the §2 tolerance law; (2) worst single frame (one
+  full ignite batch = the hit-batch long-task guard) < 50 ms; (3) canvas
+  activity ≥2 change-frames/s (load-robust law; a coarse whole-canvas
+  48×30 downscale hash — probe regions can go blind to a calm spot);
+  (4) the VZ-HU-3 clamp constants pinned at source against the real
+  module (`VIZ_ACCEPT_CAP_GLOBAL_PER_SECOND` 64,
+  `VIZ_ACCEPT_CAP_PER_LANE_PER_SECOND` 20, `VIZ_MAX_LIVE_OBJECTS` 192,
+  `VIZ_RETRIGGER_REFRESH_SECONDS` 0.12 — the VOICES_PER_LANE pin
+  precedent; a retune without R1-grade evidence redds before any timing
+  runs); (5) the RED/GREEN TOOTH — a deliberate 70 ms/frame main-thread
+  thrash injection on the SAME live app must FAIL the identical ratio
+  (proof the gate is not a tautology).
+- Local measured (2026-09-04, VZ-TH-4; M1-class macOS arm64, headless
+  Chromium 151 via the playwright 1.62.1 pin; method: the
+  `[VZ-TH-4 viz budget]` console line of the gate itself, outer-page rAF
+  deltas over the 4 s window — three consecutive runs):
+  242/241/241 frames, **0 frames ≥ 33.4 ms** every run, max 20.3–22.6 ms,
+  p95 18.7–18.9 ms, median 16.6–16.7 ms; canvas changed on 194/194/193
+  frames (~48/s — reactions firing on nearly every frame at ~50
+  events/s offered); tooth 20/21 frames ≥ 33.4 ms (ratio 0.95 — RED as
+  designed). vs R1's expected envelope (ratio ~100%, 2× headroom): held.
+- **P2 probe-precision note disposition (VZ-HU-3 verifier, ACCEPTED —
+  no fix)**: `peakLive` updates only on ignite's accepted tail, so
+  companions spawned during a pure-denied stretch can momentarily exceed
+  the recorded high-water mark. The 192 LAW is enforced at every push
+  site (`while (live.length >= maxLiveObjects) evictOldest(t)`, spawn +
+  companion paths), honest play never denies (verified walk: a closed 1 s
+  window holds at most ~54 entries vs the 64 cap), and this gate's
+  regime never denies — the probe's precision is evidence-quality only,
+  not a law gap. Recorded here so the next ledger reader knows the
+  high-water number is a lower bound of the true instantaneous peak, by
+  at most the companion count (≤1 per node).
+- **Eager-vs-lazy chunk decision (VZ-IM-2's open decision, re-measured
+  and CLOSED by this task)**: initial JS 81.73 KB gz (§3) vs 67.18 KB at
+  VZ-IM-2 — the viz engine ships eager. KEPT EAGER: 27% of the 300 KB
+  budget (3.7× headroom), VIZ is the one-click headline surface (lazy
+  would put a fetch+parse on J1's first open), and the flip's trigger
+  was budget pressure, which is absent.
 
 ## Harness notes (D8/RES-7)
 

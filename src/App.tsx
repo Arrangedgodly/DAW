@@ -20,7 +20,9 @@ import StageFloor, { LaneSwitcher } from "./components/StageFloor";
 import Toasts from "./components/Toasts";
 import AudioStatus from "./components/AudioStatus";
 import SupportBanners from "./components/Banner";
+import VizPage from "./components/VizPage";
 import { helpMode } from "./state/helpMode";
+import { vizMode } from "./state/vizMode";
 import { stageMode } from "./state/selection";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
@@ -32,6 +34,7 @@ import "./styles/pattern-rail.css";
 import "./styles/toasts.css";
 import "./styles/banner.css";
 import "./styles/help.css";
+import "./styles/viz.css";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -50,6 +53,7 @@ export default function App() {
     <div
       class="app"
       data-help-mode={helpMode() ? "on" : "off"}
+      data-viz-mode={vizMode() ? "on" : "off"}
       data-stage={stageMode()}
     >
       <SupportBanners />
@@ -57,25 +61,42 @@ export default function App() {
           scrolling grid. At phone width the booth + lane switcher +
           condensed rail form ONE pinned group (position: sticky inside the
           scrolling document) and the single-lane stage below scrolls; the
-          desktop/tablet structure is the original shell, unchanged (m4). */}
+          desktop/tablet structure is the original shell, unchanged (m4).
+          VZ-DD-1: while the VIZ surface is on, the covered stage (booth +
+          floors, or the phone chrome + stage) goes INERT — no Tab stops,
+          no a11y tree, no stray key targets under the full-bleed page (the
+          "no Tab stop outside the remote" law). Toasts (60), the
+          audio-resume affordance (70) and the KEYS modal (90) stay live:
+          the failure/reference chrome outranks the surface by design. */}
       <Show
         when={stageMode() === "phone"}
         fallback={
           <>
-            <Booth />
-            <main class="stage" aria-label="Stage floor">
+            <Booth covered={vizMode()} />
+            <main
+              class="stage"
+              aria-label="Stage floor"
+              inert={vizMode() ? true : undefined}
+            >
               <PatternRail />
               <StageFloor />
             </main>
           </>
         }
       >
-        <div class="phone-chrome">
+        <div
+          class="phone-chrome"
+          inert={vizMode() ? true : undefined}
+        >
           <Booth />
           <LaneSwitcher />
           <PatternRail />
         </div>
-        <main class="stage" aria-label="Stage floor">
+        <main
+          class="stage"
+          aria-label="Stage floor"
+          inert={vizMode() ? true : undefined}
+        >
           <StageFloor />
         </main>
       </Show>
@@ -85,6 +106,13 @@ export default function App() {
           unmounts it — and its listeners — the instant the mode turns off). */}
       <Show when={helpMode()}>
         <InfoView />
+      </Show>
+      {/* VZ-IM-2: the VIZ page mounts ONLY while viz mode is on — the same
+          Show law, so VIZ closed means zero VIZ DOM/listeners (zero-cost
+          clause); transport-isolated by construction (VizPage never touches
+          the engine). */}
+      <Show when={vizMode()}>
+        <VizPage />
       </Show>
       <KeyboardShortcuts />
     </div>

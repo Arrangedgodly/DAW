@@ -35,6 +35,9 @@ never in the shipped bundle).
 | Save indicator                          | `role="status"` `tabindex=0` (DA-2: was a bare div)         | `aria-label` = state + ABSOLUTE timestamp                     | fill/shape visual                                              | PASS — see announcements                                                                                     |
 | Audio resume                            | `button`                                                    | visible text                                                  | —                                                              | PASS                                                                                                         |
 | Empty-project hint                      | `role="note"`                                               | aria-label                                                    | —                                                              | PASS                                                                                                         |
+| VIZ remote (VZ-DD-1/DD-2)               | `toolbar` + roving buttons; canvas `aria-hidden`            | "VIZ remote"; per-control labels                              | aria-pressed on the booth toggle; idle line plain text         | PASS                                                                                                         |
+| VIZ announcement region (VZ-DD-2)       | `role="status"` `aria-live="polite"`                        | "VIZ announcements"                                           | text only; never focusable, no tabindex                        | PASS (the E6 shape; exit line rides the stage region — the INFO MODE OFF precedent)                         |
+| VIZ phone gate (VZ-DD-4)                | same chassis as `role="group"` (a notice + one button — not a toolbar at phone); canvas `display:none` | "VIZ remote"; EXIT labelled                                   | message + idle line plain text; the single Tab stop of the surface | PASS (viz-phone journey; §8.5)                                                                               |
 
 ## 2. Focus management
 
@@ -53,6 +56,15 @@ never in the shipped bundle).
   the tab order and focusing reveals the control — nothing focusable is
   hidden behind opacity without a reveal path. Grid `data-preview` overlays
   are non-interactive decoration. No other CSS-gated controls exist.
+- **VIZ surface (VZ-DD-2):** opening hands focus to the remote's roving
+  seed (the modal law, scoped to the remote's own group — the covered
+  stage is `inert`, so nothing else is focusable up there); every exit
+  path (Escape, EXIT, `v`) returns focus to the stored invoker through the
+  one `closeViz` funnel (helpOverlay precedent; the refocus lands after
+  the inert removal flushes). Re-deals never move focus: preset switches
+  and reroll commits leave focus exactly where the user put it. The
+  announcement region itself is never focusable and never a Tab stop
+  (E6 shape).
 
 ## 3. Screen-reader announcements (current behavior)
 
@@ -67,6 +79,12 @@ never in the shipped bundle).
 | Preset/gate/fill value changes | local `aria-live=polite` value spans                                                                                                                                                                                 | VERIFIED                                                                                                                                                                                                                    |
 | Note-length resize (IN-2)      | per-grid local `aria-live=polite` span (`LENGTH <len> ST`), fired from BOTH the keyboard `+`/`-` path and the pointer edge-drag commit (E4/E5 parity; no aria-label on the live span — the DA-2 prohibited-attr law) | VERIFIED (drag-notes journey)                                                                                                                                                                                               |
 | Multi-clip cue commit (IN-3)  | rail-level `role=status` summary (`QUEUED <n> LANES`), fired from BOTH the pointer sweep and the Shift+arrows range + Enter path through one commit funnel (E5); the per-lane pending announcements above ride the same engine events for both paths | VERIFIED (drag-cue journey, texts asserted EQUAL between paths) |
+| VIZ entry / exit (VZ-DD-2)    | entry through the page's own `role=status` region (inserts empty, speaks `VIZ ON — …` a task later — transport-truthful copy); exit through the STAGE status region (`VIZ OFF`) because the page's region dies with the page (the INFO MODE OFF precedent), deferred past the inert lift | VERIFIED (viz-announcements journey) |
+| VIZ preset / reroll commits (VZ-DD-2) | page region speaks `PRESET <name>` / `ARRANGEMENT REROLLED` once per COMMITTED deal (the controller's subscribe seam + probe-counter classification): a coalesced reroll burst announces exactly once; identical consecutive texts re-announce via clear-then-set | VERIFIED (viz-announcements journey, emissions ledger) |
+| VIZ transport edges (VZ-DD-2) | page region speaks `PLAYBACK STARTED` / the idle line's own words on each real transport edge — the visible idle line and its spoken twin are one string | VERIFIED (viz-announcements journey) |
+| VIZ activity under reduce (VZ-DD-2 × DD-3) | page region speaks the textual-equivalence summaries (`VIZ ACTIVITY — …`) at the summarizer's own 2 s floor; FULL MOTION announces state changes only — no per-hit narration (emissions stay flat while hits flow) | VERIFIED (viz-announcements journey) |
+| VIZ phone gate (VZ-DD-4)      | at the phone stage the ENTRY line is transport- AND stage-truthful (`VIZ ON — THE LIGHT SHOW RUNS ON A LARGER SCREEN`, + `— THE MUSIC KEEPS PLAYING` while playing); a live desktop→phone flip speaks the gate message once; transport edges keep their DD-2 twins at the gate; every exit keeps `VIZ OFF` on the stage region | VERIFIED (viz-phone journey) |
+| VIZ density-phase labels (VZ-IM-6 × DD-2) | page region speaks `VIZ LIGHTS — REST/SPARSE/WORKING/FULL` on each HYSTERESIS-bounded phase change (the arc never flickers) — REDUCED MOTION ONLY, where the canvas is static and the label is the phase's text equivalent ("never color alone"); full motion stays silent per DD-2's closed state-change list; the idle phase never speaks here (the remote's idle line owns the stopped state's words) | VERIFIED (viz-phases journey) |
 
 ## 4. Motion audit (prefers-reduced-motion)
 
@@ -79,6 +97,8 @@ never in the shipped bundle).
 | Euclid fill hover reveal (opacity 120 ms) | FIXED (DA-2): `transition:none` under reduce      | n/a (state change, not continuous)                                                                 | FIXED                       |
 | Booth transitions                         | blanket `transition:none` under reduce            | n/a                                                                                                | VERIFIED                    |
 | Beat LEDs, save dot, pending tile hatch   | static by construction (no animation declared)    | n/a                                                                                                | VERIFIED                    |
+| VIZ canvas one-shot light (100–400 ms)    | n/a (canvas pixels — the CSS gate cannot reach them) | node engine gates EVERY ignition through the per-node flash governor (src/viz/clamps.ts): ≤3 discrete flashes per trailing second, BOTH modes (SC 2.3.1); denied hits MERGE into pinned light or draw below the general flash threshold | VERIFIED (VZ-DD-3 unit ceiling proof + browser flash ledger) |
+| VIZ canvas under reduce                   | `viz.css` `@media (prefers-reduced-motion: reduce)` kills chrome transitions (chrome static by construction) | renderer's matchMedia seam feeds `engine.setReducedMotion` LIVE (no remount): static placed marks + bounded hold (1/3 s = 1/ceiling), textual-equivalence summaries computed for VZ-DD-2's live region | VERIFIED (VZ-DD-3 browser gate under emulated reduce) |
 | Infinite pulses                           | none exist anywhere (token law 4)                 | —                                                                                                  | VERIFIED                    |
 
 ## 5. Contrast — measured effective pairs (computed from the CSS actually applied; ground #111014)
@@ -264,6 +284,7 @@ control — a neighbor's hit box encroaching fails the corner probes (the
 | FX console | CLOSE, bypass/move/remove, + ADD FX, add items, param sliders/selects | painted 44 / input-height 44 |
 | Popovers | projects rows + actions, scale roots/modes/commit/detach | painted 44 (scale popover widened so 6 roots ≥44) |
 | Failure chrome | toast action/dismiss, banner dismiss, audio-resume, KEYS close | painted 44 |
+| VIZ phone gate (VZ-DD-4) | booth VIZ toggle (entry) + gate EXIT | booth toggle: strap (it is the pinned booth's own button); gate EXIT: painted 44 (§8.5) |
 
 ### 8.3 Recorded exemptions (measured + logged by the audit, never asserted ≥44)
 
@@ -304,6 +325,40 @@ control — a neighbor's hit box encroaching fails the corner probes (the
   rotation (portrait↔landscape, phone↔tablet) never strands focus
   (target-size gate).
 
+### 8.5 VIZ phone gate (VZ-DD-4 — the committed phone-stage fallback form)
+
+The production decision the VIZ brief left open is **gate + message** (the
+plan's fence-lean default; the surface is desktop-first by brief, and a
+reduced mode would be a new show form outside the lean fence). At the phone
+stage (`stageMode() === "phone"`, <768 or <1024×<600) the VIZ surface is
+the GATE, not the show:
+
+- **Form:** the remote's one chassis re-anchors as a centered message card
+  (same rail-popover cast) carrying the message line ("THE LIGHT SHOW RUNS
+  ON A LARGER SCREEN"), the idle line while stopped, and EXIT as the
+  surface's single control (`role="group"` — a notice + one button, not a
+  toolbar). No preset stepper, no reroll — there is no show to control.
+- **Zero engine footprint:** no renderer/rAF loop, no arrangement
+  controller, no engine subscriptions over the mobile stage (non-
+  interference, browser-pinned via module probes). Live viewport flips
+  boot/dispose cleanly in both directions; a re-boot continues the session
+  envelope (committed deals survive a gate round trip).
+- **Targets:** the gate EXIT is PAINTED ≥44×44 (the gate is a full-screen
+  message, not pinned chrome — the honest route where there is room); the
+  booth VIZ entry rides the pinned booth's existing strap. No exemptions
+  taken. Gate: `tests/browser/viz-phone.test.tsx` (the same behavioral
+  `elementFromPoint` law as the m2 audit) + `target-size.test.tsx`
+  unchanged.
+- **DD-1/DD-2 laws unchanged at phone:** entry focus lands on the gate's
+  single control; Escape/`v`/EXIT share the one `closeViz` funnel with
+  focus return to the invoker; the announcement region ships with the page
+  and speaks the transport- AND stage-truthful entry line, transport
+  edges, and the gate line on a live desktop→phone flip; the phone chrome
+  + stage beneath stay `inert` while the surface is on.
+- **Layout:** the gate wraps at 360–430 px (message and idle line
+  `white-space: normal` inside the gate); the page never h-scrolls at
+  360×800 (browser-pinned); axe clean on the phone-gate state at 390 and
+  360.
 ## 9. Iteration-3 a11y gate extensions (KL-1 — the AGREED list)
 
 The iteration-3 brief (town-hall §Iteration 3, Daredevil's claim) adds five

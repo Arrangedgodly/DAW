@@ -1,0 +1,273 @@
+/*
+ * VIZ page (VZ-IM-2) — the House Lights surface (.impeccable/surfaces/
+ * viz.md): one continuous near-black floor, tokens only. VZ-IM-4 adds the
+ * full-bleed canvas ground below; the draw engine (VZ-IM-5), phase states
+ * (VZ-IM-6) and remote chrome (VZ-DD-1) extend this file under the same
+ * tokens — no new palette values, ever (tokens.css is the authority).
+ *
+ * Mount law: this element exists ONLY while vizMode is on (App's <Show>);
+ * nothing here leaks into the closed app (HP-1 zero-cost clause).
+ */
+
+.viz-page {
+  position: fixed;
+  inset: 0;
+  /* Above the stage + FX overlays (30/40) and the info bar (50) — a full
+   * surface; BELOW toasts (60) and the audio-resume affordance (70), the
+   * failure chrome that must stay reachable/visible in any mode. */
+  z-index: 55;
+  background: var(--color-ground);
+}
+
+/*
+ * VZ-IM-4 — the renderer canvas (src/viz/renderer.ts sizes the BACKING
+ * store; CSS only fixes the element box): absolutely full-bleed inside the
+ * page, block so no inline baseline gap. The element's box is what the
+ * ResizeObserver watches — CSS size and backing store stay decoupled by
+ * design (backing = round(css × min(dpr, VIZ_DPR_CAP)), never set here).
+ */
+.viz-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ * VZ-DD-4 — the PHONE GATE: at the phone stage the canvas element persists
+ * (ref stability for a wide-stage re-boot) but paints nothing and sizes to
+ * zero — no renderer ever runs there (VizPage's stage-mode effect), so this
+ * is belt-and-braces, not the mechanism.
+ */
+.app[data-stage="phone"] .viz-canvas {
+  display: none;
+}
+
+/*
+ * VZ-DD-1 — the REMOTE: the surface's entire DOM chrome, bottom-anchored
+ * and center-set so the light show leads from the first viewport
+ * (Experience mode: the remote recedes by smallness and stillness, never
+ * by hiding). ONE chassis cast — the rail-popover law: opaque token ground
+ * (never glass over the show), 1px 25%-ink border, 6px radius, one
+ * offset+blur shadow. Static by construction: no pulses, no transitions,
+ * no glow layers — the glow budget stays unspent while the canvas carries
+ * all the light (tokens.css law 4 is a ceiling, not a quota). Wraps (never
+ * overflows) at narrow widths; its phone form is the GATE below (VZ-DD-4).
+ */
+.viz-remote {
+  position: absolute;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  max-width: calc(100% - 2 * var(--space-5));
+  box-sizing: border-box;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-ground);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
+  border-radius: 6px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
+}
+
+/* While help mode joins the surface, the info bar (lifted above the page
+ * by info-view.css) owns the bottom edge — the remote steps up clear of
+ * it, the same static choreography as every help-mode marker. */
+.app[data-help-mode="on"] .viz-remote {
+  bottom: 56px;
+}
+
+/*
+ * VZ-DD-4 — the PHONE GATE form of the SAME chassis (the committed
+ * fallback: gate + message): at the phone stage there is no show to
+ * recede under, so the gate is a CENTERED message card — same rail-
+ * popover cast (opaque ground, 1px 25%-ink border, 6px radius, one
+ * offset+blur shadow), column-set, wrapping text (a message wraps —
+ * nothing here may overflow the 360-430 px widths). Static by
+ * construction, like the strip form; the reduce gate below covers both.
+ */
+.viz-remote.viz-remote-gate {
+  bottom: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: min(30rem, calc(100% - 2 * var(--space-5)));
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+}
+
+/* The gate message: warm-white ink on the ground (the ink law — never
+ * dimmed), the LED display voice at message scale — the gate is a
+ * full-screen card, not pinned chrome, so its one line can afford the
+ * stage's largest type (the 2026-09-05 polish P3: 10px silkscreen inside a
+ * centered full-viewport card under-read the moment). Wraps by law. */
+.viz-phone-message {
+  margin: 0;
+  font: 400 20px/1.4 var(--font-led);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  white-space: normal;
+}
+
+/* The idle line WRAPS inside the gate (its strip-form nowrap assumed the
+ * wide chassis; at 360 the line must never clip). */
+.viz-remote-gate .viz-remote-idle {
+  white-space: normal;
+}
+
+/*
+ * The gate's EXIT — the surface's single control at phone, and the gate
+ * is a full-screen message (not pinned chrome), so the honest target-size
+ * route is PAINT: ≥44×44 (m2 / WCAG 2.5.5, the world-respecting "painted"
+ * route — no strap needed where there is room).
+ */
+.viz-remote-gate .viz-remote-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+}
+
+/* The preset stepper — the booth TEMPO group cast: dim silkscreen label,
+ * outline chassis buttons (the .fx-mod-btn language), the readout between
+ * them as the one full-ink value (info-critical text, D9). */
+.viz-remote-preset {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.viz-remote-label {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  white-space: nowrap;
+}
+
+.viz-remote-name {
+  font: var(--text-label-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  min-width: 12ch; /* the longest library name; steps never shift the cast */
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The J2 idle line: transport stopped names the way back to the booth.
+ * Warm-white info text on the ground (never dimmed — the ink law). */
+.viz-remote-idle {
+  margin: 0;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* Controls — the .fx-mod-btn / .lane-fx-close language verbatim (3px
+ * radius, 7%-ink fill, 18%-ink border, control-height 24px): the remote is
+ * the same world's chassis furniture. Hover = fill step; focus-visible =
+ * the D9 ink outline, never glow-dependent. */
+.viz-remote-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
+  border-radius: 3px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--space-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.viz-remote-btn:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+}
+
+.viz-remote-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+/*
+ * VZ-DD-2 — the ANNOUNCEMENT REGION (src/viz/announcements.ts): the
+ * surface's ONE polite live region, screen-reader-only (the .head-sr clip
+ * idiom, lane-header.css — no offsets, no colors, tokens untouched). The
+ * remote's visible readout and idle line are the sighted twins; this
+ * region carries the spoken channel. Static by construction: nothing
+ * here animates or transitions (the reduce gate below is belt+braces).
+ */
+.viz-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * VZ-DD-3 — reduced motion, the CSS half of the BOTH-gates law (tokens.css
+ * "Reduced motion (law)" + the grid.css D9 precedent): kill every
+ * transition/animation in the surface's DOM chrome under the media query.
+ * The remote is static by construction today (no pulses, no transitions —
+ * the stillness law), so this gate holds the line for any future chrome
+ * rather than changing the present cast. The CANVAS half of the gate lives
+ * in the render loop: the renderer's matchMedia seam swaps the node engine
+ * to static placed marks + bounded hold (src/viz/renderer.ts +
+ * src/viz/nodes.ts + src/viz/clamps.ts) — a CSS-only gate could not reach
+ * canvas pixels, and a loop-only gate could not reach the chrome.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .viz-remote,
+  .viz-remote * {
+    transition: none;
+    animation: none;
+  }
+}
+
+/*
+ * VZ-HU-1 — the ERROR LINE: the draw-fault containment boundary's visible
+ * half (VizPage's onError writes ONE fixed line when the renderer parks a
+ * thrown draw). Hidden while empty (:empty — the closed surface carries
+ * zero chrome for a fault that never happened), then a single static line
+ * above the remote: warm-white info ink on the token ground, no fill, no
+ * border, no glow (the glow budget stays unspent; this is critical info,
+ * not light). The line itself is NOT a live region (DD-2's one-polite-
+ * region law) — its SPOKEN twin rides the surface's one polite region
+ * (VizPage's onError announces the same fixed line once per fault; the
+ * 2026-09-05 polish P3 — a screen-reader user whose show parks hears it,
+ * the closed list's "state changes only" class). Static by construction:
+ * nothing here transitions or animates.
+ */
+.viz-error:not(:empty) {
+  position: absolute;
+  bottom: calc(var(--space-5) * 2 + 3rem); /* above the remote chassis */
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(48rem, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  text-align: center;
+}

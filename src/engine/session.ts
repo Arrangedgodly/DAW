@@ -148,6 +148,36 @@ interface SoundingEntry {
 }
 
 /**
+ * VZ-IM-1 — the FROZEN note-on tap contract (consumed by the viz offset
+ * queue, VZ-TH-1/2). One payload per delivered note-on, emitted at DELIVERY
+ * (schedule) time but stamped with the note's AUDIBLE time: `audibleAt` is
+ * the exact `when` handed to the voice host in the same loop iteration (the
+ * tick's absolute audio-clock time, identical to the event's rewritten
+ * `time`). Observation-only — the tap never touches scheduling, timing, or
+ * the audio graph. Pitch is the event's fundamental as an integer MIDI note
+ * number (equal-temperament inverse of dsp's midiToFreq; drums carry their
+ * piece's fundamental), the engine-wide pitch unit; velocity is the event's
+ * linear 0..1 voice level.
+ */
+export interface VizNoteOn {
+  readonly lane: LaneId;
+  /** Integer MIDI note number of the event's fundamental frequency. */
+  readonly pitch: number;
+  /** Linear 0..1 voice level (the compiled event's level field). */
+  readonly velocity: number;
+  /** Absolute audio-clock seconds when the note becomes audible. */
+  readonly audibleAt: number;
+}
+
+/**
+ * Equal-temperament inverse of midiToFreq (dsp.ts), rounded to semitones —
+ * the codebase's integer-MIDI pitch vocabulary.
+ */
+function freqToMidi(freq: number): number {
+  return Math.round(69 + 12 * Math.log2(freq / 440));
+}
+
+/**
  * Rewrite `byStep` so `slot` plays `pattern`'s events at the slot's position
  * (in-place slot substitution — same step count by construction).
  */
@@ -459,6 +489,11 @@ export class Session {
 
   /** Engine-side pending switch (observable for the DES-6 pending indicator). */
   private switchListeners = new Set<(lane: LaneId) => void>();
+  /**
+   * VZ-IM-1: note-on tap listeners. Emission is observation-only and rides
+   * the same delivery pass as host.sendEvents (see deliverLaneEvents).
+   */
+  private readonly noteOnListeners = new Set<(noteOn: VizNoteOn) => void>();
   /** Highest global step already handed to the voice engines. */
   private lastDeliveredStep = -1;
   /**
@@ -525,6 +560,18 @@ export class Session {
   }
 
   /**
+   * VZ-IM-1: observe every note-on DELIVERED to the voice engines (schedule
+   * time), each stamped with its AUDIBLE time — the single seam where lane
+   * index + note event + audible time coincide. Mirrors subscribeSwitches;
+   * unsubscribing. Listeners fire once per delivered event, no filtering; a
+   * throwing listener is contained (audio delivery is never disturbed).
+   */
+  subscribeNoteOns(listener: (noteOn: VizNoteOn) => void): () => void {
+    this.noteOnListeners.add(listener);
+    return () => this.noteOnListeners.delete(listener);
+  }
+
+  /**
    * DES-6: true when a chain STRUCTURE edit is still deferred to this lane's
    * next iteration boundary (queued by setLaneSchedule while playing). Lets
    * the pattern rail show "pending" for arrangement edits too, not just
@@ -536,6 +583,36 @@ export class Session {
 
   private emitSwitch(lane: LaneId): void {
     for (const l of this.switchListeners) l(lane);
+  }
+
+  /**
+   * VZ-IM-1: fan one step's delivered events out to the tap subscribers,
+   * beside the host.sendEvents call that delivered them (same `when`).
+   * Containment seed: an observer must never break the audio path — each
+   * listener call is isolated, and the scheduling context stays quiet (no
+   * console noise per event at up to ~53 events/s).
+   */
+  private emitNoteOns(
+    lane: LaneId,
+    events: readonly VoiceNoteOnEvent[],
+    when: number,
+  ): void {
+    for (const e of events) {
+      const noteOn: VizNoteOn = {
+        lane,
+        pitch: freqToMidi(e.freq),
+        velocity: e.level,
+        audibleAt: when,
+      };
+      for (const listener of this.noteOnListeners) {
+        try {
+          listener(noteOn);
+        } catch {
+          // Observation-only: a throwing viz observer is dropped for that
+          // event; delivery to the host and other listeners continues.
+        }
+      }
+    }
   }
 
   /**
@@ -841,11 +918,17 @@ export class Session {
           while (ledger.length > 1 && ledger[1]!.at <= now) ledger.shift();
         }
         const events = pb.schedule.byStep.get(local);
-        if (events)
+        if (events) {
           host.sendEvents(
             i,
             events.map((e) => ({ ...e, time: when })),
           );
+          // VZ-IM-1: observation-only tap, same loop/no filtering. Guarded so
+          // an unsubscribed session builds zero payload objects on the
+          // delivery path.
+          if (this.noteOnListeners.size > 0)
+            this.emitNoteOns(LANE_IDS[i], events, when);
+        }
       }
     });
   }

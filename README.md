@@ -97,6 +97,23 @@ edge-resize, rail sweep, mix sliders, exports. Android Chrome is the
 supported target; iOS Safari is best-effort and the app says so honestly
 with a banner.
 
+**VIZ — the light show.** Press `v` (or the booth VIZ toggle) while the loop
+plays and the whole screen becomes a full-bleed, MIDI-driven light rig: every
+note lands as lane-hued light the instant you hear it, and the stage brightens
+as the groove fills. Three controls on a small remote, and that's all there
+is:
+
+- **PRESET** — step through the 10 built-in looks (First Light, Orrery, Comet
+  Run, …).
+- **REROLL** — re-hang the current preset's light rig live, into a fresh
+  arrangement.
+- **EXIT** — back to the studio (Escape and `v` work too).
+
+The music never stops: entering, switching, or leaving VIZ never touches the
+transport or the audio. With reduced motion preferred, the show swaps to
+static light marks instead of animation. VIZ wants room — on a phone it
+politely says the light show runs on a larger screen.
+
 **Keyboard-first.** Every action has a keyboard path — grid navigation, note
 resizing, lane switching, cueing, exports, help. A starter set:
 
@@ -108,6 +125,7 @@ resizing, lane switching, cueing, exports, help. A starter set:
 | `]` / `[`     | edit the next / previous lane           |
 | `+` / `-`     | resize the focused note                 |
 | Ctrl/⌘ Z      | undo (add Shift to redo)                |
+| `v`           | the VIZ light show (open or exit)         |
 | `?`           | the complete keyboard map               |
 
 The in-app KEYS overlay is the always-current map — this table is just the
