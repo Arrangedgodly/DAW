@@ -39,6 +39,7 @@ import { render } from "solid-js/web";
 import App from "../../src/App";
 import { getHelp, helpEntryIds } from "../../src/help/registry";
 import { setHelpMode } from "../../src/state/helpMode";
+import { setVizMode } from "../../src/state/vizMode";
 import { selectLane } from "../../src/state/selection";
 import { loadDocument } from "../../src/state/store";
 import { createDemoProject } from "../../src/document/demoSong";
@@ -376,6 +377,39 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           2000,
           "pattern tools menu closed",
         );
+
+        // --- STATE 8: the VIZ surface's remote (VZ-DD-1) ------------------
+        // Opened through the REAL booth button (the pointer path); while
+        // the surface is on, the covered stage is inert — its controls are
+        // still in the DOM and still registered, so the walk's law is
+        // unchanged: EVERY interactive element (remote included) resolves.
+        click('[data-help="booth.viz"]');
+        await waitFor(
+          () => host.querySelector(".viz-remote") !== null,
+          2000,
+          "viz remote open",
+        );
+        findings = walkInteractive("viz remote");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the viz remote must be fully covered",
+        ).toEqual([]);
+        // Journey clause on the surface (the readable law): with help mode
+        // ON the info bar rides above the page and speaks the remote.
+        setHelpMode(true);
+        await waitFor(() => host.querySelector(".info-view") !== null);
+        $<HTMLButtonElement>('[data-help="viz.reroll"]').focus();
+        await waitFor(
+          () =>
+            host.querySelector(".info-view-title")?.textContent?.trim() ===
+            "REROLL",
+          2000,
+          "focused REROLL drives the info region over the surface",
+        );
+        setHelpMode(false);
+        await waitFor(() => host.querySelector(".info-view") === null);
+        setVizMode(false);
+        await waitFor(() => host.querySelector(".viz-remote") === null);
 
         // --- Final: the coverage census (the log's count) ---------------
         // Distinct registry entries seen by the walk across all states ≥ the

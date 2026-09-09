@@ -113,6 +113,17 @@
     color-mix(in srgb, var(--color-ink) 50%, transparent);
 }
 
+/* VZ-IM-2: VIZ — the visualizer entry toggle. Same stage-global lamp as
+ * INFO ? (the full-screen mode is nobody's lane): warm-white fill + the
+ * one sanctioned glow layer (D9). Note the button is COVERED by the
+ * full-bleed page while on — the lit state reads on return. */
+.booth-btn-viz.is-on {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+
 /* Keyboard focus: always visible, never glow-dependent. */
 .booth :focus-visible {
   outline: 2px solid var(--color-ink);

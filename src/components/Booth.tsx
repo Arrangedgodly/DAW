@@ -31,6 +31,7 @@ import { announceScale, projectScaleChipLabel } from "../state/scaleChip";
 import { dismissFirstRunNudge, firstRunNudge } from "../state/firstRun";
 import { openHelp } from "../state/helpOverlay";
 import { helpMode, toggleHelp } from "../state/helpMode";
+import { openViz, vizMode } from "../state/vizMode";
 import { registerHelp } from "../help/registry";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
@@ -70,6 +71,11 @@ registerHelp([
     text: "Turns this info view on: point at, focus, or tap any control and this bar explains it. I toggles, Escape leaves — controls keep working either way.",
   },
   {
+    id: "booth.viz",
+    title: "VIZ",
+    text: "Turns the visualizer on: the song plays as light on a full-screen stage while the music keeps going. V toggles it from anywhere; Escape returns to the booth with focus back here — playback never stops either way.",
+  },
+  {
     id: "booth.tempo",
     title: "TEMPO",
     text: "Song speed in beats per minute, 60 to 200. Takes effect immediately — synced delays shift with it so echoes stay on the beat.",
@@ -91,7 +97,17 @@ registerHelp([
   },
 ]);
 
-export default function Booth() {
+export interface BoothProps {
+  /**
+   * VZ-DD-1: while the VIZ surface is on, the booth sits under the
+   * full-bleed page — App marks it `inert` so its controls hold no Tab
+   * stop and stay out of the a11y tree until the surface closes (the
+   * no-Tab-stops-outside-the-remote law).
+   */
+  readonly covered?: boolean;
+}
+
+export default function Booth(props: BoothProps) {
   // Project-scale chip (DES-3): mirrors the document scale into signals via
   // one subscription; the popover commits through the store seam.
   const [scaleChip, setScaleChip] = createSignal(
@@ -210,7 +226,11 @@ export default function Booth() {
   };
 
   return (
-    <header class="booth" aria-label="Transport booth">
+    <header
+      class="booth"
+      aria-label="Transport booth"
+      inert={props.covered ? true : undefined}
+    >
       <div class="booth-group" role="group" aria-label="Playback">
         <button
           type="button"
@@ -266,6 +286,23 @@ export default function Booth() {
           onClick={toggleHelp}
         >
           INFO ?
+        </button>
+        {/* VZ-IM-2: the VIZ page entry toggle (the INFO-? row precedent).
+            A stage-global mode, so the lit state is the warm-white chassis
+            fill — booth-btn-info's lamp, not a lane hue. VZ-DD-1: the click
+            opens through openViz(currentTarget) so the exit's focus return
+            lands back HERE (helpOverlay precedent); Escape / `v` / the
+            remote's EXIT are the twins (the booth sits inert under the
+            full-bleed page while on). */}
+        <button
+          type="button"
+          class="booth-btn booth-btn-viz"
+          classList={{ "is-on": vizMode() }}
+          data-help="booth.viz"
+          aria-pressed={vizMode()}
+          onClick={(e) => openViz(e.currentTarget)}
+        >
+          VIZ
         </button>
       </div>
 

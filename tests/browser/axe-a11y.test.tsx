@@ -14,12 +14,21 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { cdp, page } from "vitest/browser";
 import { render } from "solid-js/web";
 import axe from "axe-core";
 import App from "../../src/App";
+import { getSession } from "../../src/engine/session";
 import { closeHelp, openHelp } from "../../src/state/helpOverlay";
 import { setHelpMode } from "../../src/state/helpMode";
+import { setVizMode } from "../../src/state/vizMode";
+import { loadDocument } from "../../src/state/store";
+import { createDemoProject } from "../../src/document/demoSong";
+import { getAutosaveController } from "../../src/persist/boot";
+import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
+import { activeVizNodeEngines } from "../../src/viz/nodes";
+import { VIZ_PHONE_GATE_MESSAGE } from "../../src/viz/announcements";
+import { VIZ_IDLE_LINE } from "../../src/components/VizRemote";
 // DA-3 fix: App imports app.css/grid.css but NOT the token sheet (that is
 // main.tsx's job in the real bundle). Without tokens every var(--color-*)
 // background resolves to nothing, axe falls back to a white page, and light
@@ -27,6 +36,18 @@ import { setHelpMode } from "../../src/state/helpMode";
 // and falsely flagged. Load the token base so contrast pairs are computed
 // from the REAL rendered palette, exactly as deployed.
 import "../../src/styles/base.css";
+
+const session = getSession();
+
+/** Browser-level preference emulation (CDP; restored in finally — the
+ * viz-reduced-motion precedent, the same mechanism Playwright drives). */
+async function emulateReducedMotion(
+  value: "reduce" | "no-preference",
+): Promise<void> {
+  await cdp().send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value }],
+  });
+}
 
 async function waitFor(
   predicate: () => boolean,
@@ -254,6 +275,174 @@ describe("DA-2 axe-core gate", () => {
     } finally {
       setHelpMode(false);
       cleanup();
+    }
+  });
+
+  // VZ-DD-1 / the visualizer surface's a11y gate: the VIZ page with its
+  // REMOTE chrome present (the task's "review + axe" clause). Semantics
+  // asserted here: the remote is a NAMED toolbar; the canvas is aria-hidden
+  // decoration; the covered stage is `inert` (no focusable-hidden-content
+  // class of violations — inert is the standard mechanism); axe stays clean
+  // with the surface mounted.
+  it("viz mode on (remote chrome): toolbar semantics clean", async () => {
+    const { host, cleanup } = mount();
+    try {
+      await settleDesktopStage(host);
+      const viz = host.querySelector<HTMLButtonElement>(".booth-btn-viz")!;
+      expect(viz).toBeTruthy();
+      viz.click();
+      await waitFor(
+        () => host.querySelector(".viz-remote") !== null,
+        4000,
+        "viz remote mounted",
+      );
+      const remote = host.querySelector<HTMLElement>(".viz-remote")!;
+      expect(remote.getAttribute("role")).toBe("toolbar");
+      expect(remote.getAttribute("aria-label")).toBe("VIZ remote");
+      expect(
+        host.querySelector(".viz-canvas")?.getAttribute("aria-hidden"),
+      ).toBe("true");
+      expect(host.querySelector(".booth")?.inert).toBe(true);
+      expect(host.querySelector("main.stage")?.inert).toBe(true);
+      // VZ-HW-3 names this snapshot the mounted-IDLE state (transport
+      // stopped): the idle line is its legibility law, visible here.
+      expect(
+        host.querySelector(".viz-remote-idle")?.textContent?.trim(),
+      ).toBe(VIZ_IDLE_LINE);
+      // axe-after-settle: let the transport subscription + roving seed land.
+      await new Promise((r) => setTimeout(r, 300));
+      expectClean(await runAxe(host), "viz mode on");
+    } finally {
+      setVizMode(false);
+      cleanup();
+    }
+  });
+
+  // VZ-HW-3 — the four VIZ surface states join the consolidated axe gate
+  // (plan §"VZ-HW-3": mounted-PLAYING, IDLE, REDUCED-MOTION, PHONE-FALLBACK
+  // — the previous test's stopped-desktop snapshot IS the idle state; this
+  // sweep walks the other three and re-pins idle through a real played→
+  // stopped edge, so the transport-truthful idle line is the state's own
+  // proof). Deep semantics stay in their owning gates (viz-remote,
+  // viz-reduced-motion, viz-phone); here it is the AXE law that must hold
+  // in every state the surface can be observed in.
+  it("viz states (VZ-HW-3): playing · idle · reduced-motion · phone-gate — axe clean", async () => {
+    await emulateReducedMotion("no-preference"); // start from the real default
+    const { host, cleanup } = mount();
+    let bootDb: ProjectDb | null = null;
+    let rows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
+    try {
+      await settleDesktopStage(host);
+      // Deterministic demo content + the shared-origin rows restore (the
+      // joy-loop idiom — loadDocument autosaves).
+      await waitFor(
+        () => getAutosaveController() !== null,
+        10_000,
+        "boot autosave controller",
+      );
+      bootDb = await openRawProjectDb("bitbounce");
+      rows = await bootDb.allRecords();
+      loadDocument(createDemoProject());
+      session.setLoop(true);
+
+      // --- STATE 1: mounted-PLAYING ------------------------------------
+      await session.togglePlay();
+      await waitFor(
+        () => session.transport.snapshot.playing,
+        5000,
+        "transport playing",
+      );
+      host.querySelector<HTMLButtonElement>(".booth-btn-viz")!.click();
+      await waitFor(
+        () => host.querySelector(".viz-remote") !== null,
+        5000,
+        "viz remote mounted",
+      );
+      expect(host.querySelector(".viz-remote-idle")).toBeNull(); // playing
+      await new Promise((r) => setTimeout(r, 300)); // entry line + seed land
+      expectClean(await runAxe(host), "viz playing");
+
+      // --- STATE 2: REDUCED-MOTION (the live swap, mid-play) -----------
+      await emulateReducedMotion("reduce");
+      await waitFor(
+        () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        5000,
+        "emulated media applied",
+      );
+      await waitFor(
+        () => activeVizNodeEngines()[0]?.probe().reducedMotion === true,
+        5000,
+        "engine swapped to reduced motion (the matchMedia seam)",
+      );
+      await new Promise((r) => setTimeout(r, 300));
+      expectClean(await runAxe(host), "viz reduced-motion");
+      await emulateReducedMotion("no-preference");
+      await waitFor(
+        () => activeVizNodeEngines()[0]?.probe().reducedMotion === false,
+        5000,
+        "engine back at full motion",
+      );
+
+      // --- STATE 3: mounted-IDLE (a real played→stopped edge) ----------
+      await session.togglePlay();
+      await waitFor(
+        () => !session.transport.snapshot.playing,
+        5000,
+        "transport stopped",
+      );
+      await waitFor(
+        () => host.querySelector(".viz-remote-idle") !== null,
+        5000,
+        "idle line visible under the surface",
+      );
+      expectClean(await runAxe(host), "viz idle");
+
+      // --- STATE 4: the PHONE GATE (DD-4's committed fallback form) ----
+      setVizMode(false);
+      await waitFor(
+        () => host.querySelector(".viz-page") === null,
+        5000,
+        "viz closed before the stage flip",
+      );
+      await page.viewport(390, 844);
+      await waitFor(
+        () => host.querySelector(".app")?.getAttribute("data-stage") === "phone",
+        5000,
+        "phone stage settled",
+      );
+      host.querySelector<HTMLButtonElement>(".booth-btn-viz")!.click();
+      await waitFor(
+        () => host.querySelector(".viz-remote") !== null,
+        5000,
+        "phone gate mounted",
+      );
+      const gate = host.querySelector<HTMLElement>(".viz-remote")!;
+      expect(gate.classList.contains("viz-remote-gate")).toBe(true);
+      expect(gate.getAttribute("role")).toBe("group");
+      expect(host.querySelector(".viz-phone-message")?.textContent).toBe(
+        VIZ_PHONE_GATE_MESSAGE,
+      );
+      await new Promise((r) => setTimeout(r, 300));
+      expectClean(await runAxe(host), "viz phone-gate 390×844");
+    } finally {
+      await emulateReducedMotion("no-preference");
+      setVizMode(false);
+      void getSession().transport.stop?.();
+      cleanup();
+      await page.viewport(1280, 800); // leave the tester viewport as configured
+      try {
+        await getAutosaveController()?.stop();
+        if (bootDb) {
+          const ids = new Set(rows.map((r) => r.id));
+          const current = await bootDb.allRecords();
+          for (const row of rows) await bootDb.putRecord(row);
+          for (const row of current) {
+            if (!ids.has(row.id)) await bootDb.deleteRecord(row.id);
+          }
+        }
+      } catch {
+        /* best-effort restore */
+      }
     }
   });
 });

@@ -26,7 +26,12 @@ and tests/quantized-switch.test.ts). Sections marked **[v2 · live since
 HP-1]** are IMPLEMENTED and gated (HP-1 landed the info view: the booth
 INFO ? toggle, the global `i` key, focus-driven info updates, and
 Escape-exits-first — asserted in tests/browser/help-mode.test.tsx + the axe
-gate's fourth mounted state). Everything else is live law today. v0 sections
+gate's fourth mounted state). Sections marked **[v2 · live since VZ-DD-1]**
+are IMPLEMENTED and gated (VZ-DD-1 landed the VIZ surface's remote chrome:
+the global `v` entry key, the finalized Escape order, the remote's roving
+toolbar, and the covered-stage inert law — asserted in
+tests/browser/viz-remote.test.tsx + the help-coverage walk's VIZ state).
+Everything else is live law today. v0 sections
 that v2 supersedes say so
 inline and the deliberate v0-journey changes are recorded in the ledger at
 the bottom (regression rule: journey updates only
@@ -49,6 +54,7 @@ arrows walk _inside_ a region:
 | Lane grid, **view-only quadrant** | **none** — no tab stop, no focusable descendant (not a focus trap) [v2 · live since LY-1]                                                                                   | n/a (view only)                                                                                    | v2 → LY-1                               |
 | Info region (help mode on)        | **none** — role=status, never focusable, never in the tab order [v2 · live since HP-1]                                                                                      | n/a                                                                                                | v2 · live since HP-1                    |
 | Help overlay (keyboard shortcuts) | 1 (dialog, focus-trapped)                                                                                                                                                   | native inside                                                                                      | v0 — unchanged, SEPARATE from info mode |
+| VIZ remote (viz mode on)          | 1 (the roving control — the ONLY Tab stop of the whole surface; the covered stage is `inert`) [v2 · live since VZ-DD-1]                                                      | ←/→ along the chain (clamped, no wrap), Home/End jump, Enter/Space trigger natively                | v2 · live since VZ-DD-1                 |
 
 - **Roving seed**: first item of each region is the Tab stop until the user
   moves; moving roving updates `tabIndex` only (never reorders DOM).
@@ -329,6 +335,68 @@ mounted only while the mode is on (zero cost when off — perf-budget.md §8).
 - Zero per-frame cost while OFF (Thor, TH-4 c): listeners attach only while
   the mode is on.
 
+## VIZ page — the visualizer remote [v2 · live since VZ-DD-1]
+
+The VIZ surface (House Lights, `.impeccable/surfaces/viz.md`) is a second
+full-screen MODE, not a route: a full-bleed canvas over the stage whose
+only DOM chrome is the REMOTE (src/components/VizRemote.tsx) — a bottom
+toolbar carrying the PRESET stepper (prev/next), REROLL and EXIT. The
+canvas is aria-hidden decoration; every interactive path lives on the
+remote.
+
+| Key / control                  | Action                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| booth VIZ button               | opens the surface (real button, Tab + Enter; records itself as the exit's focus target)                                                                                                    |
+| `v`                            | toggles the surface from anywhere (guards: not in text entries, no AT modifiers, never while the KEYS modal is open — the same guards as `i`); the focus target is synthesized: the focused element, else the last focused stage control, else the booth VIZ button (finishing hardening — a `v` at body focus never exits onto `<body>`) |
+| ← / → (inside the remote)      | rove the remote's controls (clamped, no wrap); Home/End jump to the first/last control                                                                                                     |
+| Enter / Space (on a control)   | native activation: preset prev / next (wraps the library), REROLL (coalesced re-deal), EXIT                                                                                                 |
+| Escape                         | exits the surface — focus RETURNS to the invoking control (booth VIZ button, or the focused element when `v` opened it)                                                                    |
+| remote EXIT button             | pointer twin of the Escape exit (same focus-return funnel)                                                                                                                                 |
+| `i` (while ON)                 | help mode still works — the info bar lifts above the surface and explains the remote's controls (they are registered)                                                                      |
+| `n` / `d` / `r` (while ON)     | **stand down** — the covered stage's edit keys never fire under the full-bleed page (see the inert law below)                                                                              |
+| Ctrl+Z / ⌘Z (while ON)        | **stand down** — undo/redo edit the covered document invisibly; the same law as `n`/`d`/`r` (VZ-DD-1)                                                                                      |
+| Space (body level, while ON)  | keeps the global play/stop law — tweaking playback while watching the show is a feature, not a leak (focus inside the remote keeps native Space = button activation)                        |
+
+- **Escape order, FINALIZED** (one consumer per keystroke, order-robust
+  both ways — pinned in viz-remote.test.tsx + viz-mount.test.tsx §4):
+  **KEYS modal → help mode (cancel-first, HP-1) → the VIZ surface →**
+  inline edits / popovers / menus / fill-rails / FX console / region-head
+  pops (all stage-level consumers are UNDER the full-bleed page and
+  unreachable while it is on, so the surface peels first).
+- **The inert law.** While the surface is on, the covered stage (booth +
+  floors, or the phone chrome + stage) carries `inert` — zero Tab stops,
+  zero a11y tree, zero stray key targets beneath the page. The remote's
+  four buttons are the surface's single roving Tab stop (the DA-1
+  `rovingGroup` helper). Toasts, the audio-resume affordance and the KEYS
+  modal stay live above the surface by design (failure/reference chrome
+  outranks it).
+- **Focus law.** Opening stores the invoking control; every exit path
+  (Escape, EXIT, `v`) returns focus to it (the helpOverlay focus-return
+  precedent; the refocus lands after the inert removal flushes). The
+  finishing hardening closed the keyboard-entry gap: a `v` pressed while
+  focus rests on `<body>` (pointer users, fresh boots) synthesizes the
+  invoker — the LAST focused stage control (a `focusin` ledger that never
+  records focus inside the surface itself), falling back to the booth VIZ
+  button — so the EXIT help copy's "focus lands back where you left it"
+  holds on every entry path, and an invoker removed from the DOM while
+  the surface was open is skipped rather than focused dead. VZ-DD-2
+  landed the entry half: focus moves INTO the remote on open — the roving
+  seed (first control) receives it the moment the surface mounts, from any
+  entry path — and no re-deal (preset switch or reroll commit) ever steals
+  focus from wherever the user is.
+- **Phone-stage gate (VZ-DD-4 — no new keys; the same map, one control).**
+  At the phone stage the surface is the GATE (the committed fallback form:
+  a message + EXIT — the show needs the wide stage), and every law above
+  holds unchanged: `v`/the booth button enter, Escape/EXIT/`v` exit
+  through the one focus-return funnel, and the gate's EXIT is the
+  surface's single Tab stop (entry focus lands on it). A live viewport
+  flip between the wide show and the phone gate re-seeds focus inside the
+  live form — focus never strands on `<body>` mid-show.
+- **Transport is never touched** by any of these keys — Space at body
+  level keeps its global play/stop law while the surface is on (tweaking
+  playback while watching is a feature, not a leak), and the surface's
+  controls never read the transport except to show the idle line.
+
 ## FX console (open overlay) [v2 · live since refinement-1]
 
 The per-lane FX console overlay (DES-5/LY-1) is a NON-MODAL surface: every
@@ -344,9 +412,10 @@ closable only by clicking another quadrant:
 | strip FX entry (Tab + Enter) | toggle (unchanged v0 path; un-occluded again — the chassis starts below the whole control strip)                           |
 
 - **Escape order on this surface** (one consumer per keystroke): KEYS modal
-  → help mode (cancel-first, HP-1) → inline edits / popovers / menus (the
-  add menu's own Escape, the scale popover, the projects panel — each
-  consumes via stopPropagation) → **the narrow-stage fill-rails reveal
+  → help mode (cancel-first, HP-1) → **the VIZ surface (VZ-DD-1 — while
+  on, it peels before everything stage-level)** → inline edits / popovers /
+  menus (the add menu's own Escape, the scale popover, the projects panel,
+  each consumes via stopPropagation) → **the narrow-stage fill-rails reveal
   closes (MB-2, drums, only while shown)** → **the FX console closes** →
   region-head pops. Pinned end-to-end by help-mode.test.tsx §6 (mode →
   menu → console on one surface) and fx-console-trusted.test.tsx.
@@ -406,6 +475,10 @@ path as DoD:
 | Hover a control to read its help text                      | focus it — info region updates on focus, aria-live speaks it                                                       | HP-1        |
 | Select a lane from the phone switcher                      | the switcher IS a keyboard surface: ArrowLeft/Right, Home/End, Tab roving (§Phone lane switcher)                   | MB-1        |
 | Tap a control to read its help text (help mode on, touch) | focus already drives the same region (E6) — the tap is the hover twin, not a new path; Tab/arrow focus speaks it  | MB-3        |
+| Enter the VIZ surface (booth VIZ button)                   | booth button (Tab+Enter) + global `v` (§VIZ page)                                                                | VZ-DD-1     |
+| Cycle presets with the remote's prev/next                  | the remote's stepper buttons: roving Tab stop + ←/→ + Enter (§VIZ page)                                          | VZ-DD-1     |
+| Reroll the current arrangement (remote REROLL)             | the remote's REROLL button: same roving surface, Enter/Space (§VIZ page)                                         | VZ-DD-1     |
+| Leave the VIZ surface (remote EXIT)                        | Escape · the EXIT button · `v` — all one funnel, all returning focus to the invoker (§VIZ page)                  | VZ-DD-1     |
 
 No gesture in the iteration-2 brief lacks a keyboard row. New gesture
 proposals during production must add a row here (or land a binding) before
@@ -429,6 +502,10 @@ they ship — this table is the gate LY-1/IN-2/IN-3/HP-1 are reviewed against.
   the covered-grid Escape consult on the renderer)
 - Help mode: `src/state/helpMode.ts` + `src/help/registry.ts` +
   `src/components/InfoView.tsx` (HP-1)
+- VIZ surface: `src/state/vizMode.ts` (open/close + focus-return funnel) +
+  `src/components/VizRemote.tsx` (the roving toolbar; VZ-DD-1) +
+  `src/components/VizPage.tsx` (the finalized Escape exit) + App's inert
+  law over the covered stage
 - Global shortcuts + help overlay: `src/components/KeyboardShortcuts.tsx`,
   `src/components/HelpOverlay.tsx`, `src/state/helpOverlay.ts`
 - Lane-strip roving group helper: `src/lib/rovingGroup.ts`

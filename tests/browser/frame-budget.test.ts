@@ -94,6 +94,16 @@ import {
   SAMPLE_VOICES_PER_LANE,
   VOICES_PER_LANE,
 } from "../../src/audio/voiceEngine";
+// VZ-TH-4: the VIZ gate runs under VZ-HU-3's clamp LAW — pinned against the
+// real module the built bundle ships (the VOICES_PER_LANE precedent): if a
+// clamp constant is ever retuned without R1-grade evidence, this gate goes
+// red before any frame measurement runs.
+import {
+  VIZ_ACCEPT_CAP_GLOBAL_PER_SECOND,
+  VIZ_ACCEPT_CAP_PER_LANE_PER_SECOND,
+  VIZ_MAX_LIVE_OBJECTS,
+  VIZ_RETRIGGER_REFRESH_SECONDS,
+} from "../../src/viz/clamps";
 
 const FRAME_BUDGET_MS = 33.4; // ~30 fps floor — HARD bound
 const FRAME_PASS_RATIO = 0.95;
@@ -2567,5 +2577,379 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
       }
     },
     120_000,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// VZ-TH-4 — VIZ frame budget with teeth (the densest standard pattern)
+//
+// The gate metric is FRAME INTERVALS ONLY, never draw-call timings — R1's
+// committed lesson (docs/ultron/research/r1r2-canvas-perf-dpr.md): the naive
+// shadowBlur model showed 0.2 ms main-thread draws while collapsing to 2 fps;
+// the cost lives in rasterization OFF the main thread. Measured here at the
+// committed worst case on the REAL built bundle:
+//   - 200 BPM 16ths (the tempo input's max — R1's worst-case tempo), one
+//     pitch/drum row painted across a fresh 4-bar pattern per lane → the
+//     offered sustained rate ≈ 50 events/s (bass/drums/lead 13.33 each;
+//     chords every 4th 16th because a chords note stacks a 3-voice triad at
+//     compile → 3 events per hit, 3.33 hits/s × 3 = 10/s — shaping decision
+//     recorded in docs/dev/perf-budget.md §10), all four lanes on the SAME
+//     16th tick: the true worst frame carries 4 bursts, 13.33×/s.
+//   - VIZ OPEN over the playing stage (full-bleed canvas + the still-mounted
+//     stage's four playhead loops — the maximal concurrent load).
+//   - DPR forced to 2 (Object.defineProperty on the iframe window before the
+//     bundle module runs): the committed cap min(devicePixelRatio, 2) and
+//     R1's measured cliff regime (~440 live objects at DPR 2; the clamp law
+//     holds the engine ≥2× under it at 192).
+// Teeth: (1) ≥95% of frame intervals < 33.4 ms — HARD; (2) worst single
+// frame (the hit-batch long-task guard — one frame carries one full ignite
+// batch) < 50 ms; (3) canvas activity asserted (reactions actually firing,
+// load-robust ≥2 change-frames/s); (4) DPR-2 backing store asserted; (5) the
+// VZ-HU-3 clamp constants pinned at source (see the import block); (6) the
+// RED/GREEN TOOTH — a deliberate main-thread thrash injection must FAIL the
+// same ratio, proving the gate can go red (per the gate-tooth precedent).
+// ---------------------------------------------------------------------------
+
+describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ open at DPR 2)", () => {
+  it(
+    "≥95% frames < 33.4 ms with 4-lane dense 16ths @ 200 BPM + VIZ open at DPR 2; worst hit-batch frame < 50 ms; canvas live; clamps pinned; thrash injection goes red",
+    { timeout: 300_000 },
+    async () => {
+      // (5) The clamp law the gate runs under — pinned to the REAL module
+      // (retuning without R1-grade evidence breaks this before any timing).
+      expect(VIZ_ACCEPT_CAP_GLOBAL_PER_SECOND).toBe(64);
+      expect(VIZ_ACCEPT_CAP_PER_LANE_PER_SECOND).toBe(20);
+      expect(VIZ_MAX_LIVE_OBJECTS).toBe(192);
+      expect(VIZ_RETRIGGER_REFRESH_SECONDS).toBeCloseTo(0.12, 10);
+
+      const app = await bootBuiltApp({
+        width: VIEW_W,
+        height: VIEW_H,
+        beforeWrite: (win) => {
+          // Force the committed DPR-2 regime regardless of the host display
+          // (the renderer's resolveDpr caps at min(dpr, 2) — 2 is the cap).
+          Object.defineProperty(win, "devicePixelRatio", {
+            value: 2,
+            configurable: true,
+          });
+        },
+      });
+      try {
+        const doc = app.doc;
+        const $ = <T extends Element>(sel: string): T => {
+          const el = doc().querySelector<T>(sel);
+          if (!el) throw new Error(`missing ${sel}`);
+          return el;
+        };
+        const floor = (lane: string): HTMLElement =>
+          $(`.lane-floor[data-lane="${lane}"]`);
+        const cellAt = (lane: string, row: number, step: number): HTMLElement =>
+          $(
+            `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+          );
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+        await poll(
+          () =>
+            [...doc().querySelectorAll(".rail-tile-cue")].some(
+              (c) => c.textContent === "VERSE",
+            ),
+          5000,
+          "demo cues",
+        );
+
+        // --- Tempo to the worst-case 200 BPM (the input's max) ------------
+        const tempo = $<HTMLInputElement>(
+          'input[aria-label="Tempo in beats per minute"]',
+        );
+        tempo.value = "200";
+        tempo.dispatchEvent(new Event("input", { bubbles: true }));
+        tempo.dispatchEvent(new Event("blur", { bubbles: true }));
+        await poll(
+          () => tempo.value === "200",
+          3000,
+          "tempo echo 200 BPM (16ths → 13.33 hits/s/lane)",
+        );
+
+        // --- Deterministic dense content per lane -------------------------
+        // (the TH-4 (a) machinery: fresh 4-bar pattern, demo patterns removed
+        // from the POOL so every click lands deterministically in-length)
+        const selectLane = async (lane: string): Promise<void> => {
+          (floor(lane).querySelector(".cell") as HTMLElement).click();
+          await poll(
+            () => floor(lane).dataset.editing === "true",
+            2000,
+            `${lane} quadrant selected`,
+          );
+        };
+        const add4Bar = async (lane: string): Promise<void> => {
+          const label = `Add 4-bar pattern to ${lane.toUpperCase()}`;
+          $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+          await poll(
+            () =>
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
+              ) !== null,
+            2000,
+            `${lane} pattern tools menu open`,
+          );
+          (
+            $(
+              `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
+            ) as HTMLButtonElement
+          ).click();
+          await poll(
+            () => {
+              const n = floor(lane).querySelectorAll(".cell").length;
+              return n > 0 && n % 64 === 0;
+            },
+            5000,
+            `${lane} 4-bar grid rendered`,
+          );
+          (
+            $(
+              `.rail-row[data-lane="${lane}"] button[aria-label="Append ${lane.toUpperCase()} selected pattern to chain"]`,
+            ) as HTMLButtonElement
+          ).click();
+          await poll(
+            () =>
+              doc().querySelectorAll(
+                `.rail-row[data-lane="${lane}"] .rail-tile`,
+              ).length === 5,
+            2000,
+            `${lane} dense pattern appended to the chain`,
+          );
+        };
+        const stripDemoPool = async (lane: string): Promise<void> => {
+          const label = `Remove ${lane.toUpperCase()} selected pattern`;
+          for (let i = 0; i < 4; i++) {
+            (
+              $(`.rail-row[data-lane="${lane}"] .rail-tile`) as HTMLElement
+            ).click();
+            await poll(
+              () =>
+                doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+                  .length ===
+                5 - i,
+              2000,
+              `${lane} demo tile ${i} selected`,
+            );
+            $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
+            await poll(
+              () =>
+                $(
+                  `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
+                ) !== null,
+              2000,
+              `${lane} PAT menu (pool remove)`,
+            );
+            (
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${label}"]`,
+              ) as HTMLButtonElement
+            ).click();
+            await poll(
+              () =>
+                doc().querySelector(
+                  `.rail-row[data-lane="${lane}"] .rail-tools-menu`,
+                ) === null,
+              2000,
+              `${lane} PAT menu closes after pool remove`,
+            );
+          }
+          await poll(
+            () =>
+              doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
+                .length === 1,
+            2000,
+            `${lane} pool = the dense 4-bar alone`,
+          );
+          await poll(
+            () => cellAt(lane, 0, 63) !== null,
+            5000,
+            `${lane} 4-bar grid displayed (64 steps)`,
+          );
+        };
+        /** Deterministically paint `steps` of one row ON (converging loop —
+         * the pool now holds exactly ONE pattern, so reads are single-source
+         * and every needed click flips OFF→ON exactly once). */
+        const paintRow = async (
+          lane: string,
+          row: number,
+          steps: readonly number[],
+        ): Promise<void> => {
+          for (let pass = 0; pass < 3; pass++) {
+            for (const step of steps) {
+              if (cellAt(lane, row, step).getAttribute("data-on") !== "true")
+                cellAt(lane, row, step).click();
+            }
+            await sleep(200);
+          }
+          const off = steps.filter(
+            (s) => cellAt(lane, row, s).getAttribute("data-on") !== "true",
+          );
+          expect(
+            off,
+            `${lane} row ${row} painted on ${steps.length}/64 steps (still off after 3 converge passes: ${off.join(",")})`,
+          ).toEqual([]);
+        };
+
+        const every16th = Array.from({ length: 64 }, (_, i) => i);
+        const every4th16th = every16th.filter((s) => s % 4 === 0);
+        for (const lane of ["bass", "chords", "lead", "drums"]) {
+          await selectLane(lane);
+          await add4Bar(lane);
+          await stripDemoPool(lane);
+        }
+        // bass/lead/drums: a hit on EVERY 16th (13.33 events/s each). chords:
+        // every 4th 16th — a chords note stacks a 3-voice triad (3 events per
+        // hit), so 3.33 hits/s × 3 = 10 events/s keeps the offered total at
+        // the committed ≈ 50–53 events/s envelope (shaping decision, §10).
+        await paintRow("bass", 0, every16th);
+        await paintRow("chords", 0, every4th16th);
+        await paintRow("lead", 0, every16th);
+        await paintRow("drums", 0, every16th);
+
+        // --- PLAY, open VIZ, settle ---------------------------------------
+        await clickPlayAndWait(app);
+        ($(".booth-btn-viz") as HTMLButtonElement).click();
+        await poll(
+          () => doc().querySelector(".viz-page") !== null,
+          5000,
+          "viz page mounted",
+        );
+        const cnv = $<HTMLCanvasElement>(".viz-canvas");
+        await poll(
+          () => cnv.width > 1 && cnv.height > 1,
+          5000,
+          "viz canvas backing store sized",
+        );
+        await sleep(700); // settle into the sustained dense regime
+
+        // (4) DPR-2 law: the backing store is (≥1.9×) the CSS size.
+        const rect = cnv.getBoundingClientRect();
+        expect(
+          cnv.width / rect.width,
+          `canvas backing ${cnv.width} vs CSS ${rect.width.toFixed(0)} — the DPR-2 regime`,
+        ).toBeGreaterThanOrEqual(1.9);
+
+        // (1)/(2)/(3) — the measurement: frame INTERVALS + canvas activity.
+        // Coarse whole-canvas signature (cost-safe probe): downscale the full
+        // backing store to 48×30 through a tiny offscreen canvas each frame —
+        // ANY lit pixel change anywhere in the field moves the hash, so the
+        // activity law cannot go blind to a calm probe region.
+        const probe = document.createElement("canvas");
+        probe.width = 48;
+        probe.height = 30;
+        const pctx = probe.getContext("2d")!;
+        const sig = (): number[] => {
+          pctx.drawImage(cnv, 0, 0, probe.width, probe.height);
+          return Array.from(pctx.getImageData(0, 0, 48, 30).data);
+        };
+        const stats = await new Promise<{
+          intervals: number[];
+          changeFrames: number;
+        }>((resolve) => {
+          const intervals: number[] = [];
+          let changeFrames = 0;
+          let prev = sig();
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            const s = sig();
+            let diff = s.length !== prev.length;
+            if (!diff)
+              for (let i = 0; i < s.length; i += 7)
+                if (s[i] !== prev[i]) {
+                  diff = true;
+                  break;
+                }
+            if (diff) changeFrames++;
+            prev = s;
+            if (now - start < MEASURE_MS) requestAnimationFrame(frame);
+            else resolve({ intervals, changeFrames });
+          };
+          requestAnimationFrame(frame);
+        });
+
+        const sorted = [...stats.intervals].sort((a, b) => a - b);
+        const over = stats.intervals.filter((d) => d >= FRAME_BUDGET_MS);
+        const worst = sorted[sorted.length - 1]!;
+        console.log(
+          `[VZ-TH-4 viz budget] frames=${stats.intervals.length} ` +
+            `over33.4ms=${over.length} ` +
+            `max=${worst.toFixed(1)}ms ` +
+            `p95=${sorted[Math.floor(sorted.length * 0.95)]!.toFixed(1)}ms ` +
+            `median=${sorted[Math.floor(sorted.length / 2)]!.toFixed(1)}ms ` +
+            `canvasChangeFrames=${stats.changeFrames} ` +
+            `backing=${cnv.width}x${cnv.height}@DPR2`,
+        );
+
+        // Transport never stopped; the viz page is still up.
+        expect(app.playBtn().textContent).toBe("STOP");
+        expect(doc().querySelector(".viz-page")).not.toBeNull();
+
+        // (3) Canvas activity (load-robust law: ≥2 change-frames/s proves the
+        // reactions fire while the hard ratio above polices the frame rate).
+        expect(
+          stats.changeFrames,
+          `canvas changed on only ${stats.changeFrames} frames — reactions not firing?`,
+        ).toBeGreaterThanOrEqual((MEASURE_MS / 1000) * MIN_PLAYHEAD_MOVES_PER_SEC);
+
+        // rAF alive + the HARD budget.
+        expect(stats.intervals.length).toBeGreaterThan(MEASURE_MS / 50);
+        expect(
+          over.length / stats.intervals.length,
+          `${over.length}/${stats.intervals.length} frames ≥ ${FRAME_BUDGET_MS} ms ` +
+            `(max ${worst.toFixed(1)} ms, median ` +
+            `${sorted[Math.floor(sorted.length / 2)]!.toFixed(1)} ms)`,
+        ).toBeLessThan(1 - FRAME_PASS_RATIO);
+
+        // (2) Hit-batch long-task guard: one frame carries one full ignite
+        // batch (4 bursts in one frame, 13.33×/s) — no single frame may
+        // block the loop ≥ 50 ms.
+        expect(
+          worst,
+          `worst frame (hit-batch block) ${worst.toFixed(1)} ms`,
+        ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
+
+        // (6) RED/GREEN TOOTH — the same ratio must FAIL under a deliberate
+        // main-thread thrash (70 ms busy per frame for 1.5 s): proof the gate
+        // has teeth, not a tautology. Runs on the same live app AFTER the
+        // green measurement; teardown below closes it.
+        const red = await new Promise<number[]>((resolve) => {
+          const intervals: number[] = [];
+          let last = performance.now();
+          const start = last;
+          const frame = () => {
+            const now = performance.now();
+            intervals.push(now - last);
+            last = now;
+            const t0 = performance.now();
+            while (performance.now() - t0 < 70) {
+              /* deliberate main-thread thrash — the gate's negative control */
+            }
+            if (now - start < 1500) requestAnimationFrame(frame);
+            else resolve(intervals);
+          };
+          requestAnimationFrame(frame);
+        });
+        const redOver = red.filter((d) => d >= FRAME_BUDGET_MS).length;
+        console.log(
+          `[VZ-TH-4 viz tooth] frames=${red.length} over33.4ms=${redOver} ` +
+            `(injected 70ms/frame thrash — must break the ratio)`,
+        );
+        expect(
+          redOver / red.length,
+          `thrash injection did NOT break the gate (${redOver}/${red.length} over budget) — the tooth is dead`,
+        ).toBeGreaterThanOrEqual(1 - FRAME_PASS_RATIO);
+      } finally {
+        await app.teardown();
+      }
+    },
+    300_000,
   );
 });

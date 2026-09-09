@@ -22,6 +22,7 @@ import {
 import { activeLane, activePatterns, selectPattern } from "../state/selection";
 import { helpOpen, openHelp } from "../state/helpOverlay";
 import { toggleHelp } from "../state/helpMode";
+import { closeViz, openViz, vizMode } from "../state/vizMode";
 import HelpOverlay from "./HelpOverlay";
 
 const session = getSession();
@@ -43,7 +44,28 @@ function isTextEntry(target: EventTarget | null): boolean {
   return false;
 }
 
+/**
+ * The LAST-FOCUS ledger (VZ-DD-1 hardening — the `v`-entry invoker seam):
+ * the exit funnel's help copy promises "focus lands back where you left
+ * it", but a `v` pressed while focus rests on <body> (mouse users, fresh
+ * boots) used to open with NO invoker, so every exit landed nowhere. The
+ * focusin ledger below remembers the last focusable stage control, and the
+ * `v` handler synthesizes the entry invoker as: the focused element →
+ * else the last focused stage control (while connected) → else the booth
+ * VIZ toggle ("returns to the booth" — the same fallback the EXIT help
+ * copy names). Never recorded: focus inside the VIZ page itself (the
+ * surface is full-bleed and unmounts at exit — a viz-page invoker would
+ * focus a dead node), and <body> itself (that IS the nowhere case).
+ */
+let lastStageFocus: HTMLElement | null = null;
+
 export default function KeyboardShortcuts(): JSX.Element {
+  const onFocusIn = (e: FocusEvent) => {
+    if (vizMode()) return; // focus inside the surface is no return target
+    const t = e.target;
+    if (t instanceof HTMLElement && t !== document.body) lastStageFocus = t;
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
 
@@ -58,13 +80,16 @@ export default function KeyboardShortcuts(): JSX.Element {
     }
 
     // Undo / redo — Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. Skipped in text
-    // entries so native text undo survives.
+    // entries so native text undo survives; and VZ-DD-1: skipped while the
+    // VIZ surface is on (an invisible history edit under the full-bleed
+    // page is the same keystroke lie as n/d/r).
     if (
       (e.ctrlKey || e.metaKey) &&
       !e.altKey &&
       (e.key === "z" || e.key === "y")
     ) {
       if (isTextEntry(target)) return;
+      if (vizMode()) return;
       e.preventDefault();
       if (e.key === "y" || e.shiftKey) redo();
       else undo();
@@ -89,6 +114,37 @@ export default function KeyboardShortcuts(): JSX.Element {
 
     // Pattern ops on the active lane (single letters, never in text fields).
     if (isTextEntry(target)) return;
+    // VZ-DD-1 (keyboard.md §"VIZ page"): `v` toggles the visualizer
+    // surface from anywhere — the entry key with no v2-region collision
+    // (the `i` help-mode twin). Opening remembers the focused element as
+    // the invoker so the exit returns focus there; closing rides the same
+    // closeViz funnel as Escape and the remote's EXIT.
+    if (e.key === "v") {
+      e.preventDefault();
+      if (vizMode()) closeViz();
+      else {
+        // VZ-DD-1 hardening: synthesize the invoker so the exit NEVER
+        // lands on <body> — the focused element, else the last focused
+        // stage control (the focusin ledger above), else the booth VIZ
+        // toggle (the copy's "returns to the booth").
+        const focused =
+          target instanceof HTMLElement && target !== document.body
+            ? target
+            : null;
+        const last =
+          lastStageFocus?.isConnected === true ? lastStageFocus : null;
+        openViz(
+          focused ?? last ?? document.querySelector<HTMLElement>(".booth-btn-viz") ?? undefined,
+        );
+      }
+      return;
+    }
+    // While the VIZ surface is on, the covered stage's edit keys (n/d/r)
+    // stand down — the remote owns the keyboard (the stage is inert, and
+    // an invisible pattern edit is a keystroke lie). `i` stays live: help
+    // mode outranks VIZ in the Escape order and must stay reachable on the
+    // surface.
+    if (vizMode() && e.key !== "i") return;
     const lane = activeLane();
     if (e.key === "n") {
       e.preventDefault();
@@ -122,7 +178,11 @@ export default function KeyboardShortcuts(): JSX.Element {
 
   onMount(() => {
     window.addEventListener("keydown", onKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", onKeyDown));
+    window.addEventListener("focusin", onFocusIn);
+    onCleanup(() => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("focusin", onFocusIn);
+    });
   });
 
   return <HelpOverlay />;
