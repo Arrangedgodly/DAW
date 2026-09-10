@@ -453,11 +453,18 @@ describe("MB-1 responsive stage (built app)", () => {
         expect(scroll2.scrollLeft).toBeGreaterThan(0);
 
         // --- narrow grid geometry laws ------------------------------------
-        // Phone rows are the M-7 44px finger-sized editing scale (44px-tall
-        // cell targets — the target-size law's own number on the row axis);
+        // Phone rows are the M-7 44px finger-sized editing scale FLOOR
+        // (44px-tall cell targets — the target-size law's own number on the
+        // row axis); H-3's bottom-ownership clamp grows them into the
+        // measured stretch leftover up to 64 (the i5 audit §3 clamp — the
+        // exact 44px pin retired with it; H-4 formalizes the gate).
         // 16 step columns; the labels never clip (the 60px OPENHAT floor).
         const cells = $(".row-cells");
-        expect(getComputedStyle(cells).gridAutoRows).toBe("44px");
+        const rowTrack = Number.parseFloat(
+          getComputedStyle(cells).gridAutoRows,
+        );
+        expect(rowTrack).toBeGreaterThanOrEqual(44);
+        expect(rowTrack).toBeLessThanOrEqual(64);
         expect(
           getComputedStyle(cells).gridTemplateColumns.split(" "),
         ).toHaveLength(32); // (the 2-bar pattern is displayed)

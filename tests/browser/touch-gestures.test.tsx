@@ -439,8 +439,28 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           verifyMs: 3_000,
         });
         const kickRow = cell("drums", 0, 0).parentElement!;
+        // H-3: drums joins the phone width law (17.5625 px cells at the
+        // 390-class well) — wait for the 1-bar exact-fill property to land
+        // (the fit is one rAF after the stage switch), then derive the LIVE
+        // step width from the row's own inline template (the H-2 pitched
+        // twin above; the mid-cell `+7` nudges stay valid at every clamped
+        // pitch ≥15).
+        const drumsWell = kickRow.closest<HTMLElement>(".lane-grid-scroll")!;
+        await waitFor(
+          () =>
+            Math.abs(
+              kickRow.getBoundingClientRect().right -
+                drumsWell.getBoundingClientRect().right,
+            ) <= 1,
+          3_000,
+          "drums 1-bar row fills the well (the H-3 width law)",
+        );
+        const dsw =
+          Number.parseFloat(
+            kickRow.style.gridTemplateColumns.match(/([\d.]+)px/)?.[1] ?? "15",
+          ) + (Number.parseFloat(kickRow.style.gap) || 1);
         await touch(
-          rowLine(kickRow.getBoundingClientRect(), { x: 1 * 16 + 7, y: 12 }, { x: 5 * 16 + 7, y: 12 }),
+          rowLine(kickRow.getBoundingClientRect(), { x: 1 * dsw + 7, y: 12 }, { x: 5 * dsw + 7, y: 12 }),
         );
         await waitFor(
           () => kick().slice(1, 6).every(Boolean) && !kick()[0] && !kick()[6],

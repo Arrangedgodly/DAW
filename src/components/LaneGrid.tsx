@@ -213,6 +213,17 @@ const NARROW_GEOMETRY: Record<
   lead: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
 };
 const PHONE_ROW_PX = 44;
+/**
+ * H-3 (i5 audit §3): the phone row-growth CEILING — the bottom-ownership
+ * twin of the width clamp. Rows grow only into MEASURED leftover (never
+ * below PHONE_ROW_PX, the M-7 law), capped at the top of the plan's 56-64
+ * band: uncapped growth reads 61-83 px on the shipped viewports (83 px rows
+ * against 20 px cells is beyond finger-comfort proportionality), and 64
+ * keeps a 6-row drums pane ≤ 384 px. What the cap leaves stays as residual
+ * recess INSIDE the stretched card (28 px at 390 drums — the audit's
+ * recorded outcome), never as dead ground below the card.
+ */
+const PHONE_ROW_MAX_PX = 64;
 
 /* ---------------------------------------------------------------------------
  * Refinement-4 (critique P2-5): the quadrant stage FLEXES within the 100dvh
@@ -336,19 +347,42 @@ function scheduleFit(): void {
  * FILL_MAX_ROW_PX's own number: at the shipped viewports it never bites
  * (max raw ≈ 20.8); it bounds cells on 500-767 px phones still in phone
  * stage, where uncapped cells would read 25-41 px against 44 px rows.
- * Pitched lanes only this iteration (drums joins in H-3). The remount key
- * carries stage mode + pattern shape but NOT container width — a
- * within-phone width change (fold, devtools resize) re-fits LIVE through
- * the seam, never remounts.
+ * H-3: DRUMS JOINS (labelBox 68 → cells 17.5625/15.6875/20.0625 at
+ * 390/360/430; the 1-bar/16-visible raw fit never drops below the 15 floor
+ * on those widths — floor-15 + internal scroll stays the 2-bar treatment
+ * only). The remount key carries stage mode + pattern shape but NOT
+ * container width — a within-phone width change (fold, devtools resize)
+ * re-fits LIVE through the seam, never remounts.
+ *
+ * H-3 (i5 audit §3): the BOTTOM-OWNERSHIP twin, same pass. The phone shell
+ * keeps flowing (height:auto; min-height:100dvh — the page-scroll law is
+ * untouched) while the CSS chain stage → floors → lane-floor → well GROWS
+ * into the shell remainder (app.css owns the flip; grow-only flex, so when
+ * chrome + content EXCEED the viewport there is no free space anywhere and
+ * every box stays content-sized — the page scrolls exactly as before). The
+ * rows then grow into the MEASURED leftover the stretch created:
+ *
+ *   leftover  = well.clientHeight − natural pane content height (write-free)
+ *   rowTrack  = clamp(44, 44 + floor(leftover / manifestRows), 64)
+ *
+ * The divisor is the MANIFEST rows (uniform growth across the whole
+ * register — a windowed pane's painted window grows with the same track px
+ * through setRowHeight's own re-pin; the audit's 430-lead arithmetic
+ * 144/15 → 53). Growth ≤ leftover by construction, so no probed state
+ * newly scrolls; the cap's remainder stays as recess INSIDE the stretched
+ * well (the audit's recorded residuals), and the card bottom owns the
+ * viewport bottom at scroll end.
  * ------------------------------------------------------------------------- */
 const PHONE_CELL_MAX_PX = FILL_MAX_ROW_PX; // one readability ceiling
 
-/** One live phone grid surface registered for the width fit. */
+/** One live phone grid surface registered for the width + row fit. */
 interface PhoneWidthSurface {
   readonly steps: number;
   readonly gapPx: number;
   /** The clamp floor = the NARROW preset's committed cellPx (readability). */
   readonly floorPx: number;
+  /** The row-growth floor = PHONE_ROW_PX (the M-7 finger-size law). */
+  readonly rowFloorPx: number;
   readonly renderer: () => DomGridRenderer | null;
   readonly well: () => HTMLElement | undefined;
 }
@@ -357,8 +391,44 @@ const phoneWidthSurfaces = new Set<PhoneWidthSurface>();
 let phoneWidthObserver: ResizeObserver | null = null;
 let phoneWidthRaf = 0;
 
-function fitPhoneWidths(): void {
+/**
+ * H-3 (MB-5 census law): the phone fit defers while ANY pointer is held,
+ * document-wide. The TH-4 (b) commit-on-release law forbids every
+ * non-preview layout write inside an observed gesture window — including
+ * windows the GRID does not own (the phone rail sweep holds its pointer
+ * on the rail) and the chrome/save pulses that resize the well around
+ * them (an in-flow sticky chrome means a save pulse or a page scrollbar
+ * flipping on retargets the fit). Held-pointer counting at the document
+ * level covers every owner; the release schedules the trailing rAF that
+ * lands the deferred fit. Blur resets (a pointer lost to the OS never
+ * delivered its up).
+ */
+let phoneHeldPointers = 0;
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      phoneHeldPointers++;
+    },
+    true,
+  );
+  const release = (): void => {
+    phoneHeldPointers = Math.max(0, phoneHeldPointers - 1);
+    schedulePhoneWidthFit();
+  };
+  document.addEventListener("pointerup", release, true);
+  document.addEventListener("pointercancel", release, true);
+  document.defaultView?.addEventListener("blur", () => {
+    phoneHeldPointers = 0;
+  });
+}
+
+function fitPhoneGeometry(): void {
   if (stageMode() !== "phone") return; // live re-fit is phone law only
+  if (phoneHeldPointers > 0) {
+    schedulePhoneWidthFit(); // trailing: one rAF past the release
+    return;
+  }
   for (const surface of phoneWidthSurfaces) {
     const well = surface.well();
     const renderer = surface.renderer();
@@ -374,7 +444,73 @@ function fitPhoneWidths(): void {
     renderer.setCellWidth(
       Math.min(PHONE_CELL_MAX_PX, Math.max(surface.floorPx, raw)),
     );
+    fitPhoneRows(surface, well, renderer);
   }
+}
+
+/**
+ * H-3: the bottom-ownership row fit (i5 audit §3) — grows phone row tracks
+ * into the MEASURED leftover the CSS stretch created, through the same
+ * setRowHeight seam the quadrant budget fit uses. Natural pane height is
+ * measured WRITE-FREE: a windowed pane's box is the renderer's inline pin
+ * (the flex basis the stretch grows from); a full-manifest pane sizes to
+ * its last row + the collapsed tail margin + the well's own bottom padding
+ * (the in-well chrome growth never eats). The measure is then NORMALIZED
+ * to the 44-basis — the leftover a fresh PHONE_ROW_PX grid would see — so
+ * the target is idempotent across re-fits (a re-measure against
+ * already-grown rows would otherwise collapse the target back toward the
+ * floor and oscillate) and shrinks back honestly when the stretch
+ * disappears (rotation, drawer): no free space reads leftover ≤ 0 and the
+ * M-7 44 px law stands. The write never re-triggers the fit: growth ≤
+ * leftover keeps the content inside the CSS-fixed well box, so the well's
+ * own size (what the observer watches) does not move.
+ */
+function fitPhoneRows(
+  surface: PhoneWidthSurface,
+  well: HTMLElement,
+  renderer: DomGridRenderer,
+): void {
+  const geo = renderer.fitGeometry();
+  if (geo.manifestRows <= 0) return;
+  const style = getComputedStyle(well);
+  // The rows that actually paint pane height: the window for a windowed
+  // grid, the manifest otherwise (the scrolled-out rows cost nothing).
+  const paintedRows = geo.windowRows ?? geo.manifestRows;
+  let natural: number;
+  if (geo.windowRows != null) {
+    // The renderer's inline pin is content-box (applyWindowHeight's law);
+    // the stretch grew the box BEYOND it (padTop+padBottom both count).
+    natural =
+      (Number.parseFloat(well.style.height) || 0) +
+      Number.parseFloat(style.paddingTop) +
+      Number.parseFloat(style.paddingBottom);
+  } else {
+    const rows = well.querySelectorAll<HTMLElement>(".grid-row");
+    const last = rows[rows.length - 1];
+    if (!last) return;
+    const lastRect = last.getBoundingClientRect();
+    const marginBelow =
+      Number.parseFloat(getComputedStyle(last).marginBottom) || 0;
+    // The rect delta already spans the well's top edge → top padding; the
+    // tail margin collapses out of the grid, so it re-adds explicitly.
+    natural =
+      lastRect.bottom -
+      well.getBoundingClientRect().top +
+      marginBelow +
+      (Number.parseFloat(style.paddingBottom) || 0);
+  }
+  // Normalize: what the pane would measure if its rows sat at the floor.
+  const natural44 =
+    natural - (geo.trackPx - surface.rowFloorPx) * paintedRows;
+  const leftover = well.clientHeight - natural44;
+  const target = Math.max(
+    surface.rowFloorPx,
+    Math.min(
+      PHONE_ROW_MAX_PX,
+      surface.rowFloorPx + Math.floor(leftover / geo.manifestRows),
+    ),
+  );
+  if (target !== geo.trackPx) renderer.setRowHeight(target);
 }
 
 /** rAF-coalesced (the scheduleFit twin — resize-time only). */
@@ -382,7 +518,7 @@ function schedulePhoneWidthFit(): void {
   if (phoneWidthRaf) return;
   phoneWidthRaf = requestAnimationFrame(() => {
     phoneWidthRaf = 0;
-    fitPhoneWidths();
+    fitPhoneGeometry();
   });
 }
 
@@ -393,6 +529,13 @@ function registerPhoneWidthSurface(surface: PhoneWidthSurface): void {
   // The mount compute: onMount may run before first layout — the rAF lands
   // it one frame later (the renderer's own mountPending precedent).
   schedulePhoneWidthFit();
+  // H-3: the boot measure can read PROVISIONAL font metrics (labels in the
+  // fallback face wrap the rows taller before the Silkscreen webface
+  // lands) — one re-fit when the document's fonts settle (rAF-coalesced;
+  // jsdom has no document.fonts, the guard stands down).
+  if (typeof document !== "undefined" && document.fonts?.ready) {
+    void document.fonts.ready.then(() => schedulePhoneWidthFit());
+  }
 }
 
 function unregisterPhoneWidthSurface(surface: PhoneWidthSurface): void {
@@ -1084,18 +1227,20 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       onCleanup(() => unregisterQuadrantSurface(surface));
     }
 
-    // H-2: the phone width-fit law — pitched lanes (drums joins in H-3).
-    // Fills a 1-bar row to the well EXACTLY at the clamped fraction; a
-    // below-floor pattern (2-bar) keeps the floor pitch and h-scrolls
-    // (see fitPhoneWidths for the law). Registered separately from the
-    // quadrant surface: the phone stage never registers for the vertical
-    // budget fit, and this observer must survive the width-only resizes
-    // the remount key does NOT cover (the live re-fit seam).
-    if (mode === "phone" && pitched) {
+    // H-2 + H-3: the phone width-fit law (every lane — drums joined in H-3)
+    // and the bottom-ownership row fit ride ONE registration and ONE
+    // observer pass. Fills a 1-bar row to the well EXACTLY at the clamped
+    // fraction; a below-floor pattern (2-bar) keeps the floor pitch and
+    // h-scrolls (see fitPhoneGeometry for both laws). Registered separately
+    // from the quadrant surface: the phone stage never registers for the
+    // vertical budget fit, and this observer must survive the width-only
+    // resizes the remount key does NOT cover (the live re-fit seam).
+    if (mode === "phone") {
       const widthSurface: PhoneWidthSurface = {
         steps,
         gapPx: geo.gapPx,
         floorPx: geo.cellPx,
+        rowFloorPx: PHONE_ROW_PX,
         renderer: () => rendererRef,
         well: () => container,
       };

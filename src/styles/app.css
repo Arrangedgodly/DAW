@@ -358,7 +358,13 @@
 }
 
 .app[data-stage="phone"] .stage {
-  flex: none; /* the stage stacks after the pinned chrome, it never stretches */
+  /* H-3 (i5 audit §3): the BOTTOM-OWNERSHIP flip — `flex:none` (content-
+   * sized, never stretching) becomes grow. GROW-ONLY: when chrome + content
+   * exceed the viewport there is no free space in the auto-height shell, so
+   * the stage stays content-sized and the page scrolls exactly as the m1
+   * scrolling-stage law commits; when the document is SHORTER, the stage
+   * takes the shell remainder and the chain below carries it to the card. */
+  flex: 1;
 }
 
 /* The pinned chrome: transport + lane switcher + condensed rail as ONE
@@ -549,11 +555,37 @@
 /* The single-lane stage: one floor, full width. M-7 (iteration 4) trims
  * the outer gutters (top 8→4, bottom 16→8): below the chrome the first
  * grid row should start as high as the lane header allows, and the tail
- * gutter is a dead band — every reclaimed px is grid budget. */
+ * gutter is a dead band — every reclaimed px is grid budget.
+ *
+ * H-3 (i5 audit §3): the HEIGHT CHAIN of the bottom-ownership law. The
+ * floors grow into the stretched stage (flex column, grow-only) and the
+ * lane-floor → lane-grid-scroll pair grows through them, so the CARD bottom
+ * + recessed well land exactly at the viewport bottom when the document is
+ * shorter than it; content-sized when the page scrolls (no free space —
+ * byte-identical to the flowing law). The tail gutter's last 2 px are
+ * reclaimed to 0: the stretched card bottom must MEET the viewport bottom
+ * (the H-3 acceptance floor−viewport gap ≤ 1 px), the card's own rim +
+ * padding carry its visual breathing room. The well's row growth into the
+ * measured leftover is LaneGrid's fitPhoneRows (the 44→64 clamp). */
 .app[data-stage="phone"] .stage-floors {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   max-width: none;
-  padding: var(--space-1) var(--space-2) var(--space-1);
+  padding: var(--space-1) var(--space-2) 0;
+}
+
+.app[data-stage="phone"] .lane-floor {
+  flex: 1; /* the card owns the floors' stretched remainder */
+}
+
+.app[data-stage="phone"] .lane-grid-scroll {
+  /* CONTENT basis (never 0% — a zero basis lets a scroll container's
+   * content minimum leak the full row manifest into the intrinsic chain,
+   * measured: the windowed lead pane sized to 15×track and grew the page
+   * past the viewport), min 0 so nothing below the window propagates. */
+  flex: 1 1 auto;
+  min-height: 0; /* the recessed well owns the card's remainder (below the strip) */
 }
 
 /* M-7 (iteration 4): phone-scoped strip gutter trim — the lane-head strips'
