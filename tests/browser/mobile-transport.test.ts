@@ -247,20 +247,23 @@ describe("M-3 phone transport — pinned centered always-visible play/stop", () 
             `[${w}×${h}] the Booth Playback group must NOT carry its own play copy at phone`,
           ).toBe(0);
 
-          // The page must genuinely scroll (the law under test: the grid
-          // scrolls while the transport stays pinned). The LEAD lane is the
-          // tallest (the mobile-viewport scrolling-grid precedent) — switch
-          // to it so the document exceeds the viewport.
+          // The grid must genuinely scroll (the law under test: the grid
+          // scrolls while the transport stays pinned). M-5 (iteration 4)
+          // flip: the LEAD lane (tallest manifest) now windows at the
+          // one-octave default, so the page fits ONE viewport and the
+          // manifest scrolls inside the fixed-height grid SEAT — the
+          // pinned-while-scrolling law rides the seat scroll.
           ($(`.lane-switch-tab[data-lane="lead"]`) as HTMLElement).click();
           await poll(
             () => $(".lane-floor").dataset.lane === "lead",
             5_000,
             "lead stage",
           );
+          const seat = $(".lane-grid-scroll") as HTMLElement;
           await poll(
-            () => idoc().documentElement.scrollHeight > win.innerHeight + 8,
+            () => seat.scrollHeight > seat.clientHeight + 8,
             5_000,
-            "scrollable phone document",
+            "scrollable windowed grid seat",
           );
 
           // Fonts settle (the MB-6 law) before geometry is asserted.
@@ -271,25 +274,22 @@ describe("M-3 phone transport — pinned centered always-visible play/stop", () 
           }
           await new Promise((r) => setTimeout(r, 50));
 
-          // Scroll TOP.
-          win.scrollTo(0, 0);
+          // Seat TOP.
+          seat.scrollTop = 0;
           await new Promise((r) => setTimeout(r, 80));
-          assertPinnedCentered(idoc, win, `${w}×${h} scroll-top`);
+          assertPinnedCentered(idoc, win, `${w}×${h} seat-top`);
           assertHitBox44(idoc, win);
 
-          // Scroll BOTTOM.
-          win.scrollTo(0, idoc().documentElement.scrollHeight);
+          // Seat BOTTOM.
+          seat.scrollTop = seat.scrollHeight;
           await new Promise((r) => setTimeout(r, 80));
           // Fractional layout heights can leave a sub-pixel remainder —
           // "at the bottom" is within 1 px of the max scroll.
           expect(
-            Math.abs(
-              win.scrollY -
-                (idoc().documentElement.scrollHeight - win.innerHeight),
-            ),
-            "the document actually scrolled to the bottom",
+            Math.abs(seat.scrollTop - (seat.scrollHeight - seat.clientHeight)),
+            "the seat actually scrolled to the bottom",
           ).toBeLessThanOrEqual(1);
-          assertPinnedCentered(idoc, win, `${w}×${h} scroll-bottom`);
+          assertPinnedCentered(idoc, win, `${w}×${h} seat-bottom`);
         } finally {
           await teardown(iframe);
         }

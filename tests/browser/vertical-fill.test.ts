@@ -415,10 +415,18 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
         const leadScroll = idoc.querySelector(
           ".lane-grid-scroll",
         ) as HTMLElement;
+        // M-5 (iteration 4) FLIPPED the phone full-manifest law: the phone
+        // now windows at the same one-octave RC-1 default (the full manifest
+        // stays in the DOM — a fixed-height scroll seat), and the fill
+        // compressor still never runs at phone (no GROWN window: the seat
+        // height is exactly the mode-size default, never the fill's grown
+        // row count). The exact seat math is owned by the M-5 gate
+        // (mobile-register-window.test.tsx); this probe pins the NO-GROWTH
+        // half of the fill law only.
         expect(
           leadScroll.classList.contains("is-windowed"),
-          "phone keeps the full-manifest scrolling-grid law (no fill windows)",
-        ).toBe(false);
+          "phone windows the pitched grid (M-5 one-octave seat)",
+        ).toBe(true);
         expect(leadScroll.querySelectorAll(".grid-row").length).toBe(15);
         expect(
           Number.parseFloat(

@@ -558,7 +558,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
   );
 
   it(
-    "phone 390×844: OCT control reachable (44px law); phone grid keeps the full-manifest scrolling law",
+    "phone 390×844: OCT control reachable (44px law); phone grid windows at the one-octave M-5 law",
     { timeout: 90_000 },
     async () => {
       await page.viewport(390, 844);
@@ -583,18 +583,20 @@ describe("RC-1 register controls (real app, demo document)", () => {
         );
         await waitFor(
           () =>
-            gridOf(host, "lead").getAttribute("aria-label") ===
-            "LEAD grid · EDITING",
+            gridOf(host, "lead")
+              .getAttribute("aria-label")
+              ?.startsWith("LEAD grid · EDITING · ROWS ") === true,
           4000,
-          "lead editing on the phone stage (full manifest — no range)",
+          "lead editing on the phone stage (M-5 one-octave window readout)",
         );
-        // I3-f/m1: the phone stage KEEPS its committed scrolling-grid law —
-        // the whole manifest is the window (no internal windowing; the tall
-        // lane's rows scroll with the document).
+        // M-5 (iteration 4) FLIPPED the old phone full-manifest law: the
+        // phone stage windows pitched grids at the RC-1 one-octave default
+        // (same seat law as desktop; the full manifest stays in the DOM as
+        // a fixed-height scroll seat).
         expect(
           scrollOf(host, "lead").classList.contains("is-windowed"),
-          "phone grid unwindowed (page-scroll law, m1)",
-        ).toBe(false);
+          "phone grid windowed (M-5 one-octave seat)",
+        ).toBe(true);
         expect(
           scrollOf(host, "lead").querySelectorAll(".grid-row").length,
         ).toBe(15);
@@ -616,19 +618,22 @@ describe("RC-1 register controls (real app, demo document)", () => {
         );
         expect(laneOctave("lead")).toBe(1);
 
-        // Shift+arrows are grid keys everywhere; on the full-manifest phone
-        // grid the window cannot move — the keys clamp silently (chords/
-        // drums precedent) and NOTHING is announced as a scroll.
+        // Shift+arrows are grid keys everywhere; since M-5 the phone grid
+        // is windowed, so the keys scroll the SAME RC-1 window as desktop —
+        // a VIEW announcement (move or edge clamp, never silent) and the
+        // grid name keeps the ROWS readout.
         const seed = [...laneHost(host, "lead").querySelectorAll(".cell")].find(
           (c) => c.tabIndex === 0,
         ) as HTMLElement;
         seed.focus();
         key(document.activeElement!, "ArrowDown", { shiftKey: true });
         await new Promise((r) => setTimeout(r, 120));
-        expect(viewLiveOf(host, "lead")).toBe("");
-        expect(
-          gridOf(host, "lead").getAttribute("aria-label"),
-        ).not.toContain("ROWS");
+        expect(viewLiveOf(host, "lead")).toMatch(
+          /^VIEW (AT BOTTOM|DOWN ONE OCTAVE)/,
+        );
+        expect(gridOf(host, "lead").getAttribute("aria-label")).toContain(
+          "ROWS",
+        );
 
         // PX-4 (phone tap-to-inspect): with info mode ON, TAPPING the OCT
         // group shows its refined entry — the KL-1 fence readable on the

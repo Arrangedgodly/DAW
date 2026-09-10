@@ -61,7 +61,9 @@ import {
   activeLane,
   activePatterns,
   currentPatternFor,
+  defaultRegisterWindowStart,
   getOrCreateRegisterWindow,
+  type PitchedLaneId,
   registerWindowStarts,
   selectLane,
   setRegisterWindowStart,
@@ -99,6 +101,20 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
         lane === "drums"
           ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
           : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time: Shift+arrows scroll that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
+    },
+  ]);
+}
+
+/**
+ * HP-2 help content — the M-5 phone register-window shift row (one entry per
+ * pitched lane, colocated with the buttons that stamp the id; I2-6 law).
+ */
+for (const lane of ["bass", "chords", "lead"] as const) {
+  registerHelp([
+    {
+      id: `lane.${lane}.regshift`,
+      title: `${LANE_NAMES[lane]} REGISTER SHIFT`,
+      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave (12 rows); SEMI −/+ nudges it one row. The buttons disable at the top and bottom of the lane's row range. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
     },
   ]);
 }
@@ -643,15 +659,18 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     const steps = pattern.bars * 16;
     // (mode-aware preset chosen above — MB-1)
 
-    // RC-1 (v3, I3-c): the REGISTER WINDOW. The quadrant stages (tablet +
-    // desktop) show every pitched lane's grid through the SAME one-octave
-    // window — view state on the selection.ts two-tier law, never a
-    // document field, never undo history. The phone stage KEEPS its
-    // committed full-manifest page-scroll law (m1 pins it: the tall-lane
-    // document exceeds the viewport; I3-f forbids the phone redesign) —
-    // there the whole manifest is the window, so the scroll keys lawfully
-    // clamp (the chords/drums precedent) and rows scroll with the document.
-    const windowed = pitched && mode !== "phone";
+    // RC-1 (v3, I3-c): the REGISTER WINDOW. Every stage shows pitched lane
+    // grids through the SAME one-octave window — view state on the
+    // selection.ts two-tier law, never a document field, never undo
+    // history. M-5 (iteration 4) FLIPPED the old phone full-manifest law:
+    // the phone stage now windows at the same one-octave default, with the
+    // shift row (RegisterShiftControls) moving it ±12/±1 through the same
+    // setRegisterWindowStart seam as desktop Shift+arrow. Phone windows
+    // never GROW: the fill compressor early-returns at phone (m1's
+    // scrolling stage — no one-page budget), so the pinned default is the
+    // height. Short manifests (h ≥ rows) keep the full manifest (window
+    // null) — the chords/drums precedent.
+    const windowed = pitched;
     const windowHeight = (): number =>
       windowed ? modeSize(effectiveScale(docStore.getState().doc, lane).mode) : 0;
     const applyRegisterWindow = (): number => {
@@ -1061,6 +1080,104 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
   );
 }
 
+/**
+ * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — one row of four
+ * ≥44 px touch buttons (OCT − / SEMI − / SEMI + / OCT +) rendered between
+ * the lane header and the grid on the phone stage. The window is VIEW-ONLY
+ * (the RC-1 law): a shift writes ONLY `setRegisterWindowStart(lane,
+ * clamp(start ± 12 / ± 1))` — the SAME selection.ts seam desktop
+ * Shift+arrow uses, so the GridSurface effect (the registerWindowStarts
+ * consumer) pushes it to the renderer; no note ever moves. Bounds are
+ * computed eagerly from the lane's patterns (`rowDegrees` heights, the
+ * defaultRegisterWindowStart input) so the buttons DISABLE at the manifest
+ * edges before any click. M-6 will hang the change feedback off this same
+ * state change — deliberately no visual treatment beyond plain buttons yet.
+ */
+function RegisterShiftControls(props: { lane: PitchedLaneId }) {
+  // The document store is zustand/vanilla (the LaneHeader law): mirror doc
+  // identity into a signal so bounds re-derive on scale/pattern edits —
+  // never inside the render loop.
+  const [docVersion, setDocVersion] = createSignal(0);
+  onMount(() => {
+    const unsubscribe = docStore.subscribe((state, prev) => {
+      if (state.doc !== prev.doc) setDocVersion((v) => v + 1);
+    });
+    onCleanup(unsubscribe);
+  });
+
+  const bounds = createMemo(() => {
+    void docVersion();
+    const doc = docStore.getState().doc;
+    const h = modeSize(effectiveScale(doc, props.lane).mode);
+    let rows = 0;
+    for (const p of doc.patterns[props.lane]) {
+      if (p.kind === "pitched") rows = Math.max(rows, p.rowDegrees.length);
+    }
+    return { h, maxStart: Math.max(0, rows - h) };
+  });
+
+  const start = createMemo(() => {
+    void docVersion();
+    const { h, maxStart } = bounds();
+    const stored = registerWindowStarts()[props.lane];
+    const s = stored ?? defaultRegisterWindowStart(props.lane, h);
+    return Math.min(maxStart, Math.max(0, s));
+  });
+
+  const shift = (delta: number) => {
+    const maxStart = bounds().maxStart;
+    const target = Math.min(maxStart, Math.max(0, start() + delta));
+    setRegisterWindowStart(props.lane, target);
+  };
+
+  return (
+    <Show when={bounds().maxStart > 0}>
+      <div
+        class="register-shift"
+        role="group"
+        aria-label={`${LANE_NAMES[props.lane]} register window shift`}
+      >
+        <button
+          type="button"
+          class="register-shift-btn"
+          data-help={`lane.${props.lane}.regshift`}
+          disabled={start() <= 0}
+          onClick={() => shift(-12)}
+        >
+          OCT −
+        </button>
+        <button
+          type="button"
+          class="register-shift-btn"
+          data-help={`lane.${props.lane}.regshift`}
+          disabled={start() <= 0}
+          onClick={() => shift(-1)}
+        >
+          SEMI −
+        </button>
+        <button
+          type="button"
+          class="register-shift-btn"
+          data-help={`lane.${props.lane}.regshift`}
+          disabled={start() >= bounds().maxStart}
+          onClick={() => shift(1)}
+        >
+          SEMI +
+        </button>
+        <button
+          type="button"
+          class="register-shift-btn"
+          data-help={`lane.${props.lane}.regshift`}
+          disabled={start() >= bounds().maxStart}
+          onClick={() => shift(12)}
+        >
+          OCT +
+        </button>
+      </div>
+    </Show>
+  );
+}
+
 export default function LaneGrid(props: { lane: LaneId }) {
   // Store writes (e.g. the selected pattern being removed) re-derive the
   // pattern; the selection signal drives pattern switches.
@@ -1106,6 +1223,16 @@ export default function LaneGrid(props: { lane: LaneId }) {
       onClick={onQuadrantClick}
     >
       <LaneHeader lane={props.lane} />
+      {/* M-5: the phone-only register-window shift row (pitched lanes). */}
+      <Show
+        when={
+          stageMode() === "phone" &&
+          props.lane !== "drums" &&
+          pattern()?.kind === "pitched"
+        }
+      >
+        <RegisterShiftControls lane={props.lane as PitchedLaneId} />
+      </Show>
       <Show when={key()} keyed>
         {(keyed: string) =>
           (() => {

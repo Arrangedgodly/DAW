@@ -259,7 +259,7 @@ describe("MB-1 responsive stage (built app)", () => {
     async () => {
       const W = 390;
       const H = 844;
-      const { iframe, win, $, $$, idoc } = await bootIframe(W, H);
+      const { iframe, $, $$, idoc } = await bootIframe(W, H);
       const key = (el: Element, k: string): void => {
         el.dispatchEvent(
           new KeyboardEvent("keydown", {
@@ -315,9 +315,26 @@ describe("MB-1 responsive stage (built app)", () => {
           expect($$(".lane-floor")).toHaveLength(1);
           expect($(".lane-floor").dataset.lane).toBe(lane);
           // The single grid is the EDITING grid (E3 names carry the state).
-          expect($(".lane-grid").getAttribute("aria-label")).toBe(
-            `${lane.toUpperCase()} grid · EDITING`,
-          );
+          // M-5 (iteration 4): pitched phone grids window at the RC-1
+          // one-octave default — a TALL manifest (lead, the tallest) carries
+          // the window readout (`… · ROWS start–end OF max`); an exactly-
+          // one-octave manifest (chords: 7 rows = modeSize) keeps the full
+          // manifest (window null, bare name — the chords/drums precedent);
+          // drums (unpitched) is always bare.
+          const gridName = $(".lane-grid").getAttribute("aria-label");
+          expect(
+            gridName === `${lane.toUpperCase()} grid · EDITING` ||
+              gridName?.startsWith(
+                `${lane.toUpperCase()} grid · EDITING · ROWS `,
+              ),
+            `grid name is the editing name, optionally windowed (got ${gridName})`,
+          ).toBe(true);
+          if (lane === "lead") {
+            expect(
+              gridName?.includes(" · ROWS "),
+              "the tall lead manifest windows at phone (M-5)",
+            ).toBe(true);
+          }
           // The condensed rail follows the selection (one row, the lane's).
           expect($$(".rail-row")).toHaveLength(1);
           expect($(".rail-row").dataset.lane).toBe(lane);
@@ -342,9 +359,10 @@ describe("MB-1 responsive stage (built app)", () => {
           ($(`.lane-switch-tab[data-lane="bass"]`) as HTMLElement).tabIndex,
         ).toBe(0);
 
-        // --- the scrolling-grid law ----------------------------------------
-        // Rows scroll vertically with the document: the LEAD lane (tallest)
-        // grows the document past the viewport and scrolls.
+        // --- the scrolling-grid law (M-5 flip) ------------------------------
+        // The one-octave window retired the tall-lane document overflow: the
+        // LEAD page now fits ONE viewport, and the manifest (still fully in
+        // the DOM) scrolls INSIDE the fixed-height grid seat instead.
         ($(`.lane-switch-tab[data-lane="lead"]`) as HTMLElement).click();
         await poll(
           () => $(".lane-floor").dataset.lane === "lead",
@@ -358,11 +376,13 @@ describe("MB-1 responsive stage (built app)", () => {
         ).toBeLessThanOrEqual(W);
         expect(
           de().scrollHeight,
-          "tall lane document exceeds the viewport (rows scroll)",
-        ).toBeGreaterThan(H);
-        win.scrollTo(0, 400);
-        await new Promise((r) => setTimeout(r, 150));
-        expect(win.scrollY).toBeGreaterThan(0);
+          "windowed lead page fits one viewport (M-5)",
+        ).toBeLessThanOrEqual(H);
+        const leadSeat = $(".lane-grid-scroll") as HTMLElement;
+        expect(
+          leadSeat.scrollHeight,
+          "the full manifest scrolls inside the windowed seat",
+        ).toBeGreaterThan(leadSeat.clientHeight);
 
         // Sticky chrome mid-scroll: the pinned group stays at the top and
         // every chrome box stays fully inside the viewport.

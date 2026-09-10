@@ -645,3 +645,45 @@ input[type="range"] {
 .app[data-stage="phone"] .audio-resume {
   min-height: 44px;
 }
+
+/*
+ * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — one row of four
+ * ≥44 px touch buttons between the lane header and the grid. Painted box =
+ * the target (the lane-switch-tab law: no strap, four buttons share the
+ * row). Machined-key vocabulary (raised metal + 1px border + elev-1) with
+ * the lane-hue border like an INACTIVE tab — the row is a view control,
+ * not the primary lane control; disabled state = the native chassis
+ * disabled dim (fill + reduced contrast + no pointer, never color-only:
+ * the glyph text itself carries the state per D9). Desktop never renders
+ * the row (LaneGrid render guard) — zero desktop CSS paths.
+ */
+.app[data-stage="phone"] .register-shift {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-2);
+}
+
+.app[data-stage="phone"] .register-shift-btn {
+  flex: 1 1 0;
+  min-height: 44px;
+  min-width: 44px;
+  font: var(--text-panel-label);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  border: 1px solid
+    color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  border-radius: 4px;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+
+.app[data-stage="phone"] .register-shift-btn:disabled {
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--metal-raised));
+  background: var(--metal-panel);
+  border-color: color-mix(in srgb, var(--lane-hue) 16%, var(--metal-panel));
+  box-shadow: none;
+  cursor: default;
+}

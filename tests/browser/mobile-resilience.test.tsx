@@ -67,8 +67,8 @@
  *    T5 scroll-cancel during an armed gesture (MB-2's discrimination
  *       pinned as an edge law): a vertical touch swipe from a cell
  *       pointercancels the armed gesture with NO commit and NO history
- *       entry, and the same vertical pan still scrolls the page (the
- *       committed scrolling-grid law).
+ *       entry, and the same vertical pan still scrolls the grid seat (the
+ *       committed scrolling law post-M-5: the one-octave windowed seat).
  *
  * The synthetic half of the extended table (touch-typed pointercancel,
  * touch second pointer, hybrid mouse-during-touch, help-mode mid-gesture)
@@ -1166,32 +1166,35 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         ).toBe(notesBefore5);
         expect(historyDepth(), "T5: undo history untouched (coherent)").toBe(depth5);
         expect(previews(), "T5: no stuck preview").toBe(0);
-        // (b) the same vertical pan still scrolls the PAGE from that cell
-        //     origin (pan-y — the committed scrolling-grid law). Needs real
-        //     scroll range: the ROTATED phone (844×390 — MB-2's own recipe)
-        //     with the LEAD lane mounted (chrome + 14 rows exceed 390px).
+        // (b) the same vertical pan still scrolls from that cell origin
+        //     (pan-y — the committed scrolling law). M-5 (iteration 4)
+        //     flip: the cell now lives inside the windowed grid SEAT (the
+        //     one-octave RC-1 window; the full-manifest page-scroll law
+        //     retired), so the SEAT is the scrolling surface the pan
+        //     commits to. Real scroll range: the LEAD manifest (14 rows)
+        //     exceeds the 7-row seat.
         await app.tapEl(app.el('.lane-switch-tab[data-lane="lead"]'));
         await waitFor(
           () => app.el(".lane-floor").dataset.lane === "lead",
           3000,
           "lead stage (scroll range)",
         );
-        await page.viewport(844, 390);
-        await sleep(250);
+        const seat = app.el(".lane-grid-scroll") as HTMLElement;
         await waitFor(
-          () => document.documentElement.scrollHeight > innerHeight,
+          () => seat.scrollHeight > seat.clientHeight,
           3000,
-          "the rotated-phone document scrolls",
+          "the windowed lead seat scrolls",
         );
-        scrollTo(0, 0);
+        seat.scrollTop = 0;
         await sleep(120);
         const leadCell = app.cell("lead", 2, 3);
+        const cellSeat = leadCell.closest(".lane-grid-scroll") as HTMLElement;
         await app.scrollGesture(leadCell, 0, -160);
         expect(
-          scrollY,
-          "T5: the page still scrolls from a cell origin",
+          cellSeat.scrollTop,
+          "T5: the seat still scrolls from a cell origin",
         ).toBeGreaterThan(0);
-        scrollTo(0, 0);
+        cellSeat.scrollTop = 0;
         await page.viewport(390, 844);
       } finally {
         clearToasts(); // a toast left open covers the booth for the next test
