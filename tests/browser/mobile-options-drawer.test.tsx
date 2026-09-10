@@ -406,6 +406,147 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
   );
 
   it(
+    "M-8 cross-surface probe 390×844: playing + register shifted + drawer open + help mode coexist — transport stays centered/pinned, readout holds the shifted window, drawer tools operable, cancel-first Escape peels help before the drawer",
+    { timeout: 180_000 },
+    async () => {
+      const { iframe, win, $, $$, idoc } = await bootIframe(390, 844);
+      try {
+        // Lead lane (the M-5/M-6 demo lane: 15 rows, window 7, start 6).
+        $<HTMLElement>('.lane-switch-tab[data-lane="lead"]').click();
+        await poll(
+          () => $(".lane-floor").dataset.lane === "lead",
+          5_000,
+          "lead stage",
+        );
+
+        // --- PLAY: the pinned transport's button flips to STOP ----------
+        const play = $<HTMLButtonElement>(
+          ".phone-transport .booth-btn-play",
+        );
+        play.click();
+        await poll(
+          () => play.getAttribute("aria-pressed") === "true",
+          5_000,
+          "playing (session echo)",
+        );
+
+        // --- REGISTER SHIFT: one octave up through the shift row --------
+        const readout = $(
+          ".lane-floor[data-lane='lead'] .register-window-readout",
+        );
+        await poll(
+          () =>
+            (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
+            "■ROWS 7–13 OF 15",
+          5_000,
+          "default readout",
+        );
+        const octUp = $$(
+          ".lane-floor[data-lane='lead'] .register-shift-btn",
+        ).find((b) => b.textContent?.trim() === "OCT +");
+        if (!octUp) throw new Error("missing OCT + shift button");
+        (octUp as HTMLButtonElement).click();
+        await poll(
+          () =>
+            (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
+            "▲ROWS 9–15 OF 15",
+          5_000,
+          "readout re-anchored one octave up (clamped top)",
+        );
+
+        // --- DRAWER OPEN over the playing, shifted stage ----------------
+        const optionsBtn = $<HTMLElement>('[data-help="phone.options"]');
+        optionsBtn.click();
+        await poll(
+          () => $$(".phone-options-drawer").length === 1,
+          5_000,
+          "drawer panel",
+        );
+        // The transport stays centered and uncovered while playing.
+        const pr = play.getBoundingClientRect();
+        expect(
+          Math.abs(pr.left + pr.width / 2 - win.innerWidth / 2),
+          "transport centered with drawer open + playing",
+        ).toBeLessThanOrEqual(8);
+        expect(pr.top).toBeGreaterThanOrEqual(0);
+        expect(pr.bottom).toBeLessThanOrEqual(win.innerHeight);
+        const atPlay = idoc().elementFromPoint(
+          pr.left + pr.width / 2,
+          pr.top + pr.height / 2,
+        );
+        expect(atPlay === play || play.contains(atPlay)).toBeTruthy();
+        expect(play.getAttribute("aria-pressed")).toBe("true");
+        // The shifted window survives underneath the open drawer.
+        expect(
+          (readout.textContent ?? "").replace(/\s+/g, " ").trim(),
+        ).toBe("▲ROWS 9–15 OF 15");
+
+        // --- HELP MODE ON over everything (the `i` global) --------------
+        idoc().body.dispatchEvent(
+          new win.KeyboardEvent("keydown", { key: "i", bubbles: true }),
+        );
+        await poll(
+          () => $(".app").getAttribute("data-help-mode") === "on",
+          5_000,
+          "help mode on (stage-wrap data-help-mode)",
+        );
+        // Drawer still open, transport still playing/centered.
+        expect($$(".phone-options-drawer").length).toBe(1);
+        expect(play.getAttribute("aria-pressed")).toBe("true");
+        // A drawer tool is OPERABLE in this four-state overlap: LOOP flips.
+        const loop = $<HTMLButtonElement>('[data-help="booth.loop"]');
+        const loopBefore = loop.getAttribute("aria-pressed") === "true";
+        loop.click();
+        await poll(
+          () => (loop.getAttribute("aria-pressed") === "true") !== loopBefore,
+          3_000,
+          "LOOP toggled while playing + drawer + help",
+        );
+        loop.click(); // restore
+        await poll(
+          () => (loop.getAttribute("aria-pressed") === "true") === loopBefore,
+          3_000,
+          "LOOP restored",
+        );
+
+        // --- CANCEL-FIRST Escape peels HELP, not the drawer -------------
+        idoc().body.dispatchEvent(
+          new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+        await poll(
+          () => $(".app").getAttribute("data-help-mode") === "off",
+          5_000,
+          "help mode off first (cancel-first)",
+        );
+        expect(
+          $$(".phone-options-drawer").length,
+          "the first Escape must leave the drawer open",
+        ).toBe(1);
+        // The second Escape closes the drawer; play never stopped.
+        idoc().body.dispatchEvent(
+          new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+        await poll(
+          () => $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
+          3_000,
+          "drawer closed by second Escape",
+        );
+        expect(play.getAttribute("aria-pressed")).toBe("true");
+        // Stop to leave a quiet origin.
+        play.click();
+        await poll(
+          () => play.getAttribute("aria-pressed") === "false",
+          3_000,
+          "stopped",
+        );
+      } finally {
+        await teardown(iframe);
+      }
+    },
+    180_000,
+  );
+
+  it(
     "desktop 1280×800: no phone transport/OPTIONS/drawer — the Booth keeps its own tools (m4 fallback law)",
     { timeout: 120_000 },
     async () => {

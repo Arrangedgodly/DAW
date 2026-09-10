@@ -459,6 +459,30 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   method against the post-VIZ-merge HEAD 2e11389's **90.14 KB gz** by a
   stash round-trip): initial JS **90.20 KB gz** (+0.06), PASS. (The
   74.61 → 90.14 step is the VIZ House Lights merge, not a refinement.)
+- **Iteration-4 record (measured 2026-09-10, M-8 close-out — the mobile UI
+  rework, M-2 through M-7; same method: `npm run build` +
+  `npm run check:bundle` at each task boundary, per-task numbers from
+  production-log.md's iteration-4 entries)**: final initial JS
+  **91.47 KB gz** (30% of the 300 KB budget), PASS — full iteration-4
+  delta **+1.27 KB gz** over the 90.20 pre-iteration baseline (i3-3),
+  attributed per task: M-2 (phone KEYS/INFO removal — Booth `compact`
+  render guard) **+0.04 → 90.24**; M-3 (shared `PlayStopButton` +
+  `.phone-transport` row) **+0.00 → 90.24**; M-4 (collapsible options
+  drawer + its seven tool controls) **+0.33 → 90.57**; M-5 (one-octave
+  register window + OCT/SEM shift row machinery) **+0.52 → 91.09**;
+  M-6 (register-change feedback — aria-live readout chip + transient
+  cue) **+0.37 → 91.46**; M-7 (44px row law — PHONE_ROW_PX 24→44 +
+  gutter condensation) **+0.01 → 91.47**; M-8 (gate battery + close-out,
+  tests/docs only) **+0.00 → 91.47**. The plan's "≤ +1 KB gz expected
+  for drawer + shift controls" estimate was exceeded by +0.27 KB
+  (drawer+shift = M-4+M-5 = +0.85; the overshoot is M-6's feedback
+  chip + M-2/M-3 chrome wiring) — flagged here rather than silently
+  absorbed; 3.3× headroom remains against the 300 KB law. CSS at the
+  M-8 close-out measures **18.52 KB gz** (info-only, ungated; the
+  iteration-4 per-task entries recorded JS only, so no per-task CSS
+  trail exists to attribute — the whole-iteration CSS growth rides the
+  same phone-scoped surfaces); fonts 37.02 / 50 KB unchanged (zero new
+  font/asset files through iteration 4).
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start
