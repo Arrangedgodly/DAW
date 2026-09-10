@@ -102,6 +102,12 @@ file contents).
   the product.
 - Chiptune-leaning synth character (pulse/square/triangle/noise-family timbres) is a
   binding sound-design commitment for v0.
+- Binding visual mandate (user, 2026-09-04): upgrade the site UI toward a hardware
+  feel — "like you just got access to a $5000 hardware DAW unit, like a standalone
+  Akai unit" — alive, breathing, responding to the user's inputs and the track as
+  they build it. Recorded without expansion; visual/interaction layer only, the
+  audio engine contract unchanged. (Carried from the hardware-ui worktree's
+  uncommitted PRODUCT.md; the Machined Console redesign shipped it.)
 
 ## Evidence on Hand
 
