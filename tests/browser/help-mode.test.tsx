@@ -570,7 +570,13 @@ function generatedHelpIds(): Set<string> {
     ]) {
       ids.add(`lane.${lane}.${part}`);
     }
-    ids.add(`grid.${lane}`);
+      ids.add(`grid.${lane}`);
+  }
+  // M-5 (iteration 4): the phone register-window shift row (pitched lanes
+  // only — RegisterShiftControls stamps it via a `lane.${lane}.regshift`
+  // template literal, so the literal scan can't see it; minted here).
+  for (const lane of ["bass", "chords", "lead"]) {
+    ids.add(`lane.${lane}.regshift`);
   }
   for (const piece of ["kick", "snare", "hat", "openhat", "clap", "tom"]) {
     ids.add(`euclid.${piece}.fill`);

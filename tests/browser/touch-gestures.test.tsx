@@ -660,9 +660,10 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         // and the armed-gesture cancel law holds under touch.
         //
         // A ROTATED PHONE (844×390 — MB-1's own rotation case: width ≥768
-        // but height <600 keeps the phone law): the chrome + 14-row lead
-        // exceed 390px by a wide deterministic margin, so the committed
-        // scrolling-grid law has real scroll range for the swipes.
+        // but height <600 keeps the phone law). M-5 (iteration 4) flip: the
+        // windowed one-octave lead grid fits one page, so the committed
+        // scrolling law's real range lives in the fixed-height SEAT (the
+        // 14-row manifest vs the 7-row window) — the swipes scroll the seat.
         await page.viewport(844, 390);
         await sleep(200);
         await tapStable(el('.lane-switch-tab[data-lane="lead"]'), {
@@ -670,10 +671,13 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           what: "lead stage (scroll phase)",
           verifyMs: 3_000,
         });
+        const seat = el(
+          '.lane-floor[data-lane="lead"] .lane-grid-scroll',
+        ) as HTMLElement;
         expect(
-          document.documentElement.scrollHeight,
-          "the phone document scrolls (scrolling-grid law)",
-        ).toBeGreaterThan(innerHeight);
+          seat.scrollHeight,
+          "the windowed lead seat scrolls (M-5 scrolling law)",
+        ).toBeGreaterThan(seat.clientHeight);
         /** One trusted synthesized touch-scroll gesture (real scrolling). */
         const scrollGesture = async (
           origin: Element,
@@ -692,10 +696,11 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           await sleep(500);
         };
 
-        // (a) VERTICAL touch swipe FROM A CELL: the armed gesture
-        // pointercancels and nothing commits (IN-4 under touch input)…
-        // leadNotes reads the SELECTED pattern (the grid edits the
-        // selection — DES-6), by id, never by array index.
+        // (a) VERTICAL touch swipe FROM A CELL (row 8 — inside the M-5
+        // one-octave window, whose default start seats rows 6–12): the
+        // armed gesture pointercancels and nothing commits (IN-4 under
+        // touch input)… leadNotes reads the SELECTED pattern (the grid
+        // edits the selection — DES-6), by id, never by array index.
         const leadNotes = () =>
           (
             docStore
@@ -706,7 +711,12 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           ).notes.length;
         const notesBefore = leadNotes();
         const cancels = cancelCounter();
-        const lc = cell("lead", 2, 3);
+        // Seat the window at its BOTTOM first: the downward swipe must have
+        // real scroll range behind it (at the seat top a downward pan is
+        // clamped and the browser never claims the pointer — no cancel).
+        seat.scrollTop = seat.scrollHeight;
+        await sleep(150);
+        const lc = cell("lead", 8, 3);
         const lcR = lc.getBoundingClientRect();
         const down: Array<{ x: number; y: number }> = [map(lcR.left + 7, lcR.top + 12)];
         for (let i = 1; i <= 10; i++)
@@ -718,14 +728,15 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         cancels.stop();
         scrollTo(0, 0);
         await sleep(150);
-        // …and the vertical pan itself still reaches the PAGE from that
-        // same cell origin (pan-y — the scrolling-grid law).
+        // …and the vertical pan itself still reaches the SEAT from that
+        // same cell origin (pan-y — the M-5 scrolling law: the windowed
+        // seat is the vertical scroll surface).
         await scrollGesture(lc, 0, -160);
         expect(
-          scrollY,
-          "vertical scroll gesture from a cell scrolls the page",
+          seat.scrollTop,
+          "vertical scroll gesture from a cell scrolls the seat",
         ).toBeGreaterThan(0);
-        scrollTo(0, 0);
+        seat.scrollTop = 0;
         await sleep(150);
 
         // (b) VERTICAL swipe FROM A TILE: the armed sweep cancels cleanly —
@@ -754,6 +765,9 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         await sleep(200);
         const id2 = addPattern("lead", 2, "T2");
         selectPattern("lead", id2);
+        // M-5: the full manifest stays in the DOM inside the windowed seat
+        // (14 rows × 32 steps); the fresh pattern's one-octave window seats
+        // rows 0–6, so the in-window gesture origins below use row 3.
         await waitFor(
           () =>
             el('.lane-floor[data-lane="lead"] .lane-grid-scroll').querySelectorAll(".cell")
@@ -766,7 +780,7 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           '.lane-floor[data-lane="lead"] .lane-grid-scroll',
         ) as HTMLElement;
         expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth);
-        const cellOrigin = cell("lead", 3, 0);
+        const cellOrigin = cell("lead", 3, 0); // row 3: in the fresh pattern's window
         await scrollGesture(cellOrigin, 300, 0);
         expect(
           strip.scrollLeft,
@@ -787,7 +801,7 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         strip.scrollLeft = 0;
         await sleep(100);
         const leadBefore = leadNotes();
-        const cRow = cell("lead", 3, 0).parentElement!;
+        const cRow = cell("lead", 3, 0).parentElement!; // row 3: in-window
         await touch(
           rowLine(cRow.getBoundingClientRect(), { x: 6 * 16 + 7, y: 12 }, { x: 9 * 16 + 7, y: 12 }),
         );

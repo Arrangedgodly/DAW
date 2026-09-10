@@ -2078,23 +2078,29 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         const chromeTopMax = (): number =>
           Math.abs($(".phone-chrome").getBoundingClientRect().top);
 
-        // LEAD: the document must scroll (rows are the phone law).
+        // LEAD: the grid SEAT must scroll (the M-5 iteration-4 flip: the
+        // windowed one-octave grid fits one page, so the full manifest
+        // scrolls inside the fixed-height seat — the scroll-churn surface).
         await switchLane("lead");
-        const de = () => doc().documentElement;
-        const maxScrollY = () => Math.max(0, de().scrollHeight - PHONE_H);
+        const seat = (): HTMLElement =>
+          floor("lead").querySelector<HTMLElement>(".lane-grid-scroll")!;
+        const maxScrollY = () =>
+          Math.max(0, seat().scrollHeight - seat().clientHeight);
         expect(
           maxScrollY(),
-          "the tall lane document scrolls at 390×844 (scroll is budgeted, not assumed)",
+          "the windowed lead seat scrolls at 390×844 (scroll is budgeted, not assumed)",
         ).toBeGreaterThan(0);
         const runsA = () => floor("lead").querySelectorAll(".note-run").length;
         const runCountMin = { v: Infinity };
         // Re-queried per frame (the TH-1 convention): never hold stale
-        // element references across store-driven re-renders. Rows 1/3/5 at
-        // steps 40+ are the run-free zone — the sustained bars at rows
-        // 7/9/11/13 stay untouched while edits land.
+        // element references across store-driven re-renders. Rows 6/8/10
+        // at steps 40+ are the in-window run-free zone (M-5: the phone
+        // window seats rows 6–12 of the 14-row manifest; the old rows
+        // 1/3/5 zone is outside the window and no longer painted) — the
+        // sustained bars at rows 7/9/11/13 stay untouched while edits land.
         const leadCells = (): HTMLElement[] => {
           const out: HTMLElement[] = [];
-          for (const row of [1, 3, 5])
+          for (const row of [6, 8, 10])
             for (const step of [40, 44, 48, 52, 56, 60])
               out.push(
                 ...Array.from(
@@ -2110,8 +2116,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           PHONE_WINDOW_MS,
           () => leadCells(),
           (i) => {
-            app.win.scrollTo(0, i % 50 < 25 ? maxScrollY() : 0);
-            if (maxScrollY() > 0 && app.win.scrollY > 0) scrolledA = true;
+            seat().scrollTop = i % 50 < 25 ? maxScrollY() : 0;
+            if (maxScrollY() > 0 && seat().scrollTop > 0) scrolledA = true;
           },
           () => {
             runCountMin.v = Math.min(runCountMin.v, runsA());
@@ -2220,7 +2226,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         ).toBeLessThan(TOGGLE_BLOCK_BUDGET_MS);
         // The phone laws really exercised: scroll happened (both axes),
         // the runs kept rendering, the overlay stayed revealed, chrome pinned.
-        expect(scrolledA, "vertical page scroll ran during playback").toBe(
+        expect(scrolledA, "vertical seat scroll ran during playback").toBe(
           true,
         );
         expect(scrolledB, "horizontal grid scroll ran during playback").toBe(
