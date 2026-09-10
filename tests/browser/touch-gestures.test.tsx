@@ -398,7 +398,14 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
 
         // ---- 2. TAP-DRAG CREATE (≥2 segments) + EDGE RESIZE ----------------
         const row1 = cell("bass", 1, 0).parentElement!;
-        await touch(rowLine(row1.getBoundingClientRect(), { x: 4 * 16 + 7, y: 12 }, { x: 8 * 16 + 7, y: 12 }));
+        // H-2: the phone width law re-pitches step cells to the measured
+        // well — derive the LIVE step width (cellPx + gap) from the row's
+        // own inline template instead of pinning the old 15+1 preset (the
+        // mid-cell `+7` nudges stay valid at every clamped pitch ≥15).
+        const sw = Number.parseFloat(
+          row1.style.gridTemplateColumns.match(/([\d.]+)px/)?.[1] ?? "15",
+        ) + (Number.parseFloat(row1.style.gap) || 1);
+        await touch(rowLine(row1.getBoundingClientRect(), { x: 4 * sw + 7, y: 12 }, { x: 8 * sw + 7, y: 12 }));
         await waitFor(
           () =>
             bassNotes().length === 1 &&
@@ -416,7 +423,7 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           rowLine(
             rowR,
             { x: runR.right - rowR.left - 2, y: 12 },
-            { x: 12 * 16, y: 12 },
+            { x: 12 * sw, y: 12 },
           ),
         );
         await waitFor(
@@ -802,8 +809,11 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         await sleep(100);
         const leadBefore = leadNotes();
         const cRow = cell("lead", 3, 0).parentElement!; // row 3: in-window
+        const swLead = Number.parseFloat(
+          cRow.style.gridTemplateColumns.match(/([\d.]+)px/)?.[1] ?? "15",
+        ) + (Number.parseFloat(cRow.style.gap) || 1);
         await touch(
-          rowLine(cRow.getBoundingClientRect(), { x: 6 * 16 + 7, y: 12 }, { x: 9 * 16 + 7, y: 12 }),
+          rowLine(cRow.getBoundingClientRect(), { x: 6 * swLead + 7, y: 12 }, { x: 9 * swLead + 7, y: 12 }),
         );
         await waitFor(
           () => leadNotes() === leadBefore + 1,

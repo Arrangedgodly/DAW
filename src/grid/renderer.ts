@@ -436,15 +436,20 @@ export class DomGridRenderer implements GridRenderer {
   private reducedMotion: MediaQueryList | null = null;
   /** LY-1 quadrant state (see setEditable). */
   private editable = true;
-  /** Geometry (LY-1): cell/gap/label/fill px + derived step width. */
-  private readonly cellPx: number;
+  /** Geometry (LY-1): cell/gap/label/fill px + derived step width.
+   * H-2: cellPx is MUTABLE (setCellWidth) — the phone stage fits the step
+   * pitch to the measured well; every other stage pins it at construction. */
+  private cellPx: number;
   private readonly gapPx: number;
   private readonly labelPx: number;
   /** PX-3 fill-rail slot width (0 when no fill control is mounted). */
   private readonly fillPx: number;
   /** MB-1: the fill-rail slot overlays the cells (narrow stages). */
   private readonly fillOverlay: boolean;
-  private readonly stepWidthPx: number;
+  /** H-2: horizontal pitch (mutable — setCellWidth), the row twin of
+   * rowHeightPx. Derived ONLY here (constructor + the seam) so every
+   * consumer keeps reading one float. */
+  private stepWidthPx: number;
   private readonly playheadLeftPx: number;
   /** Refinement-4: vertical row-track px (mutable — setRowHeight). */
   private rowHeightPx: number;
@@ -493,6 +498,8 @@ export class DomGridRenderer implements GridRenderer {
    * eager grids; all horizontal math goes through hScroll().
    */
   private hscrollEl: HTMLElement | null = null;
+  /** H-2: the virtual grid's scroll-extent sizer (setCellWidth re-pins it). */
+  private sizerEl: HTMLElement | null = null;
   /** Window [start, end) in PATTERN steps; eager grids hold [0, steps). */
   private winStart = 0;
   private winEnd = 0;
@@ -579,6 +586,7 @@ export class DomGridRenderer implements GridRenderer {
       sizer.setAttribute("aria-hidden", "true");
       sizer.style.width = `${this.playheadLeftPx + steps * this.stepWidthPx}px`;
       hscroll.append(sizer);
+      this.sizerEl = sizer;
       layerEl = document.createElement("div");
       layerEl.className = "grid-col-layer";
       hscroll.append(layerEl);
@@ -898,6 +906,41 @@ export class DomGridRenderer implements GridRenderer {
       ) {
         this.ensureRowVisible(this.rovingRowIndex());
       }
+    }
+  }
+
+  /**
+   * H-2 (mobile slice): the WIDTH-fit seam — the setRowHeight twin. Re-pins
+   * the step-cell px and every horizontal consumer atomically: the track
+   * templates (eager `repeat(steps)` + the virtual pool's current window),
+   * the virtual sizer (the scroll extent), the note runs (TRUE pattern
+   * geometry, re-asserted through renderRuns' own restore path), and the
+   * column window (visibleRange is stepWidthPx math — clientWidth is
+   * unchanged while the per-column pitch is not). Idempotent; the caller
+   * coalesces via rAF and clamps the px (the LaneGrid phone width law);
+   * resize-time only, so the run re-raster cost never rides a fling. The
+   * exact unrounded fraction is written into the template — CSS quantizes
+   * each track to 1/64 px, bounding the row-sum error at n/128 px.
+   */
+  setCellWidth(px: number): void {
+    if (px === this.cellPx) return; // idempotent — observers converge
+    this.cellPx = px;
+    this.stepWidthPx = px + this.gapPx;
+    // Track templates: eager addresses the whole pattern, the virtual pool
+    // its CURRENT window (rewindow below rewrites on a count change — this
+    // write covers the same-count re-pitch).
+    const cols = this.virtual ? this.winEnd - this.winStart : this.opts.steps;
+    for (const track of this.rowTracks)
+      track.style.gridTemplateColumns = `repeat(${cols}, ${this.cellPx}px)`;
+    if (this.sizerEl)
+      this.sizerEl.style.width = `${this.playheadLeftPx + this.opts.steps * this.stepWidthPx}px`;
+    for (let row = 0; row < this.rowTracks.length; row++) this.renderRuns(row);
+    // layout()'s own law: re-anchor the quantized-glow/playhead basis, then
+    // re-derive the window against the new pitch.
+    this.lastQuantized = null;
+    if (this.virtual) {
+      this.lastScrollLeft = this.hScroll().scrollLeft;
+      this.rewindow(false);
     }
   }
 

@@ -315,6 +315,105 @@ function scheduleFit(): void {
   });
 }
 
+/* ---------------------------------------------------------------------------
+ * H-2 (mobile slice): the phone WIDTH-FIT law — the horizontal twin of the
+ * quadrant budget fit above (i5 audit §2). Phone only; tablet/desktop never
+ * register, so their geometry is byte-identical. THE LAW, from the measured
+ * DOM (never restated constants — the refinement-2 drift lesson):
+ *
+ *   labelBox = the row label's own border-box width (pin + gutter, measured)
+ *   cellPx   = (well.clientWidth − labelBox − (n−1)·gapPx) / n   // exact
+ *                                                              // fraction
+ *   cellPx   = clamp(cellPx, NARROW preset's 15 floor, 24 cap)
+ *
+ * The exact unrounded fraction is handed to the renderer seam (CSS Layout
+ * quantizes tracks to 1/64 px → row-sum error ≤ n/128 px ≤ 0.25 at n=32,
+ * inside every committed ±1 px gate), so a 1-bar row fills the well EXACTLY
+ * (100%, 0 dead right edge — m1's no-h-scroll property holds by
+ * construction, not ≤). ONE law, no special case: a pattern whose raw fit
+ * falls below the 15 floor (2-bar chords: raw ≈ 8-10) keeps the floor pitch
+ * and h-scrolls inside the well — today's committed behavior. The cap is
+ * FILL_MAX_ROW_PX's own number: at the shipped viewports it never bites
+ * (max raw ≈ 20.8); it bounds cells on 500-767 px phones still in phone
+ * stage, where uncapped cells would read 25-41 px against 44 px rows.
+ * Pitched lanes only this iteration (drums joins in H-3). The remount key
+ * carries stage mode + pattern shape but NOT container width — a
+ * within-phone width change (fold, devtools resize) re-fits LIVE through
+ * the seam, never remounts.
+ * ------------------------------------------------------------------------- */
+const PHONE_CELL_MAX_PX = FILL_MAX_ROW_PX; // one readability ceiling
+
+/** One live phone grid surface registered for the width fit. */
+interface PhoneWidthSurface {
+  readonly steps: number;
+  readonly gapPx: number;
+  /** The clamp floor = the NARROW preset's committed cellPx (readability). */
+  readonly floorPx: number;
+  readonly renderer: () => DomGridRenderer | null;
+  readonly well: () => HTMLElement | undefined;
+}
+
+const phoneWidthSurfaces = new Set<PhoneWidthSurface>();
+let phoneWidthObserver: ResizeObserver | null = null;
+let phoneWidthRaf = 0;
+
+function fitPhoneWidths(): void {
+  if (stageMode() !== "phone") return; // live re-fit is phone law only
+  for (const surface of phoneWidthSurfaces) {
+    const well = surface.well();
+    const renderer = surface.renderer();
+    if (!well || !renderer || !well.isConnected || well.clientWidth === 0)
+      continue; // no layout yet (jsdom / pre-first-frame) — preset stands
+    const label = well.querySelector<HTMLElement>(".row-label");
+    if (!label) continue;
+    const labelBox = label.getBoundingClientRect().width;
+    if (labelBox <= 0) continue;
+    const raw =
+      (well.clientWidth - labelBox - (surface.steps - 1) * surface.gapPx) /
+      surface.steps;
+    renderer.setCellWidth(
+      Math.min(PHONE_CELL_MAX_PX, Math.max(surface.floorPx, raw)),
+    );
+  }
+}
+
+/** rAF-coalesced (the scheduleFit twin — resize-time only). */
+function schedulePhoneWidthFit(): void {
+  if (phoneWidthRaf) return;
+  phoneWidthRaf = requestAnimationFrame(() => {
+    phoneWidthRaf = 0;
+    fitPhoneWidths();
+  });
+}
+
+function registerPhoneWidthSurface(surface: PhoneWidthSurface): void {
+  phoneWidthSurfaces.add(surface);
+  const well = surface.well();
+  if (well) ensurePhoneWidthObserver()?.observe(well);
+  // The mount compute: onMount may run before first layout — the rAF lands
+  // it one frame later (the renderer's own mountPending precedent).
+  schedulePhoneWidthFit();
+}
+
+function unregisterPhoneWidthSurface(surface: PhoneWidthSurface): void {
+  const well = surface.well();
+  if (well) phoneWidthObserver?.unobserve(well);
+  phoneWidthSurfaces.delete(surface);
+}
+
+/** Lazily, once (the ensureFitObservers precedent; jsdom stands down). */
+function ensurePhoneWidthObserver(): ResizeObserver | null {
+  if (
+    phoneWidthObserver ||
+    typeof window === "undefined" ||
+    typeof window.ResizeObserver === "undefined"
+  ) {
+    return phoneWidthObserver;
+  }
+  phoneWidthObserver = new ResizeObserver(() => schedulePhoneWidthFit());
+  return phoneWidthObserver;
+}
+
 /**
  * The fit itself — measured, never restated as constants (the refinement-2
  * drift lesson). THREE phases, per the refinement-4 compression law + the
@@ -983,6 +1082,25 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     if (mode !== "phone") {
       registerQuadrantSurface(surface);
       onCleanup(() => unregisterQuadrantSurface(surface));
+    }
+
+    // H-2: the phone width-fit law — pitched lanes (drums joins in H-3).
+    // Fills a 1-bar row to the well EXACTLY at the clamped fraction; a
+    // below-floor pattern (2-bar) keeps the floor pitch and h-scrolls
+    // (see fitPhoneWidths for the law). Registered separately from the
+    // quadrant surface: the phone stage never registers for the vertical
+    // budget fit, and this observer must survive the width-only resizes
+    // the remount key does NOT cover (the live re-fit seam).
+    if (mode === "phone" && pitched) {
+      const widthSurface: PhoneWidthSurface = {
+        steps,
+        gapPx: geo.gapPx,
+        floorPx: geo.cellPx,
+        renderer: () => rendererRef,
+        well: () => container,
+      };
+      registerPhoneWidthSurface(widthSurface);
+      onCleanup(() => unregisterPhoneWidthSurface(widthSurface));
     }
 
     // LY-1 quadrant state: flip editable when the selection moves. O(1) in

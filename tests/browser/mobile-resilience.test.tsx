@@ -111,6 +111,22 @@ async function waitFor(
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * H-2: the phone width law re-pitches step cells to the MEASURED well
+ * (this harness lays the app out at its own width — well ≈398 at a 390
+ * viewport — so pitched cells sit at whatever fraction the law computes).
+ * Touch coordinates address STEP positions, so derive the live pitch from
+ * the row's own inline template (cellPx + gap) instead of pinning the old
+ * 15+1 preset. The `+ Npx` nudges used by callers stay mid-cell at every
+ * clamped pitch (floor 15).
+ */
+const phoneStepPitch = (rowCells: HTMLElement): number => {
+  const m = rowCells.style.gridTemplateColumns.match(/([\d.]+)px/);
+  const cell = m ? Number.parseFloat(m[1]!) : 15;
+  const gap = Number.parseFloat(rowCells.style.gap);
+  return cell + (Number.isFinite(gap) ? gap : 1);
+};
+
 /** The app + the trusted-touch toolbox, source-mounted at a phone stage. */
 interface PhoneApp {
   el: (sel: string) => HTMLElement;
@@ -554,10 +570,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // touch (CDP touchCancel mid-gesture) → clean cancel, no commit. ---
         const depth0 = historyDepth();
         const row1 = app.cell("bass", 1, 0).parentElement!;
+        const swRot = phoneStepPitch(row1);
         const line = app.rowLine(
           row1.getBoundingClientRect(),
-          { x: 2 * 16 + 7, y: 12 },
-          { x: 5 * 16 + 7, y: 12 },
+          { x: 2 * swRot + 7, y: 12 },
+          { x: 5 * swRot + 7, y: 12 },
           4,
         );
         await app.sendTouch("touchStart", [line[0]!]);
@@ -582,16 +599,17 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // grid surface + the rail — the gesture dies with its surface. ---
         const anchorRow = app.cell("bass", 0, 4).parentElement!;
         const rectBefore = anchorRow.getBoundingClientRect();
+        const swCross = phoneStepPitch(anchorRow);
         const downPt = app.rowLine(
           rectBefore,
-          { x: 4 * 16 + 7, y: 12 },
-          { x: 4 * 16 + 7, y: 12 },
+          { x: 4 * swCross + 7, y: 12 },
+          { x: 4 * swCross + 7, y: 12 },
           0,
         )[0]!;
         const movePt = app.rowLine(
           rectBefore,
-          { x: 7 * 16 + 7, y: 12 },
-          { x: 7 * 16 + 7, y: 12 },
+          { x: 7 * swCross + 7, y: 12 },
+          { x: 7 * swCross + 7, y: 12 },
           0,
         )[0]!;
         await app.sendTouch("touchStart", [downPt]);
@@ -978,10 +996,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         const depth0 = historyDepth();
         const aud0 = auditions.length;
         const row1 = app.cell("bass", 1, 0).parentElement!;
+        const swT1 = phoneStepPitch(row1);
         const line = app.rowLine(
           row1.getBoundingClientRect(),
-          { x: 2 * 16 + 7, y: 12 },
-          { x: 6 * 16 + 7, y: 12 },
+          { x: 2 * swT1 + 7, y: 12 },
+          { x: 6 * swT1 + 7, y: 12 },
           5,
         );
         await app.sendTouch("touchStart", [line[0]!]);
@@ -1062,22 +1081,23 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         const notesBefore = bassNotes().length;
         const gRow = app.cell("bass", 1, 0).parentElement!;
         const gRect = gRow.getBoundingClientRect();
+        const swT3 = phoneStepPitch(gRow);
         const heldPt = app.rowLine(
           gRect,
-          { x: 1 * 16 + 7, y: 12 },
-          { x: 1 * 16 + 7, y: 12 },
+          { x: 1 * swT3 + 7, y: 12 },
+          { x: 1 * swT3 + 7, y: 12 },
           0,
         )[0]!;
         const extraPt = app.rowLine(
           gRect,
-          { x: 9 * 16 + 7, y: 12 },
-          { x: 9 * 16 + 7, y: 12 },
+          { x: 9 * swT3 + 7, y: 12 },
+          { x: 9 * swT3 + 7, y: 12 },
           0,
         )[0]!;
         const movePt = app.rowLine(
           gRect,
-          { x: 4 * 16 + 7, y: 12 },
-          { x: 4 * 16 + 7, y: 12 },
+          { x: 4 * swT3 + 7, y: 12 },
+          { x: 4 * swT3 + 7, y: 12 },
           0,
         )[0]!;
         await app.secondFinger(heldPt, extraPt, movePt);
@@ -1095,16 +1115,17 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // -- T4: long-press contextmenu during a held touch gesture ---------
         const lpRow = app.cell("bass", 2, 0).parentElement!;
         const lpRect = lpRow.getBoundingClientRect();
+        const swT4 = phoneStepPitch(lpRow);
         const lpPt = app.rowLine(
           lpRect,
-          { x: 2 * 16 + 7, y: 12 },
-          { x: 2 * 16 + 7, y: 12 },
+          { x: 2 * swT4 + 7, y: 12 },
+          { x: 2 * swT4 + 7, y: 12 },
           0,
         )[0]!;
         const lpEnd = app.rowLine(
           lpRect,
-          { x: 5 * 16 + 7, y: 12 },
-          { x: 5 * 16 + 7, y: 12 },
+          { x: 5 * swT4 + 7, y: 12 },
+          { x: 5 * swT4 + 7, y: 12 },
           0,
         )[0]!;
         await app.touchHoldAt(lpPt, 600); // the long-press dwell
