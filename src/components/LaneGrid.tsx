@@ -167,14 +167,18 @@ const QUADRANT_GEOMETRY: Record<
 
 /* ---------------------------------------------------------------------------
  * MB-1 (mobile slice): the NARROW geometry — phone (<768 single-lane stage)
- * AND tablet (768–1024 quadrant stage) share one horizontal law so rotation
- * between them re-fits without a geometry rethink:
- *   - cell 15 + gap 1: the tightest phone (360 px) must fit a 1-bar row
- *     BESIDE its label with no horizontal scroll (the committed default
- *     view) — drums measure 68 (label box) + 16×15 + 15 = 323 px against a
- *     334 px content width, 11 px of honest slack; 16 px cells would read
- *     339 px and scroll. The quadrant pitched scale (16) stays 16 — only
- *     the narrow preset pays the phone-width tax;
+ * AND tablet (768–1024 quadrant stage) share one horizontal preset so
+ * rotation between them re-fits without a geometry rethink:
+ *   - cell 15 + gap 1 — i5 AMENDMENT (H-2/H-3, docs/dev/mobile-i5-audit.md
+ *     §2): at PHONE the cell is no longer the pinned 15 — it is the
+ *     WIDTH-FILL LAW's exact fraction of the measured well (fitPhoneGeometry
+ *     below: cellPx = (well − labelBox − (n−1)·gap) / n, clamp [15, 24]),
+ *     so a 1-bar row fills the well EXACTLY (0 px dead right) instead of
+ *     the old 11–93 px dead band. The 15 here survives as the preset's
+ *     committed FLOOR — the readability minimum below which the grid
+ *     honestly h-scrolls (exactly the 2-bar treatment) — and as the TABLET
+ *     pin, which stays byte-identical (m5): the fork is by stage mode at
+ *     the mount + the phone-scoped fit observer, NEVER a preset retune;
  *   - labels condense (drums 60 = the OPENHAT Silkscreen floor at 10 px;
  *     pitched 48 — short note names);
  *   - the drums fill rail becomes a focus-revealed OVERLAY over the cells
@@ -192,10 +196,12 @@ const QUADRANT_GEOMETRY: Record<
  * the viewport grows with them (the M-7 max-space law). 44 px = the
  * target-size law's own number: every cell's VERTICAL hit is the full row
  * (the renderer's hit test is row-exact), so a 44 px row is a 44 px-tall
- * cell target; cell WIDTH stays the committed 15 px 1-bar horizontal fit
- * law (the phone preset's cellPx — the grid surface is the committed
- * pan-y gesture surface, not a chrome control). Still ≥ every lane's
- * minRowPx floor by a wide margin.
+ * cell target; H-3 (i5 §3) grows that track into the measured
+ * bottom-ownership leftover up to PHONE_ROW_MAX_PX (64) — the track is the
+ * clamp [44, 64], not the exact 44 pin. Cell WIDTH is the i5 fill law
+ * above (15.69–20.81 px on the shipped viewports; the grid surface stays
+ * the committed pan-y gesture surface, not a chrome control). Still ≥
+ * every lane's minRowPx floor by a wide margin.
  * ------------------------------------------------------------------------- */
 const NARROW_GEOMETRY: Record<
   LaneId,

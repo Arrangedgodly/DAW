@@ -1,5 +1,14 @@
 # Mobile i4 audit — M-1 (iteration 4)
 
+> **i5 delta (2026-09-10, H-4):** the 15 px phone cell pin, the "1-bar
+> default view" slack arithmetic, and the "phone fill early-returns" law
+> recorded below were superseded by iteration 5's width-fill +
+> bottom-ownership laws — see `docs/dev/mobile-i5-audit.md` §2/§3 (cells
+> 15.69–20.81 px by exact measured fill, clamp [15,24]; rows 44–64 grown
+> into measured leftover; the M-7 share baselines in §8 below grew with
+> them: 34.6/36.5% → 52.1/49.5/56.7% at 390/360/430). Tablet pins are
+> unchanged. This document stays the i4 record.
+
 Produced 2026-09-10 at HEAD (unit battery 1726/1726 green, no source change;
 anchors re-verified against HEAD on re-submission: App.tsx 120 lines,
 app.css 596, Booth.tsx 495, LaneGrid.tsx 1124, selection.ts 332).

@@ -429,6 +429,28 @@ describe("MB-1 responsive stage (built app)", () => {
           scroll1.clientWidth + 1,
           "1-bar pattern needs no horizontal scroll",
         );
+        // i5 fill law (H-4 formalizes, audit §5 row 1 — PRESERVED and
+        // strengthened): no-scroll holds BY CONSTRUCTION because the fill
+        // is exact — the row's right edge IS the well's right edge (0 dead
+        // right; the pre-i5 pin measured 41 px dead at 390). The remount
+        // fit is one rAF out — poll the settled law.
+        await poll(
+          () =>
+            Math.abs(
+              scroll1.getBoundingClientRect().right -
+                ($(".row-cells") as HTMLElement).getBoundingClientRect()
+                  .right,
+            ) <= 0.25,
+          5_000,
+          "1-bar fill-exact row (i5 §2 width-fill law)",
+        );
+        expect(
+          Math.abs(
+            scroll1.getBoundingClientRect().right -
+              ($(".row-cells") as HTMLElement).getBoundingClientRect().right,
+          ),
+          "1-bar row fills the well exactly (i5 §2 width-fill law)",
+        ).toBeLessThanOrEqual(0.25);
         expect(de().scrollWidth).toBeLessThanOrEqual(W);
 
         // 2-BAR pattern scrolls horizontally INSIDE the grid; the page still
@@ -457,7 +479,8 @@ describe("MB-1 responsive stage (built app)", () => {
         // (44px-tall cell targets — the target-size law's own number on the
         // row axis); H-3's bottom-ownership clamp grows them into the
         // measured stretch leftover up to 64 (the i5 audit §3 clamp — the
-        // exact 44px pin retired with it; H-4 formalizes the gate).
+        // exact 44px pin retired with it; formalized per-lane at every
+        // phone viewport by the M-7 i5 gates, viewport-utilization.test.ts).
         // 16 step columns; the labels never clip (the 60px OPENHAT floor).
         const cells = $(".row-cells");
         const rowTrack = Number.parseFloat(
@@ -573,7 +596,10 @@ describe("MB-1 responsive stage (built app)", () => {
           H * 0.4,
         );
 
-        // 1-bar default view still fits (the tight case: label 60 + 16×17).
+        // 1-bar default view still fits at the tight width — by the i5
+        // fill law's EXACT arithmetic (audit §2): label box 68 + 16×15.6875
+        // + 15×1 = 334 = the 360 well exactly (0 dead right, no scroll;
+        // the pre-i5 pin read 15 px cells with 11 px slack).
         ($(`.lane-switch-tab[data-lane="drums"]`) as HTMLElement).click();
         await poll(
           () => $(".lane-floor").dataset.lane === "drums",

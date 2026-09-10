@@ -21,7 +21,13 @@
  * the plan's own law: "grid cells are data targets not buttons"):
  * - Grid cells + note-edge zones: data targets / pointer gesture affordances
  *   (editing obeys the gesture laws; the keyboard twin is the cell's Enter
- *   path). Their geometry is measured and logged, never asserted ≥44.
+ *   path). Their geometry is measured and logged, never asserted ≥44. i5
+ *   delta (H-4, journals only — the exemption is about the GESTURE SURFACE,
+ *   not an endorsement of small targets): the cells are no longer 15 px
+ *   wide — the width-fill law grows them to 15.69–20.81 px on the shipped
+ *   viewports (17.5625 drums / 18.3125 pitched at 390) against 44–64 px
+ *   grown row tracks; the recorded exempt-row numbers below grow with the
+ *   fill, logged not asserted.
  * - The booth TEMPO number input: WCAG 2.5.5 "equivalent" exception — the
  *   flanking −/+ steppers (both ≥44 hit) are the equivalent adjustment
  *   controls; the input exists for direct entry only.

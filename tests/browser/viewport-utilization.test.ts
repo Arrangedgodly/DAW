@@ -312,31 +312,83 @@ describe("FV-1 full-viewport densification (built app, 1280/1440/1920)", () => {
  * active lane; pitched bass measured 200px → 23.7%). M-7's rework raises
  * the phone editing rows to 44px (finger-sized cells — the target-size
  * law's own number on the row axis) and trims the stage gutters, measuring
- * 34.6% / 36.5% (bass 40.3%). The gate pins the REWORKED numbers minus a
+ * 34.6% / 36.5% (bass 40.3%). The gate pinned the REWORKED numbers minus a
  * sanctioned ~4.5pp margin (30% / 32%): restoring the 24px rows reddens it
  * at both viewports (20.4 / 21.5 < 30 / 32).
+ * i5 (H-3's row-growth clamp, re-derived GROW-ONLY by H-4 at HEAD fd7bf68):
+ * the drums pane measures 52.1% / 49.5% / 56.7% at 390/360/430 — floors
+ * raised to 47.5% / 45% / 52% (same ~4.5pp margin, old floors the hard
+ * minimum). Restoring the 24px rows STILL reddens all three (20.4/21.5 ≪
+ * 45/47.5); so does clamping tracks back to the exact 44 pin (share
+ * returns to ~34.6/36.5 < 45/47.5).
  *
  * ROW-TARGET LAW: every rendered `.grid-row` is ≥44px tall — the cell hit
  * test is row-exact on the vertical axis, so this is the target-size law's
- * metric applied to the grid surface itself (the cells' WIDTH stays the
- * committed 15px 1-bar horizontal fit law; the grid is the recorded pan-y
- * gesture surface, exempted as a DATA TARGET in the MB-3 audit).
+ * metric applied to the grid surface itself. The cells' WIDTH is the i5
+ * WIDTH-FILL LAW below (15.69–20.81 px on the shipped viewports — the
+ * recorded 15 px phone cell pin retired with it; the grid stays the
+ * recorded pan-y gesture surface, exempted as a DATA TARGET in the MB-3
+ * audit).
  *
  * Chrome law stays where it lives (mobile-viewport MB-1/MB-6: <50% at
  * 360×800) — this gate asserts only the utilization delta it owns.
+ *
+ * H-4 (iteration 5) — THE i5 GATES WITH TEETH, per lane per phone viewport
+ * (390×844, 360×800, 430×932; the MB-6 scrollbar-width:none convention, so
+ * the well measures W−26 exactly — audit §1):
+ *
+ *   WIDTH-FILL (i5 audit §2, H-2+H-3 law): a 1-bar row (drums/bass/lead —
+ *   the demo's 16-step patterns) fills the well EXACTLY — `.row-cells`
+ *   right edge == `.lane-grid-scroll` right edge within 0.25 px (the CSS
+ *   LayoutUnit 1/64-px track quantization bound at n=32; per-lane sum error
+ *   ≤ n/128 ≤ 0.25), i.e. dead-right 0, and the measured first-cell width
+ *   equals the audit's exact recorded fraction (17.5625/15.6875/20.0625
+ *   drums, 18.3125/16.4375/20.8125 pitched at 390/360/430 — measured
+ *   bounding boxes, NEVER computed track lists, which serialize rounded);
+ *   `scrollWidth ≤ clientWidth + 1` (m1's no-scroll property, by
+ *   construction). The 2-bar chords lane is the audit's one scroller: raw
+ *   fit 8.66/7.72/9.91 < the 15 floor → cells stay 15, the grid scrolls
+ *   INSIDE the well, the page never h-scrolls.
+ *
+ *   ROW-TRACK CLAMP (i5 audit §3): every lane's `gridAutoRows` track reads
+ *   within [44, 64] — the M-7 ≥44 floor plus H-3's growth cap (the exact
+ *   44px pin retired with the clamp).
+ *
+ *   BOTTOM-OWNERSHIP (i5 audit §3, H-3 law): at document scroll-end the
+ *   lane-floor's bottom IS the document bottom (≤1 px) — the card owns the
+ *   viewport bottom; the pre-H-3 dead band measured 4–236 px.
+ *
+ * TEETH (scratch-revert proofs, journaled in production-log.md "H-4"):
+ * re-pinning the phone cell to 15 in fitPhoneGeometry reddens the fill +
+ * cell-px asserts at 390/430 (dead-right ~41/53 px, cell 15 vs 17.5625);
+ * early-returning the phone fit reddens them at ALL viewports; reverting
+ * the app.css stage stretch (flex:grow → flex:none) reddens the
+ * bottom-ownership assert (dead below 148+ px at 390 drums).
+ *
+ * SHARE FLOORS (grow-only, re-derived at HEAD fd7bf68 after H-3's row
+ * growth — the pre-H-3 floors 30%/32% remain the hard minimum): see the
+ * CASES table below for the measured values and the sanctioned ~4.5pp
+ * margin (the original M-7 convention).
  * ------------------------------------------------------------------------- */
-describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800)", () => {
+describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932)", () => {
   it(
-    "the grid takes ≥30%/≥32% of the phone viewport; every grid row ≥44px",
-    { timeout: 180_000 },
+    "grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane",
+    { timeout: 240_000 },
     async () => {
       const CASES: ReadonlyArray<{
         w: number;
         h: number;
         minShare: number;
       }> = [
-        { w: 390, h: 844, minShare: 0.3 },
-        { w: 360, h: 800, minShare: 0.32 },
+        // Grow-only re-derivation at HEAD fd7bf68 (H-4, first-run drums
+        // active): 52.1% / 49.5% / 56.7% measured after H-3's row growth —
+        // floors raised 30→47.5 / 32→45 (the ~4.5pp sanctioned margin),
+        // old floors stay the hard minimum. The pre-H-3 numbers were
+        // 34.6% / 36.5% (30% / 32% floors); the pre-M-7 24px-row baseline
+        // was 20.4% / 21.5%.
+        { w: 390, h: 844, minShare: 0.475 },
+        { w: 360, h: 800, minShare: 0.45 },
+        { w: 430, h: 932, minShare: 0.52 },
       ];
       for (const { w, h, minShare } of CASES) {
         // The phone boot: the MB-6 overlay-scrollbar pin (the committed
@@ -402,7 +454,7 @@ describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800)", ()
           const share = gridH / vh;
           expect(
             share,
-            `${w}×${h}: grid share of viewport (baseline 20.4%/21.5% pre-M-7; rework measures 34.6%/36.5%)`,
+            `${w}×${h}: grid share of viewport (pre-M-7 20.4%/21.5%; i4 rework 34.6%/36.5%; i5 row growth measures 52.1%/49.5%/56.7% at 390/360/430)`,
           ).toBeGreaterThanOrEqual(minShare);
           // The chrome must not have regrown past its own law while the
           // grid took the space (the MB-1 twin, at the gate's own view).
@@ -428,11 +480,167 @@ describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800)", ()
           console.log(
             `[M-7 grid utilization · ${w}×${h}] grid ${gridH.toFixed(0)}px = ${(share * 100).toFixed(1)}% of viewport; chrome ${chromeH.toFixed(0)}px; ${rows.length} rows ≥44px`,
           );
+
+          // --- H-4: the i5 WIDTH-FILL + BOTTOM-OWNERSHIP laws, per lane ----
+          // The audit's exact fractions (§2 targets table): drums label-box
+          // 68, pitched 56, so cellPx = (W−26 − labelBox − 15)/16 lands on
+          // these EXACT 16ths. Measured boxes, never computed tracks (§2
+          // fractional note: getComputedStyle serializes rounded tracks).
+          const FILL_TOL = 0.25; // LayoutUnit 1/64-px bound at n=32 (§2)
+          const EXPECTED_CELL_PX: Record<number, [drums: number, pitched: number]> =
+            {
+              390: [17.5625, 18.3125],
+              360: [15.6875, 16.4375],
+              430: [20.0625, 20.8125],
+            };
+          const [drumsPx, pitchedPx] = EXPECTED_CELL_PX[w]!;
+          for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+            const expectedPx =
+              lane === "drums" ? drumsPx : pitchedPx;
+            const scrolling = lane === "chords"; // the demo's 2-bar scroller
+            const tab = idoc().querySelector<HTMLElement>(
+              `.lane-switch-tab[data-lane="${lane}"]`,
+            )!;
+            tab.click();
+            await poll(
+              () =>
+                idoc().querySelector(".lane-floor")?.getAttribute("data-lane") ===
+                lane,
+              5_000,
+              `${lane} stage`,
+            );
+            const cellsOf = () =>
+              idoc().querySelector<HTMLElement>(".grid-row .row-cells")!;
+            const wellOf = () =>
+              idoc().querySelector<HTMLElement>(".lane-grid-scroll")!;
+            const firstCellOf = () =>
+              cellsOf().querySelector<HTMLElement>(".cell")!;
+            // Fill-exact wait (the H-3 touch-gestures precedent): the mount
+            // fit is one rAF out and fonts.ready re-fits once, so poll the
+            // settled law instead of sleeping. On red, re-measure so the
+            // failure carries the ACTUAL geometry (teeth with numbers).
+            const measured = () => {
+              const wellR = wellOf().getBoundingClientRect();
+              const cellsR = cellsOf().getBoundingClientRect();
+              return `measured dead-right ${(wellR.right - cellsR.right).toFixed(3)}px, first cell ${firstCellOf().getBoundingClientRect().width.toFixed(4)}px, well ${wellR.width.toFixed(1)}px`;
+            };
+            if (scrolling) {
+              await poll(
+                () => cellsOf().querySelectorAll(".cell").length === 32,
+                5_000,
+                `${lane} 2-bar row (32 steps)`,
+              );
+              try {
+                await poll(
+                  () =>
+                    Math.abs(
+                      firstCellOf().getBoundingClientRect().width - 15,
+                    ) <= FILL_TOL,
+                  8_000,
+                  `${lane} 15-floor pitch`,
+                );
+              } catch (err) {
+                  throw new Error(
+                    `${(err as Error).message} — ${measured()}`,
+                    { cause: err },
+                  );
+                }
+            } else {
+              try {
+                await poll(
+                  () =>
+                    Math.abs(
+                      wellOf().getBoundingClientRect().right -
+                        cellsOf().getBoundingClientRect().right,
+                    ) <= FILL_TOL,
+                  8_000,
+                  `${lane} fill-exact row (i5 §2 law)`,
+                );
+              } catch (err) {
+                throw new Error(
+                  `${(err as Error).message} — ${measured()}`,
+                  { cause: err },
+                );
+              }
+            }
+            // WIDTH-FILL: the row owns the whole well — dead-right 0 (the
+            // pre-H-2 dead band measured 41–93 px, audit §1).
+            const cellsRect = cellsOf().getBoundingClientRect();
+            const cellPx = firstCellOf().getBoundingClientRect().width;
+            const well = wellOf();
+            if (scrolling) {
+              expect(
+                cellPx,
+                `${w}×${h} ${lane}: 2-bar keeps the committed 15px floor pitch`,
+              ).toBeGreaterThanOrEqual(15 - FILL_TOL);
+              expect(
+                cellPx,
+                `${w}×${h} ${lane}: 2-bar floor pitch is exactly 15 (raw fit 8-10 < 15)`,
+              ).toBeLessThanOrEqual(15 + FILL_TOL);
+              expect(
+                well.scrollWidth,
+                `${w}×${h} ${lane}: 2-bar scrolls INSIDE the well`,
+              ).toBeGreaterThan(well.clientWidth);
+              expect(
+                idoc().documentElement.scrollWidth,
+                `${w}×${h} ${lane}: 2-bar never h-scrolls the page`,
+              ).toBeLessThanOrEqual(w);
+            } else {
+              const deadRight =
+                well.getBoundingClientRect().right - cellsRect.right;
+              expect(
+                deadRight,
+                `${w}×${h} ${lane}: dead-right px (i5 fill law: exact fill, 0 dead)`,
+              ).toBeLessThanOrEqual(FILL_TOL);
+              expect(
+                deadRight,
+                `${w}×${h} ${lane}: row must not overflow the well (1-bar fits)`,
+              ).toBeGreaterThanOrEqual(-FILL_TOL);
+              expect(
+                cellPx,
+                `${w}×${h} ${lane}: cell width == the audit's exact fraction (${expectedPx}px; the 15px pin retired by i5)`,
+              ).toBeGreaterThanOrEqual(expectedPx - FILL_TOL);
+              expect(cellPx).toBeLessThanOrEqual(expectedPx + FILL_TOL);
+              expect(
+                well.scrollWidth,
+                `${w}×${h} ${lane}: 1-bar needs no horizontal scroll (exact fill)`,
+              ).toBeLessThanOrEqual(well.clientWidth + 1);
+            }
+            // ROW-TRACK CLAMP: [44,64] (the §3 grow law; the M-7 ≥44 floor
+            // plus H-3's cap — exact-44 retired).
+            const trackPx = Number.parseFloat(
+              getComputedStyle(cellsOf()).gridAutoRows,
+            );
+            expect(
+              trackPx,
+              `${w}×${h} ${lane}: row track ≥44 (M-7 floor)`,
+            ).toBeGreaterThanOrEqual(44);
+            expect(
+              trackPx,
+              `${w}×${h} ${lane}: row track ≤64 (i5 §3 cap)`,
+            ).toBeLessThanOrEqual(64);
+            // BOTTOM-OWNERSHIP: at scroll end the card bottom IS the
+            // document bottom (pre-H-3 measured 4–236 px dead below).
+            win.scrollTo(0, idoc().documentElement.scrollHeight);
+            await new Promise((r) => setTimeout(r, 150));
+            const floorBottomDoc =
+              idoc()
+                .querySelector<HTMLElement>(".lane-floor")!
+                .getBoundingClientRect().bottom + win.scrollY;
+            const docH = idoc().documentElement.scrollHeight;
+            expect(
+              Math.abs(docH - floorBottomDoc),
+              `${w}×${h} ${lane}: dead-below at scroll end (i5 §3: the lane-floor owns the document bottom)`,
+            ).toBeLessThanOrEqual(1);
+            console.log(
+              `[M-7 i5 · ${w}×${h} ${lane}] cell ${cellPx.toFixed(4)}px (expected ${scrolling ? "15 floor" : expectedPx}); track ${trackPx}px; bottom Δ ${(docH - floorBottomDoc).toFixed(2)}px`,
+            );
+          }
         } finally {
           await teardown(iframe);
         }
       }
     },
-    180_000,
+    240_000,
   );
 });

@@ -475,8 +475,12 @@
  * E tag hides (the "4/16" readout + dashed preview + SET carry the euclid
  * identity; the tag returns on desktop/tablet), the readout's ch floor
  * drops to 2 (rotation values are ≤2 digits), and the ctl/stepper gutters
- * take the 2 px end of the world's spacing scale so the one-line chassis
- * fits the 390 scrollport with ~15 px of slack. */
+ * take the 2 px end of the world's spacing scale. i5 delta (H-4): the old
+ * "~15 px of slack" note retired — the width-fill law consumes the well
+ * EXACTLY (0 px dead right by construction), so there is no grid slack to
+ * spend; the one-line chassis fits because its max-content width stays
+ * under the 100cqw clamp above (the well's own inline size, unchanged by
+ * the fill), with these condensations keeping the margin. */
 .app[data-stage="phone"] .row-fill-ctl {
   flex-wrap: wrap;
   gap: var(--space-1);
