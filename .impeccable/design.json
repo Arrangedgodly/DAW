@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-05T09:30:00.000Z",
+  "generatedAt": "2026-09-10T00:00:00Z",
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
@@ -194,7 +194,7 @@
       {
         "name": "phone",
         "value": "<768 (or <1024 with height <600 — rotated phone keeps the phone law)",
-        "purpose": "Single-lane stage: lane-switcher tabs = quadrant selection; ONE sticky phone-chrome (booth + switcher + condensed rail) <50% viewport height; grid scrolls naturally (rows vertical, 2/4-bar horizontal, 1-bar default); page never h-scrolls."
+        "purpose": "Single-lane stage: lane-switcher tabs = quadrant selection; ONE sticky phone-chrome (booth + switcher + condensed rail) <50% viewport height; grid scrolls naturally (rows vertical, 2/4-bar horizontal, 1-bar default); page never h-scrolls. Since i5: 1-bar rows fill the well width exactly (exact-fraction cells, clamp [15,24]; 0 dead-right), row tracks grown [44,64]px (44 floor), and the card bottom owns the viewport bottom at scroll end (grid share 52.1/49.5/56.7% at 390/360/430)."
       }
     ]
   },
@@ -282,7 +282,11 @@
   ],
   "narrative": {
     "northStar": "Arcade Stage Floor",
-    "overview": "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth — a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade — the whole DAW fits one page at 1440×900 — and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2×2 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2×2 collapses to a single-lane stage behind a lane switcher, with full touch parity — same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM — which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
+    "overview": [
+      "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth — a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade — the whole DAW fits one page at 1440×900 — and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2×2 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2×2 collapses to a single-lane stage behind a lane switcher, with full touch parity — same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM — which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
+      "Iteration 4 (mobile rework) put the whole instrument in one hand: KEYS/INFO dropped from the phone stage, a centered always-visible transport pinned in the chrome, booth options folded into a zero-DOM-when-closed drawer, the desktop one-octave register window extended to phone grids behind explicit ±octave/±semitone shift rows with fill+border+shape change feedback, and 44px finger-sized rows lifting the grid to ~35% of the phone viewport. Desktop surfaces untouched.",
+      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) — grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical."
+    ],
     "keyCharacteristics": [
       "Dark stage ground; four lane hues carry identity; warm white carries information.",
       "Silkscreened uppercase labels on every control; mono value readouts are tabular by construction.",
@@ -319,7 +323,8 @@
       "Do keep every text pair ≥ AA by the res-9 table (warm white on ground 17.49:1; ink-on-fill ≥5.17:1; dim legends at 62% ink = 7.00:1, never 45%).",
       "Do gate motion in BOTH CSS media query and the render loop via matchMedia; honor prefers-reduced-motion by construction.",
       "Do keep floating surfaces inside the viewport law: overlays never grow the page.",
-      "Do give touch a target ≥44px: painted ≥44px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible ±8px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows."
+      "Do give touch a target ≥44px: painted ≥44px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible ±8px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows.",
+      "Do keep the phone options drawer zero-DOM while closed and the register shift rows' bounds honest (disabled at the clamp, aria-live ROWS readout on every change)."
     ],
     "donts": [
       "Don't put warm-white text on a lane-hue fill, or lane-hue text on ground for info-critical copy (red text ≤10px Silkscreen 700 only).",
