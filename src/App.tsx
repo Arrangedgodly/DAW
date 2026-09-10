@@ -88,7 +88,10 @@ export default function App() {
           class="phone-chrome"
           inert={vizMode() ? true : undefined}
         >
-          <Booth />
+          {/* M-2: phone stage thins the booth — KEYS ?/INFO ? buttons do
+              not render (render guard, not CSS; VZ-DD-1 a11y-tree law).
+              The desktop/tablet fallback branch above stays unchanged. */}
+          <Booth compact />
           <LaneSwitcher />
           <PatternRail />
         </div>

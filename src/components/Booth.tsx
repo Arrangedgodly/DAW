@@ -8,7 +8,7 @@
  * state (playing, loop, bpm…) rides Solid signals fed by transport.subscribe.
  */
 
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import type { Position } from "../audio/time";
 import { getSession } from "../engine/session";
 import {
@@ -105,6 +105,16 @@ export interface BoothProps {
    * no-Tab-stops-outside-the-remote law).
    */
   readonly covered?: boolean;
+  /**
+   * M-2 (iteration 4): on the phone stage the KEYS ? and INFO ? corner
+   * buttons do not render at all — a render guard, not CSS hiding, so
+   * they leave the a11y tree per the VZ-DD-1 inert law (same pattern as
+   * `covered`). Desktop/tablet never sets it and renders both buttons
+   * unchanged. The help-registry entries `booth.keys`/`booth.info` stay
+   * (desktop keeps the controls) and the `?`/I keyboard twins remain
+   * functional with an attached keyboard.
+   */
+  readonly compact?: boolean;
 }
 
 export default function Booth(props: BoothProps) {
@@ -266,27 +276,32 @@ export default function Booth(props: BoothProps) {
         >
           METRONOME
         </button>
-        <button
-          type="button"
-          class="booth-btn booth-btn-help"
-          data-help="booth.keys"
-          aria-haspopup="dialog"
-          onClick={(e) => openHelp(e.currentTarget)}
-        >
-          KEYS ?
-        </button>
-        {/* HP-1: the info-mode corner toggle (beside KEYS ?; the keyboard
-            shortcut overlay stays a SEPARATE surface). */}
-        <button
-          type="button"
-          class="booth-btn booth-btn-info"
-          classList={{ "is-on": helpMode() }}
-          data-help="booth.info"
-          aria-pressed={helpMode()}
-          onClick={toggleHelp}
-        >
-          INFO ?
-        </button>
+        {/* M-2: phone-stage render guard — KEYS ? / INFO ? leave the DOM
+            (and the a11y tree) entirely on the phone stage; the `?`/I
+            keyboard twins stay live (KeyboardShortcuts). */}
+        <Show when={!props.compact}>
+          <button
+            type="button"
+            class="booth-btn booth-btn-help"
+            data-help="booth.keys"
+            aria-haspopup="dialog"
+            onClick={(e) => openHelp(e.currentTarget)}
+          >
+            KEYS ?
+          </button>
+          {/* HP-1: the info-mode corner toggle (beside KEYS ?; the keyboard
+              shortcut overlay stays a SEPARATE surface). */}
+          <button
+            type="button"
+            class="booth-btn booth-btn-info"
+            classList={{ "is-on": helpMode() }}
+            data-help="booth.info"
+            aria-pressed={helpMode()}
+            onClick={toggleHelp}
+          >
+            INFO ?
+          </button>
+        </Show>
         {/* VZ-IM-2: the VIZ page entry toggle (the INFO-? row precedent).
             A stage-global mode, so the lit state is the warm-white chassis
             fill — booth-btn-info's lamp, not a lane hue. VZ-DD-1: the click

@@ -494,8 +494,17 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         rows.push(await auditControl($(".booth-btn-play"), "booth PLAY"));
         rows.push(await auditControl($(".booth-btn-loop"), "booth LOOP"));
         rows.push(await auditControl($(".booth-btn-metro"), "booth METRONOME"));
-        rows.push(await auditControl($(".booth-btn-help"), "booth KEYS ?"));
-        rows.push(await auditControl($(".booth-btn-info"), "booth INFO ?"));
+        // M-2 (iteration 4): the KEYS ? / INFO ? corner buttons do not
+        // render at the phone stage (render guard, not CSS) — they are
+        // absent from the DOM and the a11y tree. Desktop keeps them.
+        expect(
+          document.querySelector(".booth-btn-help"),
+          "M-2: no KEYS ? button in the phone DOM",
+        ).toBeNull();
+        expect(
+          document.querySelector(".booth-btn-info"),
+          "M-2: no INFO ? button in the phone DOM",
+        ).toBeNull();
         await auditSelector(
           ".phone-chrome .booth-step-btn",
           "booth tempo stepper",
@@ -959,7 +968,15 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         const rows360: AuditRow[] = [];
         rows360.push(await auditControl($(".booth-btn-play"), "booth PLAY"));
         rows360.push(await auditControl($(".booth-btn-loop"), "booth LOOP"));
-        rows360.push(await auditControl($(".booth-btn-info"), "booth INFO ?"));
+        // M-2: no KEYS ? / INFO ? at the phone stage (see the 390 block).
+        expect(
+          document.querySelector(".booth-btn-help"),
+          "M-2: no KEYS ? button in the 360 phone DOM",
+        ).toBeNull();
+        expect(
+          document.querySelector(".booth-btn-info"),
+          "M-2: no INFO ? button in the 360 phone DOM",
+        ).toBeNull();
         await auditSelector(
           ".phone-chrome .booth-step-btn",
           "booth tempo stepper",

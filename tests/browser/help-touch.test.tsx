@@ -141,14 +141,34 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         const stageStatus = () =>
           document.querySelector(".stage-status")?.textContent?.trim() ?? "";
 
-        // --- 1. ENTRY BY TOUCH: the tappable affordance ------------------
-        const infoBtn = el(".booth-btn-info");
+        // --- 1. ENTRY: the `i` keyboard twin --------------------------------
+        // M-2 (iteration 4): the phone stage no longer renders the INFO ?
+        // (or KEYS ?) button — a render guard, so they are absent from the
+        // DOM and the a11y tree. Help mode is entered/exited at phone by
+        // the `i` keyboard twin (KeyboardShortcuts), which stays functional
+        // with an attached keyboard; the tap-to-inspect model below is
+        // unchanged.
+        expect(
+          document.querySelector(".booth-btn-info"),
+          "M-2: no INFO ? button in the phone DOM",
+        ).toBeNull();
+        expect(
+          document.querySelector(".booth-btn-help"),
+          "M-2: no KEYS ? button in the phone DOM",
+        ).toBeNull();
+        const pressI = () =>
+          document.body.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "i", bubbles: true }),
+          );
         expect(helpMode()).toBe(false);
-        await tapEl(infoBtn);
-        await waitFor(() => helpMode() === true, 2000, "mode on by touch tap");
+        pressI();
+        await waitFor(
+          () => helpMode() === true,
+          2000,
+          "mode on by the i keyboard twin",
+        );
         expect(el(".info-view")).toBeTruthy();
         expect(stageStatus()).toBe(INFO_MODE_ON_ANNOUNCEMENT);
-        expect(infoBtn.getAttribute("aria-pressed")).toBe("true");
         // Live semantics hold at phone width (E6 at small scale).
         const region = el(".info-view");
         expect(region.getAttribute("role")).toBe("status");
@@ -257,12 +277,15 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
           "tapping unregistered ground keeps the last entry",
         ).toBe("CHAIN TILE");
 
-        // --- 5. EXIT BY TOUCH (the phone's only exit — no Escape key) ----
-        await tapEl(infoBtn);
-        await waitFor(() => helpMode() === false, 2000, "mode off by touch tap");
+        // --- 5. EXIT by the `i` twin (M-2: no phone INFO ? button) --------
+        pressI();
+        await waitFor(
+          () => helpMode() === false,
+          2000,
+          "mode off by the i keyboard twin",
+        );
         expect(document.querySelector(".info-view")).toBeNull();
         expect(stageStatus()).toBe(INFO_MODE_OFF_ANNOUNCEMENT);
-        expect(infoBtn.getAttribute("aria-pressed")).toBe("false");
 
         // --- 6. Controls keep working with the mode OFF (nothing ate) ----
         const notes = () =>

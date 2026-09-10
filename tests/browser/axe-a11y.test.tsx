@@ -191,8 +191,10 @@ describe("DA-2 axe-core gate", () => {
         ).toBe("phone");
         expectClean(await runAxe(host), `phone main ${w}×${h}`);
         // Help mode on (the info view + mode-obvious markers at phone).
-        const info = host.querySelector<HTMLButtonElement>(".booth-btn-info")!;
-        info.click();
+        // M-2 (iteration 4): the phone stage no longer renders the INFO ?
+        // button (render guard) — the mode turns on through the state seam
+        // (the `i` keyboard twin's path).
+        setHelpMode(true);
         await new Promise((r) => setTimeout(r, 300));
         expect(host.querySelector(".info-view")).toBeTruthy();
         expectClean(await runAxe(host), `phone help mode ${w}×${h}`);
