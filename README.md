@@ -166,8 +166,7 @@ best-effort; Safari gets a warn-and-attempt banner. Mobile: Android Chrome.
   drum kits are public domain (CC0), with per-file provenance recorded and
   test-enforced in [PROVENANCE.md](PROVENANCE.md). Use them in your games,
   royalty-free, no attribution needed.
-- **Project code** — no license has been declared for Bitbounce's own source
-  yet, so the default (all rights reserved) applies until one is chosen.
+- **Project code** — [MIT](LICENSE)
 
 ## Run it locally
 
