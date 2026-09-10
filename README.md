@@ -22,28 +22,36 @@ Bitbounce fuses two ideas that usually live far apart:
   while the loop plays.
 
 It's built for game developers and anyone who wants a tight loop in minutes
-instead of an afternoon: draw a pattern, chain a few sections, export a WAV
-that loops with an invisible seam — or a MIDI file that opens in any DAW.
-Everything runs locally; nothing you make leaves your machine unless you
-export it.
+instead of an afternoon: draw a pattern, chain a few sections — each lane can
+run its own length, so a two-bar beat can cycle under an eight-bar chord
+progression — and export a WAV that loops with an invisible seam, or a MIDI
+file that opens in any DAW. Everything runs locally; nothing you make leaves
+your machine unless you export it.
 
 ## Make your first loop
 
 1. **Press PLAY.** First run loads the WELCOME SONG demo — a POLY-LOOP
-   arrangement where the lanes cycle at their own lengths (chords 8 bars
-   against the rhythm section's 4) and weave out of sync and back —
+   arrangement where the lanes cycle at their own lengths (chords every 8
+   bars while drums, bass, and lead run 4) and weave out of sync and back —
    everything you hear is editable, so poke at it.
 2. **Draw notes.** Click a cell to place one; click and drag to stretch a
    note across steps; grab its right edge (or press `+` / `-`) to resize. On
-   the drums lane, dragging paints hits.
+   the drums lane, dragging paints hits. Each pitched lane shows one octave
+   of its scale at a time: scroll the window with `Shift+↑` / `Shift+↓` to
+   reach the rest, and transpose the whole lane by octaves with `o` /
+   `Shift+o` — up to three either way, heard live and written into exports.
 3. **Switch lanes.** The stage is a 2×2 grid of lane quadrants: one quadrant
    is your editing lane, the other three stay visible and playing in their
    own colors. Click a quadrant — or press `]` / `[` — to edit another lane.
-4. **Arrange.** Each lane has a pattern rail. Start a new blank section with
-   `+` (or duplicate the current pattern with `d`), grow it with the LENGTH
-   ladder `b` / `Shift+b` up to 128 bars, then drag across the rail during
-   playback to cue several lanes into their next section together,
-   quantized to the beat.
+4. **Arrange.** Each lane has a pattern rail. `+` appends a new blank
+   pattern (next letter: A, B, C…); `d` duplicates the current one — the
+   only duplication path. Grow a pattern with the LENGTH ladder `b` /
+   `Shift+b` anywhere from 1 to 128 bars; a shrink that would cut notes is
+   refused and tells you which note blocks it. Each lane loops its own
+   chain, so lengths can drift apart — press `p` any time to hear where you
+   are (`POSITION BAR 5 OF 8 · CHORDS BAR 1 OF 8`). Then drag across the
+   rail during playback to cue several lanes into their next section
+   together, quantized to the beat.
 5. **Shape the sound.** Step through each lane's presets, open its FX
    console, and set the mix — volume, mute, and solo per lane.
 6. **Export.** EXPORT WAV hands you a sample-exact render of exactly one
@@ -63,11 +71,22 @@ export it.
 **Desktop — the whole studio is one page.**
 
 - 2×2 lane quadrants, all four lanes visible and playing, editable one at a
-  time; fits a single page from 1280×800 up.
+  time; the stage fills the viewport — one page at 1280×800 and 1440×900,
+  and wider screens get denser grids, not empty margins.
+- Equal register windows: every pitched lane edits a one-octave window of
+  its scale (scroll with `Shift+↑` / `Shift+↓`) and carries its own OCTAVE
+  transpose, ±3 — audible the moment you press it and reflected in WAV and
+  MIDI exports.
 - Sustained notes: drag to create, resize by the edge or keyboard; drums
   drag-paint.
-- Pattern rail with per-lane pattern chains, quantized switching with pending
-  indication, and one-gesture multi-lane cueing.
+- Pattern rail with per-lane chains: blank `+` appends the next pattern
+  letter, DUP is the only duplication path, lengths run powers of two from
+  1 to 128 bars, shrinks that would lose notes are refused by default,
+  switching is quantized with pending indication, and one gesture cues
+  several lanes at once.
+- Poly-loop transport: each lane loops its own cycle length with its own
+  playhead sweep; the song cycle is the lanes' least-common multiple,
+  tracked by the bar readout and announced by `p`.
 - Per-lane mix (volume / mute / solo) — WAV exports honor it; MIDI exports
   every note regardless.
 - 42 pitched presets — chiptune staples plus Karplus–Strong plucked strings —
@@ -97,36 +116,27 @@ edge-resize, rail sweep, mix sliders, exports. Android Chrome is the
 supported target; iOS Safari is best-effort and the app says so honestly
 with a banner.
 
-**VIZ — the light show.** Press `v` (or the booth VIZ toggle) while the loop
-plays and the whole screen becomes a full-bleed, MIDI-driven light rig: every
-note lands as lane-hued light the instant you hear it, and the stage brightens
-as the groove fills. Three controls on a small remote, and that's all there
-is:
-
-- **PRESET** — step through the 10 built-in looks (First Light, Orrery, Comet
-  Run, …).
-- **REROLL** — re-hang the current preset's light rig live, into a fresh
-  arrangement.
-- **EXIT** — back to the studio (Escape and `v` work too).
-
-The music never stops: entering, switching, or leaving VIZ never touches the
-transport or the audio. With reduced motion preferred, the show swaps to
-static light marks instead of animation. VIZ wants room — on a phone it
-politely says the light show runs on a larger screen.
+**Experimental: VIZ.** The booth's VIZ toggle (key `v`) swaps the console
+for a full-screen, MIDI-driven light show — newly merged, still being tuned,
+and not yet part of the polished tour above.
 
 **Keyboard-first.** Every action has a keyboard path — grid navigation, note
-resizing, lane switching, cueing, exports, help. A starter set:
+resizing, register scrolling, octave transpose, lane switching, cueing,
+exports, help. A starter set:
 
-| Keys          | Action                                  |
-| ------------- | --------------------------------------- |
-| Space         | play / stop (outside the grid)          |
-| Arrows        | move the focused cell                   |
-| Enter / Space | toggle the focused cell (inside a grid) |
-| `]` / `[`     | edit the next / previous lane           |
-| `+` / `-`     | resize the focused note                 |
-| Ctrl/⌘ Z      | undo (add Shift to redo)                |
-| `v`           | the VIZ light show (open or exit)         |
-| `?`           | the complete keyboard map               |
+| Keys             | Action                                             |
+| ---------------- | -------------------------------------------------- |
+| Space            | play / stop (outside the grid)                     |
+| Arrows           | move the focused cell                              |
+| Enter / Space    | toggle the focused cell (inside a grid)            |
+| `Shift+↑` / `↓`  | scroll the lane's note window one octave           |
+| `]` / `[`        | edit the next / previous lane                      |
+| `+` / `-`        | resize the focused note                            |
+| `o` / `Shift+o`  | transpose the lane ±1 octave                       |
+| `b` / `Shift+b`  | grow / shrink the pattern (1–128 bars)             |
+| `p`              | announce the position (song cycle · lane cycle)    |
+| Ctrl/⌘ Z         | undo (add Shift to redo)                           |
+| `?`              | the complete keyboard map                          |
 
 The in-app KEYS overlay is the always-current map — this table is just the
 escape hatch.
@@ -135,8 +145,8 @@ escape hatch.
 
 | Format | What you get                                                                                                                                           |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| WAV    | 16-bit stereo 44.1 kHz, sample-exact loop length, effect tails folded into the loop start, per-lane mix applied. Drop it straight into a game engine.  |
-| MIDI   | Type-1 SMF — tempo track plus one track per lane, drums on GM channel 10, instrument program hints. Every note exports, mute and solo notwithstanding. |
+| WAV    | 16-bit stereo 44.1 kHz — renders exactly one full cycle of your arrangement (the least-common multiple of the lane lengths), sample-exact, effect tails folded into the loop start, per-lane mix applied. Drop it straight into a game engine. |
+| MIDI   | Type-1 SMF — tempo track plus one track per lane, drums on GM channel 10, instrument program hints; spans that same cycle, each lane's patterns repeating at their own length inside it. Every note exports, mute and solo notwithstanding. |
 
 ## Privacy: local-first, forever
 
@@ -175,8 +185,8 @@ Open the printed localhost URL. Other handy scripts:
 | Command                | What it does                              |
 | ---------------------- | ----------------------------------------- |
 | `npm run build`        | type-check + production build to `dist/`  |
-| `npm test`             | unit suite (1,167 tests)                  |
-| `npm run test:browser` | browser suite against the built app (129) |
+| `npm test`             | unit suite (1,726 tests)                  |
+| `npm run test:browser` | browser suite against the built app (204) |
 | `npm run lint`         | ESLint                                    |
 | `npm run typecheck`    | TypeScript, no emit                       |
 
