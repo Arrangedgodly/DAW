@@ -492,6 +492,27 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         const rows: AuditRow[] = [];
         // --- pinned chrome: booth (compact painted + hit straps) ---------
         rows.push(await auditControl($(".booth-btn-play"), "booth PLAY"));
+        // M-4 (iteration 4): the option tools (LOOP … MASTER) live in the
+        // collapsible options drawer at phone — open it for their audit,
+        // close it before the stage-surface audits (the open backdrop
+        // intercepts stage taps by design).
+        const openOptionsDrawer = async () => {
+          click('[data-help="phone.options"]');
+          await waitFor(
+            () => document.querySelector(".phone-options-drawer") !== null,
+            2000,
+            "options drawer open",
+          );
+        };
+        const closeOptionsDrawer = async () => {
+          click('[data-help="phone.options"]');
+          await waitFor(
+            () => document.querySelector(".phone-options-drawer") === null,
+            2000,
+            "options drawer closed",
+          );
+        };
+        await openOptionsDrawer();
         rows.push(await auditControl($(".booth-btn-loop"), "booth LOOP"));
         rows.push(await auditControl($(".booth-btn-metro"), "booth METRONOME"));
         // M-2 (iteration 4): the KEYS ? / INFO ? corner buttons do not
@@ -517,6 +538,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           ),
         );
         await auditSelector(".phone-chrome .booth-range", "booth slider", rows);
+        await closeOptionsDrawer(); // stage surfaces below must not sit under the backdrop
         // --- pinned chrome: switcher + condensed rail --------------------
         await auditSelector(".lane-switch-tab", "switcher tab", rows);
         await auditSelector(".rail-tile", "rail tile", rows, { limit: 3 });
@@ -587,6 +609,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             { exempt: true },
           ),
         );
+        await openOptionsDrawer(); // the tempo input lives in the drawer (M-4)
         rows.push(
           await auditControl(
             $(".booth-led-input"),
@@ -617,6 +640,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             "tempo input box must be font-metric-independent (5ch reflowed the first-run phone booth past the chrome gate)",
           ).toBe(pinW);
         }
+        await closeOptionsDrawer();
         rows.push(
           await auditControl(
             $('[data-help="save.status"]'),
@@ -680,6 +704,15 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
 
         // --- booth scale popover ------------------------------------------
+        // M-4 (iteration 4): at phone width the booth scale chip lives in
+        // the options drawer — open it (its controls are audited by the
+        // M-4 gate; here the popover is the target under audit).
+        click('[data-help="phone.options"]');
+        await waitFor(
+          () => document.querySelector(".phone-options-drawer") !== null,
+          2000,
+          "options drawer open",
+        );
         click('[data-help="booth.scale"]');
         await waitFor(
           () => document.querySelector(".scale-pop") !== null,
@@ -692,6 +725,12 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           () => document.querySelector(".scale-pop") === null,
           2000,
           "booth scale popover closed",
+        );
+        keyAt("Escape"); // closes the drawer beneath it
+        await waitFor(
+          () => document.querySelector(".phone-options-drawer") === null,
+          2000,
+          "options drawer closed",
         );
 
         // --- FX console (bass carries demo devices) ------------------------
@@ -786,7 +825,30 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             !el.closest('[aria-hidden="true"]') &&
             el.getClientRects().length > 0,
         );
-        expect(tabbables.length).toBeGreaterThan(20);
+        // M-4 (iteration 4): the phone surface's steady tabbable set
+        // SHRANK — the option tools live in the collapsed drawer (zero
+        // DOM → zero tab stops, the Show law; the pre-M-4 chrome alone
+        // cleared >20). The floor keeps the small-surface walk honest,
+        // and opening the drawer must add its tools back as tab stops.
+        expect(tabbables.length).toBeGreaterThan(15);
+        await openOptionsDrawer();
+        const openTabbables = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            "button, input, select, textarea, [tabindex]",
+          ),
+        ).filter(
+          (el) =>
+            el.isConnected &&
+            el.tabIndex !== -1 &&
+            !el.disabled &&
+            !el.closest('[aria-hidden="true"]') &&
+            el.getClientRects().length > 0,
+        );
+        expect(
+          openTabbables.length - tabbables.length,
+          "the open drawer contributes its tools as tab stops",
+        ).toBeGreaterThanOrEqual(7);
+        await closeOptionsDrawer();
         for (const el of tabbables) {
           expect(
             el.tabIndex,
@@ -967,6 +1029,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         // Core inventory re-audit at the tight width.
         const rows360: AuditRow[] = [];
         rows360.push(await auditControl($(".booth-btn-play"), "booth PLAY"));
+        await openOptionsDrawer(); // M-4: the option tools live in the drawer
         rows360.push(await auditControl($(".booth-btn-loop"), "booth LOOP"));
         // M-2: no KEYS ? / INFO ? at the phone stage (see the 390 block).
         expect(
@@ -983,6 +1046,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           rows360,
         );
         await auditSelector(".booth-range", "booth slider", rows360);
+        await closeOptionsDrawer();
         await auditSelector(".lane-switch-tab", "switcher tab", rows360);
         await auditSelector(".rail-tile", "rail tile", rows360, { limit: 2 });
         rows360.push(

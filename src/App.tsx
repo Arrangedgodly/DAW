@@ -13,6 +13,7 @@
 
 import { Show } from "solid-js";
 import Booth, { PlayStopButton } from "./components/Booth";
+import { OptionsBackdrop, OptionsButton, OptionsDrawerPanel } from "./components/PhoneOptions";
 import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
@@ -23,6 +24,7 @@ import SupportBanners from "./components/Banner";
 import VizPage from "./components/VizPage";
 import { helpMode } from "./state/helpMode";
 import { vizMode } from "./state/vizMode";
+import { optionsOpen } from "./state/optionsDrawer";
 import { stageMode } from "./state/selection";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
@@ -84,6 +86,13 @@ export default function App() {
           </>
         }
       >
+        {/* M-4: the drawer's outside-tap dismissal surface — OUTSIDE the
+            chrome (fixed, z 5 < the chrome's 10): taps on the scrolling
+            grid close the drawer; the chrome stays interactive above it.
+            Show law: unmounted while collapsed. */}
+        <Show when={optionsOpen()}>
+          <OptionsBackdrop />
+        </Show>
         <div
           class="phone-chrome"
           inert={vizMode() ? true : undefined}
@@ -98,13 +107,29 @@ export default function App() {
               control (Booth's shared PlayStopButton) rides a centered row
               as the LAST child of the sticky chrome, so PLAY/STOP stays
               visible and horizontally centered at every scroll offset.
+              M-4 (iteration 4): the row is a 1fr-auto-1fr grid whose LEFT
+              edge column carries the OPTIONS drawer toggle — the equal
+              side columns keep PLAY exactly centered whether the drawer is
+              open or closed (the M-3 ±8px gate re-verified by M-4's gate).
               Inside `.phone-chrome`, so it inherits the VZ-DD-1 inert
               wiring and the strap hit-target law for free. The Booth's
               in-group copy is render-guarded away by `compact` — one
               handler, one help entry, one button. */}
           <div class="phone-transport">
+            <OptionsButton />
             <PlayStopButton />
+            <span class="phone-transport-edge" aria-hidden="true" />
           </div>
+          {/* M-4: the collapsible options drawer — the Show law: collapsed
+              means ZERO drawer DOM (no panel, no backdrop, no listeners).
+              The panel grows the sticky chrome BELOW the transport (it
+              never covers the centered PLAY) and houses the compact
+              BoothOptions groups (loop, metronome, viz, tempo, scale,
+              swing, master) — the same components and store seams as the
+              desktop Booth. */}
+          <Show when={optionsOpen()}>
+            <OptionsDrawerPanel />
+          </Show>
         </div>
         <main
           class="stage"

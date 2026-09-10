@@ -176,6 +176,30 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         expect(region.hasAttribute("tabindex")).toBe(false);
 
         // --- 2. TAP = INSPECT + ACTIVATE (the committed model) -----------
+        // M-4 (iteration 4): at phone width the option tools (LOOP et al.)
+        // live in the collapsible options drawer — open it through the
+        // OPTIONS toggle, and close it again before tapping stage surfaces
+        // (the open backdrop intercepts grid taps by design).
+        const openDrawer = async () => {
+          await tapEl(el('[data-help="phone.options"]'));
+          await waitFor(
+            () => document.querySelector(".phone-options-drawer") !== null,
+            2000,
+            "options drawer open",
+          );
+        };
+        const closeDrawer = async () => {
+          // Tap-toggle (not Escape): under help mode ON the InfoView's
+          // capture handler owns Escape, so the drawer's own Escape twin
+          // must not be probed here — the toggle is the touch-honest path.
+          await tapEl(el('[data-help="phone.options"]'));
+          await waitFor(
+            () => document.querySelector(".phone-options-drawer") === null,
+            2000,
+            "options drawer closed",
+          );
+        };
+        await openDrawer();
         // LOOP: entry shows AND the control still worked (pass-through).
         const loop = el('[data-help="booth.loop"]');
         const loopBefore = loop.getAttribute("aria-pressed") === "true";
@@ -185,6 +209,7 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
           (loop.getAttribute("aria-pressed") === "true") !== loopBefore,
           "the tapped control still activated (pass-through law)",
         ).toBe(true);
+        await closeDrawer();
 
         // A drum cell: the grid entry + the note placed (one audition).
         const cell = el(
@@ -255,6 +280,9 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         expect(tilePattern).toBeTruthy();
         // (b) isolate the click observer: set the entry elsewhere by focus,
         // park focus on <body>, then click the span synthetically.
+        // (M-4: booth.loop lives in the drawer at phone — reopen it for the
+        // focus probe, then close it so the grid tap below stays honest.)
+        await openDrawer();
         el('[data-help="booth.loop"]').focus();
         await waitFor(() => title() === "LOOP", 2000, "entry moved to LOOP");
         (document.activeElement as HTMLElement | null)?.blur?.();
@@ -266,6 +294,17 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
           () => title() === "CHAIN TILE",
           2000,
           "the click observer resolves the span click with focus parked (the tooth)",
+        );
+        await closeDrawer(); // grid taps below must reach the stage, not the backdrop
+        // The toggle tap re-inspected its own entry — re-establish the
+        // CHAIN TILE entry the persistence probe below expects to persist.
+        cueSpan.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        await waitFor(
+          () => title() === "CHAIN TILE",
+          2000,
+          "entry re-established after the drawer toggle",
         );
 
         // --- 4. PERSISTENCE on unregistered ground ------------------------

@@ -412,6 +412,15 @@ describe("DA-2 axe-core gate", () => {
         5000,
         "phone stage settled",
       );
+      // M-4 (iteration 4): at phone width the VIZ toggle lives in the
+      // options drawer — open it first (the toggle is the gate's entry).
+      host.querySelector<HTMLButtonElement>('[data-help="phone.options"]')!
+        .click();
+      await waitFor(
+        () => host.querySelector(".phone-options-drawer") !== null,
+        5000,
+        "options drawer open",
+      );
       host.querySelector<HTMLButtonElement>(".booth-btn-viz")!.click();
       await waitFor(
         () => host.querySelector(".viz-remote") !== null,

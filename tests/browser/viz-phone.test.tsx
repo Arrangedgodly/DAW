@@ -242,6 +242,14 @@ describe("VZ-DD-4 phone-stage gate (the committed fallback: gate + message)", ()
         );
 
         // --- ENTRY: the booth VIZ button (strap target) opens the GATE --
+        // M-4 (iteration 4): at phone width the VIZ toggle lives in the
+        // options drawer — open it first.
+        $<HTMLButtonElement>('[data-help="phone.options"]').click();
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") !== null,
+          2_000,
+          "options drawer open",
+        );
         const vizBtn = $<HTMLButtonElement>(".booth-btn-viz");
         expect(vizBtn, "the phone VIZ entry exists (booth toggle)").toBeTruthy();
         expect(vizMode()).toBe(false);

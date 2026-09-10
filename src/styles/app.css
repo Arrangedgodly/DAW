@@ -388,11 +388,48 @@
  * `.booth-btn` inside `.phone-chrome`), so it inherits the MB-3 hit-strap
  * law automatically; the block padding keeps the strap's 8px extension
  * inside the chrome box (the same clipping law as the booth's own padding).
+ *
+ * M-4 (iteration 4): the row becomes a 1fr-auto-1fr GRID — the left edge
+ * column carries the OPTIONS drawer toggle, the mirrored right column is an
+ * inert spacer, and PLAY stays in the auto center column. Equal 1fr sides
+ * keep PLAY exactly centered whether or not the OPTIONS label is painted,
+ * open or closed (the M-3 gate re-verified by M-4's gate on the grid row).
  */
 .phone-transport {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  justify-items: center;
   padding: var(--space-3);
+}
+
+/*
+ * M-4 (iteration 4): the options drawer. The panel is a `.booth` INSIDE
+ * `.phone-chrome`, so the existing condensation law applies to it wholesale
+ * (16px strap rows, hit-strap ::before, 46px steppers, 44px input/slider
+ * hits) — the drawer's controls are the SAME painted controls the chrome
+ * hosted before M-4. It grows the sticky chrome BELOW the transport (never
+ * covering the centered PLAY); the top border draws the drawer's seam on
+ * the chrome's own ground (the `.phone-chrome .booth` rule already demotes
+ * the nested header's float/shadow).
+ */
+.phone-options-drawer {
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-ink) 25%, transparent);
+}
+
+/*
+ * The M-4 outside-tap dismissal surface: fixed, full-viewport, BELOW the
+ * sticky chrome (z 5 < 10) — a tap anywhere on the scrolling grid closes
+ * the drawer while the chrome (transport + drawer panel) stays interactive
+ * above it. The faint dim separates the open drawer's ground from the
+ * stage without hiding it (paint only; zero layout).
+ */
+.phone-options-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgb(0 0 0 / 25%);
 }
 
 /*

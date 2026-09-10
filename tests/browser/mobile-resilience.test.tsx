@@ -843,6 +843,16 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         );
 
         const playBtn = app.el(".booth-btn-play");
+        // M-4 (iteration 4): the option tools live in the collapsible
+        // options drawer at phone — open it (trusted toggle tap) so the
+        // LOOP law's probes can reach the loop button; play/stop stays in
+        // the pinned transport row either way.
+        await app.tapEl(app.el('[data-help="phone.options"]'));
+        await waitFor(
+          () => document.querySelector(".phone-options-drawer") !== null,
+          3000,
+          "options drawer open",
+        );
         const loopBtn = app.el(".booth-btn-loop");
         const posLed = app.el(".booth-group-position .booth-led");
 
@@ -921,6 +931,15 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         expect(lt).toBeLessThan(2.2); // wrapped into the next pass
         await app.tapEl(playBtn);
         await waitFor(() => !session.transport.snapshot.playing, 4000, "stopped");
+        // M-4: close the drawer before dispose — `optionsOpen` is module
+        // state and would otherwise leak an OPEN drawer (backdrop and all)
+        // into the next test's fresh mount.
+        await app.tapEl(app.el('[data-help="phone.options"]'));
+        await waitFor(
+          () => document.querySelector(".phone-options-drawer") === null,
+          3000,
+          "options drawer closed before dispose",
+        );
       } finally {
         clearToasts(); // a toast left open covers the booth for the next test
         session.transport.stop();

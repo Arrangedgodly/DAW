@@ -508,6 +508,29 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           "phone base chrome must be fully covered",
         ).toEqual([]);
 
+        // --- PHONE STATE 1b: the M-4 options drawer open ------------------
+        // (M-4, iteration 4: the option tools — LOOP, METRONOME, VIZ,
+        // TEMPO, SCALE, SWING, MASTER — live in the collapsible drawer at
+        // phone width. Collapsed they contribute zero DOM (the Show law),
+        // so coverage walks them with the drawer OPEN.)
+        click('[data-help="phone.options"]');
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") !== null,
+          2000,
+          "options drawer open at phone width",
+        );
+        findings = walkInteractive("phone options drawer");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone options drawer must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape"); // the drawer's own dismissal law
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") === null,
+          2000,
+          "options drawer closed",
+        );
+
         // --- PHONE STATE 2: the pitched lane + FX console ------------------
         selectLane("bass");
         await waitFor(

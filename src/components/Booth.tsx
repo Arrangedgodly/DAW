@@ -124,46 +124,26 @@ export interface BoothProps {
 }
 
 /**
- * M-3 (iteration 4): the ONE play/stop control, shared by every stage.
- * Desktop/tablet renders it as the first control of the Playback group
- * (inside Booth, byte-identical to the pre-M-3 button); the phone stage
- * lifts THIS component into the pinned centered `.phone-transport` row at
- * the bottom of the sticky `.phone-chrome` (App.tsx) so PLAY/STOP stays
- * visible and horizontally centered while the grid scrolls. One handler
- * (gesture unlock + transport state machine + first-run nudge consume),
- * one `booth.play` help-registry entry, one button in the a11y tree per
- * stage — the phone Booth's in-group copy is render-guarded away by
- * `compact`, never duplicated.
+ * M-4 (iteration 4): the option tools in ONE shared component — the
+ * Playback group (LOOP, METRONOME, the desktop KEYS ?/INFO ? corner pair,
+ * VIZ), TEMPO, SCALE (chip + popover), SWING and MASTER VOLUME, with all
+ * their signals/handlers on the SAME store/session seams as before. The
+ * desktop Booth mounts it inline (DOM byte-identical to the pre-M-4 booth);
+ * the phone options drawer (App.tsx → PhoneOptionsDrawer) mounts the
+ * `compact` copy — no play/KEYS/INFO duplicates, no new logic, the drawer
+ * just re-houses the identical JSX groups (the plan's reuse law).
  */
-export function PlayStopButton() {
-  const [playing, setPlaying] = createSignal(false);
-  onMount(() => {
-    const unsubscribe = session.subscribe((snap) => setPlaying(snap.playing));
-    onCleanup(unsubscribe);
-  });
-  const handleTogglePlay = () => {
-    if (firstRunNudge()) dismissFirstRunNudge(); // first PLAY consumes the nudge (PX-1)
-    void session.togglePlay();
-  };
-  return (
-    <button
-      type="button"
-      class="booth-btn booth-btn-play"
-      classList={{
-        "is-on": playing(),
-        "booth-nudge": firstRunNudge() && !playing(),
-      }}
-      data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
-      data-help="booth.play"
-      aria-pressed={playing()}
-      onClick={handleTogglePlay}
-    >
-      {playing() ? "STOP" : "PLAY"}
-    </button>
-  );
+export interface BoothOptionsProps {
+  /**
+   * M-2/M-3/M-4 (iteration 4): compact omits the KEYS ? / INFO ? corner
+   * buttons and the in-group PLAY copy (the phone stage carries PLAY in
+   * the pinned centered `.phone-transport` row and leaves KEYS/INFO off
+   * entirely). Desktop never sets it.
+   */
+  readonly compact?: boolean;
 }
 
-export default function Booth(props: BoothProps) {
+export function BoothOptions(props: BoothOptionsProps) {
   // Project-scale chip (DES-3): mirrors the document scale into signals via
   // one subscription; the popover commits through the store seam.
   const [scaleChip, setScaleChip] = createSignal(
@@ -180,7 +160,6 @@ export default function Booth(props: BoothProps) {
     onCleanup(unsubscribeDoc);
   });
 
-  const [playing, setPlaying] = createSignal(false);
   const [loopOn, setLoopOn] = createSignal(session.transport.snapshot.loop);
   const [metroOn, setMetroOn] = createSignal(false);
   const [bpm, setBpm] = createSignal(session.transport.snapshot.bpm);
@@ -191,67 +170,13 @@ export default function Booth(props: BoothProps) {
     gainToVolumePercent(session.masterVolume),
   );
 
-  // Direct-DOM refs for the 60 Hz readouts (never signals).
-  let positionEl: HTMLSpanElement | undefined;
-  let announceEl: HTMLDivElement | undefined;
-  const beatEls: HTMLElement[] = [];
-
   onMount(() => {
     const unsubscribe = session.subscribe((snap) => {
-      setPlaying(snap.playing);
       setLoopOn(snap.loop);
       setBpm(snap.bpm);
       setSwingPct(swingAmountToPercent(snap.swing));
     });
     onCleanup(unsubscribe);
-  });
-
-  // rAF loop runs only while playing; coarse `playing` signal gates it.
-  createEffect(() => {
-    let lastText = "";
-    let lastBeat = -1;
-
-    function writePosition(pos: Position) {
-      const text = formatPosition(pos);
-      if (text !== lastText) {
-        lastText = text;
-        if (positionEl) positionEl.textContent = text;
-      }
-      if (pos.beat !== lastBeat) {
-        lastBeat = pos.beat;
-        for (let i = 0; i < beatEls.length; i++) {
-          beatEls[i].dataset.active = String(i === pos.beat);
-        }
-        if (announceEl) {
-          announceEl.textContent = formatBeatAnnouncement(pos);
-        }
-      }
-    }
-
-    function writeStoppedPosition() {
-      lastText = "";
-      lastBeat = -1;
-      if (positionEl) {
-        positionEl.textContent = formatPosition(
-          session.transport.getPosition(),
-        );
-      }
-      for (const el of beatEls) el.dataset.active = "false";
-      if (announceEl) announceEl.textContent = "";
-    }
-
-    if (!playing()) {
-      writeStoppedPosition();
-      return;
-    }
-    let raf = requestAnimationFrame(loop);
-    onCleanup(() => cancelAnimationFrame(raf));
-
-    function loop() {
-      const pos = session.transport.getPosition();
-      writePosition(pos);
-      raf = requestAnimationFrame(loop);
-    }
   });
 
   const handleToggleLoop = () => session.setLoop(!loopOn());
@@ -278,11 +203,7 @@ export default function Booth(props: BoothProps) {
   };
 
   return (
-    <header
-      class="booth"
-      aria-label="Transport booth"
-      inert={props.covered ? true : undefined}
-    >
+    <>
       <div class="booth-group" role="group" aria-label="Playback">
         {/* M-3: the play control is the shared PlayStopButton. On the phone
             stage (`compact`) the in-group copy does not render — the pinned
@@ -343,7 +264,9 @@ export default function Booth(props: BoothProps) {
             opens through openViz(currentTarget) so the exit's focus return
             lands back HERE (helpOverlay precedent); Escape / `v` / the
             remote's EXIT are the twins (the booth sits inert under the
-            full-bleed page while on). */}
+            full-bleed page while on). M-4 (iteration 4): on the phone
+            stage this is the third tool the drawer carries ("similar
+            tools" clause — the audit's displaced-tool call). */}
         <button
           type="button"
           class="booth-btn booth-btn-viz"
@@ -494,6 +417,128 @@ export default function Booth(props: BoothProps) {
           {volPct()}%
         </span>
       </div>
+    </>
+  );
+}
+
+/**
+ * M-3 (iteration 4): the ONE play/stop control, shared by every stage.
+ * Desktop/tablet renders it as the first control of the Playback group
+ * (inside Booth, byte-identical to the pre-M-3 button); the phone stage
+ * lifts THIS component into the pinned centered `.phone-transport` row at
+ * the bottom of the sticky `.phone-chrome` (App.tsx) so PLAY/STOP stays
+ * visible and horizontally centered while the grid scrolls. One handler
+ * (gesture unlock + transport state machine + first-run nudge consume),
+ * one `booth.play` help-registry entry, one button in the a11y tree per
+ * stage — the phone Booth's in-group copy is render-guarded away by
+ * `compact`, never duplicated.
+ */
+export function PlayStopButton() {
+  const [playing, setPlaying] = createSignal(false);
+  onMount(() => {
+    const unsubscribe = session.subscribe((snap) => setPlaying(snap.playing));
+    onCleanup(unsubscribe);
+  });
+  const handleTogglePlay = () => {
+    if (firstRunNudge()) dismissFirstRunNudge(); // first PLAY consumes the nudge (PX-1)
+    void session.togglePlay();
+  };
+  return (
+    <button
+      type="button"
+      class="booth-btn booth-btn-play"
+      classList={{
+        "is-on": playing(),
+        "booth-nudge": firstRunNudge() && !playing(),
+      }}
+      data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
+      data-help="booth.play"
+      aria-pressed={playing()}
+      onClick={handleTogglePlay}
+    >
+      {playing() ? "STOP" : "PLAY"}
+    </button>
+  );
+}
+
+export default function Booth(props: BoothProps) {
+  const [playing, setPlaying] = createSignal(false);
+
+  // Direct-DOM refs for the 60 Hz readouts (never signals).
+  let positionEl: HTMLSpanElement | undefined;
+  let announceEl: HTMLDivElement | undefined;
+  const beatEls: HTMLElement[] = [];
+
+  onMount(() => {
+    const unsubscribe = session.subscribe((snap) => {
+      setPlaying(snap.playing);
+    });
+    onCleanup(unsubscribe);
+  });
+
+  // rAF loop runs only while playing; coarse `playing` signal gates it.
+  createEffect(() => {
+    let lastText = "";
+    let lastBeat = -1;
+
+    function writePosition(pos: Position) {
+      const text = formatPosition(pos);
+      if (text !== lastText) {
+        lastText = text;
+        if (positionEl) positionEl.textContent = text;
+      }
+      if (pos.beat !== lastBeat) {
+        lastBeat = pos.beat;
+        for (let i = 0; i < beatEls.length; i++) {
+          beatEls[i].dataset.active = String(i === pos.beat);
+        }
+        if (announceEl) {
+          announceEl.textContent = formatBeatAnnouncement(pos);
+        }
+      }
+    }
+
+    function writeStoppedPosition() {
+      lastText = "";
+      lastBeat = -1;
+      if (positionEl) {
+        positionEl.textContent = formatPosition(
+          session.transport.getPosition(),
+        );
+      }
+      for (const el of beatEls) el.dataset.active = "false";
+      if (announceEl) announceEl.textContent = "";
+    }
+
+    if (!playing()) {
+      writeStoppedPosition();
+      return;
+    }
+    let raf = requestAnimationFrame(loop);
+    onCleanup(() => cancelAnimationFrame(raf));
+
+    function loop() {
+      const pos = session.transport.getPosition();
+      writePosition(pos);
+      raf = requestAnimationFrame(loop);
+    }
+  });
+
+  return (
+    <header
+      class="booth"
+      aria-label="Transport booth"
+      inert={props.covered ? true : undefined}
+    >
+      {/* M-4 (iteration 4): every option group (Playback minus the pinned
+          play, Tempo, Scale, Swing, Master) lives in the ONE shared
+          BoothOptions component — the desktop Booth mounts it inline, the
+          phone options drawer mounts the compact copy. On the compact
+          phone stage the Booth renders ONLY the position group (readout +
+          SaveIndicator + Projects); the option tools sit in the drawer. */}
+      <Show when={!props.compact}>
+        <BoothOptions />
+      </Show>
 
       <div
         class="booth-group booth-group-position"
