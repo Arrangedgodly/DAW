@@ -454,7 +454,11 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   **74.53 KB gz** (+0.28; 25% of budget), PASS. Refinement i3-2 (the
   window-edge row quantization — the pane-height law rewrite + the
   edit-flip re-pin, measured same method): initial JS **74.61 KB gz**
-  (+0.08), PASS.
+  (+0.08), PASS. Refinement i3-3 (2026-09-09, the focus-follow scroll
+  quantization — one renderer function's scroll-write law, measured same
+  method against the post-VIZ-merge HEAD 2e11389's **90.14 KB gz** by a
+  stash round-trip): initial JS **90.20 KB gz** (+0.06), PASS. (The
+  74.61 → 90.14 step is the VIZ House Lights merge, not a refinement.)
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

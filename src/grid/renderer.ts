@@ -1064,15 +1064,51 @@ export class DomGridRenderer implements GridRenderer {
    * The window-follows-focus law: scroll the MINIMAL amount that keeps `row`
    * visible (scroll-into-view, block:"nearest" semantics). View-only — no
    * document write, no announcement; the focus move itself is the signal.
+   *
+   * i3-3 (iteration-3 critique P2, round 2 — the arrow-walked seats): the
+   * scroll write QUANTIZES to the row grid. The raw nearest-scroll targets
+   * are off-grid by construction — the bottom write `top + height −
+   * clientHeight` seats the focused row's BOTTOM at the pane edge, which is
+   * the next boundary MINUS the row rhythm's own margin (the pane then shows
+   * one row more than the announced window), and the browser's own
+   * max-scroll clamp (`scrollHeight − clientHeight`) seats on-grid PLUS the
+   * pane's padding-bottom, bisecting the row under the top edge (the
+   * critique's clipped D#: scrollTop 44 at pitch 20, the on-grid seat 40).
+   * ONE PATH: the raw target snaps to the window start whose own boundary
+   * keeps the row visible (floor entering from the top, ceil from the
+   * bottom; ±0.5px absorbs sub-pixel measurement), and clampWindowStart
+   * bounds that start at the manifest — min 0 (the top-edge write's
+   * min-clamp), max rows − windowRows — so the write is `rowTopInScroll` of
+   * a clamped start: the SAME arithmetic the Shift+↑/↓ path writes via
+   * scrollWindowTo, at every seat the cursor walk can produce. The row stays
+   * visible at both edges (applyWindowHeight pins clientHeight to
+   * windowRows × pitch, so the manifest-clamped seat always covers the row).
    */
   private ensureRowVisible(row: number): void {
     if (!this.windowRows) return;
     const container = this.opts.container;
     const top = this.rowTopInScroll(row);
     const height = this.rowEls[row]?.offsetHeight ?? this.rowHeightPx;
-    if (top < container.scrollTop) container.scrollTop = top;
-    else if (top + height > container.scrollTop + container.clientHeight)
-      container.scrollTop = top + height - container.clientHeight;
+    const pitch = this.rowPitch();
+    const base = this.rowTopInScroll(0);
+    let start: number | null = null;
+    if (top < container.scrollTop) {
+      // Row enters at the TOP edge — the greatest boundary at/above its top.
+      start = clampWindowStart(
+        Math.floor((top - base + 0.5) / pitch),
+        this.cells.length,
+        this.windowRows,
+      );
+    } else if (top + height > container.scrollTop + container.clientHeight) {
+      // Row enters at the BOTTOM edge — the smallest boundary that still
+      // covers the row's bottom (the raw seat is on-grid minus the margin).
+      start = clampWindowStart(
+        Math.ceil((top + height - container.clientHeight - base - 0.5) / pitch),
+        this.cells.length,
+        this.windowRows,
+      );
+    }
+    if (start !== null) container.scrollTop = this.rowTopInScroll(start);
     this.seatedStart = this.currentStart();
     this.updateGridName();
   }

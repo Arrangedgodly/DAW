@@ -19,6 +19,23 @@
  * under the revert are the bottom-clamped seats (the manifest's tail ends
  * inside the window — no row below to cut), which is why the gate walks to
  * TOP and mid-manifest seats where the boundary is interior.
+ *
+ * i3-3 EXTENSION (iteration-3 critique P2 round 2, crit5 — the arrow-walked
+ * seats): the i3-2 gate asserted only the burst-walked TOP seat, so the
+ * ungated `ensureRowVisible` focus-follow path shipped writing RAW scroll
+ * targets — walking the cursor to the BOTTOM CLAMP seated the pane off the
+ * row grid (the critique measured scrollTop 44 at pitch 20, the on-grid seat
+ * 40: row D# bisected 4px at the pane's TOP edge; the raw bottom write
+ * `top + height − clientHeight` lands on-grid MINUS the row margin — one row
+ * more visible than announced — and the browser's max-scroll clamp lands
+ * on-grid PLUS the pane's padding-bottom). THE LAW (one path): the
+ * focus-follow scroll write QUANTIZES to the row grid — the target snaps to
+ * a clamped window start's own boundary (rowTopInScroll, the same arithmetic
+ * the Shift+↑/↓ path writes), min-clamped at 0, manifest-clamped at
+ * rows − windowRows — so every seat the cursor walk can produce (down to the
+ * clamp, and the walk back up) lands on a boundary. Two new seats: the
+ * arrow-walked bottom clamp + the arrow-walked walk-back-up, each asserting
+ * the full pane law PLUS the explicit scrollTop-on-the-row-grid clause.
  */
 
 import { describe, expect, it } from "vitest";
@@ -208,6 +225,39 @@ function assertQuantized(idoc: Document, state: string): void {
   }
 }
 
+/**
+ * i3-3: the focus-follow scroll write quantizes to the row grid — every
+ * WINDOWED pane's scrollTop sits ON a row boundary (row 0's top, modulo the
+ * live row pitch), so no seat the cursor walk can produce parks the pane
+ * between rows. This is the critique's own metric (scrollTop 44 vs the
+ * on-grid 40 at pitch 20): the walked-to-clamp seat offends BOTH ways
+ * pre-fix — the raw bottom write seats on-grid-minus-the-row-margin (the
+ * pane then shows one row MORE than the announced window) and the browser's
+ * max-scroll clamp seats on-grid-plus-the-pane's-padding-bottom (bisecting
+ * the row under the top edge — the critique's clipped D#).
+ */
+function assertScrollOnGrid(idoc: Document, state: string): void {
+  for (const pane of Array.from(
+    idoc.querySelectorAll<HTMLElement>(".lane-grid-scroll.is-windowed"),
+  )) {
+    const lane = pane.closest(".lane-floor")?.getAttribute("data-lane") ?? "?";
+    const rows = pane.querySelectorAll<HTMLElement>(".grid-row");
+    if (rows.length < 2) continue;
+    const pitch =
+      rows[1]!.getBoundingClientRect().top -
+      rows[0]!.getBoundingClientRect().top;
+    const base =
+      rows[0]!.getBoundingClientRect().top -
+      pane.getBoundingClientRect().top +
+      pane.scrollTop;
+    const off = Math.abs(pane.scrollTop - base) % pitch;
+    expect(
+      Math.min(off, pitch - off),
+      `${state} · ${lane}: scrollTop on the row grid (±1px of ${pitch}px pitch)`,
+    ).toBeLessThanOrEqual(1);
+  }
+}
+
 describe("i3-2 window-edge row quantization (built app, demo state)", () => {
   it(
     "every windowed pane edge lands exactly on a row boundary — boot, key scrolls, rhythm flips, pattern switches, growth, deficit",
@@ -279,13 +329,44 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
           3_000,
           "lead quadrant selected (editing)",
         );
+        // Settle the flip BEFORE walking (B3/B4's fixed-settle idiom): the
+        // flip's rAF re-pin + the fill re-fit re-seat the window lawfully,
+        // and the i3-3 seats must measure the walk's OWN seat — the critique
+        // walked a settled pane (the off-grid seat persists until the next
+        // window move; a re-fit racing the walk would heal it and the gate
+        // would pass against the defect — exactly how the burst walk in the
+        // original B1 masked it).
+        await new Promise((r) => setTimeout(r, 600));
         const cell = idoc().querySelector<HTMLElement>(
           '.lane-floor[data-lane="lead"] .cell',
         )!;
         cell.focus();
-        // Walk the FULL manifest down and back (the e2e §7 pattern): the
-        // window follows focus, ending seated at the TOP.
+        // Walk the FULL manifest DOWN one row at a time to the BOTTOM CLAMP
+        // (the e2e §7 pattern): the window follows focus. i3-3: this seat is
+        // asserted MID-WALK — the critique's finding lived exactly here (the
+        // ungated focus-follow path seated the pane off the row grid at the
+        // clamp; the i3-2 gate only asserted the seat AFTER the walk-back).
         for (let i = 0; i < 14; i++) key(idoc().activeElement!, "ArrowDown");
+        await poll(
+          () =>
+            (idoc().activeElement as HTMLElement)?.dataset.row === "14" &&
+            /ROWS \d+–14 OF 14$/.test(
+              idoc()
+                .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
+                ?.getAttribute("aria-label") ?? "",
+            ),
+          5_000,
+          "arrows walk focus to the bottom clamp (window follows)",
+        );
+        await new Promise((r) => setTimeout(r, 250));
+        assertQuantized(
+          idoc(),
+          "arrow-walked bottom clamp 1280 (i3-3 seat)",
+        );
+        assertScrollOnGrid(idoc(), "arrow-walked bottom clamp 1280");
+
+        // And back UP to row 0 — the walk-back-up seat (the critique's
+        // scrollTop=4 class: the top-edge write quantizes + min-clamps at 0).
         for (let i = 0; i < 14; i++) key(idoc().activeElement!, "ArrowUp");
         await poll(
           () =>
@@ -300,6 +381,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         );
         await new Promise((r) => setTimeout(r, 250));
         assertQuantized(idoc(), "top seat 1280 (focus walked to row 0)");
+        assertScrollOnGrid(idoc(), "arrow-walked back to top 1280 (i3-3 seat)");
 
         // B2 — Shift+↓ ONE OCTAVE: the mid-manifest seat. The anchor law
         // needs focus OFF the top edge for a DOWN scroll (the e2e §7 law),
