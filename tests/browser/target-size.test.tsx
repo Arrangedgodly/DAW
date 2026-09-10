@@ -745,6 +745,20 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           2000,
           "bass stage editable",
         );
+        // --- M-7 (iteration 4): the register-window shift row (pitched
+        // lanes only — bass here). All four shift buttons are painted-44
+        // targets (the lane-switch-tab law: no strap, four share the row);
+        // the readout chip is a non-operable aria-live status (recorded
+        // exempt, but its painted box is 44 tall too — it must not dip
+        // under the row's target line).
+        await auditSelector(".register-shift-btn", "register shift", rows);
+        rows.push(
+          await auditControl(
+            $(".register-window-readout"),
+            "register readout (EXEMPT: aria-live status, non-operable)",
+            { exempt: true },
+          ),
+        );
         click('[data-help="lane.bass.fx"]');
         await waitFor(
           () => document.querySelector(".fx-strip") !== null,

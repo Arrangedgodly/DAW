@@ -453,10 +453,11 @@ describe("MB-1 responsive stage (built app)", () => {
         expect(scroll2.scrollLeft).toBeGreaterThan(0);
 
         // --- narrow grid geometry laws ------------------------------------
-        // Phone rows restore the v0 24px editing scale; 16 step columns; the
-        // labels never clip (the 60px OPENHAT floor).
+        // Phone rows are the M-7 44px finger-sized editing scale (44px-tall
+        // cell targets — the target-size law's own number on the row axis);
+        // 16 step columns; the labels never clip (the 60px OPENHAT floor).
         const cells = $(".row-cells");
-        expect(getComputedStyle(cells).gridAutoRows).toBe("24px");
+        expect(getComputedStyle(cells).gridAutoRows).toBe("44px");
         expect(
           getComputedStyle(cells).gridTemplateColumns.split(" "),
         ).toHaveLength(32); // (the 2-bar pattern is displayed)

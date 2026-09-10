@@ -185,10 +185,17 @@ const QUADRANT_GEOMETRY: Record<
  *     protected the IN-FLOW fill control — the overlay removes that need;
  *     11 px stays the Silkscreen label floor, the refinement-4 readability
  *     law the tablet fit compresses toward).
- * PHONE_ROW_PX restores the v0 24 px editing rows on the phone stage: the
- * single lane owns the whole viewport height and the page scrolls (the
- * committed scrolling law), so rows can be finger-sized instead of
- * quadrant-compressed.
+ * PHONE_ROW_PX sizes the phone editing rows. M-7 (iteration 4) raises the
+ * v0 24 px rows to 44 px: the single lane owns the whole viewport height
+ * and the page scrolls (the committed scrolling law), so rows can be
+ * finger-sized instead of quadrant-compressed — and the grid's share of
+ * the viewport grows with them (the M-7 max-space law). 44 px = the
+ * target-size law's own number: every cell's VERTICAL hit is the full row
+ * (the renderer's hit test is row-exact), so a 44 px row is a 44 px-tall
+ * cell target; cell WIDTH stays the committed 15 px 1-bar horizontal fit
+ * law (the phone preset's cellPx — the grid surface is the committed
+ * pan-y gesture surface, not a chrome control). Still ≥ every lane's
+ * minRowPx floor by a wide margin.
  * ------------------------------------------------------------------------- */
 const NARROW_GEOMETRY: Record<
   LaneId,
@@ -205,7 +212,7 @@ const NARROW_GEOMETRY: Record<
   chords: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
 };
-const PHONE_ROW_PX = 24;
+const PHONE_ROW_PX = 44;
 
 /* ---------------------------------------------------------------------------
  * Refinement-4 (critique P2-5): the quadrant stage FLEXES within the 100dvh

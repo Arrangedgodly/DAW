@@ -72,7 +72,10 @@ async function boot(
 ): Promise<Ctx> {
   const bundleKey = Object.keys(bundleGlob)[0];
   const cssKey = Object.keys(cssGlob)[0];
-  expect(bundleKey, "built bundle missing (globalSetup build failed?)").toBeTruthy();
+  expect(
+    bundleKey,
+    "built bundle missing (globalSetup build failed?)",
+  ).toBeTruthy();
   expect(cssKey).toBeTruthy();
   let iframe: HTMLIFrameElement | null = null;
   const wipe = (): Promise<void> =>
@@ -251,9 +254,7 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
           const leadScroll = $(
             `.lane-floor[data-lane="lead"] .lane-grid-scroll`,
           ) as HTMLElement;
-          const leadRows = Array.from(
-            leadScroll.querySelectorAll(".grid-row"),
-          );
+          const leadRows = Array.from(leadScroll.querySelectorAll(".grid-row"));
           const box = leadScroll.getBoundingClientRect();
           const fullyVisible = leadRows.filter((row) => {
             const r = row.getBoundingClientRect();
@@ -385,9 +386,9 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
       try {
         await poll(
           () =>
-            ctx3.iframe.contentDocument!.querySelector(".app")?.getAttribute(
-              "data-stage",
-            ) === "phone",
+            ctx3.iframe
+              .contentDocument!.querySelector(".app")
+              ?.getAttribute("data-stage") === "phone",
           8_000,
           "phone stage",
         );
@@ -432,8 +433,13 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
           Number.parseFloat(
             idoc.querySelector<HTMLElement>(".row-cells")!.style.gridAutoRows,
           ),
-          "phone rows keep the committed 24px preset",
-        ).toBe(24);
+          // M-7 (iteration 4): the committed phone preset is now 44px —
+          // finger-sized rows are 44px-tall cell targets (the target-size
+          // law's own number on the row axis; the no-growth half of the
+          // fill law this probe pins is unchanged — the seat is still the
+          // mode-size default, never the fill's grown row count).
+          "phone rows keep the committed 44px preset (M-7 finger-sized)",
+        ).toBe(44);
       } finally {
         await ctx3.cleanup();
       }

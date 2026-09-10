@@ -295,3 +295,144 @@ describe("FV-1 full-viewport densification (built app, 1280/1440/1920)", () => {
     180_000,
   );
 });
+
+/* ---------------------------------------------------------------------------
+ * M-7 (iteration 4) — the PHONE-STAGE utilization half of this gate. The
+ * desktop describe above owns width densification + the one-page law; this
+ * describe owns the phone max-space law: with chrome thinned (M-2), the
+ * transport pinned (M-3), the tools drawer-ized (M-4) and the grids
+ * windowed (M-5), the GRID — not chrome, not gutters — takes the maximum
+ * share of the phone viewport.
+ *
+ * GRID-SHARE DEFINITION (recorded in-task at HEAD bce635a, first-run PX-1
+ * demo, font-settled, overlay-scrollbar layout — the MB-6 measurement law):
+ * the rendered height of the active lane's `.lane-grid-scroll` divided by
+ * the viewport height. BASELINE (pre-M-7, 24px PHONE_ROW_PX): 292px was
+ * 172px → 20.4% at 390×844 and 21.5% at 360×800 (drums, the first-run
+ * active lane; pitched bass measured 200px → 23.7%). M-7's rework raises
+ * the phone editing rows to 44px (finger-sized cells — the target-size
+ * law's own number on the row axis) and trims the stage gutters, measuring
+ * 34.6% / 36.5% (bass 40.3%). The gate pins the REWORKED numbers minus a
+ * sanctioned ~4.5pp margin (30% / 32%): restoring the 24px rows reddens it
+ * at both viewports (20.4 / 21.5 < 30 / 32).
+ *
+ * ROW-TARGET LAW: every rendered `.grid-row` is ≥44px tall — the cell hit
+ * test is row-exact on the vertical axis, so this is the target-size law's
+ * metric applied to the grid surface itself (the cells' WIDTH stays the
+ * committed 15px 1-bar horizontal fit law; the grid is the recorded pan-y
+ * gesture surface, exempted as a DATA TARGET in the MB-3 audit).
+ *
+ * Chrome law stays where it lives (mobile-viewport MB-1/MB-6: <50% at
+ * 360×800) — this gate asserts only the utilization delta it owns.
+ * ------------------------------------------------------------------------- */
+describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800)", () => {
+  it(
+    "the grid takes ≥30%/≥32% of the phone viewport; every grid row ≥44px",
+    { timeout: 180_000 },
+    async () => {
+      const CASES: ReadonlyArray<{
+        w: number;
+        h: number;
+        minShare: number;
+      }> = [
+        { w: 390, h: 844, minShare: 0.3 },
+        { w: 360, h: 800, minShare: 0.32 },
+      ];
+      for (const { w, h, minShare } of CASES) {
+        // The phone boot: the MB-6 overlay-scrollbar pin (the committed
+        // Android-Chrome target) + the first-run demo, same as MB-1.
+        const bundleKey = Object.keys(bundleGlob)[0];
+        const cssKey = Object.keys(cssGlob)[0];
+        expect(bundleKey, "built bundle missing").toBeTruthy();
+        const iframe = document.createElement("iframe");
+        iframe.style.width = `${w}px`;
+        iframe.style.height = `${h}px`;
+        document.body.appendChild(iframe);
+        const win = iframe.contentWindow!;
+        await new Promise<void>((resolve) => {
+          const req = win.indexedDB.deleteDatabase("bitbounce");
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        });
+        const doc0 = iframe.contentDocument!;
+        doc0.open();
+        doc0.write(`<!doctype html><html><head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="${cssKey.replace("/dist/", "/")}" />
+<style>html{scrollbar-width:none}</style>
+</head><body><div id="root"></div>
+<script type="module" src="${bundleKey.replace("/dist/", "/")}"></script>
+</body></html>`);
+        doc0.close();
+        const idoc = () => iframe.contentDocument!;
+        try {
+          await poll(
+            () => !!idoc().querySelector(".phone-chrome"),
+            15_000,
+            "phone boot",
+          );
+          // Phone rail renders only the ACTIVE lane's row (MB-1), so the
+          // desktop gate's VERSE-cue probe does not apply — any demo tile
+          // proves the first-run document painted.
+          await poll(
+            () => idoc().querySelectorAll(".rail-tile").length > 0,
+            5_000,
+            "demo rail tiles",
+          );
+          // MB-6 settle law: fonts ready + a dimension-stable grid box.
+          try {
+            await idoc().fonts.ready;
+          } catch {
+            /* the stability poll below still applies */
+          }
+          await poll(
+            () => {
+              const g = idoc().querySelector<HTMLElement>(".lane-grid-scroll");
+              if (!g) return false;
+              const now = g.getBoundingClientRect().height;
+              const last = (g as HTMLElement & { __m7h?: number }).__m7h;
+              (g as HTMLElement & { __m7h?: number }).__m7h = now;
+              return last !== undefined && Math.abs(now - last) < 0.5;
+            },
+            8_000,
+            "settled grid box",
+          );
+          const vh = win.innerHeight;
+          const grid = idoc().querySelector<HTMLElement>(".lane-grid-scroll")!;
+          const gridH = grid.getBoundingClientRect().height;
+          const share = gridH / vh;
+          expect(
+            share,
+            `${w}×${h}: grid share of viewport (baseline 20.4%/21.5% pre-M-7; rework measures 34.6%/36.5%)`,
+          ).toBeGreaterThanOrEqual(minShare);
+          // The chrome must not have regrown past its own law while the
+          // grid took the space (the MB-1 twin, at the gate's own view).
+          const chromeH = idoc()
+            .querySelector<HTMLElement>(".phone-chrome")!
+            .getBoundingClientRect().height;
+          expect(
+            chromeH,
+            `${w}×${h}: chrome under half the viewport`,
+          ).toBeLessThan(h / 2);
+          // The row-target law: every rendered row ≥44px (44px rows are
+          // 44px-tall cell targets — the M-7 finger-sized editing surface).
+          const rows = Array.from(
+            idoc().querySelectorAll<HTMLElement>(".grid-row"),
+          );
+          expect(rows.length, `${w}×${h}: rendered rows`).toBeGreaterThan(0);
+          for (const row of rows) {
+            expect(
+              row.getBoundingClientRect().height,
+              `${w}×${h}: grid row is a ≥44px cell target (M-7 PHONE_ROW_PX law)`,
+            ).toBeGreaterThanOrEqual(44);
+          }
+          console.log(
+            `[M-7 grid utilization · ${w}×${h}] grid ${gridH.toFixed(0)}px = ${(share * 100).toFixed(1)}% of viewport; chrome ${chromeH.toFixed(0)}px; ${rows.length} rows ≥44px`,
+          );
+        } finally {
+          await teardown(iframe);
+        }
+      }
+    },
+    180_000,
+  );
+});

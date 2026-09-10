@@ -400,7 +400,11 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   justify-items: center;
-  padding: var(--space-3);
+  /* M-7 (iteration 4): the top padding stays 8 (the strap budget — the
+   * PLAY button's hit strap reaches 8px above its painted box into it);
+   * the BOTTOM padding halves — below the chrome is the stage's own
+   * gutter, nothing to overlap. Every reclaimed px is grid budget. */
+  padding: var(--space-3) var(--space-3) var(--space-2);
 }
 
 /*
@@ -542,11 +546,21 @@
   display: none;
 }
 
-/* The single-lane stage: one floor, full width. */
+/* The single-lane stage: one floor, full width. M-7 (iteration 4) trims
+ * the outer gutters (top 8→4, bottom 16→8): below the chrome the first
+ * grid row should start as high as the lane header allows, and the tail
+ * gutter is a dead band — every reclaimed px is grid budget. */
 .app[data-stage="phone"] .stage-floors {
   display: block;
   max-width: none;
-  padding: var(--space-3) var(--space-2) var(--space-5);
+  padding: var(--space-1) var(--space-2) var(--space-1);
+}
+
+/* M-7 (iteration 4): phone-scoped strip gutter trim — the lane-head strips'
+ * shared 4px bottom margin halves at phone (desktop/tablet untouched; the
+ * one-page law keeps its own margins). Reclaimed px are grid budget. */
+.app[data-stage="phone"] .lane-head-strip {
+  margin-bottom: var(--space-1);
 }
 
 /* Tablet (768–1024): the quadrant stage stays 2×2 at the narrow geometry;
@@ -562,7 +576,10 @@
 .lane-switcher {
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) var(--space-3);
+  /* M-7 (iteration 4): the bottom padding halves — the tabs are painted-44
+   * targets (no strap), and the row below is the transport's own 8px strap
+   * budget, so nothing overlaps; every reclaimed px is grid budget. */
+  padding: var(--space-2) var(--space-3) var(--space-2);
 }
 
 .lane-switch-tab {
@@ -658,7 +675,9 @@ input[type="range"] {
 .app[data-stage="phone"] .register-shift {
   display: flex;
   gap: var(--space-2);
-  padding: 0 var(--space-1) var(--space-2);
+  /* M-7 (iteration 4): the bottom gutter trims to the world's finest step
+   * — the buttons are painted-44 targets, the grid needs the px more. */
+  padding: 0 var(--space-1) var(--space-1);
 }
 
 .app[data-stage="phone"] .register-shift-btn {
