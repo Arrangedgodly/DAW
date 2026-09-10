@@ -113,8 +113,54 @@ export interface BoothProps {
    * unchanged. The help-registry entries `booth.keys`/`booth.info` stay
    * (desktop keeps the controls) and the `?`/I keyboard twins remain
    * functional with an attached keyboard.
+   *
+   * M-3 (iteration 4) extends the guard to the PLAY/STOP control itself:
+   * on the phone stage the in-group button does not render — the ONE true
+   * button (the shared `PlayStopButton`) rides the pinned centered
+   * `.phone-transport` row at the bottom of the sticky chrome instead, so
+   * it is always visible and horizontally centered while the grid scrolls.
    */
   readonly compact?: boolean;
+}
+
+/**
+ * M-3 (iteration 4): the ONE play/stop control, shared by every stage.
+ * Desktop/tablet renders it as the first control of the Playback group
+ * (inside Booth, byte-identical to the pre-M-3 button); the phone stage
+ * lifts THIS component into the pinned centered `.phone-transport` row at
+ * the bottom of the sticky `.phone-chrome` (App.tsx) so PLAY/STOP stays
+ * visible and horizontally centered while the grid scrolls. One handler
+ * (gesture unlock + transport state machine + first-run nudge consume),
+ * one `booth.play` help-registry entry, one button in the a11y tree per
+ * stage — the phone Booth's in-group copy is render-guarded away by
+ * `compact`, never duplicated.
+ */
+export function PlayStopButton() {
+  const [playing, setPlaying] = createSignal(false);
+  onMount(() => {
+    const unsubscribe = session.subscribe((snap) => setPlaying(snap.playing));
+    onCleanup(unsubscribe);
+  });
+  const handleTogglePlay = () => {
+    if (firstRunNudge()) dismissFirstRunNudge(); // first PLAY consumes the nudge (PX-1)
+    void session.togglePlay();
+  };
+  return (
+    <button
+      type="button"
+      class="booth-btn booth-btn-play"
+      classList={{
+        "is-on": playing(),
+        "booth-nudge": firstRunNudge() && !playing(),
+      }}
+      data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
+      data-help="booth.play"
+      aria-pressed={playing()}
+      onClick={handleTogglePlay}
+    >
+      {playing() ? "STOP" : "PLAY"}
+    </button>
+  );
 }
 
 export default function Booth(props: BoothProps) {
@@ -208,10 +254,6 @@ export default function Booth(props: BoothProps) {
     }
   });
 
-  const handleTogglePlay = () => {
-    if (firstRunNudge()) dismissFirstRunNudge(); // first PLAY consumes the nudge (PX-1)
-    void session.togglePlay();
-  };
   const handleToggleLoop = () => session.setLoop(!loopOn());
   const handleToggleMetro = () => {
     const next = !metroOn();
@@ -242,20 +284,13 @@ export default function Booth(props: BoothProps) {
       inert={props.covered ? true : undefined}
     >
       <div class="booth-group" role="group" aria-label="Playback">
-        <button
-          type="button"
-          class="booth-btn booth-btn-play"
-          classList={{
-            "is-on": playing(),
-            "booth-nudge": firstRunNudge() && !playing(),
-          }}
-          data-nudge={firstRunNudge() && !playing() ? "true" : undefined}
-          data-help="booth.play"
-          aria-pressed={playing()}
-          onClick={handleTogglePlay}
-        >
-          {playing() ? "STOP" : "PLAY"}
-        </button>
+        {/* M-3: the play control is the shared PlayStopButton. On the phone
+            stage (`compact`) the in-group copy does not render — the pinned
+            centered `.phone-transport` row at the bottom of the sticky
+            chrome carries the one true button (see PlayStopButton). */}
+        <Show when={!props.compact}>
+          <PlayStopButton />
+        </Show>
         <button
           type="button"
           class="booth-btn booth-btn-loop"

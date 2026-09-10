@@ -381,6 +381,20 @@
   border-bottom: none;
 }
 
+/* M-3 (iteration 4): the pinned centered transport row — the LAST child of
+ * the sticky chrome, so PLAY/STOP is always visible at every scroll offset
+ * and horizontally centered (one flex row, justify-content:center — the ±8px
+ * center-x gate). The row's button is the shared PlayStopButton (a
+ * `.booth-btn` inside `.phone-chrome`), so it inherits the MB-3 hit-strap
+ * law automatically; the block padding keeps the strap's 8px extension
+ * inside the chrome box (the same clipping law as the booth's own padding).
+ */
+.phone-transport {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
 /*
  * Phone-booth condensation (recorded MB-1 decision): the SAME controls on a
  * tighter chassis (the world's own spacing scale, no new vocabulary). At

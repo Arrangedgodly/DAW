@@ -12,7 +12,7 @@
  */
 
 import { Show } from "solid-js";
-import Booth from "./components/Booth";
+import Booth, { PlayStopButton } from "./components/Booth";
 import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
@@ -94,6 +94,17 @@ export default function App() {
           <Booth compact />
           <LaneSwitcher />
           <PatternRail />
+          {/* M-3: the pinned centered transport — the ONE play/stop
+              control (Booth's shared PlayStopButton) rides a centered row
+              as the LAST child of the sticky chrome, so PLAY/STOP stays
+              visible and horizontally centered at every scroll offset.
+              Inside `.phone-chrome`, so it inherits the VZ-DD-1 inert
+              wiring and the strap hit-target law for free. The Booth's
+              in-group copy is render-guarded away by `compact` — one
+              handler, one help entry, one button. */}
+          <div class="phone-transport">
+            <PlayStopButton />
+          </div>
         </div>
         <main
           class="stage"
