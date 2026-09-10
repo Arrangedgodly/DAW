@@ -114,7 +114,7 @@ for (const lane of ["bass", "chords", "lead"] as const) {
     {
       id: `lane.${lane}.regshift`,
       title: `${LANE_NAMES[lane]} REGISTER SHIFT`,
-      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave (12 rows); SEMI −/+ nudges it one row. The buttons disable at the top and bottom of the lane's row range. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
+      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave (12 rows); SEMI −/+ nudges it one row. The buttons disable at the top and bottom of the lane's row range. The readout beside the buttons shows the rows in view (ROWS start–end OF total) and flashes with a ▲/▼ arrow when the window moves. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
     },
   ]);
 }
@@ -419,9 +419,7 @@ function fitQuadrantRows(): void {
     const canonicalContent = contentAt(surface.maxRowPx, canonicalRows);
     const windowHeadroom =
       surface.defaultWindowRows != null && g.manifestRows > canonicalRows
-        ? Math.floor(
-            (available - canonicalContent) / g.pitchPx,
-          )
+        ? Math.floor((available - canonicalContent) / g.pitchPx)
         : 0;
     measured.push({
       surface,
@@ -463,8 +461,7 @@ function fitQuadrantRows(): void {
       const base = m.contentAt(surface.maxRowPx, rows);
       const track = Math.min(
         FILL_MAX_ROW_PX,
-        surface.maxRowPx +
-          Math.floor((m.available - base) / Math.max(1, rows)),
+        surface.maxRowPx + Math.floor((m.available - base) / Math.max(1, rows)),
       );
       applyFit(renderer, surface, rows, track);
       continue;
@@ -475,8 +472,7 @@ function fitQuadrantRows(): void {
     const deficit = canonicalContent - m.available;
     const track = Math.max(
       surface.minRowPx,
-      surface.maxRowPx -
-        Math.ceil(deficit / Math.max(1, m.canonicalRows)),
+      surface.maxRowPx - Math.ceil(deficit / Math.max(1, m.canonicalRows)),
     );
     applyFit(renderer, surface, m.canonicalRows, track);
   }
@@ -672,7 +668,9 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     // null) — the chords/drums precedent.
     const windowed = pitched;
     const windowHeight = (): number =>
-      windowed ? modeSize(effectiveScale(docStore.getState().doc, lane).mode) : 0;
+      windowed
+        ? modeSize(effectiveScale(docStore.getState().doc, lane).mode)
+        : 0;
     const applyRegisterWindow = (): number => {
       const h = windowHeight();
       if (!windowed || h >= rowLabels.length) {
@@ -1018,11 +1016,7 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       createEffect(() => {
         const start = registerWindowStarts()[lane];
         if (start === undefined) {
-          if (windowed)
-            getOrCreateRegisterWindow(
-              lane,
-              windowHeight(),
-            );
+          if (windowed) getOrCreateRegisterWindow(lane, windowHeight());
           return;
         }
         rendererRef?.scrollWindowTo(start);
@@ -1061,7 +1055,8 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     onCleanup(() => {
       // LL-1: record the resize-remount carry FIRST — while the dying
       // container still contains DOM focus (the renderer is disposed below).
-      if (container) carryGridFocusOnUnmount(lane, container, rendererRef?.cursor() ?? null);
+      if (container)
+        carryGridFocusOnUnmount(lane, container, rendererRef?.cursor() ?? null);
       unsubscribe();
       for (const dispose of fillDisposers) dispose();
       stopSounding(); // T5: never strand a lit rim across a remount
@@ -1090,8 +1085,18 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
  * consumer) pushes it to the renderer; no note ever moves. Bounds are
  * computed eagerly from the lane's patterns (`rowDegrees` heights, the
  * defaultRegisterWindowStart input) so the buttons DISABLE at the manifest
- * edges before any click. M-6 will hang the change feedback off this same
- * state change — deliberately no visual treatment beyond plain buttons yet.
+ * edges before any click.
+ *
+ * M-6 (iteration 4): the CHANGE FEEDBACK rides this same start() state — no
+ * second source of truth. Two layers: (1) the persistent window READOUT chip
+ * (`ROWS start–end OF total`, an aria-live polite region — the label
+ * re-anchor announced to SR) and (2) a TRANSIENT cue (data-cue up/down +
+ * parity on the row root) that flashes the chip and the grid's visible row
+ * labels — fill (hue-tinted background) + border (inset 2px hue ring) + shape
+ * (a ▲/▼ direction glyph in the chip), never color-only (D9). Under
+ * prefers-reduced-motion the transient cue is SKIPPED entirely in JS and the
+ * CSS twin kills the animation: the static equivalent is the readout text +
+ * arrow-free re-anchor, immediate with no animation (the RES-9 law).
  */
 function RegisterShiftControls(props: { lane: PitchedLaneId }) {
   // The document store is zustand/vanilla (the LaneHeader law): mirror doc
@@ -1130,12 +1135,52 @@ function RegisterShiftControls(props: { lane: PitchedLaneId }) {
     setRegisterWindowStart(props.lane, target);
   };
 
+  // M-6: the readout text (the re-anchor, announced via aria-live on the
+  // chip itself — one element is both the visual readout and the SR region).
+  const readout = (): string => {
+    const { h, maxStart } = bounds();
+    const s = start();
+    return `ROWS ${s + 1}–${s + h} OF ${maxStart + h}`;
+  };
+
+  // M-6: the transient cue. Rides start() — any window move (buttons, a
+  // later echo path) flashes, not just these clicks. Parity key: alternating
+  // data-cue-parity values de-/re-match the CSS animation selectors so a
+  // rapid second shift RESTARTS the flash. Reduced motion: never set.
+  const [cue, setCue] = createSignal<{ dir: 1 | -1; key: number } | null>(null);
+  const reducedMotion = (): boolean =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let lastStart: number | undefined;
+  let cueTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(() => {
+    const s = start();
+    if (lastStart === undefined) {
+      lastStart = s;
+      return;
+    }
+    if (s === lastStart) return;
+    const dir: 1 | -1 = s > lastStart ? 1 : -1;
+    lastStart = s;
+    if (reducedMotion()) {
+      setCue(null);
+      return;
+    }
+    setCue({ dir, key: (cue()?.key ?? 0) + 1 });
+    if (cueTimer !== undefined) clearTimeout(cueTimer);
+    cueTimer = setTimeout(() => setCue(null), 1200);
+  });
+  onCleanup(() => {
+    if (cueTimer !== undefined) clearTimeout(cueTimer);
+  });
+
   return (
     <Show when={bounds().maxStart > 0}>
       <div
         class="register-shift"
         role="group"
         aria-label={`${LANE_NAMES[props.lane]} register window shift`}
+        data-cue={cue() ? (cue()!.dir === 1 ? "up" : "down") : undefined}
+        data-cue-parity={cue() ? String(cue()!.key % 2) : undefined}
       >
         <button
           type="button"
@@ -1173,6 +1218,12 @@ function RegisterShiftControls(props: { lane: PitchedLaneId }) {
         >
           OCT +
         </button>
+        <span class="register-window-readout" aria-live="polite">
+          <span class="register-window-arrow" aria-hidden="true">
+            {cue()?.dir === 1 ? "▲" : cue()?.dir === -1 ? "▼" : "■"}
+          </span>
+          {readout()}
+        </span>
       </div>
     </Show>
   );
