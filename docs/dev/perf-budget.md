@@ -483,6 +483,33 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   trail exists to attribute — the whole-iteration CSS growth rides the
   same phone-scoped surfaces); fonts 37.02 / 50 KB unchanged (zero new
   font/asset files through iteration 4).
+- **Iteration-5 record (measured 2026-09-10, H-5 close-out — the phone
+  grid width-fill + bottom-ownership law, H-2 through H-4; same method:
+  `npm run build` + `npm run check:bundle` at HEAD eeca25f, plus a
+  per-commit attribution rebuild — one detached worktree per task
+  boundary with the repo's node_modules, each measured by its own
+  `npm run check:bundle`; the dirty-tree-safe equivalent of the i3-3
+  stash round-trip, the main tree carrying untracked review artifacts)**:
+  final initial JS **92.11 KB gz** (31% of the 300 KB budget), PASS —
+  full iteration-5 delta **+0.64 KB gz** over the 91.47 iteration-start
+  baseline, attributed per task: H-1 (audit, docs-only — src
+  byte-identical to the i4 close-out) **+0.00 → 91.47** (worktree
+  rebuild at bced52d reproduces the i4 record exactly); H-2 (renderer
+  `setCellWidth` width-fit seam + pitched phone fill) **+0.32 → 91.79**;
+  H-3 (drums fill + stage bottom-ownership + `fitPhoneRows` row growth)
+  **+0.32 → 92.11**; H-4 (gates with teeth + pinned-law reconciliation —
+  tests and comments only) **+0.00 → 92.11**. Every worker-claimed
+  boundary number reproduced exactly on the close-out rebuild. CSS
+  **18.52 → 18.54 KB gz** (+0.02, all at H-3's stage-stretch/floors
+  sheet edits; H-2's law is JS-side geometry, +0.00 CSS; info-only,
+  ungated); fonts 37.02 / 50 KB unchanged (zero new font/asset files
+  through iteration 5). The plan's "≤ +0.3 KB gz expected for the seam +
+  CSS" estimate covered the seam alone — H-2 landed +0.32, on target;
+  H-3's row-growth twin (its own fit machinery, clamp + manifest-divisor
+  + held-pointer gate) doubled the iteration to +0.64 — flagged here
+  rather than silently absorbed (the assumption ledger's "a material
+  jump reopens the budget conversation": 0.32 KB against 207.89 KB of
+  headroom is not material; 3.3× headroom remains).
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start
