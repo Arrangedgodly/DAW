@@ -1,5 +1,24 @@
 <!--
-Refreshed 2026-09-10 by $impeccable document (closing refresh, scan mode) for
+Refreshed 2026-09-11 by $impeccable document (closing refresh, scan mode) for
+the finishing phase of ultron-supreme iteration 6 (saved-song management,
+auto mode: choice recorded as `simulated (auto mode)` — refresh). This
+refresh captures iteration 6's shipped projects law: every saved row in the
+PROJECTS popover carries always-visible RENAME/DELETE machined keys; the
+rename editor and the drums-red CONFIRM DELETE REPLACE the row's content
+(the popover never widens for a special state); song titles run one shared
+normalizer (trim + whitespace-collapse + 48 CODE-POINT clamp, duplicates
+allowed); delete-ACTIVE retargets autosave to a successor before the row is
+removed, and the sticky DELETED toast carries a one-shot byte-exact UNDO.
+The closing critique's refinement (i6-crit1 A1) is now DESIGN LAW: the
+popover's width is independent of song-title length — the ellipsized name
+owns its intrinsic width (`contain: inline-size`; a 68-codepoint title keeps
+the popover at its committed 320.4px phone width with every edge inside the
+viewport), and floating surfaces carry the world's 2px focus ring on
+keyboard focus (the popover rows' `outline: none` was the only suppression
+in the codebase — removed). Layout/interaction additions only: palette,
+typography, and corner language are untouched; the frontmatter tokens are
+unchanged.
+Prior refresh 2026-09-10 by $impeccable document (closing refresh, scan mode) for
 the finishing phase of ultron-supreme iteration 5 (phone horizontal grid fill,
 auto mode: choice recorded as `simulated (auto mode)` — refresh). This refresh
 captures iteration 5's shipped phone fill law: the exact-fraction width-fit
@@ -154,6 +173,8 @@ Iteration 4 (mobile rework) put the whole instrument in one hand. The phone stag
 
 Iteration 5 (phone fill) gave the grid the whole floor. Phone pad rows now fit the measured well width exactly — the exact-fraction cell law (cell = (well − label − (n−1)·gap)/n, clamp [15,24]; a 1-bar row fills 100% of the width with zero dead-right edge, while 2-bar patterns keep the 15px readability floor and scroll horizontally inside the well) — row tracks grow into the measured leftover within [44,64]px (44 stays the finger-size floor), and the stage's grow chain docks the card bottom to the viewport bottom at scroll end (bottom ownership; the phone page-scroll law itself is unchanged), lifting the grid from ~35% to 52.1% of the viewport at 390 (49.5% at 360, 56.7% at 430). Desktop surfaces remain untouched — byte-identical gates.
 
+Iteration 6 (saved-song management) made the library self-managing. Every saved row in the PROJECTS popover grew always-visible RENAME and DELETE machined keys (no hover-only law — touch has no hover); RENAME swaps the row into the rail's inline-edit twin (Enter commits, Escape cancels, blur commits; one shared title normalizer — trim, whitespace-collapse, 48 code-point clamp, duplicates allowed, empty is a no-op), and DELETE arms a deliberate two-step confirm whose danger state (the world's only red) REPLACES the row's content — Escape, click-away, or five seconds stands it down. The completed delete raises a sticky DELETED toast whose one-shot UNDO re-puts the exact held record byte for byte; deleting the working song retargets autosave to a successor first, so a pending flush can never resurrect the row. The popover's width is independent of song-title length (the i6-critique refinement): the ellipsized name owns its intrinsic width, so a 68-codepoint title keeps the committed 320.4px phone popover with every edge inside the viewport.
+
 **Key Characteristics:**
 - Dark stage ground; four lane hues carry identity; warm white carries information.
 - Silkscreened uppercase labels on every control; mono value readouts are tabular by construction.
@@ -264,6 +285,8 @@ Every component is a labeled hardware control: outline chassis at rest, lit lane
 
 - **Phone chrome (iteration 4):** centered PLAY/STOP transport flanked by the lane-switcher tabs and an OPTIONS trigger; the drawer that opens is the shared BoothOptions in the committed chassis vocabulary (6px floating-surface radius, chassis cast, internal scroll, Escape closes), and the REGISTER shift rows (OCT/ST steppers + ROWS readout chip) sit directly under the chrome in the stepper language — one control voice, no phone-only idiom.
 
+- **Projects popover (iteration 6):** the booth-corner PROJECTS button opens the library chassis (the scale-pop twin treatment: metal panel, 6px radius, one chassis cast, 232px min-width capped by the viewport). Every saved row is a machined key (name + relative-time meta, the working song border-marked and `aria-current`) with ALWAYS-VISIBLE RENAME/DELETE keys — no hover-only controls. Special states REPLACE the row's content, never widen the popover: the rename editor is the rail's inline-edit twin in a recessed readout well (Enter/Esc/blur; focus+select on mount), and the CONFIRM DELETE state is a full-width drums-red danger key. Titles run one shared normalizer (trim + collapse + 48 code-point clamp, duplicates allowed); the popover's width never depends on title length — the ellipsized name owns its intrinsic width, keeping the committed 320.4px phone width for any title. Deleting the working song switches to the successor (most-recent remaining, else a fresh NEW) before the row is removed; the sticky DELETED toast carries a one-shot byte-exact UNDO (a failed re-put keeps the toast armed). Keyboard contract as the popover family: Escape closes (gated while an editor or confirm is open — Esc cancels THAT state only), Tab is trapped with the editor in the cycle, focus lands on the first row on every open and returns to the button on close; every control keeps the 2px focus ring on keyboard focus and paints ≥44px on phone.
+
 - **Pattern rail:** single-line rows per lane carrying lane name + tiles + `+` (one press creates a NEW blank pattern — next letter, 1 bar — appended to the chain and selected for editing; the `=` key on a focused tile is the twin; DUP, in the PAT popover and on `d`, stays the only duplicator) + ONE small PAT trigger (Silkscreen label, `.rail-tool`, ~45px) opening the pattern-tools popover (REN/+1B/+2B/+4B/DUP/RM in the committed popover vocabulary — 3×2, focus lands on REN, actions commit and close, Escape returns to the trigger; the `n`/`d`/`r` keyboard fast paths are unchanged); the row's group name carries the lane's cycle length ("… · 8-BAR CYCLE") — the lane's total chain bars, the vocabulary that makes unequal lane lengths readable at a glance. Tiles are 3px chips with bar-length literal fill width; active = lane-hue border+fill on the slot SOUNDING now — the tile follows each lane's chain position as it advances naturally during playback (switches, natural advance, and the stopped park all light the same state) and parks on the last-sounded slot while stopped; pending = dashed border + diamond flag (10px, the label floor) + aria text; drag-sweep cues many lanes at once (last-touched tile each). Phone inherits one PAT per row (the condensed rail keeps the same distill).
 
 ### Signature: the sounding grid
@@ -286,6 +309,7 @@ Help mode is a fixed bottom status bar (HP-1): ground chassis, 1px ink border-to
 - **Do** keep floating surfaces inside the viewport law: overlays never grow the page.
 - **Do** give touch a target ≥44px: painted ≥44px in the scrolling stage/overlays; phone grid rows are ≥44px-tall targets by law, grown into the measured leftover up to 64px (the [44,64] fill clamp — 44 stays the floor); the pinned phone booth stays compact behind invisible ±8px hit straps (straps meet, never overlap); sliders take a 44px input-height hit; the euclid overlay sizes to content within the grid scrollport and SPREADS drum rows when revealed (no rail-on-rail stacking).
 - **Do** keep the phone options drawer zero-DOM while closed (it mounts only on open) and keep the register shift rows' bounds honest: disabled at the clamp, aria-live "ROWS a–b OF n" on every change, never a bare recall-only cue.
+- **Do** keep every floating surface's width independent of its content's longest unwrapped string: an ellipsized name must own its intrinsic width (`contain: inline-size` on the nowrap span — `min-width: 0` is a floor, not a ceiling), and the projects popover stays at its committed width for a 68-codepoint title exactly as for "Untitled" (gated with a long-titled seeded row).
 
 ### Don't:
 

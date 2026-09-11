@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-10T00:00:00Z",
+  "generatedAt": "2026-09-11T08:00:00Z",
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
@@ -278,6 +278,14 @@
       "description": "Ground chassis card, 1px ink border (2px on errors); sticky errors, subtle info.",
       "html": "<div class=\"ds-toast\"><p class=\"ds-toast-msg\">PROJECT LOADED</p></div>",
       "css": ".ds-toast { display: flex; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-ink, #f5f2e9); border-radius: 4px; background: var(--color-ground, #0d0b10); color: var(--color-ink, #f5f2e9); font: 400 12px/1.4 'IBM Plex Mono', monospace; box-shadow: 4px 4px 12px rgba(0,0,0,0.55); } .ds-toast-msg { margin: 0; font-weight: bold; }"
+    },
+    {
+      "name": "Projects Saved Row (iteration 6)",
+      "kind": "custom",
+      "refersTo": "booth-button",
+      "description": "A saved song in the PROJECTS popover: machined open-key with always-visible RENAME/DELETE; special states replace the row.",
+      "html": "<div class=\"ds-projects-row\"><button class=\"ds-projects-item\"><span class=\"ds-projects-name\">Retro Stages</span><span class=\"ds-projects-when\">1m ago</span></button><button class=\"ds-projects-x\">RENAME</button><button class=\"ds-projects-x\">DELETE</button></div>",
+      "css": ".ds-projects-row { display: flex; gap: 2px; align-items: stretch; } .ds-projects-item, .ds-projects-x { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.05em; color: #f5f2e9; background: #17151c; border: 1px solid color-mix(in srgb, #f5f2e9 18%, #17151c); border-radius: 3px; } .ds-projects-item { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; text-align: left; } .ds-projects-name { contain: inline-size; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-projects-when { font-size: 10px; color: color-mix(in srgb, #f5f2e9 62%, #17151c); flex-shrink: 0; } .ds-projects-x { flex-shrink: 0; padding: 4px 8px; cursor: pointer; } .ds-projects-item:hover, .ds-projects-x:hover { background: color-mix(in srgb, #f5f2e9 12%, #17151c); } .ds-projects-item:focus-visible, .ds-projects-x:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; }"
     }
   ],
   "narrative": {
@@ -285,7 +293,8 @@
     "overview": [
       "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth — a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade — the whole DAW fits one page at 1440×900 — and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2×2 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2×2 collapses to a single-lane stage behind a lane switcher, with full touch parity — same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM — which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
       "Iteration 4 (mobile rework) put the whole instrument in one hand: KEYS/INFO dropped from the phone stage, a centered always-visible transport pinned in the chrome, booth options folded into a zero-DOM-when-closed drawer, the desktop one-octave register window extended to phone grids behind explicit ±octave/±semitone shift rows with fill+border+shape change feedback, and 44px finger-sized rows lifting the grid to ~35% of the phone viewport. Desktop surfaces untouched.",
-      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) — grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical."
+      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) — grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical.",
+      "Iteration 6 (saved-song management) made the library self-managing: always-visible RENAME/DELETE machined keys per saved row, replaced-row special states that never widen the popover, a shared 48-codepoint title normalizer, a deliberate two-step drums-red CONFIRM DELETE, and a sticky one-shot byte-exact UNDO — with the popover's width independent of song-title length (the ellipsized name owns its intrinsic width)."
     ],
     "keyCharacteristics": [
       "Dark stage ground; four lane hues carry identity; warm white carries information.",
@@ -324,7 +333,8 @@
       "Do gate motion in BOTH CSS media query and the render loop via matchMedia; honor prefers-reduced-motion by construction.",
       "Do keep floating surfaces inside the viewport law: overlays never grow the page.",
       "Do give touch a target ≥44px: painted ≥44px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible ±8px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows.",
-      "Do keep the phone options drawer zero-DOM while closed and the register shift rows' bounds honest (disabled at the clamp, aria-live ROWS readout on every change)."
+      "Do keep the phone options drawer zero-DOM while closed and the register shift rows' bounds honest (disabled at the clamp, aria-live ROWS readout on every change).",
+      "Do keep every floating surface's width independent of its content's longest unwrapped string — an ellipsized name must own its intrinsic width (contain: inline-size), and the projects popover stays at its committed width for a 68-codepoint title exactly as for “Untitled” (gated with a long-titled seeded row)."
     ],
     "donts": [
       "Don't put warm-white text on a lane-hue fill, or lane-hue text on ground for info-critical copy (red text ≤10px Silkscreen 700 only).",
