@@ -372,11 +372,23 @@ export interface GridRenderer {
   setWindow(heightRows: number | null, start?: number, stepRows?: number): void;
   /**
    * RC-1: scroll the window so `start` is the first visible row (clamped to
-   * the manifest; no-op when unwindowed). The ≥1-row snap guard keeps a free
-   * wheel scroll fractional — the renderer only re-seats on whole-window
-   * moves (keys / lane view state).
+   * the manifest; no-op when unwindowed). i7 N-2 (audit §2.1): an
+   * intentional start change ALWAYS seats — the echo no-op comes from the
+   * seat already being exactly there (px + semantic start), never from a
+   * distance threshold; a free wheel scroll stays fractional only
+   * mid-gesture and snaps on scroll end.
    */
   scrollWindowTo(start: number, force?: boolean): void;
+  /**
+   * i7 N-3 (audit §2.3, the pitch-anchor law): re-derive the ROW LABELS in
+   * place — a scale root/mode change re-names every degree (the manifest
+   * `rowDegrees` and every note's degree are untouched: a note's identity
+   * is its degree; only the NAME under it moves). Same-length arrays only
+   * (a manifest shape change remounts the surface by key); element-wise
+   * identical arrays no-op. Cell names refresh with it (E4); the pixels
+   * never move — rows keep their degrees, runs keep their rows.
+   */
+  setRowLabels(labels: readonly string[]): void;
   /** One-shot trigger glow on the sounding cells of a column. */
   triggerGlow(step: number): void;
   /** Recompute cached geometry (after resize / font load). */
@@ -464,6 +476,16 @@ export class DomGridRenderer implements GridRenderer {
   private rowHeightPx: number;
   /** One `.row-cells` per row — the vertical track pins (setRowHeight). */
   private readonly rowTracks: HTMLElement[] = [];
+  /** One `.row-label` per row — text re-derived in place (setRowLabels). */
+  private readonly labelEls: HTMLElement[] = [];
+  /**
+   * i7 N-3 (audit §2.3): the LIVE row labels — starts as opts.rowLabels and
+   * is replaced in place by setRowLabels when the effective scale re-names
+   * the degrees. Every name-carrying read (cellName E4, the Shift+↑/↓
+   * announcement range) goes through this field, never opts (the frozen
+   * mount-time snapshot is the stale-label desync the law retires).
+   */
+  private rowLabels: readonly string[];
   /** One `.grid-row` per row (RC-1: window scroll geometry). */
   private readonly rowEls: HTMLElement[] = [];
   private gridEl: HTMLElement | null = null;
@@ -561,6 +583,7 @@ export class DomGridRenderer implements GridRenderer {
     // out of flow, so the cells begin right after the label).
     this.playheadLeftPx = this.labelPx + (this.fillOverlay ? 0 : this.fillPx);
     this.editable = opts.editable ?? true;
+    this.rowLabels = opts.rowLabels;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.virtual = opts.steps > GRID_VIRTUALIZE_MIN_STEPS;
     this.winEnd = opts.steps; // eager covers the pattern; virtual re-seats below
@@ -637,6 +660,7 @@ export class DomGridRenderer implements GridRenderer {
       label.textContent = rowLabels[row];
       label.style.width = `${this.labelPx}px`;
       rowEl.append(label);
+      this.labelEls.push(label);
 
       const cellsEl = document.createElement("div");
       cellsEl.className = "row-cells";
@@ -805,7 +829,7 @@ export class DomGridRenderer implements GridRenderer {
    * focusedSpanIndex scan was the eager sync cost at long patterns).
    */
   private cellName(row: number, step: number): string {
-    const base = `${this.opts.rowLabels[row]} step ${step + 1}`;
+    const base = `${this.rowLabels[row]} step ${step + 1}`;
     if (!this.opts.pitched) return base;
     const state = this.rowOn[row]?.[step] ?? 0;
     if (state === 1)
@@ -1037,6 +1061,36 @@ export class DomGridRenderer implements GridRenderer {
     this.seatedStart = s;
     this.seatedScrollTop = target;
     this.updateGridName();
+  }
+
+  /**
+   * i7 N-3 (audit §2.3, THE PITCH-ANCHORED NOTES LAW): re-derive the row
+   * labels IN PLACE when the effective scale re-names the degrees (root or
+   * mode change — the engine re-pitches through the LIVE scale the same
+   * moment, `degreeToMidi`; the label under a note must name the pitch that
+   * actually sounds). A note's identity is its DEGREE: the manifest
+   * (rowDegrees), every note's degree, every row's pixels, and every run's
+   * row are untouched — only the NAMES move. Shape changes (a manifest
+   * resize) are NOT handled here by law: the surface remounts on the
+   * row-count key. Element-wise identical labels no-op (observers
+   * converge); the cell aria names refresh through applyOnState (E4).
+   */
+  setRowLabels(labels: readonly string[]): void {
+    if (labels.length !== this.rowLabels.length) return;
+    let same = true;
+    for (let row = 0; row < labels.length; row++) {
+      if (labels[row] !== this.rowLabels[row]) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return;
+    this.rowLabels = labels;
+    for (let row = 0; row < labels.length; row++) {
+      const el = this.labelEls[row];
+      if (el) el.textContent = labels[row]!;
+    }
+    this.applyOnState(); // pitched cells re-name (E4); drums cells re-assert
   }
 
   /**
@@ -1287,7 +1341,7 @@ export class DomGridRenderer implements GridRenderer {
       this.windowStepRows,
     );
     const range = (s: number) =>
-      `ROWS ${this.opts.rowLabels[s] ?? s}–${this.opts.rowLabels[s + w - 1] ?? s + w - 1}`;
+      `ROWS ${this.rowLabels[s] ?? s}–${this.rowLabels[s + w - 1] ?? s + w - 1}`;
     if (target === start) {
       this.announceView(
         `${dir > 0 ? "VIEW AT BOTTOM" : "VIEW AT TOP"} · ${range(start)}`,

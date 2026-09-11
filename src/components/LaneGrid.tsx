@@ -1341,7 +1341,31 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     }
 
     let lastWindowHeight = windowHeight();
+    // i7 N-3 (audit §2.3, the pitch-anchor law): the scale IDENTITY the
+    // mounted labels were derived from. A root/mode change re-names every
+    // degree (the engine re-pitches through the live scale the same
+    // moment) — the labels re-derive IN PLACE through setRowLabels: the
+    // notes' degrees, rows, and pixels never move; only the names under
+    // them do. Watching the identity (not just modeSize) catches the
+    // same-size family (minor→major) the window-height check cannot see.
+    let lastScaleKey = "";
+    const scaleKeyNow = (): string => {
+      const s = effectiveScale(docStore.getState().doc, lane);
+      return `${s.root}:${s.mode}`;
+    };
+    if (pitched) lastScaleKey = scaleKeyNow();
     const unsubscribe = docStore.subscribe((state, prev) => {
+      // i7 N-3: re-name the degrees on every scale edit (root, mode, or a
+      // lane override attach/detach — effectiveScale folds all three).
+      if (pitched) {
+        const key = scaleKeyNow();
+        if (key !== lastScaleKey) {
+          lastScaleKey = key;
+          rendererRef?.setRowLabels(
+            pitchedLabels(lane as Exclude<LaneId, "drums">, pattern).labels,
+          );
+        }
+      }
       // RC-1: a scale/mode change re-derives the window height (one octave =
       // the mode size) — the only document-side input of the window law.
       // i3-1: the reset shrinks a GROWN window back to the new default, so
