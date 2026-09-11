@@ -265,11 +265,85 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           2000,
           "projects popover open",
         );
+        await waitFor(
+          () => host.querySelector(".projects-item") !== null,
+          2000,
+          "a saved row is listed (boot law: never zero rows)",
+        );
         findings = walkInteractive("projects popover");
         expect(
           findings.map((f) => `${f.scope}: "${f.describe}"`),
           "projects popover must be fully covered",
         ).toEqual([]);
+
+        // i6 S-3 extension (the audit's browser gate list): the popover's
+        // two special ROW states each REPLACE a row's content, so each must
+        // independently pass the walk — the rename editor's <input> and the
+        // armed CONFIRM DELETE key carry their own registrations
+        // (projects.rename / projects.confirm). The Esc presses verify the
+        // §2.5 layering while they are here: Esc cancels the state, not the
+        // popover (the doc-level capture close is gated on both states).
+        click(".projects-ren");
+        await waitFor(
+          () => host.querySelector(".projects-edit") !== null,
+          2000,
+          "rename editor open",
+        );
+        // The editor takes focus on a 0 ms re-assert past the click's focus
+        // finalization (the IN-4 law) — Esc must be dispatched from the
+        // focused editor, exactly as a user's keystroke lands.
+        await waitFor(
+          () =>
+            document.activeElement ===
+            host.querySelector(".projects-edit"),
+          2000,
+          "rename editor focused",
+        );
+        findings = walkInteractive("projects rename editor");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the rename-editor row state must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape"); // cancels the edit ONLY — the popover stays open
+        await waitFor(
+          () => host.querySelector(".projects-edit") === null,
+          2000,
+          "rename editor closed",
+        );
+        expect(
+          host.querySelector(".projects-pop"),
+          "Esc during an edit must not close the popover (§2.5 trap)",
+        ).not.toBeNull();
+        click(".projects-del");
+        await waitFor(
+          () => host.querySelector(".projects-confirm") !== null,
+          2000,
+          "confirm delete armed",
+        );
+        // The confirm key takes the focus the DELETE key held (queueMicrotask
+        // refocus) — dispatch the stand-down Esc from the focused key.
+        await waitFor(
+          () =>
+            document.activeElement ===
+            host.querySelector(".projects-confirm"),
+          2000,
+          "confirm key focused",
+        );
+        findings = walkInteractive("projects confirm state");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the confirm-delete row state must be fully covered",
+        ).toEqual([]);
+        keyAt("Escape"); // stands the confirm down — the popover stays open
+        await waitFor(
+          () => host.querySelector(".projects-confirm") === null,
+          2000,
+          "confirm stood down",
+        );
+        expect(
+          host.querySelector(".projects-pop"),
+          "Esc at the confirm must not close the popover (§2.5 trap)",
+        ).not.toBeNull();
         keyAt("Escape");
         await waitFor(
           () => host.querySelector(".projects-pop") === null,

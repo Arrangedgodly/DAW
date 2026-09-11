@@ -49,8 +49,15 @@ function ToastCard(props: { toast: Toast }) {
             class="toast-action"
             data-help="toast.action"
             onClick={() => {
-              t().action!.run();
-              dismissToast(t().id);
+              // i6 §4.6: a run that resolves false FAILED (e.g. UNDO's re-put
+              // under a full storage quota) — the toast stays armed for a
+              // retry; any other outcome keeps the one-shot contract (run,
+              // then dismiss).
+              const current = t();
+              void (async () => {
+                const keep = await current.action!.run();
+                if (keep !== false) dismissToast(current.id);
+              })();
             }}
           >
             {t().action!.label}

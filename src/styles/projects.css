@@ -94,6 +94,90 @@
   flex-shrink: 0;
 }
 
+/* i6 S-3: per-row management. The default row is the open key + always
+   visible RENAME / DELETE (no hover-only law — touch has no hover); the
+   rename editor and the CONFIRM DELETE state REPLACE the row's content, so
+   a special state never widens the 232px-min popover (the name ellipsizes
+   into the freed space instead). Row controls paint as the row's own
+   machined-key vocabulary (the .projects-item treatment, compact). */
+.projects-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.projects-row .projects-item {
+  flex: 1;
+  min-width: 0; /* let the ellipsis own the freed width */
+}
+
+.projects-x {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 18%, var(--metal-raised));
+  border-radius: 3px;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+
+.projects-x:hover,
+.projects-x:focus-visible {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
+  outline: none;
+}
+
+/* §3.1: the deliberate second step paints danger — the drums-red lane hue
+   is the world's only red — while staying a full-width row key (the row's
+   replaced content, never a wider one). */
+.projects-confirm {
+  width: 100%;
+  padding: 4px 8px;
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-lane-drums) 16%, var(--metal-raised));
+  border: 1px solid
+    color-mix(in srgb, var(--color-lane-drums) 70%, var(--metal-raised));
+  border-radius: 3px;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+
+.projects-confirm:hover,
+.projects-confirm:focus-visible {
+  background: color-mix(in srgb, var(--color-lane-drums) 24%, var(--metal-raised));
+  outline: none;
+}
+
+/* §2.5: the rename editor replaces the name display — a recessed readout
+   well (the rail-edit twin's window vocabulary; user-select must stay on
+   for text entry). */
+.projects-edit {
+  width: 100%;
+  /* No global box-sizing reset exists in this codebase — without this the
+   * default content-box resolves width:100% + the 8px right padding + 1px
+   * border to a 9px escape past the popover's right edge (retry probe). */
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--color-ink);
+  background: var(--metal-recess);
+  border: 1px solid var(--color-ink);
+  border-radius: 3px;
+  box-shadow: var(--led-window);
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
 .projects-actions {
   display: flex;
   gap: var(--space-2);
@@ -130,8 +214,13 @@
 
 /* MB-3 (mobile slice, m2 — ≥44px targets, WCAG 2.5.5): the popover's rows
  * and actions grow their painted boxes at phone width (the popover is an
- * overlay with vertical room; row text already paints ≥44 px wide). */
+ * overlay with vertical room; row text already paints ≥44 px wide). i6 S-3:
+ * the per-row RENAME/DELETE keys, the CONFIRM DELETE state, and the rename
+ * editor join the selector set — every new popover control is born ≥44px. */
 .app[data-stage="phone"] .projects-item,
-.app[data-stage="phone"] .projects-action {
+.app[data-stage="phone"] .projects-action,
+.app[data-stage="phone"] .projects-x,
+.app[data-stage="phone"] .projects-confirm,
+.app[data-stage="phone"] .projects-edit {
   min-height: 44px;
 }

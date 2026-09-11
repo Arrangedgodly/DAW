@@ -10,17 +10,32 @@
  * A corrupt row fails decode inside loadProject and shows an error toast;
  * the working project is untouched.
  *
- * Deliberately NO delete UI (Hulk): deletion is destructive and unrecoverable
- * in a local-first app with no backend — a slip cannot cost work. Rows can
- * always be removed via dev tools; removal UX, if ever wanted, belongs behind
- * an undoable, deliberately slow confirmation of its own.
+ * Rename + delete (i6, honoring the recorded Hulk law at the old "NO delete
+ * UI" comment): every saved row grows always-visible RENAME + DELETE controls.
+ * RENAME swaps the row into the InlineEdit twin (Enter commits, Escape
+ * cancels, blur commits — the shared normalizer is the authority); the
+ * CURRENT row commits through the store's setProjectName, every other row
+ * through renameProjectRecord, which never touches the working doc. DELETE
+ * arms the deliberately slow two-step confirm — the row's content becomes a
+ * danger-styled CONFIRM DELETE until a second press, with Escape,
+ * click-away, or a 5 s auto-revert standing it down — and the completed
+ * delete raises a sticky DELETED toast whose one-shot UNDO re-puts the exact
+ * held record (undoable + deliberate, both halves of the law). Deleting the
+ * row being worked in runs deleteProjectSafe: retarget autosave to the
+ * successor BEFORE the row is removed — the same ordering law as
+ * open/NEW/import, so a pending flush can never resurrect the deleted row.
  *
  * Keyboard contract (same as ScalePopover): Esc closes, Tab is trapped while
  * open, focus lands on the first item on open and returns to the button.
+ * Two i6 extensions the popover owes its new states: while a rename editor
+ * or a delete confirm is open, the document-level CAPTURE-phase Esc close is
+ * gated (Esc cancels THAT state only — a target-phase stopPropagation cannot
+ * reach a capture-phase listener), and the Tab trap's focusables() selector
+ * includes the rename <input> so the editor joins the cycle.
  */
 
 import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
-import { docStore, loadDocument } from "../state/store";
+import { docStore, loadDocument, setProjectName } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
 // TH-2 code-splitting: the export pipelines (offline render + WAV encoder,
 // MIDI encoder + midi-file framing) are loaded ON DEMAND via dynamic import
@@ -28,13 +43,23 @@ import { exportProjectFile, importProjectFile } from "../persist/fileIO";
 // modules are pure/typed-result, so a load failure surfaces as the same
 // error toast shape as any export failure.
 import {
+  deleteProjectSafe,
   getActiveProjectId,
   getBootDb,
   savedProjects,
   switchToProject,
 } from "../persist/boot";
 import { createNewProject } from "../persist/newProject";
-import { loadProject, type ProjectMeta } from "../persist/projectStore";
+import {
+  loadProject,
+  renameProjectRecord,
+  type ProjectMeta,
+  type ProjectRecord,
+} from "../persist/projectStore";
+import {
+  PROJECT_NAME_MAX_CHARS,
+  normalizeProjectName,
+} from "../state/projectName";
 import { showInfo, showError, showSuccess, dismissToast } from "../state/toasts";
 import { registerHelp } from "../help/registry";
 import { relativeTime } from "../lib/reltime";
@@ -54,6 +79,21 @@ registerHelp([
     id: "projects.item",
     title: "SAVED PROJECT",
     text: "Switches to this saved project — each one keeps its own autosave. A damaged row fails safely: your current work is never overwritten.",
+  },
+  {
+    id: "projects.rename",
+    title: "RENAME",
+    text: "Turns this song's title into an editable field — Enter keeps the new name, Escape keeps the old one. Names trim and collapse spaces to 48 characters; two songs may share a name.",
+  },
+  {
+    id: "projects.delete",
+    title: "DELETE",
+    text: "Arms the deliberate second step: the row becomes CONFIRM DELETE until you press it. Escape, a click elsewhere, or five seconds stands it down — nothing is removed by the first press.",
+  },
+  {
+    id: "projects.confirm",
+    title: "CONFIRM DELETE",
+    text: "The deliberate second step — this press removes the song for real. The notification that follows carries UNDO, which puts the song back exactly as it was, byte for byte.",
   },
   {
     id: "projects.new",
@@ -86,51 +126,130 @@ export default function Projects(): JSX.Element {
   const [open, setOpen] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [items, setItems] = createSignal<readonly ProjectMeta[]>([]);
+  /** i6 §2.5: the saved row whose inline rename editor is mounted (null = none). */
+  const [renamingId, setRenamingId] = createSignal<string | null>(null);
+  /** i6 §3.1: the saved row sitting in its two-step CONFIRM DELETE state. */
+  const [confirmId, setConfirmId] = createSignal<string | null>(null);
+  /** §3.1: the 5 s auto-revert (the toasts AUTO_DISMISS_MS precedent). */
+  const CONFIRM_REVERT_MS = 5000;
+  let confirmTimer: ReturnType<typeof setTimeout> | undefined;
   let anchorBtn: HTMLButtonElement | undefined;
   let panel: HTMLDivElement | undefined;
   let fileInput: HTMLInputElement | undefined;
 
-  const refresh = () => {
-    void savedProjects().then((list) => {
-      // Most-recent-first; skip rows mid-quarantine naming is irrelevant here
-      // (quarantined rows are normal rows the user may still export via RECOVER).
-      setItems(list);
-    });
+  const refresh = async (): Promise<void> => {
+    const list = await savedProjects();
+    // Most-recent-first; skip rows mid-quarantine naming is irrelevant here
+    // (quarantined rows are normal rows the user may still export via RECOVER).
+    setItems(list);
+  };
+
+  /** §3.1: stand the confirm down and clear its timer (close/exit path). */
+  function clearConfirm(): void {
+    if (confirmTimer !== undefined) {
+      clearTimeout(confirmTimer);
+      confirmTimer = undefined;
+    }
+    setConfirmId(null);
+  }
+
+  /** Focus one control of a saved row (Esc-exit refocus: the editor's origin). */
+  function focusRowControl(id: string, selector: string): void {
+    if (!panel) return;
+    const row = panel.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+    row?.querySelector<HTMLElement>(selector)?.focus();
+  }
+
+  const startConfirm = (id: string) => {
+    setRenamingId(null); // one row in a special state at a time
+    if (confirmId() === id) return;
+    setConfirmId(id);
+    if (confirmTimer !== undefined) clearTimeout(confirmTimer);
+    confirmTimer = setTimeout(() => {
+      confirmTimer = undefined;
+      setConfirmId(null); // deliberate slowness expires — the row stands down
+    }, CONFIRM_REVERT_MS);
+    // Keyboard flow: the confirm control takes over the focus the DELETE
+    // button held (Esc/click-away revert below hands it back).
+    queueMicrotask(() => focusRowControl(id, ".projects-confirm"));
   };
 
   onMount(() => {
     const onDocKeydown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open()) {
-        e.stopPropagation();
-        close();
-      }
+      if (e.key !== "Escape" || !open()) return;
+      // i6 §2.5 Esc layering — THE trap: this CAPTURE-phase document listener
+      // runs BEFORE any target-phase handler, so the rename editor's own
+      // Escape stopPropagation() can never reach it. While an editor or a
+      // confirm is open, Esc must cancel THAT state only (the popover stays,
+      // keeping the edit's focus context); ungated, Esc-to-cancel would close
+      // the whole popover.
+      if (renamingId() !== null || confirmId() !== null) return;
+      e.stopPropagation();
+      close();
     };
     document.addEventListener("keydown", onDocKeydown, true);
-    onCleanup(() =>
-      document.removeEventListener("keydown", onDocKeydown, true),
-    );
+
+    // §3.1 click-away: any pointer press outside the confirming row stands
+    // the confirm down — inside the popover counts (clicking another row
+    // reverts first, then the click's own handler runs). Capture phase so
+    // the revert always lands before the press's click handler.
+    const onDocPointerDown = (e: PointerEvent) => {
+      const id = confirmId();
+      if (id === null || !panel) return;
+      const row = panel.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+      if (row && e.target instanceof Node && row.contains(e.target)) return;
+      clearConfirm();
+    };
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+
+    onCleanup(() => {
+      document.removeEventListener("keydown", onDocKeydown, true);
+      document.removeEventListener("pointerdown", onDocPointerDown, true);
+      clearConfirm(); // no orphan timer outlives the component
+    });
   });
 
   function focusables(): HTMLElement[] {
     if (!panel) return [];
+    // i6 §2.5 Tab-trap law: this selector enumerated BUTTONS only, so a
+    // mounted rename <input> was invisible to the trap — Tab skipped it and
+    // escaped the panel. The editor joins the cycle by selector (DOM order
+    // keeps the walk natural).
     return Array.from(
-      panel.querySelectorAll<HTMLElement>("button:not([disabled])"),
+      panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([tabindex="-1"])',
+      ),
     );
   }
 
   const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key !== "Tab") return;
-    const focusable = focusables();
-    if (focusable.length === 0) return;
-    e.preventDefault();
-    const idx = focusable.indexOf(document.activeElement as HTMLElement);
-    const next = e.shiftKey
-      ? focusable[(idx - 1 + focusable.length) % focusable.length]
-      : focusable[(idx + 1) % focusable.length];
-    next.focus();
+    if (e.key === "Tab") {
+      const focusable = focusables();
+      if (focusable.length === 0) return;
+      e.preventDefault();
+      const idx = focusable.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey
+        ? focusable[(idx - 1 + focusable.length) % focusable.length]
+        : focusable[(idx + 1) % focusable.length];
+      next.focus();
+      return;
+    }
+    // §3.1: Esc stands a confirm down (the document-level close listener is
+    // gated while confirming — this is the handler that acts). The rename
+    // editor's own Escape consumed the event first, so the states never
+    // collide on one press.
+    if (e.key === "Escape" && confirmId() !== null) {
+      const id = confirmId();
+      clearConfirm();
+      if (id !== null) {
+        queueMicrotask(() => focusRowControl(id, ".projects-del"));
+      }
+    }
   };
 
   function close(): void {
+    clearConfirm();
+    setRenamingId(null);
     setOpen(false);
     anchorBtn?.focus();
   }
@@ -138,11 +257,17 @@ export default function Projects(): JSX.Element {
   const toggle = () => {
     const next = !open();
     if (next) {
-      refresh();
+      void refresh();
       setOpen(true);
       // Focus the first control once the panel exists.
       queueMicrotask(() => focusables()[0]?.focus());
     } else {
+      // §3.1: closing stands any confirm down (timer cleared, no orphans).
+      // An open rename editor unmounts with the panel — and the disconnect
+      // blur COMMITS it (the §2.5 blur-commits choice; the settled guard
+      // only shields a resolved Enter/Escape).
+      clearConfirm();
+      setRenamingId(null);
       setOpen(false);
     }
   };
@@ -189,6 +314,128 @@ export default function Projects(): JSX.Element {
       showError("Could not start a new project.", {
         suggestion: "Your current project is untouched — try again.",
       });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * i6 §2.5: mount the row's rename editor. One special row state at a time —
+   * starting a rename stands any confirm down.
+   */
+  const startRename = (meta: ProjectMeta) => {
+    clearConfirm();
+    setRenamingId(meta.id);
+  };
+
+  /**
+   * Commit a rename (i6 §2.3/§2.4 — the dispatch rule is LAW): the CURRENT
+   * row goes through the store's `setProjectName` (one commit; the next
+   * autosave flush re-reads the live doc and lands the name in the record
+   * envelope AND the encoded json — one put, both surfaces); every OTHER row
+   * through `renameProjectRecord` (full record rewrite that NEVER touches
+   * the working doc or the autosave controller). Both paths run the shared
+   * normalizer first: empty-after-trim and unchanged names are no-ops.
+   */
+  const commitRename = (meta: ProjectMeta, value: string) => {
+    setRenamingId(null);
+    if (meta.id === getActiveProjectId()) {
+      setProjectName(value);
+      // The db row catches up on the next ~800 ms flush; patch the list
+      // signal so the new name is visible immediately, then re-read the db
+      // once the flush window has passed (a reopen inside the window would
+      // otherwise resurrect the stale envelope name on screen).
+      const next = normalizeProjectName(value);
+      if (next !== undefined && next !== meta.name) {
+        setItems((list) =>
+          list.map((row) => (row.id === meta.id ? { ...row, name: next } : row)),
+        );
+        window.setTimeout(() => void refresh(), 1200);
+      }
+      return;
+    }
+    const db = getBootDb();
+    if (!db) return;
+    void renameProjectRecord(db, meta.id, value)
+      .then(() => void refresh())
+      .catch(() => {
+        showError(`Could not rename "${meta.name}".`, {
+          suggestion: "The row was left untouched — it may be damaged.",
+        });
+      });
+  };
+
+  /** §2.5: Escape keeps the old name — no write anywhere. */
+  const cancelRename = (meta: ProjectMeta) => {
+    setRenamingId(null);
+    queueMicrotask(() => focusRowControl(meta.id, ".projects-ren"));
+  };
+
+  /**
+   * §3.4: the sticky DELETED toast + one-shot UNDO. run() re-puts the EXACT
+   * held record — byte-identical json, original name/updatedAt/dirty, so the
+   * row returns to its exact list position — then refreshes. UNDO never
+   * auto-switches: the restored row comes back INACTIVE wherever the user
+   * now is (restoring is not reopening). §4.6: a failed re-put resolves
+   * false and keeps THIS toast armed — the hold lives in the closure, so the
+   * user can retry after freeing space.
+   */
+  const showDeletedToast = (held: ProjectRecord, wasActive: boolean) => {
+    showError(`DELETED "${held.name}"`, {
+      suggestion: wasActive
+        ? "You are now in the next saved song. UNDO puts the deleted one back exactly as it was."
+        : "The song is gone. UNDO puts it back exactly as it was.",
+      sticky: true, // XP-1: the undo window stays open until dismissed
+      action: {
+        label: "UNDO",
+        run: async () => {
+          const db = getBootDb();
+          if (!db) return false;
+          try {
+            await db.putRecord(held);
+            void refresh();
+          } catch {
+            showError(`Could not restore "${held.name}".`, {
+              suggestion:
+                "The song is still held in memory — free up space and press UNDO again.",
+            });
+            return false;
+          }
+          return undefined;
+        },
+      },
+    });
+  };
+
+  /**
+   * The CONFIRM DELETE press (i6 §3.1 second step → §3.2/§3.3). All the
+   * ordering law lives in deleteProjectSafe: inactive rows delete plainly;
+   * the ACTIVE row retargets first (successor = most-recent remaining, else
+   * a fresh NEW project), flushes + disarms every writer via
+   * switchToProject, loads the successor doc, re-fills the hold AFTER the
+   * final flush (so UNDO carries every committed edit), and only then
+   * deletes — a pending flush can never resurrect the row.
+   */
+  const handleDelete = async (meta: ProjectMeta) => {
+    const db = getBootDb();
+    if (!db || busy()) return;
+    clearConfirm();
+    setBusy(true);
+    try {
+      const deleted = await deleteProjectSafe(meta.id);
+      await refresh();
+      if (!deleted) return; // row already gone — nothing to hold or say
+      // Deleting the working row switched the app to the successor inside
+      // deleteProjectSafe; the confirm control just unmounted, so refocus
+      // the list's first control (most-recent-first: the successor) to keep
+      // the Tab trap anchored.
+      queueMicrotask(() => focusables()[0]?.focus());
+      showDeletedToast(deleted.held, deleted.wasActive);
+    } catch {
+      showError(`Could not delete "${meta.name}".`, {
+        suggestion: "Nothing was removed — try again.",
+      });
+      void refresh();
     } finally {
       setBusy(false);
     }
@@ -329,27 +576,70 @@ export default function Projects(): JSX.Element {
           <ul class="projects-list" aria-label="Saved projects">
             <For each={items()}>
               {(meta) => (
-                <li>
-                  <button
-                    type="button"
-                    class="projects-item"
-                    data-help="projects.item"
-                    classList={{
-                      "is-current": meta.id === getActiveProjectId(),
-                    }}
-                    aria-current={
-                      meta.id === getActiveProjectId() ? "true" : undefined
-                    }
-                    disabled={busy()}
-                    onClick={() => void handleOpenProject(meta)}
-                  >
-                    <span class="projects-name">{meta.name}</span>
-                    <span class="projects-when">
-                      {meta.dirty
-                        ? "unsaved"
-                        : relativeTime(meta.updatedAt, Date.now())}
-                    </span>
-                  </button>
+                <li data-id={meta.id}>
+                  {/* §3.1/§5.3: the confirm state and the rename editor each
+                      REPLACE the row's content — the 232px-min popover never
+                      widens for a special state. */}
+                  {renamingId() === meta.id ? (
+                    <ProjectRenameInput
+                      initial={meta.name}
+                      onCommit={(value) => commitRename(meta, value)}
+                      onCancel={() => cancelRename(meta)}
+                    />
+                  ) : confirmId() === meta.id ? (
+                    <button
+                      type="button"
+                      class="projects-confirm"
+                      data-help="projects.confirm"
+                      disabled={busy()}
+                      onClick={() => void handleDelete(meta)}
+                    >
+                      CONFIRM DELETE
+                    </button>
+                  ) : (
+                    <div class="projects-row">
+                      <button
+                        type="button"
+                        class="projects-item"
+                        data-help="projects.item"
+                        classList={{
+                          "is-current": meta.id === getActiveProjectId(),
+                        }}
+                        aria-current={
+                          meta.id === getActiveProjectId() ? "true" : undefined
+                        }
+                        disabled={busy()}
+                        onClick={() => void handleOpenProject(meta)}
+                      >
+                        <span class="projects-name">{meta.name}</span>
+                        <span class="projects-when">
+                          {meta.dirty
+                            ? "unsaved"
+                            : relativeTime(meta.updatedAt, Date.now())}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        class="projects-x projects-ren"
+                        data-help="projects.rename"
+                        aria-label={`Rename ${meta.name}`}
+                        disabled={busy()}
+                        onClick={() => startRename(meta)}
+                      >
+                        RENAME
+                      </button>
+                      <button
+                        type="button"
+                        class="projects-x projects-del"
+                        data-help="projects.delete"
+                        aria-label={`Delete ${meta.name}`}
+                        disabled={busy()}
+                        onClick={() => startConfirm(meta.id)}
+                      >
+                        DELETE
+                      </button>
+                    </div>
+                  )}
                 </li>
               )}
             </For>
@@ -425,5 +715,70 @@ export default function Projects(): JSX.Element {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * The saved row's inline rename editor — the PatternRail InlineEdit twin
+ * (PatternRail.tsx:513-560 contract) with the project-name normalizer as the
+ * authority: Enter commits, Escape cancels (both consume the key ahead of
+ * the popover's gated capture-phase close — see the header law), blur
+ * commits (the audit's stated click-away choice), maxLength as UX only, and
+ * focus+select on mount with the IN-4 0 ms re-assert past the click's
+ * default focus finalization. The committed value runs through
+ * normalizeProjectName inside both write paths (§2.2): empty-after-trim and
+ * unchanged names never write.
+ */
+function ProjectRenameInput(props: {
+  initial: string;
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+}): JSX.Element {
+  const [value, setValue] = createSignal(props.initial);
+  // Escape/Enter settle the edit BEFORE the unmount — and this Chromium
+  // fires a NATIVE blur on a focused element being disconnected, so without
+  // the guard an Esc-cancelled editor would re-commit its typed value on the
+  // way out (verified by probe). Once settled, the blur is machinery, not a
+  // user intent: cancel stays a cancel.
+  let settled = false;
+  const commit = () => {
+    if (settled) return;
+    settled = true;
+    props.onCommit(value());
+  };
+  return (
+    <input
+      class="projects-edit"
+      type="text"
+      value={value()}
+      maxLength={PROJECT_NAME_MAX_CHARS}
+      aria-label="Rename project"
+      data-help="projects.rename"
+      ref={(el) => {
+        el.focus();
+        el.select();
+        // IN-4 twin: the click that opened the editor finalizes focus on the
+        // origin button after this ref already focused the input — re-assert
+        // past that finalization so the first keystroke lands in the field.
+        window.setTimeout(() => {
+          if (el.isConnected) {
+            el.focus();
+            el.select();
+          }
+        }, 0);
+      }}
+      onInput={(e) => setValue(e.currentTarget.value)}
+      onBlur={() => commit()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.stopPropagation();
+          commit();
+        } else if (e.key === "Escape") {
+          e.stopPropagation();
+          settled = true;
+          props.onCancel();
+        }
+      }}
+    />
   );
 }

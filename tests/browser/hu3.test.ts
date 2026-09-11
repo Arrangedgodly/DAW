@@ -8,17 +8,24 @@
  *  - the Projects popover switches projects through the real component with
  *    the no-clobber ordering law (old row untouched, edits land in the new
  *    row).
+ *
+ * i6 S-3 (rename + delete + undo) extends the same family: both rename
+ * paths persist through real flush windows, the two-step confirm stands down
+ * on Esc/click-away/5 s, deleting the ACTIVE row switches to the successor
+ * with NO resurrection after a full flush window, and UNDO re-puts the exact
+ * held record byte-for-byte. The popover's keyboard contract (Esc/Tab-trap/
+ * focus-return) is re-probed WITH an editor open — the two i6 traps.
  */
 
 import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
 import { decode } from "../../src/document/codec";
 import { docStore } from "../../src/state/store";
-import { clearToasts } from "../../src/state/toasts";
+import { clearToasts, toastStack } from "../../src/state/toasts";
 import Projects from "../../src/components/Projects";
 import Toasts from "../../src/components/Toasts";
 import { getAutosaveController, initPersistence } from "../../src/persist/boot";
-import { openRawProjectDb } from "../../src/persist/db";
+import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { getProjectRecord, saveProject } from "../../src/persist/projectStore";
 import { createNewProject } from "../../src/persist/newProject";
 
@@ -177,6 +184,429 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
       expect(JSON.parse(rowB!.json).transport.bpm).toBe(137);
       expect(rowA!.dirty).toBe(false);
       expect(rowB!.dirty).toBe(false);
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+});
+
+describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
+  /** Wait for a queried element to exist, then return it (typed). */
+  async function waitForEl<T extends Element>(query: () => T | null): Promise<T> {
+    await waitFor(() => query() !== null);
+    return query()!;
+  }
+
+  /** Wait for a db row to exist again (the UNDO round-trip). */
+  async function waitForRecord(db: ProjectDb, id: string) {
+    await waitFor(async () => (await getProjectRecord(db, id)) !== undefined);
+    return (await getProjectRecord(db, id))!;
+  }
+
+  /** Open the popover and wait for its rows (the real component, real list). */
+  async function openPopover(ui: ReturnType<typeof mount>) {
+    const btn = ui.host.querySelector<HTMLButtonElement>(".projects-btn")!;
+    btn.click();
+    await waitFor(() => ui.host.querySelector(".projects-pop") !== null);
+    await waitFor(() => ui.host.querySelector(".projects-item") !== null);
+    return btn;
+  }
+
+  /** One saved row's <li> by project id (rows carry data-id). */
+  function rowOf(ui: ReturnType<typeof mount>, id: string) {
+    return ui.host.querySelector(`li[data-id="${id}"]`)!;
+  }
+
+  /** Start the rename editor on a row and wait for it to be focused. */
+  async function startRename(ui: ReturnType<typeof mount>, id: string) {
+    rowOf(ui, id).querySelector<HTMLButtonElement>(".projects-ren")!.click();
+    await waitFor(() => rowOf(ui, id).querySelector(".projects-edit") !== null);
+    await waitFor(
+      () =>
+        document.activeElement === rowOf(ui, id).querySelector(".projects-edit"),
+    );
+    return rowOf(ui, id).querySelector<HTMLInputElement>(".projects-edit")!;
+  }
+
+  /** Type into the Solid editor (value + delegated input event). */
+  function typeInto(input: HTMLInputElement, value: string) {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function keyAt(el: Element, key: string) {
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+    );
+  }
+
+  /** Arm + press a row's two-step delete; resolves the CONFIRM button. */
+  async function armConfirm(ui: ReturnType<typeof mount>, id: string) {
+    rowOf(ui, id).querySelector<HTMLButtonElement>(".projects-del")!.click();
+    return waitForEl(() =>
+      rowOf(ui, id).querySelector<HTMLButtonElement>(".projects-confirm"),
+    );
+  }
+
+  it("renames the CURRENT row through the store; empty is a no-op; the normalizer clamps to 48", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-rename-current");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      await openPopover(ui);
+      const id = boot.projectId;
+
+      // Enter-commit: the store carries the name, the flush persists it to
+      // BOTH the envelope and the encoded json.
+      const edit = await startRename(ui, id);
+      typeInto(edit, "renamed live");
+      keyAt(edit, "Enter");
+      await waitFor(
+        () => rowOf(ui, id).textContent?.includes("renamed live") === true,
+      );
+      await new Promise((r) => setTimeout(r, 1100)); // debounce + IDB
+      const row = await getProjectRecord(db, id);
+      expect(row!.name).toBe("renamed live");
+      expect(decode(row!.json).name).toBe("renamed live");
+      expect(docStore.getState().doc.name).toBe("renamed live");
+
+      // Empty-after-trim commit: a NO-OP — the editor exits, the name stays.
+      const empty = await startRename(ui, id);
+      typeInto(empty, "   ");
+      keyAt(empty, "Enter");
+      await waitFor(() => rowOf(ui, id).querySelector(".projects-edit") === null);
+      expect(docStore.getState().doc.name).toBe("renamed live");
+      await new Promise((r) => setTimeout(r, 1100));
+      expect((await getProjectRecord(db, id))!.name).toBe("renamed live");
+
+      // The normalizer is the authority past maxLength UX (programmatic
+      // values can exceed the attr): 60 chars clamp to 48 CODE POINTS.
+      const long = await startRename(ui, id);
+      typeInto(long, "a".repeat(60));
+      keyAt(long, "Enter");
+      await waitFor(
+        () => docStore.getState().doc.name.length === 48,
+      );
+      await new Promise((r) => setTimeout(r, 1100));
+      expect((await getProjectRecord(db, id))!.name.length).toBe(48);
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("renames an OTHER row via record rewrite (blur commits); duplicates allowed; the working doc is untouched", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-rename-other");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "workshop A" } });
+      await new Promise((r) => setTimeout(r, 1100));
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "workshop B" });
+      await openPopover(ui);
+
+      // Blur commits (the audit's stated click-away choice: focus leaving
+      // the field commits — a real blur event through the real handler).
+      const edit = await startRename(ui, b.record.id);
+      typeInto(edit, "workshop B renamed");
+      edit.blur();
+      await waitFor(
+        () =>
+          rowOf(ui, b.record.id).textContent?.includes("workshop B renamed") ===
+          true,
+      );
+
+      // The record carries the name in envelope AND json; the working doc
+      // and its own row are untouched (renameProjectRecord never sees them).
+      const rowB = await getProjectRecord(db, b.record.id);
+      expect(rowB!.name).toBe("workshop B renamed");
+      expect(decode(rowB!.json).name).toBe("workshop B renamed");
+      const rowA = await getProjectRecord(db, boot.projectId);
+      expect(rowA!.name).toBe("workshop A");
+      expect(docStore.getState().doc.name).toBe("workshop A");
+
+      // Duplicates are ALLOWED (ids are the key; no silent suffixing).
+      const dup = await startRename(ui, b.record.id);
+      typeInto(dup, "workshop A");
+      keyAt(dup, "Enter");
+      await waitFor(
+        () =>
+          rowOf(ui, b.record.id).querySelector(".projects-edit") === null,
+      );
+      await waitFor(async () => {
+        const row = await getProjectRecord(db, b.record.id);
+        return row?.name === "workshop A";
+      });
+      expect(docStore.getState().doc.name).toBe("workshop A");
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("delete is two-step: CONFIRM replaces the row; Esc, click-away, and 5 s all stand it down; the second press deletes an inactive row", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-confirm");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "workshop A" } });
+      await new Promise((r) => setTimeout(r, 1100));
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "workshop B" });
+      await openPopover(ui);
+
+      // First press: the row's CONTENT is replaced by CONFIRM DELETE.
+      const confirm = await armConfirm(ui, b.record.id);
+      expect(rowOf(ui, b.record.id).querySelector(".projects-item")).toBeNull();
+      expect(confirm.textContent).toContain("CONFIRM DELETE");
+      expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
+
+      // Esc stands the confirm down WITHOUT closing the popover (the §2.5
+      // capture-phase gate) and returns focus to the row's DELETE key.
+      await waitFor(() => document.activeElement === confirm);
+      keyAt(confirm, "Escape");
+      await waitFor(
+        () => rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
+      );
+      expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
+      expect(rowOf(ui, b.record.id).querySelector(".projects-item")).not.toBeNull();
+      await waitFor(
+        () =>
+          document.activeElement ===
+          rowOf(ui, b.record.id).querySelector(".projects-del"),
+      );
+
+      // Click-away (a pointer press outside the confirming row — inside the
+      // popover counts) stands it down too.
+      await armConfirm(ui, b.record.id);
+      rowOf(ui, boot.projectId)
+        .querySelector(".projects-item")!
+        .dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      await waitFor(
+        () => rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
+      );
+      expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
+
+      // The 5 s deliberateness window auto-reverts.
+      await armConfirm(ui, b.record.id);
+      await new Promise((r) => setTimeout(r, 5300));
+      expect(rowOf(ui, b.record.id).querySelector(".projects-confirm")).toBeNull();
+      expect(rowOf(ui, b.record.id).querySelector(".projects-item")).not.toBeNull();
+
+      // Second press deletes the INACTIVE row: gone from list and db, the
+      // working song untouched, the sticky DELETED toast raised.
+      const go = await armConfirm(ui, b.record.id);
+      go.click();
+      await waitFor(async () => (await getProjectRecord(db, b.record.id)) === undefined);
+      await waitFor(
+        () => ui.host.querySelector(`li[data-id="${b.record.id}"]`) === null,
+      );
+      expect(decode((await getProjectRecord(db, boot.projectId))!.json).name).toBe(
+        "workshop A",
+      );
+      expect(docStore.getState().doc.name).toBe("workshop A");
+      expect(ui.toastHost.textContent).toContain("DELETED");
+      expect(ui.toastHost.textContent).toContain("UNDO");
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("deletes the ACTIVE row: successor switch, NO resurrection after a full flush window (armed debounce)", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-delete-active");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "doomed song" } });
+      await new Promise((r) => setTimeout(r, 1100));
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "survivor" });
+      await openPopover(ui);
+
+      // Arm the race: an edit whose 800 ms debounce is STILL PENDING when
+      // the delete runs — the succession must flush it into the doomed row,
+      // disarm every writer, and only then delete.
+      docStore.setState({
+        doc: {
+          ...docStore.getState().doc,
+          transport: { ...docStore.getState().doc.transport, bpm: 149 },
+        },
+      });
+      const go = await armConfirm(ui, boot.projectId);
+      go.click();
+
+      // Visible switch to the successor (most-recent remaining row).
+      await waitFor(() => docStore.getState().doc.name === "survivor");
+      await waitFor(
+        async () => (await getProjectRecord(db, boot.projectId)) === undefined,
+      );
+
+      // The resurrection window: a full debounce + IDB pass with the
+      // successor's controller live — the doomed row must stay gone.
+      await new Promise((r) => setTimeout(r, 1100));
+      expect(await getProjectRecord(db, boot.projectId)).toBeUndefined();
+      const rowB = await getProjectRecord(db, b.record.id);
+      expect(decode(rowB!.json).name).toBe("survivor");
+      expect(JSON.parse(rowB!.json).transport.bpm).not.toBe(149); // no clobber
+      expect(ui.toastHost.textContent).toContain("DELETED");
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("UNDO re-puts the exact held record (byte-identical json, original updatedAt) and never auto-switches", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-undo");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "byte song" } });
+      await new Promise((r) => setTimeout(r, 1100)); // clean flush: stable bytes
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "after song" });
+      // No edits after this snapshot: the held record === these exact bytes.
+      const snapshot = await getProjectRecord(db, boot.projectId);
+      expect(snapshot).toBeDefined();
+
+      await openPopover(ui);
+      const go = await armConfirm(ui, boot.projectId);
+      go.click();
+      await waitFor(() => docStore.getState().doc.name === "after song");
+      await waitFor(
+        async () => (await getProjectRecord(db, boot.projectId)) === undefined,
+      );
+
+      // The one-shot UNDO (the toast's action button).
+      const undo = await waitForEl(() =>
+        [...ui.toastHost.querySelectorAll<HTMLButtonElement>(".toast-action")].find(
+          (btn) => btn.textContent?.trim() === "UNDO",
+        ),
+      );
+      undo.click();
+      const restored = await waitForRecord(db, boot.projectId);
+      // EXACT record: byte-identical json, original updatedAt + dirty flags.
+      expect(restored!.json).toBe(snapshot!.json);
+      expect(restored!.name).toBe(snapshot!.name);
+      expect(restored!.updatedAt).toBe(snapshot!.updatedAt);
+      expect(restored!.dirty).toBe(snapshot!.dirty);
+
+      // UNDO never auto-switches: the user stays in the successor.
+      expect(docStore.getState().doc.name).toBe("after song");
+      // One-shot by vehicle: the DELETED toast dismissed after the run.
+      await waitFor(() => !ui.toastHost.textContent?.includes("DELETED"));
+      expect(toastStack().some((t) => t.message.includes("DELETED"))).toBe(false);
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("deleting the LAST song boots into a fresh NEW successor (never zero rows)", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-delete-last");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      await openPopover(ui);
+
+      const go = await armConfirm(ui, boot.projectId);
+      go.click();
+
+      await waitFor(() => docStore.getState().doc.name === "Untitled");
+      await waitFor(
+        () => ui.host.querySelectorAll(".projects-item").length === 1,
+      );
+      expect(await getProjectRecord(db, boot.projectId)).toBeUndefined();
+      expect(ui.toastHost.textContent).toContain("DELETED");
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("popover contract with an editor open: the Tab trap enumerates the input, Esc cancels the edit ONLY, focus returns on close", async () => {
+    const db = await freshDb("bitbounce-test-hu3-i6-keyboard");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "keyboard song" } });
+      await new Promise((r) => setTimeout(r, 1100));
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "other row" });
+      const btn = await openPopover(ui);
+      const id = boot.projectId;
+      const panel = ui.host.querySelector(".projects-pop")!;
+
+      // The CURRENT row sits SECOND (most-recent-first: the just-saved other
+      // row is on top), so the trap's focus order is
+      // [other-item, other-REN, other-DELETE, EDITOR, NEW, ...]. Tab FROM the
+      // editor must land on NEW — proving the input is enumerated at its DOM
+      // position. An input the trap cannot see resolves activeElement to -1
+      // and wraps to the FIRST row's item instead.
+      const edit = await startRename(ui, id);
+      typeInto(edit, "tab song");
+      keyAt(edit, "Tab");
+      // Blur commits (the §2.5 stated choice): the editor closed, the name
+      // landed in the store, and focus stayed inside the popover.
+      await waitFor(() => ui.host.querySelector(".projects-edit") === null);
+      expect(docStore.getState().doc.name).toBe("tab song");
+      expect(document.activeElement).toBe(
+        ui.host.querySelector(".projects-action"),
+      );
+      expect(panel.contains(document.activeElement)).toBe(true);
+
+      // The remaining button cycle never escapes the panel (wrap included).
+      const count = panel.querySelectorAll("button:not([disabled])").length;
+      let focus: Element = document.activeElement as Element;
+      for (let i = 0; i < count + 2; i++) {
+        keyAt(focus, "Tab");
+        const active = document.activeElement as Element;
+        expect(panel.contains(active), "Tab never escapes the popover").toBe(true);
+        focus = active;
+      }
+
+      // Esc DURING an edit cancels the edit only — the popover stays open,
+      // the committed name is untouched, and focus returns to the row's
+      // RENAME key (the §2.5 capture-phase gate: the doc-level Esc close
+      // must NOT fire while the editor is open).
+      const again = await startRename(ui, id);
+      typeInto(again, "THROWN AWAY");
+      keyAt(again, "Escape");
+      await waitFor(() => ui.host.querySelector(".projects-edit") === null);
+      expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
+      expect(docStore.getState().doc.name).toBe("tab song");
+      await waitFor(
+        () =>
+          document.activeElement ===
+          rowOf(ui, id).querySelector(".projects-ren"),
+      );
+
+      // Esc with no editor/confirm open: the popover closes and focus
+      // returns to the anchor button (the unchanged contract).
+      keyAt(document.activeElement as Element, "Escape");
+      await waitFor(() => ui.host.querySelector(".projects-pop") === null);
+      expect(document.activeElement).toBe(btn);
     } finally {
       ui.cleanup();
       await getAutosaveController()?.stop();

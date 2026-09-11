@@ -19,7 +19,14 @@ export type ToastKind = "error" | "info" | "success";
 
 export interface ToastAction {
   readonly label: string;
-  readonly run: () => void;
+  /**
+   * Runs then the toast dismisses — UNLESS the run resolves `false`: a
+   * failed async action (i6 §4.6: UNDO's re-put under a full storage quota)
+   * keeps the toast armed so the user can retry after freeing space. Sync
+   * `void` returns (the RECOVER precedent) keep the one-shot vehicle exactly
+   * as before.
+   */
+  run: () => void | boolean | Promise<void | boolean>;
 }
 
 export interface Toast {
