@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-11T08:00:00Z",
+  "generatedAt": "2026-09-11T23:40:00Z",
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
@@ -193,7 +193,7 @@
       },
       {
         "name": "phone",
-        "value": "<768 (or <1024 with height <600 — rotated phone keeps the phone law)",
+        "value": "<768 (or <1024 with height <600 \u2014 rotated phone keeps the phone law)",
         "purpose": "Single-lane stage: lane-switcher tabs = quadrant selection; ONE sticky phone-chrome (booth + switcher + condensed rail) <50% viewport height; grid scrolls naturally (rows vertical, 2/4-bar horizontal, 1-bar default); page never h-scrolls. Since i5: 1-bar rows fill the well width exactly (exact-fraction cells, clamp [15,24]; 0 dead-right), row tracks grown [44,64]px (44 floor), and the card bottom owns the viewport bottom at scroll end (grid share 52.1/49.5/56.7% at 390/360/430)."
       }
     ]
@@ -208,7 +208,7 @@
       "css": ".ds-btn-chassis { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-ink, #f5f2e9); background: transparent; border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 40%, transparent); border-radius: 4px; padding: 8px 12px; cursor: pointer; } .ds-btn-chassis:hover { border-color: color-mix(in srgb, var(--color-ink, #f5f2e9) 70%, transparent); } .ds-btn-chassis:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 2px; }"
     },
     {
-      "name": "Chassis Button — lit",
+      "name": "Chassis Button \u2014 lit",
       "kind": "button",
       "refersTo": "booth-button-lit",
       "description": "Active transport control: lane-hue fill, ink-on-fill glyphs, one glow layer.",
@@ -227,7 +227,7 @@
       "name": "Stepper Button",
       "kind": "button",
       "refersTo": "stepper-button",
-      "description": "20px square stepper with lane-hue border accent — the one vocabulary for preset stepping, OCT -/+ transpose (one octave, clamped ±3, exports follow), and the pattern LENGTH ladder (BARS 1..128, refuse-on-truncation).",
+      "description": "20px square stepper with lane-hue border accent \u2014 the one vocabulary for preset stepping, OCT -/+ transpose (one octave, clamped \u00b13, exports follow), and the pattern LENGTH ladder (BARS 1..128, refuse-on-truncation).",
       "html": "<button class=\"ds-stepper\">&gt;</button>",
       "css": ".ds-stepper { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; color: var(--color-ink, #f5f2e9); background: color-mix(in srgb, var(--color-ink, #f5f2e9) 7%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-lane-lead, #4da6ff) 35%, var(--color-ground, #0d0b10)); border-radius: 3px; width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; } .ds-stepper:hover { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 14%, var(--color-ground, #0d0b10)); } .ds-stepper:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 1px; }"
     },
@@ -286,62 +286,73 @@
       "description": "A saved song in the PROJECTS popover: machined open-key with always-visible RENAME/DELETE; special states replace the row.",
       "html": "<div class=\"ds-projects-row\"><button class=\"ds-projects-item\"><span class=\"ds-projects-name\">Retro Stages</span><span class=\"ds-projects-when\">1m ago</span></button><button class=\"ds-projects-x\">RENAME</button><button class=\"ds-projects-x\">DELETE</button></div>",
       "css": ".ds-projects-row { display: flex; gap: 2px; align-items: stretch; } .ds-projects-item, .ds-projects-x { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.05em; color: #f5f2e9; background: #17151c; border: 1px solid color-mix(in srgb, #f5f2e9 18%, #17151c); border-radius: 3px; } .ds-projects-item { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; text-align: left; } .ds-projects-name { contain: inline-size; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-projects-when { font-size: 10px; color: color-mix(in srgb, #f5f2e9 62%, #17151c); flex-shrink: 0; } .ds-projects-x { flex-shrink: 0; padding: 4px 8px; cursor: pointer; } .ds-projects-item:hover, .ds-projects-x:hover { background: color-mix(in srgb, #f5f2e9 12%, #17151c); } .ds-projects-item:focus-visible, .ds-projects-x:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Phone Register Row (iteration 7)",
+      "kind": "custom",
+      "refersTo": "stepper-button",
+      "description": "The phone card's ONE view-control row under the header: ONE OCT stepper, ONE SEMI stepper, the aria-live ROWS readout, and the zoom chip (factor + reset).",
+      "html": "<div class=\"ds-regrow\"><div class=\"ds-regstep\"><span class=\"ds-reglabel\">OCT</span><button class=\"ds-regbtn\">\u2013</button><button class=\"ds-regbtn\">+</button></div><div class=\"ds-regstep\"><span class=\"ds-reglabel\">SEMI</span><button class=\"ds-regbtn\">\u2013</button><button class=\"ds-regbtn\">+</button></div><span class=\"ds-regread\">\u25a0 ROWS 7\u201313 OF 14</span><button class=\"ds-zoomchip\"><span class=\"ds-zoomf\">1.00\u00d7</span><span class=\"ds-zoomr\">RESET</span></button></div>",
+      "css": ".ds-regrow { display: flex; align-items: center; gap: 8px; padding: 4px 8px; } .ds-regstep { display: flex; align-items: center; gap: 4px; } .ds-reglabel { font-family: ui-monospace, monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: #f5f2e9; } .ds-regbtn { width: 44px; height: 44px; font-family: ui-monospace, monospace; font-size: 13px; color: #f5f2e9; background: #17151c; border: 1px solid color-mix(in srgb, #4da6ff 35%, #17151c); border-radius: 3px; cursor: pointer; } .ds-regbtn:hover { background: color-mix(in srgb, #f5f2e9 12%, #17151c); } .ds-regbtn:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 1px; } .ds-regbtn:disabled { opacity: 0.4; cursor: default; } .ds-regread { font-family: ui-monospace, monospace; font-size: 11px; color: color-mix(in srgb, #f5f2e9 62%, #17151c); margin-left: auto; white-space: nowrap; } .ds-zoomchip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 2px 6px; font-family: ui-monospace, monospace; background: #17151c; border: 1px solid color-mix(in srgb, #f5f2e9 22%, #17151c); border-radius: 3px; color: #f5f2e9; cursor: pointer; } .ds-zoomf { font-size: 11px; } .ds-zoomr { font-size: 8px; letter-spacing: 0.05em; color: color-mix(in srgb, #f5f2e9 62%, #17151c); } .ds-zoomchip:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 1px; }"
     }
   ],
   "narrative": {
     "northStar": "Arcade Stage Floor",
     "overview": [
-      "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth — a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade — the whole DAW fits one page at 1440×900 — and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2×2 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2×2 collapses to a single-lane stage behind a lane switcher, with full touch parity — same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM — which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
-      "Iteration 4 (mobile rework) put the whole instrument in one hand: KEYS/INFO dropped from the phone stage, a centered always-visible transport pinned in the chrome, booth options folded into a zero-DOM-when-closed drawer, the desktop one-octave register window extended to phone grids behind explicit ±octave/±semitone shift rows with fill+border+shape change feedback, and 44px finger-sized rows lifting the grid to ~35% of the phone viewport. Desktop surfaces untouched.",
-      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) — grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical.",
-      "Iteration 6 (saved-song management) made the library self-managing: always-visible RENAME/DELETE machined keys per saved row, replaced-row special states that never widen the popover, a shared 48-codepoint title normalizer, a deliberate two-step drums-red CONFIRM DELETE, and a sticky one-shot byte-exact UNDO — with the popover's width independent of song-title length (the ellipsized name owns its intrinsic width)."
+      "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth \u2014 a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade \u2014 the whole DAW fits one page at 1440\u00d7900 \u2014 and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2\u00d72 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2\u00d72 collapses to a single-lane stage behind a lane switcher, with full touch parity \u2014 same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM \u2014 which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
+      "Iteration 4 (mobile rework) put the whole instrument in one hand: KEYS/INFO dropped from the phone stage, a centered always-visible transport pinned in the chrome, booth options folded into a zero-DOM-when-closed drawer, the desktop one-octave register window extended to phone grids behind explicit \u00b1octave/\u00b1semitone shift rows with fill+border+shape change feedback, and 44px finger-sized rows lifting the grid to ~35% of the phone viewport. Desktop surfaces untouched.",
+      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) \u2014 grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical.",
+      "Iteration 6 (saved-song management) made the library self-managing: always-visible RENAME/DELETE machined keys per saved row, replaced-row special states that never widen the popover, a shared 48-codepoint title normalizer, a deliberate two-step drums-red CONFIRM DELETE, and a sticky one-shot byte-exact UNDO \u2014 with the popover's width independent of song-title length (the ellipsized name owns its intrinsic width).",
+      "Iteration 7 (phone MIDI section rework) put the register under law: a semitone-snap window (exactly modeSize COMPLETE rows at every rest, the pane box pinned to the renderer's inline height), ONE OCT + ONE SEMI register row with the sound-transpose OCT fenced into the phone OPTIONS drawer (\"Changes what you HEAR, not what you SEE\"), pitch-anchored notes (identity = scale degree; scale edits relabel in place), pinch-to-zoom [1,2]x re-fit through the renderer seams with a factor chip + double-tap reset, and the phone card header re-tiered into two edge-anchored rows (the \u00b7 EDIT word hidden at phone scope; one line in landscape). Desktop and tablet surfaces remain byte-identical."
     ],
     "keyCharacteristics": [
       "Dark stage ground; four lane hues carry identity; warm white carries information.",
       "Silkscreened uppercase labels on every control; mono value readouts are tabular by construction.",
-      "State = fill + border + shape mark (corner notch, diagonal hatch, diamond flag) — never glow alone, never color alone.",
-      "One glow layer max, ≤3px blur, lane hue at 45–60% alpha, decoration-only.",
+      "State = fill + border + shape mark (corner notch, diagonal hatch, diamond flag) \u2014 never glow alone, never color alone.",
+      "One glow layer max, \u22643px blur, lane hue at 45\u201360% alpha, decoration-only.",
       "Flat chassis with 1px ink-mix borders; floating surfaces get one offset shadow, not a stack."
     ],
     "rules": [
       {
         "name": "The Ink Law",
-        "body": "(1) Filled cells and lit buttons set glyphs in ink-on-fill, never warm white on lane fills. (2) Info-critical text is warm white on ground — never lane-hued, never dimmed. (3) No lane-hue text on lane fills. (4) Red text ≤10px, Silkscreen 700 only.",
+        "body": "(1) Filled cells and lit buttons set glyphs in ink-on-fill, never warm white on lane fills. (2) Info-critical text is warm white on ground \u2014 never lane-hued, never dimmed. (3) No lane-hue text on lane fills. (4) Red text \u226410px, Silkscreen 700 only.",
         "section": "colors"
       },
       {
         "name": "The Six-Color Rule",
-        "body": "No new color enters the stage without a lane to own it. Tints and dims are color-mix() of ink or a lane hue into ground — never new hex values.",
+        "body": "No new color enters the stage without a lane to own it. Tints and dims are color-mix() of ink or a lane hue into ground \u2014 never new hex values.",
         "section": "colors"
       },
       {
         "name": "The Size-Law Rule",
-        "body": "Each face has a size band it may never leave: Silkscreen 10–12px, Departure Mono 11px, Plex Mono 13–14px, VT323 20–24px, Press Start 2P 16px+ in multiples of 8. Glow on text only ≥18px.",
+        "body": "Each face has a size band it may never leave: Silkscreen 10\u201312px, Departure Mono 11px, Plex Mono 13\u201314px, VT323 20\u201324px, Press Start 2P 16px+ in multiples of 8. Glow on text only \u226518px.",
         "section": "typography"
       },
       {
         "name": "The Decoration-Only Glow Rule",
-        "body": "Glow never counts toward contrast and never substitutes for it; glow is never the only state signal; exactly one glow layer, ≤3px blur, lane hue 45–60% alpha; no glow on text <18px; trigger glow decays ≤180ms.",
+        "body": "Glow never counts toward contrast and never substitutes for it; glow is never the only state signal; exactly one glow layer, \u22643px blur, lane hue 45\u201360% alpha; no glow on text <18px; trigger glow decays \u2264180ms.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "Do take every value from tokens.css — the file's own law says \"Do not hardcode these values.\"",
-      "Do code state as fill + border + shape mark + text equivalent (notch, hatch, diamond flag, \"· EDIT\" word, aria-label).",
-      "Do keep the register contract honest: every pitched lane defaults to the same one-octave register window; OCT changes what a lane SOUNDS (±3 octave clamp, exports follow), window scroll changes what you SEE — never conflate the two in copy, help, or control placement.",
-      "Do keep every text pair ≥ AA by the res-9 table (warm white on ground 17.49:1; ink-on-fill ≥5.17:1; dim legends at 62% ink = 7.00:1, never 45%).",
+      "Do take every value from tokens.css \u2014 the file's own law says \"Do not hardcode these values.\"",
+      "Do code state as fill + border + shape mark + text equivalent (notch, hatch, diamond flag, \"\u00b7 EDIT\" word, aria-label).",
+      "Do keep the register contract honest: every pitched lane's window always seats exactly modeSize COMPLETE rows (any semitone offset, snapped at every rest \u2014 boot, steppers, wheel, scroll-end); the readout, the grid aria, and the pixels derive from ONE manifest (the mounted pattern's). OCT changes what a lane SOUNDS (\u00b13 octave clamp, exports follow \u2014 the strip on desktop/tablet, the OPTIONS drawer on phone); the register row's OCT/SEMI and window scrolling change what you SEE \u2014 never conflate the two in copy, help, or control placement.",
+      "Do keep every text pair \u2265 AA by the res-9 table (warm white on ground 17.49:1; ink-on-fill \u22655.17:1; dim legends at 62% ink = 7.00:1, never 45%).",
       "Do gate motion in BOTH CSS media query and the render loop via matchMedia; honor prefers-reduced-motion by construction.",
       "Do keep floating surfaces inside the viewport law: overlays never grow the page.",
-      "Do give touch a target ≥44px: painted ≥44px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible ±8px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows.",
+      "Do give touch a target \u226544px: painted \u226544px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible \u00b18px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows.",
       "Do keep the phone options drawer zero-DOM while closed and the register shift rows' bounds honest (disabled at the clamp, aria-live ROWS readout on every change).",
-      "Do keep every floating surface's width independent of its content's longest unwrapped string — an ellipsized name must own its intrinsic width (contain: inline-size), and the projects popover stays at its committed width for a 68-codepoint title exactly as for “Untitled” (gated with a long-titled seeded row)."
+      "Do keep every floating surface's width independent of its content's longest unwrapped string \u2014 an ellipsized name must own its intrinsic width (contain: inline-size), and the projects popover stays at its committed width for a 68-codepoint title exactly as for \u201cUntitled\u201d (gated with a long-titled seeded row).",
+      "Do keep a note's identity its scale DEGREE: window, scroll, and zoom changes re-map rows and runs through the renderer seams (a scale edit relabels rows in place, same-length only) \u2014 a note's apparent pitch never changes with scrolling.",
+      "Do zoom by re-fitting geometry (cell/track px through the renderer seams), never a CSS transform; the factor clamps [1,2]x the fill, the window keeps exactly modeSize complete rows at every factor, and the double-tap reset is consumed before cell activation so it never places or removes a note under it."
     ],
     "donts": [
-      "Don't put warm-white text on a lane-hue fill, or lane-hue text on ground for info-critical copy (red text ≤10px Silkscreen 700 only).",
+      "Don't put warm-white text on a lane-hue fill, or lane-hue text on ground for info-critical copy (red text \u226410px Silkscreen 700 only).",
       "Don't add a second glow layer, a glow >3px, or an infinite pulse (the first-run nudge is the one sanctioned exception, static under reduced motion).",
       "Don't introduce a new color, gradient, or OS-native control appearance.",
-      "Don't break the one-page law on desktop: at 1440×900 AND 1280×800 (and the floors filling the viewport width at every desktop width — 1920 included), quadrant content scrolls inside quadrants; the page never scrolls (the phone stage is the deliberate exception — sticky chrome + scrolling grid is its law).",
-      "Don't restyle the world for a layout need — palette, typography, corner language stay untouched; layout problems get layout answers (the mobile slice obeyed: one seam decides the stage, no new tokens; iteration 3 obeyed too: full-viewport densification, register windows, and virtualized long grids changed layout only — no token moved)."
+      "Don't break the one-page law on desktop: at 1440\u00d7900 AND 1280\u00d7800 (and the floors filling the viewport width at every desktop width \u2014 1920 included), quadrant content scrolls inside quadrants; the page never scrolls (the phone stage is the deliberate exception \u2014 sticky chrome + scrolling grid is its law).",
+      "Don't restyle the world for a layout need \u2014 palette, typography, corner language stay untouched; layout problems get layout answers (the mobile slice obeyed: one seam decides the stage, no new tokens; iteration 3 obeyed too: full-viewport densification, register windows, and virtualized long grids changed layout only \u2014 no token moved)."
     ]
   }
 }
