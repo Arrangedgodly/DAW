@@ -25,6 +25,11 @@
   right: 0;
   z-index: 40;
   min-width: 232px;
+  /* i6 critique A1 (belt-and-braces viewport law): browsers without
+   * inline-size containment on .projects-name (below) still get a popover
+   * that cannot leave the screen — the right-anchored box may overshoot
+   * left by at most its 24px viewport inset, never past the edge. */
+  max-width: calc(100vw - 24px);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
@@ -68,10 +73,20 @@
   cursor: pointer;
 }
 
-.projects-item:hover,
+.projects-item:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
+}
+
+/* i6 critique A2: the row keys inherited the popover's old `outline: none`
+ * on :focus-visible — the ONLY such suppression in the codebase, against
+ * DESIGN.md's Components law ("2px warm-white focus ring always visible…
+ * focus never glow-dependent"; every other surface uses --focus-on-metal).
+ * The ring is restored for keyboard focus; hover keeps the fill lift alone
+ * (the pointer is the pointer user's indicator). */
 .projects-item:focus-visible {
   background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
-  outline: none;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 .projects-item.is-current {
@@ -82,6 +97,21 @@
   font-family: var(--font-label);
   font-size: 11px;
   letter-spacing: 0.05em;
+  /* i6 critique A1 — the ellipsis law must own the row's INTRINSIC width
+   * too. white-space: nowrap makes this span's min-content the FULL
+   * unwrapped title, and min-width: 0 on .projects-item is a floor, not a
+   * ceiling: the intrinsic width propagated row → list → the popover's
+   * shrink-to-fit, so a >17-codepoint name blew the phone popover past the
+   * viewport (a 68-char fixture measured 739.7px, left edge −357.7 at 390;
+   * a 30-char name already −82.9 — while short names kept the committed
+   * 320.4px exactly, which is why the short-named gates never saw it).
+   * contain: inline-size detaches the span's intrinsic size from its text;
+   * flex-grow hands the freed width back so the visible line still fills
+   * the row and truncates with the same ellipsis (probed: 320.4px popover
+   * restored at 390 with the 68-char name mounted, name truncating at
+   * 102.9px, all four edges inside the viewport). */
+  contain: inline-size;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -126,10 +156,15 @@
   cursor: pointer;
 }
 
-.projects-x:hover,
+.projects-x:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
+}
+
+/* i6 critique A2 (twin of the .projects-item rule above). */
 .projects-x:focus-visible {
   background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
-  outline: none;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 /* §3.1: the deliberate second step paints danger — the drums-red lane hue
@@ -150,10 +185,16 @@
   cursor: pointer;
 }
 
-.projects-confirm:hover,
+.projects-confirm:hover {
+  background: color-mix(in srgb, var(--color-lane-drums) 24%, var(--metal-raised));
+}
+
+/* i6 critique A2 (twin of the .projects-item rule above) — the danger key
+ * keeps the strongest focus affordance in the popover. */
 .projects-confirm:focus-visible {
   background: color-mix(in srgb, var(--color-lane-drums) 24%, var(--metal-raised));
-  outline: none;
+  outline: var(--focus-on-metal);
+  outline-offset: var(--focus-on-metal-offset);
 }
 
 /* §2.5: the rename editor replaces the name display — a recessed readout

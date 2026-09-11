@@ -65,6 +65,7 @@ import { selectLane } from "../../src/state/selection";
 import { clearToasts, showError } from "../../src/state/toasts";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
+import { saveProject } from "../../src/persist/projectStore";
 // DA-3 fix precedent (axe gate): App imports its component CSS but NOT the
 // token sheet — that is main.tsx's job in the real bundle. Without tokens
 // every var(--space-*) padding/gap invalidates at computed-value time and
@@ -452,6 +453,18 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
         bootDb = await openRawProjectDb("bitbounce");
         snapshotRows = await bootDb.allRecords();
+        // i6 critique A1 teeth: a REAL-length title joins the walk. The
+        // committed gates seeded short names only, so the nowrap name's
+        // intrinsic min-content (the full unwrapped title — min-width: 0 on
+        // .projects-item is a floor, not a ceiling) blew the popover past
+        // the phone viewport unnoticed (this exact row pre-fix: 739.7px
+        // popover, left edge −357.7 at 390). Seeded most-recent so the walk
+        // audits it first; popoverFits's edges-inside law answers for it in
+        // every state; the finally's restore deletes it (not in ids).
+        await saveProject(bootDb, "i6-critique-long-name", {
+          ...createDemoProject(),
+          name: "A Very Long Song Name That Definitely Exceeds Forty Eight Codepoints",
+        });
         // Deterministic full surfaces: the demo carries FX devices on bass,
         // chain tiles on every lane, and six drum rows with fill rails.
         loadDocument(createDemoProject());
@@ -538,6 +551,16 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           // + the fit law only (the :256-258 `optional` rationale).
           const hasRows = document.querySelector(".projects-item") !== null;
           if (hasRows) {
+            // A1 tooth presence: the seeded long-titled row is in THIS walk
+            // (most-recent-first puts it first). The paint may ellipsize it;
+            // textContent keeps the full 68-codepoint title.
+            const longRow = document.querySelector(
+              'li[data-id="i6-critique-long-name"] .projects-name',
+            ) as HTMLElement | null;
+            expect(
+              longRow?.textContent ?? "",
+              "the long-title tooth row is present in the walk",
+            ).toContain("Codepoints");
             await auditSelector(".projects-item", "projects row", walkRows, {
               limit: 2,
               optional: true,

@@ -257,7 +257,22 @@ export default function Projects(): JSX.Element {
   const toggle = () => {
     const next = !open();
     if (next) {
-      void refresh();
+      // i6 critique A3: the mount-time focus pass below races the list —
+      // on FIRST open items() is still empty (focus lands on NEW, an
+      // action, not the first row), and on REOPEN the stale rows render,
+      // take the focus, then the refresh()'s re-read replaces the For rows
+      // (new ProjectMeta objects remount every li) and destroys the focused
+      // button — focus fell to <body>, the role=dialog unannounced and the
+      // Tab trap disengaged until focus re-entered the panel. Re-assert the
+      // first-control focus AFTER the list lands, so the popover's own law
+      // ("focus lands on the first item on open") holds every open. Only
+      // this open path — the other refresh() callers (rename/delete) own
+      // their own refocus and must not be raced.
+      void refresh().then(() => {
+        queueMicrotask(() => {
+          if (open()) focusables()[0]?.focus();
+        });
+      });
       setOpen(true);
       // Focus the first control once the panel exists.
       queueMicrotask(() => focusables()[0]?.focus());
