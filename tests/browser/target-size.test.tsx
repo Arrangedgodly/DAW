@@ -40,6 +40,13 @@
  * - The CHROME BUDGET re-assert at 360×800 (MB-1's hard law, re-pinned
  *   because the target law moves the chrome): chrome < 50% of the viewport,
  *   usable stage ≥ 40%.
+ * - i6 S-4: the shared PROJECTS popover's management states at every
+ *   committed phone width — per-row RENAME/DELETE keys, the CONFIRM DELETE
+ *   state, and the rename editor input join the elementFromPoint law at
+ *   360×800 + 390×844 (+ the 430×932 wide-phone spot-check), and the
+ *   popover box must FIT the viewport in normal/confirm/editor states while
+ *   the special states never WIDEN it (audit §5: the confirm key and the
+ *   editor REPLACE row content).
  * - FOCUS ORDER at phone: no positive tabindex anywhere; tab order is
  *   top-to-bottom visual order (chrome: booth → switcher → rail, then the
  *   scrolling stage: strip → grid) — the a11y §2 law at phone scale.
@@ -419,7 +426,7 @@ function logTable(rows: AuditRow[], where: string): void {
 
 describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation)", () => {
   it(
-    "390×844 + 360×800: every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence",
+    "390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence",
     { timeout: 240_000 },
     async () => {
       const host = document.createElement("div");
@@ -474,6 +481,150 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
               cancelable: true,
             }),
           );
+
+        // --- i6 S-4: the shared PROJECTS popover at phone width ------------
+        // The popover's management states are PHONE LAWS (audit §5): every
+        // new control (per-row RENAME/DELETE keys, the CONFIRM DELETE state,
+        // the rename editor input) is measured by the same elementFromPoint
+        // law as the rest of the chrome, and the popover itself must FIT the
+        // viewport in EVERY state — the confirm row and the editor REPLACE
+        // the row's content, so a special state may never WIDEN the popover
+        // (the 232 px min-width anchor; m1's no-hscroll pin stays byte-green
+        // because the popover is an absolute overlay with zero layout width).
+        const popoverFits = (
+          state: string,
+          vw2: number,
+          vh2: number,
+        ): number => {
+          const pop = document.querySelector(".projects-pop");
+          if (!pop)
+            throw new Error(`projects popover missing in ${state} state`);
+          const r = pop.getBoundingClientRect();
+          console.log(
+            `[S-4 popover fit · ${state} @${vw2}×${vh2}] ${r.width.toFixed(1)}×${r.height.toFixed(1)} x[${r.left.toFixed(1)},${r.right.toFixed(1)}] y[${r.top.toFixed(1)},${r.bottom.toFixed(1)}]`,
+          );
+          expect(
+            r.left,
+            `${state}-state popover left edge inside the viewport @${vw2}`,
+          ).toBeGreaterThanOrEqual(-0.5);
+          expect(
+            r.right,
+            `${state}-state popover right edge inside the viewport @${vw2}`,
+          ).toBeLessThanOrEqual(vw2 + 0.5);
+          expect(
+            r.top,
+            `${state}-state popover top edge inside the viewport @${vw2}`,
+          ).toBeGreaterThanOrEqual(-0.5);
+          expect(
+            r.bottom,
+            `${state}-state popover bottom edge inside the viewport @${vw2}`,
+          ).toBeLessThanOrEqual(vh2 + 0.5);
+          return r.width;
+        };
+        const phoneProjectsWalk = async (
+          walkRows: AuditRow[],
+          vw2: number,
+          vh2: number,
+        ): Promise<void> => {
+          click('[data-help="projects.open"]');
+          await waitFor(
+            () => document.querySelector(".projects-pop") !== null,
+            2000,
+            "projects popover open",
+          );
+          await raf();
+          const normalW = popoverFits("normal", vw2, vh2);
+          // The saved-list laws need rows; a wiped origin audits the actions
+          // + the fit law only (the :256-258 `optional` rationale).
+          const hasRows = document.querySelector(".projects-item") !== null;
+          if (hasRows) {
+            await auditSelector(".projects-item", "projects row", walkRows, {
+              limit: 2,
+              optional: true,
+            });
+            await auditSelector(".projects-x", "projects row key", walkRows, {
+              limit: 2,
+              optional: true,
+            });
+            // CONFIRM DELETE state: the row's content is replaced by the
+            // danger key — same popover width, confirm row fully reachable.
+            click(".projects-del");
+            await waitFor(
+              () => document.querySelector(".projects-confirm") !== null,
+              2000,
+              "projects confirm state",
+            );
+            await raf();
+            const confirmW = popoverFits("confirm", vw2, vh2);
+            expect(
+              confirmW,
+              "the confirm state never widens the popover (§5.3 replace law)",
+            ).toBeLessThanOrEqual(normalW + 0.5);
+            walkRows.push(
+              await auditControl(
+                $(".projects-confirm"),
+                "projects CONFIRM DELETE",
+              ),
+            );
+            // Stand the confirm down through its own §3.1 Esc law — on a
+            // single-row origin the confirming row's RENAME key is REPLACED
+            // (the replace law working as designed), so the editor state
+            // needs the row's normal controls back first.
+            $(".projects-confirm").dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: "Escape",
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+            await waitFor(
+              () => document.querySelector(".projects-confirm") === null,
+              2000,
+              "projects confirm stood down",
+            );
+            await raf();
+            // Rename editor state: the input REPLACES the name display; its
+            // 9 probe points also prove nothing — sticky chrome included —
+            // covers the focused field (the drawer precedent, §5.4).
+            click(".projects-ren");
+            await waitFor(
+              () => document.querySelector(".projects-edit") !== null,
+              2000,
+              "projects rename editor",
+            );
+            await raf();
+            const editW = popoverFits("editor", vw2, vh2);
+            expect(
+              editW,
+              "the editor state never widens the popover (§5.3 replace law)",
+            ).toBeLessThanOrEqual(normalW + 0.5);
+            walkRows.push(
+              await auditControl($(".projects-edit"), "projects rename editor"),
+            );
+            // The editor's own Escape cancels the edit only (the §2.5 gated
+            // close) — dispatched AT the input so the cancel never depends
+            // on focus timing; the popover stays open for the walk's close.
+            $(".projects-edit").dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: "Escape",
+                bubbles: true,
+                cancelable: true,
+              }),
+            );
+            await waitFor(
+              () => document.querySelector(".projects-edit") === null,
+              2000,
+              "projects rename editor cancelled",
+            );
+          }
+          await auditSelector(".projects-action", "projects action", walkRows);
+          keyAt("Escape");
+          await waitFor(
+            () => document.querySelector(".projects-pop") === null,
+            2000,
+            "projects popover closed",
+          );
+        };
 
         // --- steady-state chrome budget at the true 390 --------------------
         // (The FIRST-RUN twin of this law is MB-1's built-app gate — a wiped
@@ -798,23 +949,10 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         click('[data-help="lane.bass.fx"]'); // close the console
 
         // --- projects popover ----------------------------------------------
-        click('[data-help="projects.open"]');
-        await waitFor(
-          () => document.querySelector(".projects-pop") !== null,
-          2000,
-          "projects popover open",
-        );
-        await auditSelector(".projects-item", "projects row", rows, {
-          limit: 2,
-          optional: true, // empty on a wiped origin; actions always audit
-        });
-        await auditSelector(".projects-action", "projects action", rows);
-        keyAt("Escape");
-        await waitFor(
-          () => document.querySelector(".projects-pop") === null,
-          2000,
-          "projects popover closed",
-        );
+        // i6 S-4: the walk grew into phoneProjectsWalk — the new management
+        // controls + the fit/never-widen laws audit with the rows (optional
+        // on a wiped origin), the actions always audit.
+        await phoneProjectsWalk(rows, 390, 844);
 
         // --- failure chrome: a persistent error toast ----------------------
         clearToasts();
@@ -1090,7 +1228,26 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           ),
         );
         rows360.push(await auditControl($(".head-fill-toggle"), "strip FILL"));
+        // i6 S-4: the shared popover's management states at the TIGHT width
+        // too — the phone law is 360 AND 390 (+430 below), not 390 alone.
+        await phoneProjectsWalk(rows360, 360, 800);
         logTable(rows360, "360×800");
+
+        // ================= 430×932 — the wide-phone spot-check (i6 S-4) ==
+        // The third committed phone viewport (the M-7 CASES convention): the
+        // popover walk only — the full inventory is owned by 390/360 above.
+        await page.viewport(430, 932);
+        await waitFor(
+          () =>
+            document.querySelector(".app")?.getAttribute("data-stage") ===
+            "phone",
+          3000,
+          "phone again at 430×932",
+        );
+        await raf();
+        const rows430: AuditRow[] = [];
+        await phoneProjectsWalk(rows430, 430, 932);
+        logTable(rows430, "430×932 projects");
       } finally {
         clearToasts();
         document.documentElement.style.scrollbarWidth = ""; // MB-6 pin off
