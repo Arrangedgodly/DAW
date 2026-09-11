@@ -303,6 +303,24 @@ export interface DomGridRendererOptions {
    * owner never writes the document from this callback.
    */
   readonly onWindowScroll?: (start: number) => void;
+  /**
+   * i7 N-4 (audit §2.4, THE PINCH-ZOOM LAW): arm this grid as a pinch
+   * surface. The second pointer (`!e.isPrimary` — dropped wholesale before
+   * N-4) becomes the pinch twin; the two-pointer distance ratio drives a
+   * zoom factor clamped [1,2] × the owner's fill-law geometry. Phone +
+   * pitched + windowed grids only (the owner arms it); desktop/tablet and
+   * drums never pass it, so their pointer law is byte-identical.
+   */
+  readonly pinchZoom?: boolean;
+  /**
+   * i7 N-4: the zoom factor CHANGED — live during the pinch (each rAF apply,
+   * the owner re-fits through setCellWidth/setRowHeight, NEVER a CSS
+   * transform — hit-math honesty), and once more on commit/release, cancel
+   * (which keeps the current factor), and every reset (double-tap, the zoom
+   * chip). The factor itself lives on the renderer (`zoomFactor()`); the
+   * owner owns the measured baseline the factor multiplies.
+   */
+  readonly onZoomChange?: (factor: number) => void;
 }
 
 export interface GridRenderer {
@@ -389,6 +407,18 @@ export interface GridRenderer {
    * never move — rows keep their degrees, runs keep their rows.
    */
   setRowLabels(labels: readonly string[]): void;
+  /**
+   * i7 N-4: the live zoom factor — 1 at rest, [1,2] under/after a pinch
+   * (the committed value persists until reset). The phone fit multiplies
+   * its FILL-law targets by this (the clamps [15,24]/[44,64] stay fill-law
+   * clamps at the ×1 baseline; zoom may exceed the caps, never the floor).
+   */
+  zoomFactor(): number;
+  /**
+   * i7 N-4: reset the factor to ×1 and re-fit (the zoom chip's reset
+   * target; the double-tap reset goes through the same seam). No-op at ×1.
+   */
+  resetZoom(): void;
   /** One-shot trigger glow on the sounding cells of a column. */
   triggerGlow(step: number): void;
   /** Recompute cached geometry (after resize / font load). */
@@ -413,6 +443,23 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
  * rests visibly off-grid.
  */
 const SNAP_SETTLE_MS = 120;
+
+/* -- i7 N-4 (audit §2.4): the pinch-zoom law's numbers ---------------------- */
+/** The factor clamp: ×1 = the exact fill (m1 holds at rest), ×2 the ceiling. */
+const PINCH_ZOOM_MIN = 1;
+const PINCH_ZOOM_MAX = 2;
+/**
+ * Takeover epsilon: a two-pointer stream only TAKES OVER the surface when
+ * the ratio would actually MOVE the factor (a pinch-out at the ×1 floor is a
+ * clamp no-op and must not steal the pointer — the MB-4 second-finger law:
+ * a stray finger that never zooms leaves the first finger's editing gesture
+ * alone). Also the resetZoom() no-op bound.
+ */
+const PINCH_ZOOM_EPS = 0.01;
+/** Double-tap reset window (ms) — two taps ≤350 ms apart. */
+const TAP_RESET_WINDOW_MS = 350;
+/** Double-tap reset slop (px) — the two taps land ≤32 px apart. */
+const TAP_RESET_SLOP_PX = 32;
 
 /** One active pointer gesture (IN-2). */
 type Gesture =
@@ -552,6 +599,26 @@ export class DomGridRenderer implements GridRenderer {
    * every user scroll, disarmed by the real event. Zero = idle.
    */
   private snapSettleTimer = 0;
+  /* -- i7 N-4 (audit §2.4): the pinch-zoom surface --------------------------- */
+  /** True when the owner armed this grid as a pinch surface (phone pitched). */
+  private readonly pinch: boolean;
+  /** The live zoom factor — 1 at rest; persists until reset (the law). */
+  private zoom = 1;
+  /** Live pointers on the pane (pinch surface only), id → last client point. */
+  private readonly pinchPointers = new Map<number, { x: number; y: number }>();
+  /**
+   * The arm baseline: pointer distance + factor at the moment the SECOND
+   * pointer landed. Null below two pointers or after the stream ends.
+   */
+  private pinchBase: { dist: number; factor: number } | null = null;
+  /**
+   * True once the stream TOOK OVER (the ratio moved the factor): the pinch
+   * owns both pointers, the armed single-pointer gesture was cancelled, and
+   * pointerup/cancel end the pinch instead of editing.
+   */
+  private pinchLive = false;
+  /** The last tap (up) on a cell — the double-tap reset pair detector. */
+  private lastTap: { t: number; x: number; y: number } | null = null;
   /** Diagnostics (the LP-1 harness precedent): rewindow count + last cost. */
   rewindows = 0;
   lastRewindowMs = 0;
@@ -583,6 +650,7 @@ export class DomGridRenderer implements GridRenderer {
     // out of flow, so the cells begin right after the label).
     this.playheadLeftPx = this.labelPx + (this.fillOverlay ? 0 : this.fillPx);
     this.editable = opts.editable ?? true;
+    this.pinch = opts.pinchZoom === true; // i7 N-4: the owner arms the surface
     this.rowLabels = opts.rowLabels;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.virtual = opts.steps > GRID_VIRTUALIZE_MIN_STEPS;
@@ -1091,6 +1159,29 @@ export class DomGridRenderer implements GridRenderer {
       if (el) el.textContent = labels[row]!;
     }
     this.applyOnState(); // pitched cells re-name (E4); drums cells re-assert
+  }
+
+  /**
+   * i7 N-4 (audit §2.4): the pinch factor. Single source of truth — the
+   * phone fit multiplies its FILL-law targets by this value, so the
+   * trailing post-gesture fit re-derives the SAME geometry the pinch
+   * committed (never a stomp-back one rAF later).
+   */
+  zoomFactor(): number {
+    return this.zoom;
+  }
+
+  /** i7 N-4: reset to ×1 (the chip target + the double-tap law's seam). */
+  resetZoom(): void {
+    if (Math.abs(this.zoom - 1) <= PINCH_ZOOM_EPS) return;
+    this.zoom = 1;
+    this.opts.onZoomChange?.(1);
+  }
+
+  /** i7 N-4: apply a factor change (live or committed) — the owner re-fits. */
+  private applyZoom(factor: number): void {
+    this.zoom = factor;
+    this.opts.onZoomChange?.(factor);
   }
 
   /**
@@ -1604,6 +1695,10 @@ export class DomGridRenderer implements GridRenderer {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.clearSnapSettle();
+    // i7 N-4: a mid-pinch teardown leaves no armed surface behind.
+    this.pinchPointers.clear();
+    this.pinchBase = null;
+    this.pinchLive = false;
     for (const timer of this.glowTimers) window.clearTimeout(timer);
     this.glowTimers.clear();
     if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
@@ -1886,6 +1981,20 @@ export class DomGridRenderer implements GridRenderer {
   // -- IN-2 pointer gestures -------------------------------------------------
 
   private onPointerDown = (e: PointerEvent): void => {
+    // i7 N-4: the pinch surface records EVERY pointer on the pane — primary
+    // or not, editable or not (zoom is a view control) — before any editing
+    // path runs. The second pointer arms the watcher; whether the stream
+    // TAKES OVER is decided by the ratio (updatePinch), never here.
+    if (this.pinch) {
+      this.pinchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pinchPointers.size === 2 && !this.pinchLive) {
+        const pts = [...this.pinchPointers.values()];
+        this.pinchBase = {
+          dist: Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y),
+          factor: this.zoom,
+        };
+      }
+    }
     if (!this.editable || this.gesture || !e.isPrimary) return;
     this.suppressClick = false; // a fresh press always re-arms normal clicks
     const target = e.target as HTMLElement;
@@ -1998,6 +2107,16 @@ export class DomGridRenderer implements GridRenderer {
   }
 
   private onPointerMove = (e: PointerEvent): void => {
+    // i7 N-4: a tracked pointer's move feeds the pinch ratio first; when the
+    // pinch is LIVE it owns the stream (the editing gesture was cancelled at
+    // takeover). Below two pointers or before takeover the move falls
+    // through to the editing gesture untouched (the MB-4 second-finger law:
+    // a finger that never zooms steals nothing).
+    if (this.pinchPointers.has(e.pointerId)) {
+      this.pinchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.updatePinch();
+      if (this.pinchLive) return;
+    }
     const g = this.gesture;
     if (!g || e.pointerId !== g.pointerId) return;
     if (g.kind === "tap") return; // no preview — activation decides on release
@@ -2033,6 +2152,19 @@ export class DomGridRenderer implements GridRenderer {
   };
 
   private onPointerUp = (e: PointerEvent): void => {
+    // i7 N-4: pinch bookkeeping first. A LIVE pinch ends here — COMMIT on
+    // release: the factor stays exactly where the live re-fit left it (the
+    // owner's trailing fit re-derives at this factor; it never stomps back).
+    // The up itself is consumed by the pinch (no editing path may run — its
+    // gesture was cancelled at takeover). A watcher that never took over
+    // just disarms (the surviving pointer keeps its own law, T5).
+    if (this.pinchPointers.delete(e.pointerId)) {
+      if (this.pinchLive) {
+        if (this.pinchPointers.size < 2) this.endPinch();
+        return;
+      }
+      if (this.pinchBase && this.pinchPointers.size < 2) this.pinchBase = null;
+    }
     const g = this.gesture;
     if (!g || e.pointerId !== g.pointerId) return;
     this.releaseCapture(g.pointerId);
@@ -2051,11 +2183,15 @@ export class DomGridRenderer implements GridRenderer {
         // Unmoved = a single click. Run the activation law HERE (gate-default
         // place): under real pointers this press captured, and the capture
         // retargets the trailing click to the container — it can never reach
-        // onClick (IN-2 fix).
-        this.activateIfReleasedOver(g.drag.row, g.drag.start, e);
+        // onClick (IN-2 fix). i7 N-4: the zoom layer is consulted FIRST — a
+        // qualifying double-tap resets the factor and is consumed (a zoomed
+        // double-tap never places the note under it).
+        if (this.consumeDoubleTap(e)) this.armClickSuppression();
+        else this.activateIfReleasedOver(g.drag.row, g.drag.start, e);
       }
     } else if (g.kind === "tap") {
-      this.activateIfReleasedOver(g.row, g.step, e);
+      if (this.consumeDoubleTap(e)) this.armClickSuppression();
+      else this.activateIfReleasedOver(g.row, g.step, e);
     } else if (g.kind === "resize") {
       const length = resizeDragCommit(g.drag);
       this.clearResizePreview(g.drag.row);
@@ -2080,21 +2216,114 @@ export class DomGridRenderer implements GridRenderer {
       } else {
         // Unmoved paint = a single click → the v0 toggle+audition law, run
         // directly on release (same capture-retarget reason as create).
-        this.activateIfReleasedOver(g.drag.row, g.drag.anchor, e);
+        // i7 N-4: the double-tap reset consults first (drums never arms the
+        // pinch surface, so this stays dead code there — the law is uniform).
+        if (this.consumeDoubleTap(e)) this.armClickSuppression();
+        else this.activateIfReleasedOver(g.drag.row, g.drag.anchor, e);
       }
     }
   };
 
   private onPointerCancel = (e: PointerEvent): void => {
+    // i7 N-4: a cancelled pointer of a LIVE pinch ENDS it KEEPING the current
+    // factor (the audit's law — the geometry stays at whatever the live
+    // re-fit last applied; cancel never reverts, never resets).
+    if (this.pinchPointers.delete(e.pointerId)) {
+      if (this.pinchLive) {
+        if (this.pinchPointers.size < 2) this.endPinch();
+        return;
+      }
+      if (this.pinchBase && this.pinchPointers.size < 2) this.pinchBase = null;
+    }
     const g = this.gesture;
     if (!g || e.pointerId !== g.pointerId) return;
     this.releaseCapture(g.pointerId);
     this.cancelGesture();
   };
 
-  /** IN-4: the active gesture owns the pointer — no context menu mid-drag. */
+  /**
+   * i7 N-4 (audit §2.4): the pinch ratio driver. The candidate factor is
+   * `baseline × (distance / baseline distance)`, clamped [1,2] × the fill
+   * geometry. TAKEOVER is ratio-gated, not arm-gated: the stream only steals
+   * the pointers when the clamped candidate actually MOVES the factor — a
+   * pinch-out at the ×1 floor (a clamp no-op) and a stray finger that never
+   * changes the distance leave the armed editing gesture its pointer, so the
+   * MB-4 second-finger law (T3/T5: the FIRST finger's gesture completes; the
+   * second contributes nothing) survives the zoom law byte-identically.
+   */
+  private updatePinch(): void {
+    if (!this.pinchBase || this.pinchPointers.size < 2) return;
+    const pts = [...this.pinchPointers.values()];
+    const dist = Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y);
+    if (dist <= 0) return;
+    const candidate = Math.min(
+      PINCH_ZOOM_MAX,
+      Math.max(PINCH_ZOOM_MIN, (this.pinchBase.factor * dist) / this.pinchBase.dist),
+    );
+    if (!this.pinchLive) {
+      if (Math.abs(candidate - this.pinchBase.factor) <= PINCH_ZOOM_EPS) return;
+      this.pinchLive = true;
+      // The pinch owns both pointers: the armed single-pointer gesture
+      // cancels (IN-4 law — no commit, no stuck preview; its pointerup will
+      // be consumed above), and both pointers capture onto the pane so
+      // moves keep arriving when a finger leaves the grid.
+      this.cancelGesture();
+      for (const id of this.pinchPointers.keys()) {
+        try {
+          this.opts.container.setPointerCapture(id);
+        } catch {
+          /* uncaptured — IN-4 owns the systematic edge sweep */
+        }
+      }
+    }
+    this.applyZoom(candidate);
+  }
+
+  /**
+   * i7 N-4: the pinch ended (both pointers gone, or one released/cancelled
+   * from a live pinch). COMMIT: the current factor — already applied live —
+   * is the committed factor and persists until reset. Releases the takeover
+   * capture; the trailing owner fit (one rAF past the release, the
+   * held-pointer law) re-derives at this factor.
+   */
+  private endPinch(): void {
+    this.pinchLive = false;
+    this.pinchBase = null;
+    for (const id of this.pinchPointers.keys()) this.releaseCapture(id);
+    // Notify once more so the owner lands the final fit at the committed
+    // factor even if no further move did (the commit edge of the law).
+    this.opts.onZoomChange?.(this.zoom);
+  }
+
+  /**
+   * i7 N-4 (audit §2.4): the DOUBLE-TAP RESET — two taps ≤350 ms apart,
+   * ≤32 px between, reset the factor to ×1 and are CONSUMED pre-activation
+   * (the second tap never places/removes the note under it). Scoped to a
+   * committed zoom: at ×1 the detector records the pair but consumes
+   * nothing — every existing single-pointer tap law (place/remove, tap-vs-
+   * pan, a fast place+remove netting zero) stays byte-identical.
+   */
+  private consumeDoubleTap(e: PointerEvent): boolean {
+    if (!this.pinch) return false;
+    const now = e.timeStamp || performance.now();
+    const tap = this.lastTap;
+    this.lastTap = { t: now, x: e.clientX, y: e.clientY };
+    if (!tap) return false;
+    if (now - tap.t > TAP_RESET_WINDOW_MS) return false;
+    if (
+      Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_RESET_SLOP_PX
+    )
+      return false;
+    this.lastTap = null; // the pair is spent — no chain
+    if (this.zoom <= 1 + PINCH_ZOOM_EPS) return false; // ×1: nothing to reset
+    this.resetZoom();
+    return true;
+  }
+
+  /** IN-4: the active gesture owns the pointer — no context menu mid-drag.
+   * i7 N-4: a live pinch is an active gesture too (the menu would strand it). */
   private onContextMenu = (e: MouseEvent): void => {
-    if (this.gesture) e.preventDefault();
+    if (this.gesture || this.pinchLive) e.preventDefault();
   };
 
   /**

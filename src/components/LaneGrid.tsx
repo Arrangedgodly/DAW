@@ -106,6 +106,20 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
 }
 
 /**
+ * HP-2 help content — i7 N-4 (audit §2.4): the phone PINCH-ZOOM chip, one
+ * entry per pitched lane, colocated with the chip that stamps the id.
+ */
+for (const lane of ["bass", "chords", "lead"] as const) {
+  registerHelp([
+    {
+      id: `lane.${lane}.zoom`,
+      title: `${LANE_NAMES[lane]} GRID ZOOM`,
+      text: `Pinch zoom for the ${LANE_NAMES[lane]} grid: pinch two fingers apart on the grid to enlarge it up to twice its size — the rows and cells themselves grow (exactly one octave of complete rows stays showing, and it still snaps on scroll), while your notes stay exactly where they are. Pinch closed to shrink back, or double-tap the grid to snap straight back to normal size. The number beside the register row shows the current zoom; tap it to reset to normal. Zooming is view only — it never moves, adds, or removes notes.`,
+    },
+  ]);
+}
+
+/**
  * HP-2 help content — the M-5 phone register-window shift row (one entry per
  * pitched lane, colocated with the buttons that stamp the id; I2-6 law).
  * i7 N-2: the OCT stepper steps one octave of the SCALE (modeSize rows) and
@@ -399,6 +413,31 @@ interface PhoneWidthSurface {
 const phoneWidthSurfaces = new Set<PhoneWidthSurface>();
 let phoneWidthObserver: ResizeObserver | null = null;
 let phoneWidthRaf = 0;
+/**
+ * i7 N-4 (audit §2.4): each surface's ×1 FILL ROW TARGET — the committed
+ * baseline the zoom factor multiplies. THE LAW (explicit, journaled): the
+ * [44,64] track clamp is a FILL-law clamp computed at the ×1 basis (m1/H-3
+ * exact at ×1, byte-identical); under zoom the applied track is
+ * `baseline × factor` — rows may read up to 2×64=128, cells up to 2×24=48
+ * (the pane then h-scrolls internally — the 2-bar law), and the floor holds
+ * by construction (factor ≥ 1 × a floored baseline ≥ 44). The baseline is
+ * FROZEN from the first zoom apply until the surface remounts, by
+ * necessity: the zoom's own growth moves the floor bottom (the page may
+ * scroll more — the audit's clause), and the measured leftover law is only
+ * idempotent against STRETCH consumption — measured against zoom-grown
+ * geometry it reads the zoom's own growth as leftover and chases itself
+ * into the 64 cap (reproduced live: restore-then-measure ping-ponged
+ * 44↔64). So: never-zoomed surfaces run the measured law (every existing
+ * gate); a zoom ENDS by applying the frozen baseline (release to ×1,
+ * double-tap, chip reset) and the surface stays on it — journaled trade: a
+ * viewport/drawer change after a zoom session keeps the pre-zoom row fill
+ * until the surface remounts (the cell-width fit keeps measuring live at
+ * every factor — only the row target freezes).
+ */
+const fillRowBaselines = new WeakMap<
+  PhoneWidthSurface,
+  { baseline: number; frozen: boolean }
+>();
 
 /**
  * H-3 (MB-5 census law): the phone fit defers while ANY pointer is held,
@@ -439,22 +478,38 @@ function fitPhoneGeometry(): void {
     return;
   }
   for (const surface of phoneWidthSurfaces) {
-    const well = surface.well();
-    const renderer = surface.renderer();
-    if (!well || !renderer || !well.isConnected || well.clientWidth === 0)
-      continue; // no layout yet (jsdom / pre-first-frame) — preset stands
-    const label = well.querySelector<HTMLElement>(".row-label");
-    if (!label) continue;
-    const labelBox = label.getBoundingClientRect().width;
-    if (labelBox <= 0) continue;
-    const raw =
-      (well.clientWidth - labelBox - (surface.steps - 1) * surface.gapPx) /
-      surface.steps;
-    renderer.setCellWidth(
-      Math.min(PHONE_CELL_MAX_PX, Math.max(surface.floorPx, raw)),
-    );
-    fitPhoneRows(surface, well, renderer);
+    fitPhoneSurface(surface);
   }
+}
+
+/**
+ * i7 N-4 (audit §2.4): ONE surface's phone fit, ZOOM-AWARE. The cell write
+ * multiplies its FILL-law target ([15,24] — a FILL clamp at the ×1 baseline)
+ * by the renderer's committed `zoomFactor()`; the row write applies the
+ * surface's frozen ×1 fill baseline × the factor inside fitPhoneRows (see
+ * fillRowBaselines — the [44,64] clamp is likewise a FILL clamp; zoom may
+ * exceed the caps, never dip below the floors). This is the ZOOM-AWARE
+ * TRAILING FIT the N-1 verifier demanded: without the factor here, the rAF
+ * that lands after the pinch's last pointerup re-fits to the ×1 geometry and
+ * stomps the committed factor one frame after every release.
+ */
+function fitPhoneSurface(surface: PhoneWidthSurface): void {
+  const well = surface.well();
+  const renderer = surface.renderer();
+  if (!well || !renderer || !well.isConnected || well.clientWidth === 0)
+    return; // no layout yet (jsdom / pre-first-frame) — preset stands
+  const label = well.querySelector<HTMLElement>(".row-label");
+  if (!label) return;
+  const labelBox = label.getBoundingClientRect().width;
+  if (labelBox <= 0) return;
+  const raw =
+    (well.clientWidth - labelBox - (surface.steps - 1) * surface.gapPx) /
+    surface.steps;
+  const factor = renderer.zoomFactor();
+  renderer.setCellWidth(
+    Math.min(PHONE_CELL_MAX_PX, Math.max(surface.floorPx, raw)) * factor,
+  );
+  fitPhoneRows(surface, well, renderer);
 }
 
 /**
@@ -493,6 +548,17 @@ function fitPhoneRows(
 ): void {
   const geo = renderer.fitGeometry();
   if (geo.manifestRows <= 0) return;
+  const fit = fillRowBaselines.get(surface);
+  const factor = renderer.zoomFactor();
+  // i7 N-4: ZOOMED — the frozen ×1 fill baseline × the factor (see
+  // fillRowBaselines for the law). No live re-measure while zoomed.
+  if (factor > 1 || fit?.frozen) {
+    const baseline = fit?.baseline ?? surface.rowFloorPx;
+    fillRowBaselines.set(surface, { baseline, frozen: true });
+    const applied = baseline * (factor > 1 ? factor : 1);
+    if (applied !== geo.trackPx) renderer.setRowHeight(applied);
+    return;
+  }
   const style = getComputedStyle(well);
   // The rows that actually paint pane height: the window for a windowed
   // grid, the manifest otherwise (the scrolled-out rows cost nothing).
@@ -540,6 +606,10 @@ function fitPhoneRows(
       surface.rowFloorPx + Math.floor(leftover / paintedRows),
     ),
   );
+  // i7 N-4: at ×1 (never zoomed this mount) the measured law IS the law —
+  // record the target as the surface's zoom baseline (the factor multiplies
+  // THIS, never a re-measure taken against zoom-grown geometry).
+  fillRowBaselines.set(surface, { baseline: target, frozen: false });
   if (target !== geo.trackPx) renderer.setRowHeight(target);
 }
 
@@ -921,7 +991,14 @@ function rowSpansNow(lane: LaneId, patternId: string, degree: number): Span[] {
  * content edits from the store, disposes on cleanup. Keyed by pattern id +
  * step count so every shape change rebuilds cleanly.
  */
-function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
+function GridSurface(props: {
+  lane: LaneId;
+  pattern: Pattern;
+  /** i7 N-4: the zoom-factor reporter (the LaneGrid chip signal). */
+  onZoom?: (factor: number) => void;
+  /** i7 N-4: the chip's reset command (a monotonically rising tick). */
+  zoomReset?: () => number;
+}) {
   let container: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -1005,6 +1082,30 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
 
     let rendererRef: DomGridRenderer | null = null;
     const fillDisposers: Array<() => void> = [];
+
+    /*
+     * i7 N-4 (audit §2.4, THE PINCH-ZOOM LAW): the LIVE apply. The renderer
+     * owns the factor (distance ratio → clamp [1,2]); THIS surface owns the
+     * measured baseline the factor multiplies — one rAF-coalesced pass per
+     * factor change through fitPhoneSurface (setCellWidth/setRowHeight, the
+     * renderer seams — NEVER a CSS transform; every hit test reads the seam
+     * px, so hit-math honesty holds at every factor). This pass BYPASSES the
+     * held-pointer deferral by design: the pinch is the one gesture whose
+     * preview IS the geometry (the TH-4(b) commit-on-release law forbids
+     * store writes mid-gesture — geometry through the sanctioned seams is
+     * this law's named exception, the is-sounding precedent), while the
+     * OBSERVER-driven fits still defer and land one rAF past the release
+     * (the trailing fit, zoom-aware so the committed factor survives it).
+     */
+    let zoomFitRaf = 0;
+    let zoomSurface: PhoneWidthSurface | null = null;
+    const scheduleZoomFit = (): void => {
+      if (zoomFitRaf || !zoomSurface) return;
+      zoomFitRaf = requestAnimationFrame(() => {
+        zoomFitRaf = 0;
+        if (zoomSurface) fitPhoneSurface(zoomSurface);
+      });
+    };
 
     /*
      * T5 (route.md playback-reactivity #5): the lane-rim sounding pulse.
@@ -1229,9 +1330,29 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       onWindowScroll: (start) => {
         if (lane !== "drums") setRegisterWindowStart(lane, start);
       },
+      // i7 N-4 (audit §2.4): arm the pinch surface — phone + pitched only.
+      // Desktop/tablet and drums never arm it: their pointer law stays
+      // byte-identical, and no pinch surface exists off the phone stage.
+      ...(mode === "phone" && pitched
+        ? {
+            pinchZoom: true,
+            // The factor changed (live during the pinch, once at commit/
+            // cancel-keep, once per reset): report for the chip + land the
+            // rAF-coalesced zoom-aware fit above.
+            onZoomChange: (factor: number) => {
+              props.onZoom?.(factor);
+              scheduleZoomFit();
+            },
+          }
+        : {}),
     });
 
     rendererRef = renderer;
+    // i7 N-4: the chip reads the MOUNTED renderer's factor — a pattern/stage
+    // remount starts at ×1 (geometry is mount-pinned in this codebase; the
+    // factor persists across gestures, scrolls, and re-fits, never across a
+    // surface remount — journaled law).
+    if (mode === "phone" && pitched) props.onZoom?.(renderer.zoomFactor());
     renderer.sync(syncPatternFor(pattern));
     // LL-1 (the resize-remount carry law): when the previous surface held
     // DOM focus (its cleanup recorded the cursor), the fresh mount lands
@@ -1289,7 +1410,14 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         well: () => container,
       };
       registerPhoneWidthSurface(widthSurface);
-      onCleanup(() => unregisterPhoneWidthSurface(widthSurface));
+      // i7 N-4: the pinch's own live fit targets THIS surface (declared
+      // before the renderer above; bound once it exists).
+      zoomSurface = widthSurface;
+      onCleanup(() => {
+        unregisterPhoneWidthSurface(widthSurface);
+        zoomSurface = null;
+        if (zoomFitRaf) cancelAnimationFrame(zoomFitRaf);
+      });
     }
 
     // LY-1 quadrant state: flip editable when the selection moves. O(1) in
@@ -1341,6 +1469,20 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     }
 
     let lastWindowHeight = windowHeight();
+    /*
+     * i7 N-4: the zoom chip's RESET command — a rising tick from LaneGrid
+     * (the chip lives outside this keyed surface, so the command travels by
+     * signal; effects inside onMount are this component's established
+     * pattern). The renderer's own resetZoom re-fits through the same
+     * onZoomChange path (chip + zoom-aware fit); a no-op at ×1.
+     */
+    let lastResetTick = 0;
+    createEffect(() => {
+      const tick = props.zoomReset?.();
+      if (tick === undefined || tick === lastResetTick) return;
+      lastResetTick = tick;
+      rendererRef?.resetZoom();
+    });
     // i7 N-3 (audit §2.3, the pitch-anchor law): the scale IDENTITY the
     // mounted labels were derived from. A root/mode change re-names every
     // degree (the engine re-pitches through the live scale the same
@@ -1453,6 +1595,10 @@ function RegisterShiftControls(props: {
   /** The MOUNTED pattern's row manifest (rowDegrees.length — the grid's own
    * clamp basis; one source of truth with the renderer's aria range). */
   manifestRows: number;
+  /** i7 N-4: the MOUNTED grid's live zoom factor (the chip's readout). */
+  zoom: () => number;
+  /** i7 N-4: the chip's reset command (drives the renderer's resetZoom). */
+  onResetZoom: () => void;
 }) {
   // The document store is zustand/vanilla (the LaneHeader law): mirror doc
   // identity into a signal so bounds re-derive on scale/mode edits — never
@@ -1527,8 +1673,10 @@ function RegisterShiftControls(props: {
   });
 
   const n = LANE_NAMES[props.lane];
+  /** i7 N-4: the chip's factor text — two decimals, the ×1 fill at rest. */
+  const zoomText = (): string => `${props.zoom().toFixed(2)}×`;
   return (
-    <Show when={bounds().maxStart > 0}>
+    <Show when={bounds().maxStart > 0 || props.zoom() > 1.001}>
       <div
         class="register-shift"
         role="group"
@@ -1602,6 +1750,24 @@ function RegisterShiftControls(props: {
           </span>
           {readout()}
         </span>
+        {/* i7 N-4 (audit §2.4): the ZOOM CHIP — the factor readout AND a
+            ≥44px reset target beside the register row (tapping resets the
+            grid to the ×1 fill through the renderer's resetZoom seam; the
+            aria-label carries the factor + the reset affordance in text). */}
+        <button
+          type="button"
+          class="register-zoom-chip"
+          data-help={`lane.${props.lane}.zoom`}
+          aria-label={`${n} grid zoom ${zoomText()} — tap to reset`}
+          onClick={() => props.onResetZoom()}
+        >
+          <span class="register-zoom-factor" aria-hidden="true">
+            {zoomText()}
+          </span>
+          <span class="register-zoom-reset" aria-hidden="true">
+            RESET
+          </span>
+        </button>
       </div>
     </Show>
   );
@@ -1628,6 +1794,15 @@ export default function LaneGrid(props: { lane: LaneId }) {
     const p = pattern();
     return p && p.kind === "pitched" ? p.rowDegrees.length : 0;
   });
+  /*
+   * i7 N-4 (audit §2.4): the ZOOM factor, lifted to the lane card so the
+   * chip (beside the register row, OUTSIDE the keyed grid surface) reads a
+   * live signal and the chip's reset command travels back down as a rising
+   * tick. The renderer owns the value (single source of truth); this signal
+   * is its echo for the UI — re-synced at every surface mount (×1).
+   */
+  const [zoomFactor, setZoomFactor] = createSignal(1);
+  const [zoomResetTick, setZoomResetTick] = createSignal(0);
   const key = () => {
     const p = pattern();
     // MB-1: the stage mode rides the key — geometry is pinned at mount, so a
@@ -1660,7 +1835,10 @@ export default function LaneGrid(props: { lane: LaneId }) {
       <LaneHeader lane={props.lane} />
       {/* M-5: the phone-only register-window shift row (pitched lanes). i7
           N-2: bounds + readout derive from the MOUNTED pattern's manifest
-          (the same rows the grid clamps against — one source of truth). */}
+          (the same rows the grid clamps against — one source of truth).
+          i7 N-4: the row also carries the ZOOM CHIP (factor readout + ≥44px
+          reset target); it shows while ANY zoom is committed even on a
+          one-octave manifest (the reset target must always exist zoomed). */}
       <Show
         when={
           stageMode() === "phone" &&
@@ -1671,6 +1849,8 @@ export default function LaneGrid(props: { lane: LaneId }) {
         <RegisterShiftControls
           lane={props.lane as PitchedLaneId}
           manifestRows={pitchedManifestRows()}
+          zoom={zoomFactor}
+          onResetZoom={() => setZoomResetTick((t) => t + 1)}
         />
       </Show>
       <Show when={key()} keyed>
@@ -1679,7 +1859,12 @@ export default function LaneGrid(props: { lane: LaneId }) {
             void keyed;
             const p = pattern();
             return p ? (
-              <GridSurface lane={props.lane} pattern={p} />
+              <GridSurface
+                lane={props.lane}
+                pattern={p}
+                onZoom={setZoomFactor}
+                zoomReset={zoomResetTick}
+              />
             ) : (
               <div class="lane-grid-scroll" />
             );

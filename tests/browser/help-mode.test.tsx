@@ -577,6 +577,8 @@ function generatedHelpIds(): Set<string> {
   // template literal, so the literal scan can't see it; minted here).
   for (const lane of ["bass", "chords", "lead"]) {
     ids.add(`lane.${lane}.regshift`);
+    // i7 N-4: the phone zoom chip (same template-literal stamping).
+    ids.add(`lane.${lane}.zoom`);
   }
   for (const piece of ["kick", "snare", "hat", "openhat", "clap", "tom"]) {
     ids.add(`euclid.${piece}.fill`);

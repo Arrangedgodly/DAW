@@ -899,3 +899,47 @@ input[type="range"] {
     animation: none;
   }
 }
+
+/*
+ * i7 N-4 (midi-i7-audit §2.4): the ZOOM CHIP — the pinch factor readout AND
+ * a ≥44px reset target beside the register row (the register-shift-btn
+ * machined-key vocabulary: raised metal + 1px border + elev-1, the lane-hue
+ * ring like an inactive tab). Two stacked lines (factor over RESET) keep the
+ * row's height exactly the steppers' 44px; the factor line reads slightly
+ * louder than the RESET affordance line. The chip is the ONLY always-on zoom
+ * control: at ×1 it shows the resting factor (honest state, never hidden);
+ * a committed zoom highlights it with the lane-hue ring so the reset
+ * affordance is findable mid-edit.
+ */
+.app[data-stage="phone"] .register-zoom-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-2);
+  font: var(--text-panel-label);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  border-radius: 4px;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+
+/* The factor line: the value the pinch committed (e.g. 1.50×). */
+.app[data-stage="phone"] .register-zoom-factor {
+  font-size: 11px;
+}
+
+/* The affordance line: the chip IS the reset target (aria-label carries
+ * both for SR). Quieter than the factor — the number is the state. */
+.app[data-stage="phone"] .register-zoom-reset {
+  font-size: 8px;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+}
