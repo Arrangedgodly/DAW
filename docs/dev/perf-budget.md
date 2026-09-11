@@ -510,6 +510,36 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   rather than silently absorbed (the assumption ledger's "a material
   jump reopens the budget conversation": 0.32 KB against 207.89 KB of
   headroom is not material; 3.3× headroom remains).
+- **Iteration-6 record (measured 2026-09-10, S-5 close-out — saved-song
+  management: rename/delete/undo, S-2 through S-5; same method as i5: one
+  detached worktree per task boundary with the repo's node_modules, each
+  measured by its own `npm run build` + `npm run check:bundle`)**: final
+  initial JS **93.65 KB gz** (31% of the 300 KB budget), PASS — full
+  iteration-6 delta **+1.54 KB gz** over the 92.11 iteration-start baseline
+  (the i5 close at eeca25f; S-1 at 7fe2a4c was docs-only, src
+  byte-identical), attributed per task: S-2 (model/persistence actions,
+  zero UI files) **+0.00 → 92.11** (the worktree rebuild reproduces the
+  baseline EXACTLY at the gate's display resolution — the normalizer +
+  three actions are pure TS, almost fully tree-shaken from the entry; the
+  raw entry-chunk twin measures +9 B gz / +35 B raw by platform gzip,
+  encoder-dependent but the same sub-display order as S-2's own +6 B
+  node-zlib claim); S-3 (desktop UI rename + delete + undo) **+1.54 →
+  93.65** (the Projects.tsx surface — row/confirm/editor controls, the
+  InlineEdit twin, help-registry text, toast strings — plus its
+  projects.css styles); S-4 (phone fit + gates, test-only) **+0.00 →
+  93.65** (entry chunk hash `index-CV-HG4xw.js` IDENTICAL to S-3's — src
+  byte-identical, reproduced on the worktree rebuild); S-5 (gates with
+  teeth + close-out, tests/docs only) **+0.00 → 93.65**. CSS **18.54 →
+  18.70 KB gz** (+0.16, all at S-3's row/confirm/edit styles in
+  projects.css; info-only, ungated); fonts 37.02 / 50 KB unchanged (zero
+  new font/asset files through iteration 6). **The plan's "expected
+  ≤ +0.4 KB gz" estimate was exceeded by +1.14 KB — flagged here rather
+  than silently absorbed (already escalated by S-3's verifier when the
+  +1.54 first appeared; S-5 closes the ledger per its AC).** The overshoot
+  is S-3's UI/help/toast copy riding the eager entry chunk (the audit's
+  own UI-surface estimate, not the model seam): 3.3× headroom remains
+  against the 300 KB law, and no lazy-split is warranted for a surface
+  that must open on first paint of the booth.
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

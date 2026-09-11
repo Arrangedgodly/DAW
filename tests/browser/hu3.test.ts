@@ -24,7 +24,11 @@ import { docStore } from "../../src/state/store";
 import { clearToasts, toastStack } from "../../src/state/toasts";
 import Projects from "../../src/components/Projects";
 import Toasts from "../../src/components/Toasts";
-import { getAutosaveController, initPersistence } from "../../src/persist/boot";
+import {
+  getActiveProjectId,
+  getAutosaveController,
+  initPersistence,
+} from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { getProjectRecord, saveProject } from "../../src/persist/projectStore";
 import { createNewProject } from "../../src/persist/newProject";
@@ -607,6 +611,95 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       keyAt(document.activeElement as Element, "Escape");
       await waitFor(() => ui.host.querySelector(".projects-pop") === null);
       expect(document.activeElement).toBe(btn);
+    } finally {
+      ui.cleanup();
+      await getAutosaveController()?.stop();
+      docStore.setState({ doc: before });
+    }
+  });
+
+  it("a FAILED UNDO re-put keeps the DELETED toast armed (i6 §4.6 storage-full): retry after the quota frees succeeds one-shot", async () => {
+    const base = await freshDb("bitbounce-test-hu3-i6-undo-fail");
+    const before = docStore.getState().doc;
+    const ui = mount();
+    try {
+      // The quota-full injection (the fileIO/autosave spyDb convention): a
+      // wrapped ProjectDb whose putRecord rejects — but ONLY once armed and
+      // ONLY for the held row's id, so boot, the working row's flushes, and
+      // the delete itself (deleteRecord, never a put) all run for real; the
+      // failure lands exactly on UNDO's re-put, the moment §4.6 legislates.
+      let failPuts = false;
+      const heldId = { id: "" };
+      const db: ProjectDb = {
+        ...base,
+        async putRecord(record) {
+          if (failPuts && record.id === heldId.id) {
+            throw new Error("QuotaExceededError: storage full (injected)");
+          }
+          return base.putRecord(record);
+        },
+      };
+      const boot = await initPersistence({ db });
+      docStore.setState({ doc: { ...before, name: "keeper song" } });
+      await new Promise((r) => setTimeout(r, 1100));
+      const b = await createNewProject(db);
+      await saveProject(db, b.record.id, { ...b.doc, name: "doomed by quota" });
+      heldId.id = b.record.id;
+      // The exact pre-delete bytes (the retry's comparator).
+      const held = (await getProjectRecord(db, b.record.id))!;
+
+      await openPopover(ui);
+      const go = await armConfirm(ui, b.record.id);
+      go.click();
+      await waitFor(
+        async () => (await getProjectRecord(db, b.record.id)) === undefined,
+      );
+      await waitFor(() => ui.toastHost.textContent?.includes("DELETED") === true);
+
+      const deletedCard = () =>
+        [...ui.toastHost.querySelectorAll(".toast")].find((t) =>
+          (t.textContent ?? "").includes("DELETED"),
+        ) ?? null;
+      const undoBtn = () =>
+        deletedCard()?.querySelector<HTMLButtonElement>(".toast-action") ?? null;
+      expect(undoBtn()?.textContent?.trim()).toBe("UNDO");
+
+      // Arm the storage-full failure, then press UNDO: the re-put THROWS.
+      failPuts = true;
+      undoBtn()!.click();
+      await waitFor(
+        () => ui.toastHost.textContent?.includes("Could not restore") === true,
+      );
+      await waitFor(async () => (await getProjectRecord(db, b.record.id)) === undefined);
+      // §4.6's law — the toast STAYS ARMED (run() resolved false; the
+      // one-shot vehicle must not dismiss on a failed action), so the row
+      // is still restorable from the in-memory hold after space is freed.
+      expect(
+        deletedCard(),
+        "the DELETED toast is still rendered after the failed UNDO",
+      ).not.toBeNull();
+      expect(
+        undoBtn(),
+        "the armed toast still carries its UNDO button",
+      ).not.toBeNull();
+
+      // The retry: quota freed (injection disarmed) → the same toast's UNDO
+      // succeeds, restores the EXACT held bytes, and only then dismisses.
+      failPuts = false;
+      undoBtn()!.click();
+      const restored = await waitForRecord(db, b.record.id);
+      expect(restored.json).toBe(held.json);
+      expect(restored.name).toBe(held.name);
+      expect(restored.updatedAt).toBe(held.updatedAt);
+      expect(restored.dirty).toBe(held.dirty);
+      await waitFor(() => deletedCard() === null);
+      expect(
+        toastStack().some((t) => t.message.includes("DELETED")),
+        "one-shot on SUCCESS only: the toast dismissed after the retry",
+      ).toBe(false);
+      // The working song never moved (inactive delete; UNDO never switches).
+      expect(docStore.getState().doc.name).toBe("keeper song");
+      expect(boot.projectId).toBe(getActiveProjectId());
     } finally {
       ui.cleanup();
       await getAutosaveController()?.stop();
