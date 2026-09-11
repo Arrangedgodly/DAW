@@ -33,6 +33,8 @@ export interface RailTile {
   readonly bars: number;
   /** Named cue label for this chain position (null = unlabeled). */
   readonly cue: string | null;
+  /** ⟲ "loop" replays this slot; → "next" plays it once and moves on. */
+  readonly mode: "loop" | "next";
 }
 
 /** The lane's pattern pool entry (management column). */
@@ -44,6 +46,7 @@ export interface PoolEntry {
 
 export function railTiles(doc: ProjectDocument, lane: LaneId): RailTile[] {
   const cues = doc.chainCues?.[lane];
+  const modes = doc.chainModes?.[lane];
   return doc.songChain[lane].map((patternId, slot) => {
     const pattern = doc.patterns[lane].find((p) => p.id === patternId);
     return {
@@ -52,6 +55,7 @@ export function railTiles(doc: ProjectDocument, lane: LaneId): RailTile[] {
       name: pattern?.name ?? "?",
       bars: pattern?.bars ?? 1,
       cue: cues?.[slot] ?? null,
+      mode: modes?.[slot] ?? "next",
     };
   });
 }
@@ -178,7 +182,14 @@ export interface TileStateInput {
  * target is the most time-critical state (Hulk: pending must be visible).
  */
 export function tileState(tile: RailTile, input: TileStateInput): TileState {
-  if (input.pending && input.pending.toPatternId === tile.patternId)
+  // A slot cue names its exact chain position (repeats of one pattern are
+  // distinct slots); a legacy pattern switch names the pattern.
+  if (
+    input.pending &&
+    (input.pending.toSlot !== undefined
+      ? input.pending.toSlot === tile.slot
+      : input.pending.toPatternId === tile.patternId)
+  )
     return "pending";
   if (
     input.activePatternId != null &&
@@ -201,9 +212,11 @@ export function pendingAnnouncement(
   const when =
     pending.appliesAtStep == null
       ? "when playback starts"
-      : pending.mode === "boundary"
-        ? `at step ${pending.appliesAtStep}`
-        : `at step ${pending.appliesAtStep} (next chain pass)`;
+      : pending.mode === "iteration"
+        ? `at step ${pending.appliesAtStep} (next chain pass)`
+        : `at step ${pending.appliesAtStep}`;
+  if (pending.mode === "jump" && pending.toSlot !== undefined)
+    return `${laneName}: jumping to slot ${pending.toSlot + 1} (${pending.toPatternId}) ${when}`;
   return `${laneName}: switching to ${pending.toPatternId} ${when}`;
 }
 

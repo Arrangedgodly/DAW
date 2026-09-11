@@ -285,9 +285,11 @@ Every component is a labeled hardware control: a machined key or window at rest,
 
 ### Navigation
 
-- **Pattern rail:** single-line rows per lane — lane name, bar-length tiles, the `+` blank-pattern key, one PAT tools trigger; the row names the lane's cycle ("· 8-BAR CYCLE"). Tiles are 3px raised keys; the sounding tile wears the doubled hairline + underglow and STROBES once when its pattern takes the floor; pending = dashed rim + hatch + diamond flag; a drag-sweep cues many lanes on one quantized boundary.
+- **Pattern rail:** single-line rows per lane — lane name, bar-length tiles, the `+` blank-pattern key, one PAT tools trigger; the row names the lane's cycle ("· 8-BAR CYCLE"). Tiles are 3px raised keys; the sounding tile wears the doubled hairline + underglow and STROBES once when its pattern takes the floor; pending = dashed rim + hatch + diamond flag; a drag-sweep cues many lanes on one quantized boundary. Every tile carries a ⟲/→ FOLLOW MARK in its bottom-trailing corner — ⟲ replays that slot until another is cued, → plays it once and moves on (the last slot wraps to the first) — flipped by a click on the mark or `M` on a focused tile. A tile press while playing CUES ITS SLOT: the lane jumps there at the end of the pattern sounding now, then follows that slot's mark.
 - **Projects popover:** the library chassis; every saved row is a machined key with always-visible RENAME/DELETE keys; special states (rename editor, the drums-red CONFIRM DELETE) replace the row's content and never widen the popover; titles ellipsize inside a fixed width; a sticky DELETED toast carries a one-shot byte-exact UNDO.
-- **Phone chrome:** the unit's top plate — lane-switcher tabs (the active tab lit in its hue), the condensed rail, the centered PLAY/STOP, and the OPTIONS drawer in the same key vocabulary; every phone target paints ≥44px or carries an invisible ±8px hit strap.
+- **Phone chrome:** the unit's top plate — lane-switcher tabs (the active tab lit in its hue), the centered PLAY/STOP with OPTIONS on one edge column and the SONG key on the other, and the OPTIONS drawer in the same key vocabulary; every phone target paints ≥44px or carries an invisible ±8px hit strap.
+- **Phone pages (the session/arrangement split):** EDIT is the switcher plus one lane's grid; SONG is the dedicated sequencer — every lane's chain as large tiles (cue, section label, `+`, the PAT tools, and a 44px ⟲/→ mark). The SONG key toggles them from the pinned transport row, so the split costs no chrome height and the EDIT page keeps the whole stage for pads.
+- **Lane follow footer:** the bottom line of every lane plate — a machined key reading ⟲ LOOP (lit in the lane hue) or → NEXT (dim), beside "SLOT n · NAME". It names the slot the lane is ON (sounding while playing, selected while stopped) and clicking it flips that slot's mark.
 
 ### Signature: the sounding grid
 
@@ -321,6 +323,8 @@ Help mode is a fixed bottom status bar: a VT323 "?" badge, the control's name in
 - **Do** give touch targets ≥44px: painted in the scrolling stage and overlays, or an invisible ±8px hit strap on the pinned phone chrome.
 - **Do** keep floating surfaces inside the viewport and independent of content length (an ellipsized name owns its intrinsic width with `contain: inline-size`).
 - **Do** keep every pad live under the pointer on the 2×2 stages, with only the selected grid owning the keyboard tab stop.
+- **Do** let a DRAG-CREATED note length become that lane's next placement length (click or Enter). The gate stays the explicit default: editing it clears the memory, as does loading a project.
+- **Do** carry the ⟲/→ follow on the SLOT, in shape plus text (the arrow mark, the LOOP/NEXT footer, the tile's "loops" aria suffix) — never hue alone, and never as a mode the transport LOOP switch has to explain.
 
 ### Don't:
 
@@ -331,4 +335,5 @@ Help mode is a fixed bottom status bar: a VT323 "?" badge, the control's name in
 - **Don't** write the DOM from anything that moves during playback. Meters, rolls and strobes are Web Animations or CSS on existing seams, so the gates' mutation set never grows.
 - **Don't** paint inside a grid scroller: no per-pad or per-note-bar gradients or insets, and no image background on the scroller. The 128-bar virtualized grids render thousands of pads (measured: fling frames collapsed to 84% over budget).
 - **Don't** break the one-page law: at 1440×900 and 1280×800, quadrant content scrolls inside quadrants and the page never scrolls. The phone stage's sticky chrome plus scrolling page is the deliberate exception.
-- **Don't** let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, and ghosts and scans are pseudo-elements.
+- **Don't** let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, ghosts and scans are pseudo-elements, and a tile's follow mark is absolutely positioned inside the tile's own padding so tile widths never move.
+- **Don't** give the lane follow footer a content-sized box. It is a FIXED 14px line: the quadrant fill budget subtracts exactly that under the bed, so a footer that grows with its font or text breaks the one-page fit (measured: the floors stopped 8px short of the viewport bottom).

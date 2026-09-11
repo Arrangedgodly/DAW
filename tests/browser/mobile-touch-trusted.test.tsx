@@ -247,7 +247,7 @@ async function bootPhone(
     // The demo chain booted: at phone width only the ACTIVE lane's rail row
     // renders, and the VERSE cues live on the CHORDS lane — the honest
     // phone-mode boot signal is the tile count (the MB-1 precedent).
-    await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+    await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
 
     // --- trusted CDP touch, mapped through BOTH iframe boxes -------------
     const c = cdp();
@@ -506,8 +506,10 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
         // evidence is the QUEUED cue summary + the target tile ENGAGING
         // (pending → landed: selected/active), asserted as a poll.
         {
+          // 2026-09-11: the chain rail lives on the phone SONG page.
+          $<HTMLElement>(".phone-page-toggle").click();
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
-          expect(tiles().length).toBeGreaterThanOrEqual(4);
+          await poll(() => tiles().length >= 4, 3_000, "SONG page chain tiles");
           const box = tiles()[0]!.parentElement!.getBoundingClientRect();
           const a = tiles()[0]!.getBoundingClientRect();
           const b = tiles()[2]!.getBoundingClientRect();
@@ -529,6 +531,7 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
             4_000,
             "the swept-to tile engages (pending or landed: selected/active)",
           );
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
         await tapStable(playBtn(), {
           effect: () => playBtn().getAttribute("aria-pressed") === "false",
@@ -832,6 +835,7 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
 
         // ---- stopped rail sweep: selection follows the LAST-touched tile ---
         {
+          $<HTMLElement>(".phone-page-toggle").click(); // to the SONG page
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
           await poll(() => tiles().length >= 4, 3_000, "demo chain tiles");
           const box = tiles()[0]!.parentElement!.getBoundingClientRect();
@@ -847,6 +851,7 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
             4_000,
             "stopped touch sweep selects the LAST-touched tile",
           );
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
 
         // ---- busy-guarded exports + projects switch --------------------------
@@ -1095,9 +1100,11 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
         });
         await tapStable($(".head-fill-toggle")); // hide (single attempt)
 
-        // Stopped sweep at the tight width.
+        // Stopped sweep at the tight width (on the SONG page — 2026-09-11).
         {
+          $<HTMLElement>(".phone-page-toggle").click();
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
+          await poll(() => tiles().length >= 3, 3_000, "SONG page tiles (360)");
           const box = tiles()[0]!.parentElement!.getBoundingClientRect();
           const a = tiles()[0]!.getBoundingClientRect();
           const b = tiles()[2]!.getBoundingClientRect();
@@ -1111,6 +1118,7 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
             4_000,
             "stopped sweep at 360",
           );
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
         expect(idoc().documentElement.scrollWidth).toBeLessThanOrEqual(360);
       } finally {

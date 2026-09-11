@@ -426,7 +426,7 @@ describe("M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430
           // desktop gate's VERSE-cue probe does not apply — any demo tile
           // proves the first-run document painted.
           await poll(
-            () => idoc().querySelectorAll(".rail-tile").length > 0,
+            () => (idoc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : idoc().querySelectorAll(".rail-tile").length > 0),
             5_000,
             "demo rail tiles",
           );

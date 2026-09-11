@@ -1,0 +1,224 @@
+/*
+ * ⟲ LOOP / → NEXT slot follow + the phone SONG page (2026-09-11).
+ * Shape carries the meaning (the loop arrow vs the forward arrow) and every
+ * control carries text; hue only reinforces it (the Signal rule).
+ */
+
+.mode-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* ---- Tile glyph: the bottom-trailing corner mark on every chain tile; a
+ * click on it flips the slot (the tile keeps its cue/select tap everywhere
+ * else). OUT OF FLOW (absolute, inside the tile's trailing padding): the
+ * one-page/rail-density laws measure tile widths, so the mark adds none.
+ * The ::before extends the hit area to 20×20 without moving the paint. ---- */
+.rail-tile-mode {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-ink) 55%, var(--metal-raised));
+  cursor: pointer;
+}
+
+.rail-tile-mode::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+}
+
+.rail-tile-mode:hover {
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+.rail-tile-mode[data-mode="loop"],
+.rail-tile[data-state] .rail-tile-mode[data-mode="loop"] {
+  color: var(--color-ink);
+}
+
+/* ---- Lane footer ---------------------------------------------------------- */
+.lane-follow {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 0;
+  /* A FIXED box (desktop/tablet): the quadrant fit budgets this height
+   * under the bed, so it must never vary with font metrics or content. */
+  height: 14px;
+  line-height: 14px;
+  overflow: hidden;
+  min-width: 0;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lane-follow-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  /* Desktop/tablet: the most compact key the label-sm face allows — every
+   * footer px is taken from the grid's fill budget (the one-page law). */
+  height: 14px;
+  padding: 0 var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  border-radius: 3px;
+  background: var(--metal-raised);
+  box-shadow: var(--keycap);
+  color: var(--color-ink);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.lane-follow-btn .mode-icon {
+  font-size: 10px;
+}
+
+.lane-follow-btn[aria-pressed="true"] {
+  border-color: var(--lane-hue);
+  background: color-mix(in srgb, var(--lane-hue) 22%, var(--metal-raised));
+  box-shadow: var(--keycap-lit);
+}
+
+.lane-follow-btn:active {
+  box-shadow: var(--keycap-down);
+}
+
+.lane-follow-btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}
+
+.lane-follow-slot {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app[data-stage="phone"] .lane-follow {
+  margin-top: var(--space-2);
+  height: auto;
+  overflow: visible;
+}
+
+.app[data-stage="phone"] .lane-follow-btn {
+  height: 44px;
+  padding: 0 var(--space-3);
+}
+
+/* ---- Phone EDIT ⇄ SONG key (the transport row's right edge column) ------- */
+.phone-page-toggle {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 64px;
+  padding: 0 var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
+  border-radius: 3px;
+  background: var(--metal-raised);
+  box-shadow: var(--keycap);
+  color: var(--color-ink);
+  font: var(--text-panel-label-sm);
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.phone-page-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-ink) 14%, var(--metal-raised));
+  box-shadow: var(--keycap-lit);
+}
+
+.phone-page-toggle:active {
+  box-shadow: var(--keycap-down);
+}
+
+.phone-page-toggle:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* ---- Phone SONG page: every lane's chain as big tiles --------------------- */
+.app[data-stage="phone"] .stage-song {
+  padding: var(--space-3);
+}
+
+.app[data-stage="phone"] .stage-song .rail {
+  width: auto;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.app[data-stage="phone"] .stage-song .rail-row {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+.app[data-stage="phone"] .stage-song .rail-row:first-of-type {
+  border-top: 0;
+}
+
+.app[data-stage="phone"] .stage-song .rail-lane-name {
+  flex: 1 1 auto;
+  color: var(--color-ink);
+}
+
+.app[data-stage="phone"] .stage-song .rail-tiles {
+  flex: 1 0 100%;
+  order: 3;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+  overflow: visible;
+  padding: 0;
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  min-height: 76px;
+  padding: var(--space-2) var(--space-3);
+  white-space: normal;
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile-name {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile-mode {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  font-size: 20px;
+}

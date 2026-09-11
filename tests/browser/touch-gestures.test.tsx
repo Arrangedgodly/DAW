@@ -119,6 +119,7 @@ import {
   loadDocument,
 } from "../../src/state/store";
 import { activePatterns, selectPattern } from "../../src/state/selection";
+import { showPhonePage } from "../../src/state/phonePage";
 import { getSession } from "../../src/engine/session";
 import { euclid } from "../../src/audio/euclid";
 import { getAutosaveController } from "../../src/persist/boot";
@@ -472,6 +473,9 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         // A SECOND pattern for the chain, so a sweep's target is
         // distinguishable from its origin (same-id slots would make the
         // selection assertion meaningless).
+        // 2026-09-11: the chain rail lives on the phone SONG page — the
+        // sweep and the dbltap rename below both happen there.
+        showPhonePage("song");
         const patternA = activePatterns().drums;
         const patternB = addPattern("drums", 1, "P2");
         appendChainSlot("drums", patternB);
@@ -586,6 +590,12 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         );
 
         // ---- 6. EUCLID BY TOUCH: reveal → arm → SET → hide ------------------
+        showPhonePage("edit"); // back to the grid page for the stage probes
+        await waitFor(
+          () => document.querySelector(".lane-head-strip") !== null,
+          2000,
+          "back on the EDIT page",
+        );
         const fill0 = el('.lane-floor[data-lane="drums"] .row-fill');
         expect(fill0.classList.contains("is-overlay")).toBe(true);
         expect(getComputedStyle(fill0).opacity).toBe("0"); // hidden first

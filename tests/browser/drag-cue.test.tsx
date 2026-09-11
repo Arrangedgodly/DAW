@@ -208,8 +208,8 @@ describe("IN-3 multi-clip drag cueing (real app, pointer + keyboard)", () => {
         // text parity (see the timing law in the header).
         await waitFor(
           () =>
-            laneStatus("drums").includes("switching to drums-3") &&
-            laneStatus("bass").includes("switching to bass-3"),
+            laneStatus("drums").includes("(drums-3)") &&
+            laneStatus("bass").includes("(bass-3)"),
           3000,
           "path A pending announcements",
         );
@@ -273,8 +273,8 @@ describe("IN-3 multi-clip drag cueing (real app, pointer + keyboard)", () => {
         expect(tile("bass", 2).dataset.inRange).toBeUndefined(); // consumed
         await waitFor(
           () =>
-            laneStatus("drums").includes("switching to drums-3") &&
-            laneStatus("bass").includes("switching to bass-3"),
+            laneStatus("drums").includes("(drums-3)") &&
+            laneStatus("bass").includes("(bass-3)"),
           3000,
           "path B pending announcements",
         );

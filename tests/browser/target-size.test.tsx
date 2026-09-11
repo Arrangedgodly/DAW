@@ -62,6 +62,7 @@ import App from "../../src/App";
 import { loadDocument } from "../../src/state/store";
 import { createDemoProject } from "../../src/document/demoSong";
 import { selectLane } from "../../src/state/selection";
+import { showPhonePage } from "../../src/state/phonePage";
 import { clearToasts, showError } from "../../src/state/toasts";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
@@ -719,12 +720,27 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
         await auditSelector(".phone-chrome .booth-range", "booth slider", rows);
         await closeOptionsDrawer(); // stage surfaces below must not sit under the backdrop
-        // --- pinned chrome: switcher + condensed rail --------------------
+        // --- pinned chrome: switcher + the SONG page key -----------------
         await auditSelector(".lane-switch-tab", "switcher tab", rows);
+        rows.push(await auditControl($(".phone-page-toggle"), "SONG page key"));
+        // 2026-09-11: the chain rail lives on the SONG page (the EDIT page
+        // dropped the condensed row) — audit it there, then return to EDIT.
+        showPhonePage("song");
+        await waitFor(
+          () => document.querySelector(".rail-tile") !== null,
+          2000,
+          "SONG page rail",
+        );
         await auditSelector(".rail-tile", "rail tile", rows, { limit: 3 });
         rows.push(await auditControl($(".rail-append"), "rail append +"));
         rows.push(
           await auditControl($(".rail-tools-trigger"), "rail PAT trigger"),
+        );
+        showPhonePage("edit");
+        await waitFor(
+          () => document.querySelector(".lane-switch-tab") !== null,
+          2000,
+          "back on the EDIT page",
         );
         // --- scrolling stage: the lane strip -----------------------------
         await auditSelector(
@@ -844,7 +860,13 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         click(".head-fill-toggle");
         await new Promise((r) => setTimeout(r, 350));
 
-        // --- PAT menu ----------------------------------------------------
+        // --- PAT menu (on the SONG page — EDIT carries no rail) ----------
+        showPhonePage("song");
+        await waitFor(
+          () => document.querySelector(".rail-tools-trigger") !== null,
+          2000,
+          "SONG page rail (PAT)",
+        );
         click(".rail-tools-trigger");
         await waitFor(
           () => document.querySelector(".rail-tools-menu") !== null,
@@ -861,6 +883,12 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           () => document.querySelector(".rail-tools-menu") === null,
           2000,
           "PAT menu closed",
+        );
+        showPhonePage("edit");
+        await waitFor(
+          () => document.querySelector(".lane-switch-tab") !== null,
+          2000,
+          "back on the EDIT page (PAT)",
         );
 
         // --- lane scale popover -------------------------------------------
@@ -1073,7 +1101,6 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         for (const [name, idx] of [
           ["booth", boothIdx],
           ["switcher", switcherIdx],
-          ["rail", railIdx],
           ["strip", stripIdx],
           ["grid cell", gridIdx],
         ] as const) {
@@ -1082,9 +1109,12 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           );
         }
         expect(boothIdx).toBeLessThan(switcherIdx);
-        expect(switcherIdx).toBeLessThan(railIdx);
-        expect(railIdx).toBeLessThan(stripIdx);
+        expect(switcherIdx).toBeLessThan(stripIdx);
         expect(stripIdx).toBeLessThan(gridIdx);
+        // 2026-09-11: no rail on the EDIT page — the SONG key rides the
+        // pinned transport row, and the chain's own tab order is walked on
+        // the SONG page (help-coverage's phone pass).
+        expect(railIdx, "no rail tabbable on the phone EDIT page").toBe(-1);
 
         // ================= rotation coherence ==============================
         const cell = $(
@@ -1229,9 +1259,24 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await auditSelector(".booth-range", "booth slider", rows360);
         await closeOptionsDrawer();
         await auditSelector(".lane-switch-tab", "switcher tab", rows360);
+        rows360.push(
+          await auditControl($(".phone-page-toggle"), "SONG page key (360)"),
+        );
+        showPhonePage("song"); // the chain rail lives there (2026-09-11)
+        await waitFor(
+          () => document.querySelector(".rail-tile") !== null,
+          2000,
+          "SONG page rail (360)",
+        );
         await auditSelector(".rail-tile", "rail tile", rows360, { limit: 2 });
         rows360.push(
           await auditControl($(".rail-tools-trigger"), "PAT trigger"),
+        );
+        showPhonePage("edit");
+        await waitFor(
+          () => document.querySelector(".lane-switch-tab") !== null,
+          2000,
+          "back on the EDIT page (360)",
         );
         await auditSelector(
           '.lane-floor [aria-label^="Next kit"], .lane-floor [aria-label^="Next preset"]',

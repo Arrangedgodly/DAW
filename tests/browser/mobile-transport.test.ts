@@ -94,7 +94,7 @@ async function bootIframe(
   const $$ = <T extends Element>(sel: string): T[] =>
     Array.from(idoc().querySelectorAll<T>(sel));
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-  await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+  await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
   // M-3: the pinned transport row is part of the phone boot signal — the
   // gate fails LOUD if the row (or its button) never renders.
   if (w < 768) {

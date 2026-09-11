@@ -160,7 +160,7 @@ html { scrollbar-width: none; }
   // cue, but at phone width only the ACTIVE lane's rail row renders, so the
   // cue may live on an unrendered lane — the tile count is the honest
   // phone-mode boot signal.
-  await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+  await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
   return { iframe, win, $, $$, idoc };
 }
 
@@ -335,10 +335,12 @@ describe("MB-1 responsive stage (built app)", () => {
               "the tall lead manifest windows at phone (M-5)",
             ).toBe(true);
           }
-          // The condensed rail follows the selection (one row, the lane's).
-          expect($$(".rail-row")).toHaveLength(1);
-          expect($(".rail-row").dataset.lane).toBe(lane);
-          expect($(".rail-head").offsetParent).toBeNull(); // head hidden
+          // 2026-09-11: the phone EDIT page carries NO rail — the chain
+          // moved to the SONG page (its own gates own it there).
+          expect(
+            $$(".rail-row"),
+            "no rail on the phone EDIT page",
+          ).toHaveLength(0);
         }
 
         // Keyboard: ArrowRight on the switcher selects + focuses the next
@@ -391,7 +393,6 @@ describe("MB-1 responsive stage (built app)", () => {
         for (const [sel, what] of [
           [".booth", "transport"],
           [".lane-switcher", "lane switcher"],
-          [".rail", "condensed rail"],
         ] as const) {
           const box = $(sel).getBoundingClientRect();
           expect(

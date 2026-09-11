@@ -62,8 +62,9 @@ interface Ctx {
  * R14 teardown law) — so each retry starts from a FRESH iframe (closing the
  * prior app's DB connections), wipes, and polls a demo signature. The
  * signature defaults to the demo's named VERSE cue tiles (desktop rail);
- * the condensed phone rail renders cue labels as "—", so callers at phone
- * width pass their own (the §E body then pins the demo's lead manifest).
+ * the phone EDIT page carries NO rail (2026-09-11: the chain moved to the
+ * SONG page), so callers at phone width pass their own signature (the §E
+ * body then pins the demo's lead manifest).
  */
 async function boot(
   w: number,
@@ -111,8 +112,11 @@ async function boot(
         const cues = Array.from(
           iframe!.contentDocument?.querySelectorAll(".rail-tile-cue") ?? [],
         ).map((c) => c.textContent);
+        // A caller-supplied signature decides ALONE: the phone EDIT page has
+        // no rail at all since 2026-09-11 (the chain moved to the SONG page),
+        // so cue tiles are not a universal readiness signal.
         const settled = demoOk
-          ? cues.length > 0 && demoOk(iframe!)
+          ? demoOk(iframe!)
           : cues.some((c) => c === "VERSE");
         if (settled) return resolve(true);
         if (performance.now() - t0 > 6_000) return resolve(false);
@@ -372,15 +376,20 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
       }
 
       // --- E. PHONE REGRESSION (I3-f): no fill registration ---------------
-      // The condensed phone rail renders ONE lane row with cue labels as
-      // "—", so the demo signature here is its 4-slot chain (a stale
-      // single-pattern restore shows one cue); the lead manifest assertion
-      // below pins the demo document.
+      // 2026-09-11: the phone EDIT page carries NO rail (the chain lives on
+      // the SONG page), so the demo signature is the demo's own lead
+      // manifest — 15 rows, against the default project's 14 — on the phone
+      // stage; the lead manifest assertion below pins the same document.
       const ctx3 = await boot(390, 844, (frame) => {
         const doc = frame.contentDocument!;
+        // The phone stage renders ONE lane (drums at boot), so the signature
+        // is the phone shell itself: all four switcher tabs plus a painted
+        // grid. The boot wipes IDB first, so a settled phone app IS the
+        // first-run demo; §E's lead-manifest assertion pins it regardless.
         return (
-          doc.querySelectorAll(".rail-tile-cue").length >= 4 &&
-          doc.querySelector(".app")?.getAttribute("data-stage") === "phone"
+          doc.querySelector(".app")?.getAttribute("data-stage") === "phone" &&
+          doc.querySelectorAll(".lane-switch-tab").length === 4 &&
+          doc.querySelector(".lane-floor .grid-row") !== null
         );
       });
       try {

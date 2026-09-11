@@ -17,6 +17,8 @@ import { OptionsBackdrop, OptionsButton, OptionsDrawerPanel } from "./components
 import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
+import PhonePageToggle from "./components/PhonePageToggle";
+import { phonePage } from "./state/phonePage";
 import StageFloor, { LaneSwitcher } from "./components/StageFloor";
 import Toasts from "./components/Toasts";
 import AudioStatus from "./components/AudioStatus";
@@ -37,6 +39,8 @@ import "./styles/toasts.css";
 import "./styles/banner.css";
 import "./styles/help.css";
 import "./styles/viz.css";
+// ⟲/→ slot follow + the phone SONG page (2026-09-11).
+import "./styles/song.css";
 // THE FULL UNIT (overdrive): imported last — its paint rules win ties.
 import "./styles/unit.css";
 import UnitOptics from "./components/UnitOptics";
@@ -60,6 +64,7 @@ export default function App() {
       data-help-mode={helpMode() ? "on" : "off"}
       data-viz-mode={vizMode() ? "on" : "off"}
       data-stage={stageMode()}
+      data-phone-page={stageMode() === "phone" ? phonePage() : undefined}
     >
       <SupportBanners />
       {/* MB-1 (mobile slice): the committed phone law — sticky chrome +
@@ -104,8 +109,13 @@ export default function App() {
               not render (render guard, not CSS; VZ-DD-1 a11y-tree law).
               The desktop/tablet fallback branch above stays unchanged. */}
           <Booth compact />
-          <LaneSwitcher />
-          <PatternRail />
+          {/* 2026-09-11 (user call): the phone is two pages — EDIT (the
+              lane switcher + one lane's grid) and SONG (every lane's chain,
+              the sequencer). The condensed one-row rail left the chrome:
+              the SONG page owns the chain, EDIT gets the height back. */}
+          <Show when={phonePage() === "edit"}>
+            <LaneSwitcher />
+          </Show>
           {/* M-3: the pinned centered transport — the ONE play/stop
               control (Booth's shared PlayStopButton) rides a centered row
               as the LAST child of the sticky chrome, so PLAY/STOP stays
@@ -121,7 +131,7 @@ export default function App() {
           <div class="phone-transport">
             <OptionsButton />
             <PlayStopButton />
-            <span class="phone-transport-edge" aria-hidden="true" />
+            <PhonePageToggle />
           </div>
           {/* M-4: the collapsible options drawer — the Show law: collapsed
               means ZERO drawer DOM (no panel, no backdrop, no listeners).
@@ -134,13 +144,26 @@ export default function App() {
             <OptionsDrawerPanel />
           </Show>
         </div>
+        {/* The EDIT stage stays MOUNTED (hidden) under the SONG page: the
+            grids keep their scroll/register place and the store→engine
+            bridge StageFloor owns keeps running. */}
         <main
           class="stage"
           aria-label="Stage floor"
+          hidden={phonePage() === "song"}
           inert={vizMode() ? true : undefined}
         >
           <StageFloor />
         </main>
+        <Show when={phonePage() === "song"}>
+          <main
+            class="stage stage-song"
+            aria-label="Song sequencer"
+            inert={vizMode() ? true : undefined}
+          >
+            <PatternRail />
+          </main>
+        </Show>
       </Show>
       <AudioStatus />
       <Toasts />

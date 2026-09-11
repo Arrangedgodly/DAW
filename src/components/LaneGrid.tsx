@@ -79,9 +79,14 @@ import {
 import { closeFxConsole, fxConsoleLane } from "../state/fxConsole";
 import { closeFillRails, fillRailsOpen } from "../state/fillRails";
 import { noteEditAt, type Span } from "../interaction/drag";
+import {
+  placementLength,
+  rememberNoteLength,
+} from "../state/noteLengthMemory";
 import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
 import LaneMeter from "./LaneMeter";
+import LaneFollow from "./LaneFollow";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
 
@@ -653,9 +658,17 @@ function fitQuadrantRows(): void {
     const above =
       scroll.getBoundingClientRect().top - floor.getBoundingClientRect().top;
     const floorStyle = getComputedStyle(floor);
+    // ⟲/→ (2026-09-11): the lane-follow footer sits UNDER the bed — card
+    // chrome the bed may not fill (its border box + its top margin).
+    const follow = floor.querySelector<HTMLElement>(":scope > .lane-follow");
+    const followH = follow
+      ? follow.getBoundingClientRect().height +
+        (Number.parseFloat(getComputedStyle(follow).marginTop) || 0)
+      : 0;
     const below =
       Number.parseFloat(floorStyle.paddingBottom) +
-      Number.parseFloat(floorStyle.borderBottomWidth);
+      Number.parseFloat(floorStyle.borderBottomWidth) +
+      followH;
     const g = renderer.fitGeometry();
     // Live visible rows: the window when windowed, the manifest otherwise.
     const liveRows = g.windowRows ?? g.manifestRows;
@@ -1089,15 +1102,17 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         // the DISPLAYED pattern (DES-6) through the SC-2 note actions.
         const degree = degrees[row];
         if (degree === undefined) return;
-        const gateSteps = laneGateStepsNow(lane);
+        // A single press places at the last drag-created length (note-length
+        // memory), falling back to the lane's gate default.
+        const placeSteps = placementLength(lane, laneGateStepsNow(lane));
         const spans = rowSpansNow(lane, pattern.id, degree);
-        const decision = noteEditAt(spans, gateSteps, step);
+        const decision = noteEditAt(spans, placeSteps, step);
         if (decision.kind === "place") {
           if (
             addNote(lane, pattern.id, {
               degree,
               start: step,
-              length: gateSteps,
+              length: placeSteps,
             })
           )
             void session.audition(lane, degree); // placement auditions (v0 law)
@@ -1120,8 +1135,10 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
         const degree = degrees[row];
         if (degree === undefined) return;
         const pitchedLane = lane as Exclude<LaneId, "drums">;
-        if (addNote(pitchedLane, pattern.id, { degree, start, length }))
+        if (addNote(pitchedLane, pattern.id, { degree, start, length })) {
+          rememberNoteLength(pitchedLane, length); // the next press copies it
           void session.audition(lane, degree); // audition on create (plan law)
+        }
       },
       onNoteResize: (row, start, length) => {
         const degree = degrees[row];
@@ -1583,6 +1600,8 @@ export default function LaneGrid(props: { lane: LaneId }) {
           })()
         }
       </Show>
+      {/* ⟲/→ (2026-09-11): what this lane's current slot does when it ends. */}
+      <LaneFollow lane={props.lane} />
     </section>
   );
 }

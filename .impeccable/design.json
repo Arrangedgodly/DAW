@@ -4,54 +4,304 @@
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Anodized Graphite Deck", "canonical": "#111014", "tonalRamp": ["#050406", "#0a090c", "#111014", "#1a191d", "#232128", "#34313b", "#4a4653", "#66616f"] },
-      "ink": { "role": "primary", "displayName": "Warm Chassis White", "canonical": "#f5f2e9", "tonalRamp": ["#2b2a25", "#4b493f", "#6c6a59", "#8f8c75", "#b3b093", "#d6d3b9", "#eae7d8", "#f5f2e9"] },
-      "ink-on-fill": { "role": "neutral", "displayName": "Ink-on-Fill Near-Black", "canonical": "#0d0b10", "tonalRamp": ["#070609", "#0d0b10", "#15121a", "#1e1a25", "#282331", "#332d3e", "#3f384c", "#4c445a"] },
-      "metal-panel": { "role": "neutral", "displayName": "Panel Graphite", "canonical": "#1a191d", "tonalRamp": ["#0a090c", "#111014", "#1a191d", "#232128", "#2e2c34", "#3d3a44", "#524e5a", "#6d6875"] },
-      "metal-raised": { "role": "neutral", "displayName": "Raised Key Graphite", "canonical": "#232128", "tonalRamp": ["#0f0e12", "#1a191d", "#232128", "#2e2c34", "#3a3741", "#4a4652", "#5f5a68", "#7a7483"] },
-      "metal-recess": { "role": "neutral", "displayName": "Recess Black", "canonical": "#0a090c", "tonalRamp": ["#030304", "#0a090c", "#111014", "#1a191d", "#232128", "#2e2c34", "#3d3a44", "#524e5a"] },
-      "lane-drums": { "role": "secondary", "displayName": "Drums Signal Red", "canonical": "#f23d4c", "tonalRamp": ["#2c070b", "#5a0e17", "#881523", "#b61d2f", "#df2f3e", "#f23d4c", "#f66a75", "#fbb4ba"] },
-      "lane-bass": { "role": "secondary", "displayName": "Bass Console Amber", "canonical": "#ffb300", "tonalRamp": ["#2e2000", "#5c4000", "#8a6000", "#b88000", "#e6a000", "#ffb300", "#ffc94d", "#ffe6a6"] },
-      "lane-chords": { "role": "secondary", "displayName": "Chords Pad Green", "canonical": "#35d07f", "tonalRamp": ["#08261a", "#0f4a31", "#177048", "#1f9660", "#2abc72", "#35d07f", "#6fdda3", "#b4eed0"] },
-      "lane-lead": { "role": "secondary", "displayName": "Lead Signal Blue", "canonical": "#4da6ff", "tonalRamp": ["#0a1f33", "#133d66", "#1d5c99", "#267acc", "#3a92f0", "#4da6ff", "#80c0ff", "#bfdfff"] }
+      "ground": {
+        "role": "neutral",
+        "displayName": "Anodized Graphite Deck",
+        "canonical": "#111014",
+        "tonalRamp": [
+          "#050406",
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#34313b",
+          "#4a4653",
+          "#66616f"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Warm Chassis White",
+        "canonical": "#f5f2e9",
+        "tonalRamp": [
+          "#2b2a25",
+          "#4b493f",
+          "#6c6a59",
+          "#8f8c75",
+          "#b3b093",
+          "#d6d3b9",
+          "#eae7d8",
+          "#f5f2e9"
+        ]
+      },
+      "ink-on-fill": {
+        "role": "neutral",
+        "displayName": "Ink-on-Fill Near-Black",
+        "canonical": "#0d0b10",
+        "tonalRamp": [
+          "#070609",
+          "#0d0b10",
+          "#15121a",
+          "#1e1a25",
+          "#282331",
+          "#332d3e",
+          "#3f384c",
+          "#4c445a"
+        ]
+      },
+      "metal-panel": {
+        "role": "neutral",
+        "displayName": "Panel Graphite",
+        "canonical": "#1a191d",
+        "tonalRamp": [
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3d3a44",
+          "#524e5a",
+          "#6d6875"
+        ]
+      },
+      "metal-raised": {
+        "role": "neutral",
+        "displayName": "Raised Key Graphite",
+        "canonical": "#232128",
+        "tonalRamp": [
+          "#0f0e12",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3a3741",
+          "#4a4652",
+          "#5f5a68",
+          "#7a7483"
+        ]
+      },
+      "metal-recess": {
+        "role": "neutral",
+        "displayName": "Recess Black",
+        "canonical": "#0a090c",
+        "tonalRamp": [
+          "#030304",
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3d3a44",
+          "#524e5a"
+        ]
+      },
+      "lane-drums": {
+        "role": "secondary",
+        "displayName": "Drums Signal Red",
+        "canonical": "#f23d4c",
+        "tonalRamp": [
+          "#2c070b",
+          "#5a0e17",
+          "#881523",
+          "#b61d2f",
+          "#df2f3e",
+          "#f23d4c",
+          "#f66a75",
+          "#fbb4ba"
+        ]
+      },
+      "lane-bass": {
+        "role": "secondary",
+        "displayName": "Bass Console Amber",
+        "canonical": "#ffb300",
+        "tonalRamp": [
+          "#2e2000",
+          "#5c4000",
+          "#8a6000",
+          "#b88000",
+          "#e6a000",
+          "#ffb300",
+          "#ffc94d",
+          "#ffe6a6"
+        ]
+      },
+      "lane-chords": {
+        "role": "secondary",
+        "displayName": "Chords Pad Green",
+        "canonical": "#35d07f",
+        "tonalRamp": [
+          "#08261a",
+          "#0f4a31",
+          "#177048",
+          "#1f9660",
+          "#2abc72",
+          "#35d07f",
+          "#6fdda3",
+          "#b4eed0"
+        ]
+      },
+      "lane-lead": {
+        "role": "secondary",
+        "displayName": "Lead Signal Blue",
+        "canonical": "#4da6ff",
+        "tonalRamp": [
+          "#0a1f33",
+          "#133d66",
+          "#1d5c99",
+          "#267acc",
+          "#3a92f0",
+          "#4da6ff",
+          "#80c0ff",
+          "#bfdfff"
+        ]
+      }
     },
     "typographyMeta": {
-      "panel-label": { "displayName": "Panel Label", "purpose": "Every control and group name — printed uppercase legends on machined keys and plates." },
-      "panel-label-lg": { "displayName": "Panel Label Large", "purpose": "Stepper glyphs, phone lane tabs, register shift keys." },
-      "legend": { "displayName": "Engraved Legend", "purpose": "Silkscreen accents ≤10px — SONG CHAIN, cue names, screen annunciators." },
-      "value": { "displayName": "Value Readout", "purpose": "Live values (bars, FX params, percentages); monospaced = tabular." },
-      "body": { "displayName": "Service-Manual Body", "purpose": "Help text, toasts, banners — always warm white." },
-      "numeric-field": { "displayName": "Numeric Field", "purpose": "Off-grid numeric inputs with tabular numerals." },
-      "led": { "displayName": "LED Numerals", "purpose": "VT323 20–24px behind glass: BAR.BEAT.STEP, TEMPO, the status screen." }
+      "panel-label": {
+        "displayName": "Panel Label",
+        "purpose": "Every control and group name — printed uppercase legends on machined keys and plates."
+      },
+      "panel-label-lg": {
+        "displayName": "Panel Label Large",
+        "purpose": "Stepper glyphs, phone lane tabs, register shift keys."
+      },
+      "legend": {
+        "displayName": "Engraved Legend",
+        "purpose": "Silkscreen accents ≤10px — SONG CHAIN, cue names, screen annunciators."
+      },
+      "value": {
+        "displayName": "Value Readout",
+        "purpose": "Live values (bars, FX params, percentages); monospaced = tabular."
+      },
+      "body": {
+        "displayName": "Service-Manual Body",
+        "purpose": "Help text, toasts, banners — always warm white."
+      },
+      "numeric-field": {
+        "displayName": "Numeric Field",
+        "purpose": "Off-grid numeric inputs with tabular numerals."
+      },
+      "led": {
+        "displayName": "LED Numerals",
+        "purpose": "VT323 20–24px behind glass: BAR.BEAT.STEP, TEMPO, the status screen."
+      }
     },
     "shadows": [
-      { "name": "chamfer", "value": "inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 2px 0 rgb(255 255 255 / 4%), inset 1px 0 0 rgb(255 255 255 / 5%), inset -1px 0 0 rgb(0 0 0 / 30%), inset 0 -1px 0 rgb(0 0 0 / 68%), inset 0 -2px 0 rgb(0 0 0 / 22%)", "purpose": "The two-facet machined plate edge; composed into every panel elevation." },
-      { "name": "plate-cast", "value": "var(--chamfer), 0 1px 1px rgb(0 0 0 / 55%), 0 12px 24px -10px rgb(0 0 0 / 72%)", "purpose": "Booth, rail, lane plates, phone chrome (--elev-2)." },
-      { "name": "floating-cast", "value": "var(--chamfer), 0 2px 3px rgb(0 0 0 / 50%), 0 20px 42px -14px rgb(0 0 0 / 80%)", "purpose": "Popovers, FX console, euclid overlay (--elev-3)." },
-      { "name": "keycap", "value": "inset 0 1px 0 rgb(255 255 255 / 20%), inset 1px 0 0 rgb(255 255 255 / 6%), inset -1px 0 0 rgb(0 0 0 / 32%), inset 0 -2px 0 rgb(0 0 0 / 40%), inset 0 9px 10px -8px rgb(255 255 255 / 9%), 0 1px 0 rgb(0 0 0 / 70%), 0 3px 6px -2px rgb(0 0 0 / 55%)", "purpose": "Every raised key; inset-only face so it layers over any fill." },
-      { "name": "keycap-lit", "value": "inset 0 1px 0 rgb(255 255 255 / 45%), inset 0 -2px 0 rgb(0 0 0 / 26%), inset 0 9px 10px -8px rgb(255 255 255 / 28%), 0 1px 0 rgb(0 0 0 / 70%)", "purpose": "Backlit cap on lane-hue and warm-white fills." },
-      { "name": "keycap-down", "value": "inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 0 10px rgb(255 255 255 / 16%), inset 0 1px 3px rgb(0 0 0 / 60%)", "purpose": "The seated, lit cap — swapped in instantly on :active." },
-      { "name": "readout-window", "value": "inset 0 3px 8px rgb(0 0 0 / 85%), inset 0 -1px 0 rgb(255 255 255 / 16%)", "purpose": "Recessed LCD windows and the booth status screen (--led-window)." },
-      { "name": "micro-recess", "value": "inset 0 1px 2px rgb(0 0 0 / 70%), inset 0 -1px 0 rgb(255 255 255 / 16%)", "purpose": "LED wells, fader slots, meter wells." },
-      { "name": "milled-pocket", "value": "inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%), 0 -1px 0 rgb(0 0 0 / 55%)", "purpose": "The grid well cut into each lane plate." },
-      { "name": "signal-glow", "value": "0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent)", "purpose": "The one decorative ≤3px halo on lit keys, LEDs, sounding tiles." }
+      {
+        "name": "chamfer",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 2px 0 rgb(255 255 255 / 4%), inset 1px 0 0 rgb(255 255 255 / 5%), inset -1px 0 0 rgb(0 0 0 / 30%), inset 0 -1px 0 rgb(0 0 0 / 68%), inset 0 -2px 0 rgb(0 0 0 / 22%)",
+        "purpose": "The two-facet machined plate edge; composed into every panel elevation."
+      },
+      {
+        "name": "plate-cast",
+        "value": "var(--chamfer), 0 1px 1px rgb(0 0 0 / 55%), 0 12px 24px -10px rgb(0 0 0 / 72%)",
+        "purpose": "Booth, rail, lane plates, phone chrome (--elev-2)."
+      },
+      {
+        "name": "floating-cast",
+        "value": "var(--chamfer), 0 2px 3px rgb(0 0 0 / 50%), 0 20px 42px -14px rgb(0 0 0 / 80%)",
+        "purpose": "Popovers, FX console, euclid overlay (--elev-3)."
+      },
+      {
+        "name": "keycap",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 20%), inset 1px 0 0 rgb(255 255 255 / 6%), inset -1px 0 0 rgb(0 0 0 / 32%), inset 0 -2px 0 rgb(0 0 0 / 40%), inset 0 9px 10px -8px rgb(255 255 255 / 9%), 0 1px 0 rgb(0 0 0 / 70%), 0 3px 6px -2px rgb(0 0 0 / 55%)",
+        "purpose": "Every raised key; inset-only face so it layers over any fill."
+      },
+      {
+        "name": "keycap-lit",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 45%), inset 0 -2px 0 rgb(0 0 0 / 26%), inset 0 9px 10px -8px rgb(255 255 255 / 28%), 0 1px 0 rgb(0 0 0 / 70%)",
+        "purpose": "Backlit cap on lane-hue and warm-white fills."
+      },
+      {
+        "name": "keycap-down",
+        "value": "inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 0 10px rgb(255 255 255 / 16%), inset 0 1px 3px rgb(0 0 0 / 60%)",
+        "purpose": "The seated, lit cap — swapped in instantly on :active."
+      },
+      {
+        "name": "readout-window",
+        "value": "inset 0 3px 8px rgb(0 0 0 / 85%), inset 0 -1px 0 rgb(255 255 255 / 16%)",
+        "purpose": "Recessed LCD windows and the booth status screen (--led-window)."
+      },
+      {
+        "name": "micro-recess",
+        "value": "inset 0 1px 2px rgb(0 0 0 / 70%), inset 0 -1px 0 rgb(255 255 255 / 16%)",
+        "purpose": "LED wells, fader slots, meter wells."
+      },
+      {
+        "name": "milled-pocket",
+        "value": "inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%), 0 -1px 0 rgb(0 0 0 / 55%)",
+        "purpose": "The grid well cut into each lane plate."
+      },
+      {
+        "name": "signal-glow",
+        "value": "0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent)",
+        "purpose": "The one decorative ≤3px halo on lit keys, LEDs, sounding tiles."
+      }
     ],
     "motion": [
-      { "name": "press-down", "value": "80ms ease-out, translateY(1.5px) scale(0.985)", "purpose": "Key travel on :active (transform only; hit geometry never changes)." },
-      { "name": "press-return", "value": "140ms cubic-bezier(0.2, 0.9, 0.3, 1.15)", "purpose": "Spring return of a released key." },
-      { "name": "switch-throw", "value": "120ms, 3px + 1px end-bounce", "purpose": "MUTE/SOLO/bypass rider throw." },
-      { "name": "value-roll", "value": "110ms cubic-bezier(0.2, 0.9, 0.3, 1)", "purpose": "Stepper value drops into its window with an over-bright landing (WAAPI)." },
-      { "name": "scan-on", "value": "200ms cubic-bezier(0.3, 0.7, 0.2, 1)", "purpose": "Phosphor refresh line sweeping a popover/FX console as it opens." },
-      { "name": "rim-pulse", "value": "120ms ease-out (opacity)", "purpose": "Beat-rate sounding pulse on a lane plate's rim layer." },
-      { "name": "trigger-bloom", "value": "≤180ms ease-out (opacity)", "purpose": "Crossed-step pad bloom; the glow-law ceiling." },
-      { "name": "landing-strobe", "value": "260ms ease-out (opacity double-flash)", "purpose": "Rail tile strobe when its pattern takes the floor." },
-      { "name": "meter-strike", "value": "460ms, 12% hold, steps() fall", "purpose": "Channel meter strike at a note's audible time (WAAPI, one live animation per bar)." },
-      { "name": "power-on", "value": "520ms cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "First-open-per-session backlight veil + rim self-check + LED chase." }
+      {
+        "name": "press-down",
+        "value": "80ms ease-out, translateY(1.5px) scale(0.985)",
+        "purpose": "Key travel on :active (transform only; hit geometry never changes)."
+      },
+      {
+        "name": "press-return",
+        "value": "140ms cubic-bezier(0.2, 0.9, 0.3, 1.15)",
+        "purpose": "Spring return of a released key."
+      },
+      {
+        "name": "switch-throw",
+        "value": "120ms, 3px + 1px end-bounce",
+        "purpose": "MUTE/SOLO/bypass rider throw."
+      },
+      {
+        "name": "value-roll",
+        "value": "110ms cubic-bezier(0.2, 0.9, 0.3, 1)",
+        "purpose": "Stepper value drops into its window with an over-bright landing (WAAPI)."
+      },
+      {
+        "name": "scan-on",
+        "value": "200ms cubic-bezier(0.3, 0.7, 0.2, 1)",
+        "purpose": "Phosphor refresh line sweeping a popover/FX console as it opens."
+      },
+      {
+        "name": "rim-pulse",
+        "value": "120ms ease-out (opacity)",
+        "purpose": "Beat-rate sounding pulse on a lane plate's rim layer."
+      },
+      {
+        "name": "trigger-bloom",
+        "value": "≤180ms ease-out (opacity)",
+        "purpose": "Crossed-step pad bloom; the glow-law ceiling."
+      },
+      {
+        "name": "landing-strobe",
+        "value": "260ms ease-out (opacity double-flash)",
+        "purpose": "Rail tile strobe when its pattern takes the floor."
+      },
+      {
+        "name": "meter-strike",
+        "value": "460ms, 12% hold, steps() fall",
+        "purpose": "Channel meter strike at a note's audible time (WAAPI, one live animation per bar)."
+      },
+      {
+        "name": "power-on",
+        "value": "520ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "First-open-per-session backlight veil + rim self-check + LED chase."
+      }
     ],
     "breakpoints": [
-      { "name": "phone", "value": "<768px, or <1024px with height <600px" },
-      { "name": "tablet", "value": "768–1023px" },
-      { "name": "desktop", "value": "≥1024×600px" }
+      {
+        "name": "phone",
+        "value": "<768px, or <1024px with height <600px"
+      },
+      {
+        "name": "tablet",
+        "value": "768–1023px"
+      },
+      {
+        "name": "desktop",
+        "value": "≥1024×600px"
+      }
     ]
   },
   "components": [
@@ -107,7 +357,7 @@
       "name": "Rail Tile",
       "kind": "chip",
       "refersTo": "rail-tile",
-      "description": "A pattern slot in the song chain; sounding = doubled hairline + underglow, pending = dashed rim + hatch.",
+      "description": "A pattern slot in the song chain; sounding = doubled hairline + underglow, pending = dashed rim + hatch; a bottom-trailing ⟲/→ mark says what the slot does when it ends.",
       "html": "<span class=\"ds-tile\">A <b>1B</b></span> <span class=\"ds-tile ds-tile-sounding\">B <b>2B</b></span> <span class=\"ds-tile ds-tile-pending\">C <b>1B</b></span>",
       "css": ".ds-tile { display: inline-flex; gap: 4px; padding: 2px 8px; min-width: 48px; font: 400 11px/1 'Departure Mono', 'IBM Plex Mono', monospace; color: #f5f2e9; background: #232128; border: 1px solid color-mix(in srgb, #f5f2e9 30%, #232128); border-radius: 3px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 40%), 0 1px 0 rgb(0 0 0 / 70%); } .ds-tile b { font-weight: 400; color: color-mix(in srgb, #f5f2e9 55%, #232128); } .ds-tile:hover { border-color: color-mix(in srgb, #ffb300 55%, #232128); } .ds-tile-sounding { border-color: #ffb300; background: color-mix(in srgb, #ffb300 18%, #232128); outline: 1px solid color-mix(in srgb, #ffb300 80%, #232128); outline-offset: -5px; box-shadow: 0 0 3px color-mix(in srgb, #ffb300 55%, transparent); } .ds-tile-sounding b, .ds-tile-pending b { color: #f5f2e9; } .ds-tile-pending { border: 1px dashed #ffb300; background: repeating-linear-gradient(135deg, color-mix(in srgb, #ffb300 32%, #232128) 0 4px, color-mix(in srgb, #ffb300 12%, #232128) 4px 8px); }"
     },
@@ -126,6 +376,30 @@
       "description": "A quadrant: panel graphite dyed toward its lane, chamfered edge + plate cast; selected = doubled rim.",
       "html": "<section class=\"ds-plate\"><header class=\"ds-plate-head\"><span class=\"ds-led-dot\"></span>DRUMS · EDIT</header><div class=\"ds-plate-well\"></div></section>",
       "css": ".ds-plate { width: 280px; padding: 4px 8px 10px; border-radius: 4px; background-color: color-mix(in srgb, #f23d4c 7%, #1a191d); background-image: linear-gradient(180deg, rgb(255 255 255 / 4%) 0%, transparent 34%, rgb(0 0 0 / 14%) 100%); border: 1px solid color-mix(in srgb, #f23d4c 65%, #1a191d); outline: 1px solid color-mix(in srgb, #f23d4c 55%, transparent); outline-offset: -3px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 2px 0 rgb(255 255 255 / 4%), inset 0 -1px 0 rgb(0 0 0 / 68%), 0 1px 1px rgb(0 0 0 / 55%), 0 12px 24px -10px rgb(0 0 0 / 72%); } .ds-plate-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.08em; color: #f5f2e9; } .ds-led-dot { width: 3px; height: 3px; border-radius: 50%; border: 1px solid rgb(245 242 233 / 55%); background: #f23d4c; box-shadow: 0 0 3px color-mix(in srgb, #f23d4c 55%, transparent); } .ds-plate-well { height: 64px; border-radius: 3px; background: #0a090c; box-shadow: inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%); }"
+    },
+    {
+      "name": "Slot Follow Mark",
+      "kind": "icon",
+      "refersTo": "rail-tile-mode",
+      "description": "The per-slot follow mode on a chain tile: ⟲ replays the slot until another is cued, → plays it once and moves on. Absolutely positioned inside the tile padding so tile widths never move; 44px on the phone SONG page.",
+      "html": "<span class=\"ds-mark\">⟲</span> <span class=\"ds-mark ds-mark-next\">→</span>",
+      "css": ".ds-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font: 400 12px/1 'IBM Plex Mono', monospace; color: #f5f2e9; } .ds-mark-next { color: color-mix(in srgb, #f5f2e9 55%, #232128); }"
+    },
+    {
+      "name": "Lane Follow Footer",
+      "kind": "control",
+      "refersTo": "lane-follow",
+      "description": "The bottom line of a lane plate: a FIXED 14px machined key reading ⟲ LOOP (lit in the lane hue) or → NEXT (dim), beside SLOT n · NAME. Fixed height by law — the quadrant fill budget subtracts exactly this box.",
+      "html": "<span class=\"ds-follow\"><button class=\"ds-follow-key\">⟲ LOOP</button> SLOT 2 · B</span>",
+      "css": ".ds-follow { display: inline-flex; align-items: center; gap: 4px; height: 14px; font: 400 10px/14px 'Silkscreen', monospace; letter-spacing: 0.05em; color: color-mix(in srgb, #f5f2e9 62%, #1a191d); } .ds-follow-key { height: 14px; padding: 0 4px; border: 1px solid #ffb300; border-radius: 3px; background: color-mix(in srgb, #ffb300 22%, #232128); color: #f5f2e9; font: inherit; }"
+    },
+    {
+      "name": "Phone Page Key",
+      "kind": "button",
+      "refersTo": "phone-page-toggle",
+      "description": "The EDIT ⇄ SONG toggle riding the pinned transport row's edge column, lit while the SONG sequencer page shows. Costs zero chrome height.",
+      "html": "<button class=\"ds-pagekey\" aria-pressed=\"true\">SONG</button>",
+      "css": ".ds-pagekey { min-height: 44px; min-width: 64px; padding: 0 8px; border: 1px solid color-mix(in srgb, #f5f2e9 30%, #232128); border-radius: 3px; background: color-mix(in srgb, #f5f2e9 14%, #232128); color: #f5f2e9; font: 500 10px/1 'Silkscreen', monospace; letter-spacing: 0.08em; text-transform: uppercase; }"
     }
   ],
   "narrative": {
@@ -140,12 +414,36 @@
       "A fast digital unit: rolling value windows, scan-on surfaces, a booth status screen, channel meters striking at audible time."
     ],
     "rules": [
-      { "name": "The Ink Law", "body": "Lit keys and filled pads set glyphs in Ink-on-Fill, never warm white. Info-critical text is warm white on graphite, never lane-hued and never dimmed below the 62% legend mix (7.00:1). No lane-hue text on lane fills.", "section": "colors" },
-      { "name": "The Signal Rule", "body": "A lane hue appears only where it carries that lane's signal (a lit pad, an LED, a rim tint, a lit key, a meter). It is never used as a decorative accent. Tints are color-mix() of a hue into graphite at 5–28%.", "section": "colors" },
-      { "name": "The No-New-Color Rule", "body": "No color enters the unit without a lane or a material role to own it. Material lighting (grain, panel light, chamfers, pocket, glass glint) is built only from warm-white or black alpha, never from a new hue.", "section": "colors" },
-      { "name": "The Size-Law Rule", "body": "Each face keeps its band: Silkscreen 10–12px (8px engravings only), Departure Mono 11px, Plex 10–14px, VT323 20–24px, Press Start 2P 16px+ in multiples of 8. The ramp is exactly 10 / 11 / 13 / 16 / 22 — no 12px step.", "section": "typography" },
-      { "name": "The Static Elevation Rule", "body": "Elevation is never animated. A key seats by an instant swap to the seated cap on the pointerdown frame and lifts on the release frame — zero ramp is the digital half of the brief.", "section": "elevation" },
-      { "name": "The Decoration-Only Glow Rule", "body": "Glow never counts toward contrast and is never the only state signal. Exactly one glow layer, ≤3px blur, lane hue at 45–60% alpha, no glow on text under 18px. One-shot glows decay in ≤180ms as the opacity of a pre-painted layer.", "section": "elevation" }
+      {
+        "name": "The Ink Law",
+        "body": "Lit keys and filled pads set glyphs in Ink-on-Fill, never warm white. Info-critical text is warm white on graphite, never lane-hued and never dimmed below the 62% legend mix (7.00:1). No lane-hue text on lane fills.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal Rule",
+        "body": "A lane hue appears only where it carries that lane's signal (a lit pad, an LED, a rim tint, a lit key, a meter). It is never used as a decorative accent. Tints are color-mix() of a hue into graphite at 5–28%.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-New-Color Rule",
+        "body": "No color enters the unit without a lane or a material role to own it. Material lighting (grain, panel light, chamfers, pocket, glass glint) is built only from warm-white or black alpha, never from a new hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Size-Law Rule",
+        "body": "Each face keeps its band: Silkscreen 10–12px (8px engravings only), Departure Mono 11px, Plex 10–14px, VT323 20–24px, Press Start 2P 16px+ in multiples of 8. The ramp is exactly 10 / 11 / 13 / 16 / 22 — no 12px step.",
+        "section": "typography"
+      },
+      {
+        "name": "The Static Elevation Rule",
+        "body": "Elevation is never animated. A key seats by an instant swap to the seated cap on the pointerdown frame and lifts on the release frame — zero ramp is the digital half of the brief.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Decoration-Only Glow Rule",
+        "body": "Glow never counts toward contrast and is never the only state signal. Exactly one glow layer, ≤3px blur, lane hue at 45–60% alpha, no glow on text under 18px. One-shot glows decay in ≤180ms as the opacity of a pre-painted layer.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do take every value from tokens.css; its own law says \"Do not hardcode these values.\"",
@@ -157,7 +455,9 @@
       "Do keep the register contract honest: OCT changes what a lane SOUNDS; window scroll changes what you SEE.",
       "Do give touch targets ≥44px: painted in the scrolling stage and overlays, or an invisible ±8px hit strap on the pinned phone chrome.",
       "Do keep floating surfaces inside the viewport and independent of content length (an ellipsized name owns its intrinsic width with contain: inline-size).",
-      "Do keep every pad live under the pointer on the 2×2 stages, with only the selected grid owning the keyboard tab stop."
+      "Do keep every pad live under the pointer on the 2×2 stages, with only the selected grid owning the keyboard tab stop.",
+      "Do let a DRAG-CREATED note length become that lane's next placement length (click or Enter); the gate stays the explicit default, and editing it clears the memory.",
+      "Do carry the ⟲/→ follow on the SLOT, in shape plus text (the mark, the LOOP/NEXT footer, the tile's \"loops\" aria suffix) — never hue alone."
     ],
     "donts": [
       "Don't put warm-white text on a lane-hue fill, or lane-hue text on graphite for info-critical copy (red text only at ≤10px Silkscreen 700).",
@@ -167,7 +467,9 @@
       "Don't write the DOM from anything that moves during playback. Meters, rolls and strobes are Web Animations or CSS on existing seams, so the gates' mutation set never grows.",
       "Don't paint inside a grid scroller: no per-pad or per-note-bar gradients or insets, and no image background on the scroller. The 128-bar virtualized grids render thousands of pads (measured: fling frames collapsed to 84% over budget).",
       "Don't break the one-page law: at 1440×900 and 1280×800, quadrant content scrolls inside quadrants and the page never scrolls. The phone stage's sticky chrome plus scrolling page is the deliberate exception.",
-      "Don't let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, and ghosts and scans are pseudo-elements."
+      "Don't let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, and ghosts and scans are pseudo-elements.",
+      "Don't give the lane follow footer a content-sized box; it is a FIXED 14px line the quadrant fill budget subtracts, and a growing one breaks the one-page fit.",
+      "Don't let a tile's follow mark take tile width; it is absolutely positioned inside the tile's own padding (the rail-density and one-page laws measure tile widths)."
     ]
   }
 }

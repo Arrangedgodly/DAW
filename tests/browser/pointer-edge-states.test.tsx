@@ -60,6 +60,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { showPhonePage } from "../../src/state/phonePage";
 import { page } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
@@ -355,25 +356,27 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         expect(runAfter.getBoundingClientRect().width).toBe(runRect0); // geometry restored
 
         // -- Row 13: rapid re-press during/after commit ----------------------
-        // First press activates via pointerup (unmoved create); the gate
-        // default is 2 steps, so the follow-up press targets s10 (the s8
-        // note already covers s8–s9).
+        // First press activates via pointerup (unmoved create). Note-length
+        // memory: it places at the last DRAG-CREATED length (Row 6a's 4
+        // steps), so the follow-up press targets s12 (the s8 note covers
+        // s8–s11).
         pe(s8, "pointerdown", c8.x, c8.y);
         pe(s8, "pointerup", c8.x, c8.y);
-        expect(bassNotes()).toHaveLength(2); // gate-default note at 8
+        expect(bassNotes()).toHaveLength(2);
+        expect(bassNotes()).toContainEqual({ degree: 0, start: 8, length: 4 });
         expect(auditions.length).toBe(aud0 + 1); // exactly one audition
         // IMMEDIATE second press (same macrotask — before the suppression
         // timer can fire): pointerup activation must not be eaten by the
         // first gesture's trailing-click suppression.
-        const s10c = cellAt("bass", 0, 10);
-        const c10 = center(s10c);
-        pe(s10c, "pointerdown", c10.x, c10.y);
-        pe(s10c, "pointerup", c10.x, c10.y);
+        const nextCell = cellAt("bass", 0, 12);
+        const cNext = center(nextCell);
+        pe(nextCell, "pointerdown", cNext.x, cNext.y);
+        pe(nextCell, "pointerup", cNext.x, cNext.y);
         expect(bassNotes()).toHaveLength(3);
         expect(auditions.length).toBe(aud0 + 2);
         // After the macrotask, the synthetic click path still works.
         await new Promise((r) => setTimeout(r, 10));
-        s10c.click(); // anchor → remove
+        nextCell.click(); // anchor → remove
         expect(bassNotes()).toHaveLength(2);
 
         // -- Row 11: mode flip mid-gesture (the HP-1 help-mode contract) ----
@@ -782,9 +785,11 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
           0,
         );
 
-        // View-only resize affordance is inert (E2 pointer law).
+        // THE FULL UNIT (2026-09-11, user call): every quadrant's pads are
+        // pointer-live, so a non-selected quadrant's resize edge is live too
+        // (the E2 keyboard half is unchanged: no tab stop there).
         const longEdge = longRun.querySelector(".note-edge") as HTMLElement;
-        expect(getComputedStyle(longEdge).pointerEvents).toBe("none");
+        expect(getComputedStyle(longEdge).pointerEvents).not.toBe("none");
 
         // Scroll-within-quadrant: the VIEW-ONLY 4-bar quadrant scrolls
         // internally; the page itself never grows a horizontal scrollbar at
@@ -1168,6 +1173,15 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
           2000,
           "rail chain extended",
         );
+        // 2026-09-11: the phone rail lives on the SONG page (EDIT has none).
+        showPhonePage("song");
+        await waitFor(
+          () =>
+            document.querySelector('.rail-row[data-lane="drums"] .rail-tile') !==
+            null,
+          2000,
+          "SONG page rail mounted",
+        );
         const tile = (slot: number): HTMLElement => {
           const tiles = document.querySelectorAll(
             '.rail-row[data-lane="drums"] .rail-tile',
@@ -1198,6 +1212,7 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         te(tile(3), "pointerup", center(tile(3)).x, center(tile(3)).y, 7);
         expect(activePatterns().drums).toBe(selectionBefore);
       } finally {
+        showPhonePage("edit");
         setHelpMode(false);
         session.audition = origAudition;
         void import("../../src/engine/session")

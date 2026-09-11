@@ -34,6 +34,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { showPhonePage } from "../../src/state/phonePage";
 import { page, userEvent } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
@@ -656,6 +657,20 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           2000,
           "projects popover closed",
         );
+        // 2026-09-11: the chain rail lives on the SONG page (EDIT dropped
+        // the condensed rail) — open it through its real toggle, walk the
+        // page (every lane's tiles, append, PAT triggers), then a PAT menu.
+        click('[data-help="phone.page"]');
+        await waitFor(
+          () => host.querySelector(".stage-song .rail-tools-trigger") !== null,
+          2000,
+          "SONG page open",
+        );
+        findings = walkInteractive("phone SONG page");
+        expect(
+          findings.map((f) => `${f.scope}: "${f.describe}"`),
+          "the phone SONG page must be fully covered",
+        ).toEqual([]);
         click(".rail-tools-trigger");
         await waitFor(
           () => host.querySelector(".rail-tools-menu") !== null,
@@ -672,6 +687,12 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () => host.querySelector(".rail-tools-menu") === null,
           2000,
           "pattern tools menu closed",
+        );
+        click('[data-help="phone.page"]'); // back to EDIT (the switcher)
+        await waitFor(
+          () => host.querySelector(".lane-switch-tab") !== null,
+          2000,
+          "EDIT page back",
         );
 
         // --- Journey clause at phone width: TAP-driven inspection ---------
@@ -701,6 +722,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           .catch(() => {});
         cleanup();
         await page.viewport(1280, 800); // leave the tester viewport as configured
+        showPhonePage("edit"); // view state is module-level — never leak SONG
         try {
           await getAutosaveController()?.stop();
           if (bootDb) {
