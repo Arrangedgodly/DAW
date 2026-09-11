@@ -16,6 +16,8 @@
  * SOLO) is present and operable in all four quadrants; the EDIT row (scale
  * chip · GATE · FX) renders only in the selected quadrant — display:none
  * elsewhere, which also removes it from the tab order (never a trap).
+ * i7 N-5 phone carve-out (§2.5, the sheet's phone block): at PHONE the
+ * compact row re-tiers into identity/mix sub-rows — see the N-5 block.
  * Focus rings: the shared focus-on-metal utility (app.css,
  * `.lane-floor :focus-visible`) covers every focusable in this sheet —
  * may grow vs the legacy rings, never shrink.
@@ -559,6 +561,100 @@
 .app[data-stage="phone"] .scale-pop-commit,
 .app[data-stage="phone"] .scale-pop-detach {
   min-height: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+ * i7 N-5 (midi-i7-audit §2.5) — THE HEADER LAW, phone scope only.
+ * HEAD's compact row wrapped name→PRESET→VOL→MUTE→SOLO into a left-heavy
+ * scatter (measured at 390: row 2 = VOL+MUTE+SOLO clustered left with
+ * ~105px dead right edge, the `· EDIT` noise riding the title). The phone
+ * card re-tiers on TWO explicit nowrap rows, both edges anchored (the
+ * DOM order the N-5 Show guard provides):
+ *   row 1 (identity):  LED + name LEFT (the base margin-right:auto anchors
+ *                      MUTE + SOLO at the trailing edge) — exactly one lane
+ *                      is mounted at phone (StageFloor), so the
+ *                      `· EDIT`/`· VIEW` word is constant noise and HIDES
+ *                      (the LED + name carry the card; desktop/tablet keep
+ *                      the word byte-identical).
+ *   row 2 (mix):       PRESET/KIT stepper LEFT · VOLUME right-anchored.
+ *   edit tier below keeps its left-aligned wrap (consistent alignment).
+ * WHY explicit rows, not the base flex-wrap: wrap breaks by flex-basis
+ * BEFORE shrink applies (a long preset name re-wrapped VOLUME onto a third
+ * row at 360) and fills greedily (the stepper joined the identity row at
+ * 430). The nowrap row + shrink chain is the only geometry that holds two
+ * tiers at every viewport: the VOLUME slider floors at 48px (≥44 target
+ * law, never narrower), the preset/kit value ellipsizes past 26vw —
+ * overflow SHRINKS, never re-wraps.
+ * ------------------------------------------------------------------------- */
+.app[data-stage="phone"] .lane-state {
+  display: none;
+}
+
+.app[data-stage="phone"] .lane-strip-compact {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch; /* the rows fill the card width so their own
+                           margin-auto anchors reach both edges */
+  row-gap: var(--space-2);
+}
+
+.app[data-stage="phone"] .lane-strip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  column-gap: var(--space-4);
+  min-width: 0;
+}
+
+.app[data-stage="phone"] .lane-strip-row-mix .head-ctl-vol {
+  margin-left: auto; /* row 2's right anchor (row 1's is the name's
+                        margin-right: auto, the base rule) */
+  min-width: 0;
+}
+
+.app[data-stage="phone"] .lane-strip-compact .head-range {
+  min-width: 48px; /* the shrink floor: ≥44 hit law stands, no wrap */
+}
+
+.app[data-stage="phone"] .lane-strip-compact .head-ctl,
+.app[data-stage="phone"] .lane-strip-compact .head-stepper {
+  min-width: 0; /* let the group shrink into its value, not the buttons */
+}
+
+/* The 44px keys never shrink (the target law is a floor, not a preference):
+ * overflow resolves through the ellipsizing value + the slider's 48px
+ * floor only. */
+.app[data-stage="phone"] .lane-strip-compact .head-step-btn,
+.app[data-stage="phone"] .lane-strip-compact .head-mix-btn {
+  flex-shrink: 0;
+}
+
+.app[data-stage="phone"] .lane-strip-compact .head-ctl-value {
+  max-width: 26vw; /* preset/kit names ellipsize instead of overflowing */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The ROTATED phone (width ≥768, height <600 — the stage law keeps it
+ * phone) lays the SAME two tier groups on ONE line: the tier law is a
+ * PORTRAIT arrangement (the audit's committed 360/390/430), and two
+ * 44px lines there would grow the stage +48px against the MB-4 rotation
+ * budget (measured: HEAD's wide-phone strip is one 44px line — the
+ * rotated-phone gates pin that scroll geometry). Identity group LEFT,
+ * PRESET/KIT + VOLUME right-anchored — the same left/right weight law,
+ * one line tall. */
+@media (min-width: 768px) {
+  .app[data-stage="phone"] .lane-strip-compact {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    column-gap: var(--space-4);
+  }
+
+  .app[data-stage="phone"] .lane-strip-row-mix {
+    margin-left: auto;
+  }
 }
 
 /* T9 switch-throw reduced-motion twin (at the sheet foot so it cascades

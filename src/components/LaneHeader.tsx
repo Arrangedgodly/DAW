@@ -337,6 +337,111 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     announceStage(next ? `SOLO ${LANE_NAMES[props.lane]}` : `SOLO OFF`);
   };
 
+  // i7 N-5 (midi-i7-audit §2.5, the HEADER LAW): the compact row's blocks
+  // as single-source fragments used by BOTH stage structures below — the
+  // phone card re-tiers them (identity row: title+LED left / MUTE+SOLO
+  // right; mix row: PRESET/KIT left / VOLUME right-anchored), while the
+  // desktop/tablet fallback keeps the HEAD child sequence byte-identical
+  // (m4 — the N-2 OCT render-guard precedent: guards, never shared-path
+  // edits). Solid fragments add no wrapper, so each instantiation is the
+  // exact HEAD markup.
+  const NameLabel = () => (
+    <span class="lane-name">
+      {LANE_NAMES[props.lane]}
+      <span class="lane-state" aria-hidden="true">
+        {editable() ? "· EDIT" : "· VIEW"}
+      </span>
+    </span>
+  );
+
+  const SoundGroup = () => (
+    <div
+      class="head-ctl"
+      role="group"
+      aria-label={`${LANE_NAMES[props.lane]} sound`}
+      data-help={`lane.${props.lane}.sound`}
+    >
+      <span class="head-ctl-label" aria-hidden="true">
+        {props.lane === "drums" ? "KIT" : "PRESET"}
+      </span>
+      <div class="head-stepper">
+        <button
+          type="button"
+          class="head-step-btn"
+          aria-label={`Previous ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
+          onClick={() => stepSound(-1)}
+        >
+          –
+        </button>
+        <span class="head-ctl-value" aria-live="polite">
+          {soundName()}
+        </span>
+        <button
+          type="button"
+          class="head-step-btn"
+          aria-label={`Next ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
+          onClick={() => stepSound(1)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+
+  const VolGroup = () => (
+    <div
+      class="head-ctl head-ctl-vol"
+      role="group"
+      aria-label={`${LANE_NAMES[props.lane]} volume`}
+      data-help={`lane.${props.lane}.volume`}
+    >
+      <span class="head-ctl-label" aria-hidden="true">
+        VOL
+      </span>
+      <input
+        class="head-range"
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={volumePct()}
+        aria-label={`${LANE_NAMES[props.lane]} volume`}
+        aria-valuetext={`${volumePct()} percent`}
+        onInput={(e) => handleVolume(Number(e.currentTarget.value))}
+      />
+      <span class="head-ctl-value head-vol-value" aria-hidden="true">
+        {volumePct()}%
+      </span>
+    </div>
+  );
+
+  const MixKeys = () => (
+    <>
+      <button
+        type="button"
+        class="head-mix-btn"
+        classList={{ "is-on": mute() }}
+        data-help={`lane.${props.lane}.mute`}
+        aria-pressed={mute()}
+        aria-label={`Mute ${LANE_NAMES[props.lane]}`}
+        onClick={handleMute}
+      >
+        MUTE
+      </button>
+      <button
+        type="button"
+        class="head-mix-btn"
+        classList={{ "is-on": solo() }}
+        data-help={`lane.${props.lane}.solo`}
+        aria-pressed={solo()}
+        aria-label={`Solo ${LANE_NAMES[props.lane]}`}
+        onClick={handleSolo}
+      >
+        SOLO
+      </button>
+    </>
+  );
+
   // RC-1 (v3, E8): the OCT funnel — pointer twin of global `o`/Shift+`o`,
   // same path, same announcements (the E5 parity law). Operates on THIS
   // lane from ANY quadrant (the always-operable compact-row law).
@@ -389,137 +494,86 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     >
       {/* ---- compact row: always operable in all four quadrants (LY-1) ---- */}
       <div class="lane-strip-compact">
-        <span class="lane-name">
-          {LANE_NAMES[props.lane]}
-          <span class="lane-state" aria-hidden="true">
-            {editable() ? "· EDIT" : "· VIEW"}
-          </span>
-        </span>
-
-        <div
-          class="head-ctl"
-          role="group"
-          aria-label={`${LANE_NAMES[props.lane]} sound`}
-          data-help={`lane.${props.lane}.sound`}
+        {/* i7 N-5 phone tier law (§2.5): the PHONE card re-tiers the compact
+            row — exactly ONE lane is mounted at phone (StageFloor), so the
+            `· EDIT`/`· VIEW` word is constant noise (CSS hides it, phone
+            scope; the LED + name carry the card) and the identity row reads
+            title+LED LEFT / MUTE+SOLO RIGHT at the trailing edge, with the
+            PRESET/KIT stepper + VOLUME on their own row below, VOL
+            right-anchored (both edges weighted — HEAD wrapped them into a
+            left-heavy scatter). The rows are EXPLICIT sub-containers, not
+            flex-wrap: wrap breaks by flex-basis BEFORE shrink applies (a
+            long preset name re-wrapped VOL at 360) and fills greedily (the
+            stepper joined the identity row at 430) — a nowrap row with the
+            shrink chain (slider floor 48 ≥ the 44px target law, value
+            ellipsis past 26vw) is the only geometry that keeps two tiers at
+            every viewport. DOM order = visual order (the m2 tab-order law);
+            desktop/tablet fallback = HEAD's child sequence, byte-identical
+            (m4). */}
+        <Show
+          when={stageMode() === "phone"}
+          fallback={
+            <>
+              <NameLabel />
+              <SoundGroup />
+              <Show when={props.lane !== "drums" && stageMode() !== "phone"}>
+                {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper —
+                    the preset/kit + gate stepper pattern, always operable
+                    from every quadrant (KL-1's COMPACT-row placement).
+                    SOUND-changing: the help entry fences it from VIEW-only
+                    window scroll (E9). i7 N-2 (midi-i7-audit §2.2, the LY-1
+                    phone carve-out): at PHONE scope this group HIDES (render
+                    guard, the M-2 KEYS/INFO precedent — not CSS) and the
+                    SAME control moves into the phone OPTIONS drawer — one
+                    card carries ONE octave control next to ONE semitone
+                    control (the register VIEW row), so the two same-labeled
+                    OCT controls never share a card. */}
+                <div
+                  class="head-ctl"
+                  role="group"
+                  aria-label={`${LANE_NAMES[props.lane]} octave`}
+                  data-help={`lane.${props.lane}.oct`}
+                >
+                  <span class="head-ctl-label" aria-hidden="true">
+                    OCT
+                  </span>
+                  <div class="head-stepper">
+                    <button
+                      type="button"
+                      class="head-step-btn"
+                      aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
+                      onClick={() => stepOctave(-1)}
+                    >
+                      –
+                    </button>
+                    <span class="head-ctl-value head-oct-value">
+                      {octaveText(octave())}
+                    </span>
+                    <button
+                      type="button"
+                      class="head-step-btn"
+                      aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
+                      onClick={() => stepOctave(1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </Show>
+              <VolGroup />
+              <MixKeys />
+            </>
+          }
         >
-          <span class="head-ctl-label" aria-hidden="true">
-            {props.lane === "drums" ? "KIT" : "PRESET"}
-          </span>
-          <div class="head-stepper">
-            <button
-              type="button"
-              class="head-step-btn"
-              aria-label={`Previous ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
-              onClick={() => stepSound(-1)}
-            >
-              –
-            </button>
-            <span class="head-ctl-value" aria-live="polite">
-              {soundName()}
-            </span>
-            <button
-              type="button"
-              class="head-step-btn"
-              aria-label={`Next ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
-              onClick={() => stepSound(1)}
-            >
-              +
-            </button>
+          <div class="lane-strip-row lane-strip-row-id">
+            <NameLabel />
+            <MixKeys />
           </div>
-        </div>
-
-        <Show when={props.lane !== "drums" && stageMode() !== "phone"}>
-          {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper — the
-              preset/kit + gate stepper pattern, always operable from every
-              quadrant (KL-1's COMPACT-row placement). SOUND-changing: the
-              help entry fences it from VIEW-only window scroll (E9).
-              i7 N-2 (midi-i7-audit §2.2, the LY-1 phone carve-out): at
-              PHONE scope this group HIDES (render guard, the M-2 KEYS/INFO
-              precedent — not CSS) and the SAME control moves into the phone
-              OPTIONS drawer — one card carries ONE octave control next to
-              ONE semitone control (the register VIEW row), so the two
-              same-labeled OCT controls never share a card. Desktop/tablet
-              markup is byte-identical (m4). */}
-          <div
-            class="head-ctl"
-            role="group"
-            aria-label={`${LANE_NAMES[props.lane]} octave`}
-            data-help={`lane.${props.lane}.oct`}
-          >
-            <span class="head-ctl-label" aria-hidden="true">
-              OCT
-            </span>
-            <div class="head-stepper">
-              <button
-                type="button"
-                class="head-step-btn"
-                aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
-                onClick={() => stepOctave(-1)}
-              >
-                –
-              </button>
-              <span class="head-ctl-value head-oct-value">
-                {octaveText(octave())}
-              </span>
-              <button
-                type="button"
-                class="head-step-btn"
-                aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
-                onClick={() => stepOctave(1)}
-              >
-                +
-              </button>
-            </div>
+          <div class="lane-strip-row lane-strip-row-mix">
+            <SoundGroup />
+            <VolGroup />
           </div>
         </Show>
-
-        <div
-          class="head-ctl head-ctl-vol"
-          role="group"
-          aria-label={`${LANE_NAMES[props.lane]} volume`}
-          data-help={`lane.${props.lane}.volume`}
-        >
-          <span class="head-ctl-label" aria-hidden="true">
-            VOL
-          </span>
-          <input
-            class="head-range"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={volumePct()}
-            aria-label={`${LANE_NAMES[props.lane]} volume`}
-            aria-valuetext={`${volumePct()} percent`}
-            onInput={(e) => handleVolume(Number(e.currentTarget.value))}
-          />
-          <span class="head-ctl-value head-vol-value" aria-hidden="true">
-            {volumePct()}%
-          </span>
-        </div>
-
-        <button
-          type="button"
-          class="head-mix-btn"
-          classList={{ "is-on": mute() }}
-          data-help={`lane.${props.lane}.mute`}
-          aria-pressed={mute()}
-          aria-label={`Mute ${LANE_NAMES[props.lane]}`}
-          onClick={handleMute}
-        >
-          MUTE
-        </button>
-        <button
-          type="button"
-          class="head-mix-btn"
-          classList={{ "is-on": solo() }}
-          data-help={`lane.${props.lane}.solo`}
-          aria-pressed={solo()}
-          aria-label={`Solo ${LANE_NAMES[props.lane]}`}
-          onClick={handleSolo}
-        >
-          SOLO
-        </button>
       </div>
 
       {/* ---- edit row: the SELECTED quadrant only (display:none elsewhere) ---- */}
