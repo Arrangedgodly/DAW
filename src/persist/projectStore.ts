@@ -10,6 +10,7 @@
 
 import { contentHash, decode, encode } from "../document/codec";
 import { SCHEMA_VERSION, type ProjectDocument } from "../document/schema";
+import { normalizeProjectName } from "../state/projectName";
 import {
   type ProjectDb,
   type ProjectMeta,
@@ -77,11 +78,40 @@ export async function deleteProject(
   return existing !== undefined;
 }
 
+/**
+ * Rename a NON-ACTIVE project row (i6 §2.4): getRecord → decode → normalize →
+ * saveProject (full record rewrite — envelope name + re-encoded json land
+ * together in one put, `updatedAt` refreshed so the row moves to the top of
+ * the most-recent-first list). NEVER touches the live store or the autosave
+ * controller — applying it to the ACTIVE row would be overwritten by the next
+ * autosave flush (which re-reads the live doc); the dispatch rule is LAW:
+ * current row → store `setProjectName`, every other row → this function.
+ *
+ * No-ops (missing row → undefined; empty/unchanged name → the existing
+ * record, no write). A damaged row throws from `decode`, leaving the row
+ * untouched for the caller (S-3) to surface.
+ */
+export async function renameProjectRecord(
+  db: ProjectDb,
+  id: string,
+  name: string,
+): Promise<ProjectRecord | undefined> {
+  const record = await db.getRecord(id);
+  if (!record) return undefined;
+  const doc = decode(record.json);
+  const normalized = normalizeProjectName(name);
+  if (normalized === undefined || normalized === doc.name) return record;
+  return saveProject(db, id, { ...doc, name: normalized });
+}
+
 /** The most recently updated row, or undefined when nothing was ever saved. */
 export async function mostRecentProject(
   db: ProjectDb,
+  opts: { exclude?: string } = {},
 ): Promise<ProjectRecord | undefined> {
-  const records = await db.allRecords();
+  const records = (await db.allRecords()).filter(
+    (record) => record.id !== opts.exclude,
+  );
   if (records.length === 0) return undefined;
   return records.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
 }

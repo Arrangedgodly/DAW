@@ -8,10 +8,15 @@ import {
   canUndo,
   docStore,
   redo,
+  setProjectName,
   toggleDrumStep,
   togglePitchedCell,
   undo,
 } from "../src/state/store";
+import {
+  PROJECT_NAME_MAX_CHARS,
+  normalizeProjectName,
+} from "../src/state/projectName";
 import { pitchedCellAt, resolveGateSteps } from "../src/document/schema";
 
 function doc() {
@@ -155,5 +160,110 @@ describe("undo/redo", () => {
     expect(depth).toBeLessThanOrEqual(50);
     // Oldest surviving edit is not step 0's state.
     expect(doc().patterns.drums[0].steps.hat[0]).toBe(true);
+  });
+});
+
+describe("project name normalizer (i6 §2.1)", () => {
+  it("trims ends and collapses internal whitespace runs to one space", () => {
+    expect(normalizeProjectName("  My   Song  ")).toBe("My Song");
+    expect(normalizeProjectName("\ttabs\tand\nnewlines\r\n")).toBe(
+      "tabs and newlines",
+    );
+  });
+
+  it("empty (or whitespace-only) input → undefined — the no-op signal", () => {
+    expect(normalizeProjectName("")).toBeUndefined();
+    expect(normalizeProjectName("   ")).toBeUndefined();
+    expect(normalizeProjectName("\t\n \r")).toBeUndefined();
+  });
+
+  it("clamps to 48 CODE POINTS (never splits a surrogate pair)", () => {
+    const exactly = "a".repeat(PROJECT_NAME_MAX_CHARS);
+    expect(normalizeProjectName(exactly)).toBe(exactly);
+    expect(normalizeProjectName(exactly + "overflow")).toBe(exactly);
+
+    // Emoji are 2 UTF-16 units each: 49 emoji → exactly 48, all whole.
+    const emoji = "🎵".repeat(49);
+    const clamped = normalizeProjectName(emoji);
+    expect([...clamped!]).toHaveLength(PROJECT_NAME_MAX_CHARS);
+    expect(clamped).toBe("🎵".repeat(PROJECT_NAME_MAX_CHARS));
+
+    // Mixed cut point: 47 ASCII + one 2-unit emoji + trailing text — the
+    // 48th code point is the WHOLE emoji, and nothing after survives.
+    const mixed = normalizeProjectName("a".repeat(47) + "🎵udio");
+    expect(mixed).toBe("a".repeat(47) + "🎵");
+
+    // No lone surrogates anywhere in any clamped result (UTF-8 safety).
+    for (const cp of [...clamped!, ...mixed!]) {
+      expect(/^[\uD800-\uDFFF]$/.test(cp)).toBe(false);
+    }
+  });
+
+  it("clamps AFTER normalizing, so trimmed-away padding never eats the budget", () => {
+    const fortySeven = "b".repeat(47);
+    expect(normalizeProjectName(`  ${fortySeven}x  extra`)).toBe(
+      fortySeven + "x",
+    );
+  });
+
+  it("returns non-empty names unchanged (duplicates carry no special handling)", () => {
+    expect(normalizeProjectName("Untitled")).toBe("Untitled");
+    expect(normalizeProjectName("dup")).toBe("dup"); // uniqueness is not this layer's law
+  });
+});
+
+describe("setProjectName (rename CURRENT project, i6 §2.3)", () => {
+  it("commits the normalized name (trim + collapse applied before compare)", () => {
+    setProjectName("  Night   Drive  ");
+    expect(doc().name).toBe("Night Drive");
+    undo();
+    expect(doc().name).toBe("Untitled");
+  });
+
+  it("one rename = ONE commit, NO coalescing: two renames in the same tick are two history entries", () => {
+    setProjectName("first");
+    setProjectName("second"); // same tick, still a separate undo step
+    expect(doc().name).toBe("second");
+
+    undo();
+    expect(doc().name).toBe("first"); // back one rename, not two
+    undo();
+    expect(doc().name).toBe("Untitled");
+    expect(canUndo()).toBe(false);
+    redo();
+    expect(doc().name).toBe("first");
+  });
+
+  it("empty-after-trim input is a NO-OP: no write, no history entry", () => {
+    setProjectName("real name");
+    setProjectName("   ");
+    setProjectName("");
+    setProjectName("\t\n");
+    expect(doc().name).toBe("real name");
+    undo(); // exactly ONE real rename in history
+    expect(doc().name).toBe("Untitled");
+    expect(canUndo()).toBe(false);
+  });
+
+  it("unchanged (normalized-equal) name is a NO-OP: no write, no history entry", () => {
+    const before = doc().name;
+    setProjectName(before);
+    setProjectName(`  ${before}  `); // collapses back to the same name
+    expect(doc().name).toBe(before);
+    expect(canUndo()).toBe(false);
+  });
+
+  it("composes with grid edits in one history timeline (undo order preserved)", () => {
+    toggleDrumStep("kick", 0);
+    setProjectName("named it");
+    toggleDrumStep("snare", 2);
+
+    undo(); // snare
+    expect(doc().patterns.drums[0].steps.snare[2]).toBe(false);
+    expect(doc().name).toBe("named it");
+    undo(); // the rename
+    expect(doc().name).toBe("Untitled");
+    undo(); // the kick
+    expect(doc().patterns.drums[0].steps.kick[0]).toBe(false);
   });
 });

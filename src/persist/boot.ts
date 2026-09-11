@@ -9,6 +9,7 @@
 
 import { createSignal } from "solid-js";
 import { decode } from "../document/codec";
+import type { ProjectDocument } from "../document/schema";
 import { createDemoProject } from "../document/demoSong";
 import { docStore, loadDocument } from "../state/store";
 import { armFirstRunNudge } from "../state/firstRun";
@@ -19,9 +20,11 @@ import {
   type AutosaveController,
   type AutosaveStatus,
 } from "./autosave";
-import { BOOT_PROJECT_ID, type ProjectDb, openProjectDb } from "./db";
+import { BOOT_PROJECT_ID, type ProjectDb, type ProjectRecord, openProjectDb } from "./db";
 import {
+  deleteProject,
   listProjects,
+  loadProject,
   mostRecentProject,
   saveProject,
   type ProjectMeta,
@@ -110,6 +113,81 @@ export async function switchToProject(projectId: string): Promise<void> {
   if (!activeDb) throw new Error("switchToProject: persistence not booted");
   await controller?.stop();
   startController(projectId);
+}
+
+/** What a completed delete hands the UI (i6 §3): the held row is the UNDO payload. */
+export interface DeletedProject {
+  /** The exact pre-delete record — S-3's UNDO re-puts these bytes verbatim. */
+  readonly held: ProjectRecord;
+  /** True when the doomed row was the one autosave was writing (succession ran). */
+  readonly wasActive: boolean;
+  /** When wasActive: the row the app switched to before deleting (null otherwise). */
+  readonly successorId: string | null;
+}
+
+/**
+ * Delete one saved project, safe even when it is the row being worked in
+ * (i6 §3.2/§3.3 — the S-2 orchestration S-3's delete button calls).
+ *
+ * Active row — the succession sequence, in the ONLY safe order:
+ *   1. HOLD the record (the UNDO payload). Missing row → null, nothing done.
+ *   2. PICK the successor: the most-recent REMAINING row (`mostRecentProject`
+ *      excluding the doomed id — picked BEFORE the delete, while the doomed
+ *      row still exists), else a fresh NEW project (the app never boots into
+ *      zero rows).
+ *   3. RETARGET FIRST: decode the successor, `await switchToProject`
+ *      (stop() = final flush of the CURRENT doc into the doomed row, then
+ *      every writer disarmed: debounce, 30 s interval, pagehide listeners),
+ *      then `loadDocument`. After the switch returns, NO writer exists for
+ *      the doomed id — a pending debounced flush can never resurrect it.
+ *   4. THEN `deleteProject`.
+ *
+ * Inactive row — the plain path: the active controller only ever writes
+ * `activeProjectId`, so no retarget is needed; hold → delete. The working
+ * song is untouched.
+ */
+export async function deleteProjectSafe(
+  id: string,
+): Promise<DeletedProject | null> {
+  if (!activeDb) throw new Error("deleteProjectSafe: persistence not booted");
+  const db = activeDb;
+
+  // 1. HOLD (the missing-row gate; the UNDO payload for the inactive path).
+  const early = await db.getRecord(id);
+  if (!early) return null;
+
+  if (id !== activeProjectId) {
+    await deleteProject(db, id);
+    return { held: early, wasActive: false, successorId: null };
+  }
+
+  // 2. PICK the successor (excluding the doomed row — it still exists here).
+  const remaining = await mostRecentProject(db, { exclude: id });
+  let successorId: string;
+  let successorDoc: ProjectDocument;
+  if (remaining) {
+    successorId = remaining.id;
+    successorDoc = await loadProject(db, remaining.id);
+  } else {
+    const fresh = await createNewProject(db);
+    successorId = fresh.record.id;
+    successorDoc = fresh.doc;
+  }
+
+  // 3. RETARGET FIRST (the ordering law): stop() flushes the doomed row one
+  //    last time with the CURRENT doc — any just-committed rename included —
+  //    and disarms every writer; only then does the new doc land.
+  await switchToProject(successorId);
+
+  // Re-fill the hold AFTER the final flush has settled (stop() awaited the
+  // whole writeChain): the row now carries every committed edit, so UNDO
+  // restores the complete song — a slip cannot cost work (Projects.tsx law).
+  const held = (await db.getRecord(id)) ?? early;
+  loadDocument(successorDoc);
+
+  // 4. THEN delete — no writer remains that could resurrect the row.
+  await deleteProject(db, id);
+  return { held, wasActive: true, successorId };
 }
 
 export interface BootResult {

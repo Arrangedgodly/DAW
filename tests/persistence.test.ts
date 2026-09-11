@@ -23,8 +23,10 @@ import {
   listProjects,
   loadProject,
   mostRecentProject,
+  renameProjectRecord,
   saveProject,
 } from "../src/persist/projectStore";
+import { docStore } from "../src/state/store";
 
 function sampleDoc(name = "Untitled"): ProjectDocument {
   return { ...createDefaultProject(), name };
@@ -97,6 +99,26 @@ describe("projectStore envelope (fake idb)", () => {
     expect((await mostRecentProject(db))?.id).toBe("b");
   });
 
+  it("mostRecentProject excluding a row picks the newest REMAINING row (delete succession pick)", async () => {
+    const db = createMemoryProjectDb();
+    await saveProject(db, "doomed", sampleDoc("Doomed"), { now: 100 });
+    await saveProject(db, "older", sampleDoc("Older"), { now: 50 });
+    await saveProject(db, "newer", sampleDoc("Newer"), { now: 80 });
+    // The doomed row still exists at pick time — the exclusion is what keeps
+    // it from being its own successor.
+    expect((await mostRecentProject(db, { exclude: "doomed" }))?.id).toBe(
+      "newer",
+    );
+    // Excluding a row that does not exist changes nothing.
+    expect((await mostRecentProject(db, { exclude: "nonexistent" }))?.id).toBe(
+      "doomed",
+    );
+    // Excluding the ONLY row → undefined (the fresh-NEW successor branch).
+    const lone = createMemoryProjectDb();
+    await saveProject(lone, "solo", sampleDoc("Solo"), { now: 1 });
+    expect(await mostRecentProject(lone, { exclude: "solo" })).toBeUndefined();
+  });
+
   it("deleteProject removes a row and reports whether one existed", async () => {
     const db = createMemoryProjectDb();
     await saveProject(db, "p1", sampleDoc());
@@ -129,5 +151,91 @@ describe("projectStore envelope (fake idb)", () => {
     await saveProject(db, "p1", sampleDoc());
     expect(puts.length).toBe(1);
     expect(decode(puts[0]!.json).name).toBe("Untitled");
+  });
+});
+
+describe("renameProjectRecord (inactive-row rename, i6 §2.4)", () => {
+  it("renames in ONE put that lands the name in the envelope AND the decoded json", async () => {
+    const { db, puts } = spyDb(createMemoryProjectDb());
+    const doc = sampleDoc("old name");
+    await saveProject(db, "p1", doc, { now: 1000 });
+
+    const record = await renameProjectRecord(db, "p1", "new name");
+    expect(record!.name).toBe("new name"); // envelope
+    expect(decode(record!.json).name).toBe("new name"); // canonical bytes
+    expect(record!.dirty).toBe(false);
+
+    // Round-trip: what is on disk decodes to the renamed document.
+    const loaded = await loadProject(db, "p1");
+    expect(loaded.name).toBe("new name");
+    expect(loaded).toEqual({ ...doc, name: "new name" });
+
+    // ONE record rewrite total (the original save), refreshed mtime.
+    expect(puts.length).toBe(2);
+    expect(puts[1]!.updatedAt).toBeGreaterThanOrEqual(puts[0]!.updatedAt);
+  });
+
+  it("refreshes updatedAt through the injected clock (row moves to list top)", async () => {
+    const db = createMemoryProjectDb();
+    await saveProject(db, "a", sampleDoc("A"), { now: 100 });
+    await saveProject(db, "b", sampleDoc("B"), { now: 200 });
+    await renameProjectRecord(db, "a", "A2");
+    const list = await listProjects(db);
+    expect(list[0]!.name).toBe("A2"); // a rename IS a change — recent-first
+  });
+
+  it("normalizes on the way in (trim, collapse, 48-char code-point clamp)", async () => {
+    const db = createMemoryProjectDb();
+    await saveProject(db, "p1", sampleDoc("old"));
+    const record = await renameProjectRecord(db, "p1", "  My\t great\n song  ");
+    expect(record!.name).toBe("My great song");
+    expect(decode(record!.json).name).toBe("My great song");
+  });
+
+  it("missing row → undefined, no write", async () => {
+    const { db, puts } = spyDb(createMemoryProjectDb());
+    expect(await renameProjectRecord(db, "ghost", "x")).toBeUndefined();
+    expect(puts.length).toBe(0);
+  });
+
+  it("empty-after-trim name is a NO-OP (no write, row untouched)", async () => {
+    const { db, puts } = spyDb(createMemoryProjectDb());
+    await saveProject(db, "p1", sampleDoc("keep me"), { now: 7 });
+    const before = await db.getRecord("p1");
+    for (const empty of ["", "   ", "\t\n "]) {
+      const record = await renameProjectRecord(db, "p1", empty);
+      expect(record).toBeDefined();
+    }
+    expect(puts.length).toBe(1); // only the original save
+    const after = await db.getRecord("p1");
+    expect(after).toEqual(before); // byte-identical row
+  });
+
+  it("unchanged name is a NO-OP (no write, no updatedAt bump)", async () => {
+    const { db, puts } = spyDb(createMemoryProjectDb());
+    await saveProject(db, "p1", sampleDoc("same"), { now: 7 });
+    const before = await db.getRecord("p1");
+    // Same after normalization (whitespace that collapses away) → no-op too.
+    const record = await renameProjectRecord(db, "p1", " same ");
+    expect(record).toEqual(before);
+    expect(puts.length).toBe(1);
+  });
+
+  it("duplicate names are ALLOWED (ids are the key — no uniqueness check)", async () => {
+    const db = createMemoryProjectDb();
+    await saveProject(db, "a", sampleDoc("twin"), { now: 1 });
+    await saveProject(db, "b", sampleDoc("other"), { now: 2 });
+    const record = await renameProjectRecord(db, "b", "twin");
+    expect(record!.name).toBe("twin");
+    const list = await listProjects(db);
+    expect(list.filter((p) => p.name === "twin")).toHaveLength(2);
+  });
+
+  it("NEVER touches the live store document", async () => {
+    const db = createMemoryProjectDb();
+    await saveProject(db, "p1", sampleDoc("row name"));
+    const liveNameBefore = docStore.getState().doc.name;
+    await renameProjectRecord(db, "p1", "renamed on disk only");
+    expect(docStore.getState().doc.name).toBe(liveNameBefore);
   });
 });

@@ -54,6 +54,7 @@ import { euclid } from "../audio/euclid";
 import { sampleRefsForSound } from "../audio/presets";
 import { type ModeName, modeSize } from "../document/scales";
 import { type FxDeviceType, defaultFxDevice, reorderChain } from "./fxStrip";
+import { normalizeProjectName } from "./projectName";
 
 const UNDO_LIMIT = 50;
 const COALESCE_WINDOW_MS = 350;
@@ -861,6 +862,24 @@ export function renamePattern(
     p.id === patternId ? { ...p, name } : p,
   );
   commit({ ...doc, patterns: { ...doc.patterns, [lane]: patterns } });
+}
+
+/**
+ * Rename the CURRENT project (i6 §2.3) — the renamePattern precedent applied
+ * to the document title. One committed blur/Enter = one commit with NO
+ * coalescing key (one history entry per rename); the live doc swap is all it
+ * takes — the autosave flush re-reads this doc and its single put lands the
+ * name in the record envelope AND the encoded json.
+ *
+ * No-ops (§2.2): empty-after-normalization input, and a normalized name
+ * equal to the current one (no write, no history entry, no updatedAt bump).
+ */
+export function setProjectName(name: string): void {
+  const normalized = normalizeProjectName(name);
+  if (normalized === undefined) return;
+  const doc = docStore.getState().doc;
+  if (normalized === doc.name) return;
+  commit({ ...doc, name: normalized });
 }
 
 /**
