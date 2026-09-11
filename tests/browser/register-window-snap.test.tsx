@@ -4,8 +4,9 @@
  * first-run wiped origin), per docs/dev/midi-i7-audit.md §2.1 and §5.1:
  *
  *  1. EXACTLY `modeSize` COMPLETE ROWS at every rest: at boot, after button
- *     shifts (SEMI ±1 row / OCT ±modeSize rows), and after a SETTLED scroll
- *     — no partial row at EITHER edge (the m5 containment-predicate blind
+ *     shifts (SEMI ±1 row / OCT ±modeSize rows), after a WHEEL tick, and
+ *     after a SETTLED scroll — no partial row at EITHER edge (the m5
+ *     containment-predicate blind
  *     spot: "7 contained labels" passed while an 8th row intersected the
  *     stretched box as a sliver — the measured 332-pin-in-344-box probe).
  *  2. BOX === PIN: the windowed pane's border box is the renderer's inline
@@ -365,6 +366,43 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
             "trusted scroll rest snapped on-grid",
           );
           law("after trusted scroll 390", true);
+        }
+
+        // --- 5b. THE WHEEL (N-6, audit §5.1: "after wheel"): a real
+        //         mouse-wheel tick at the seat, the desktop-scrolling
+        //         half of the free-scroll→state path — the off-grid rest
+        //         it leaves MUST settle-snap before law() holds --------
+        {
+          const frame = window.frameElement as HTMLElement;
+          const fr = frame.getBoundingClientRect();
+          const ir = iframe.getBoundingClientRect();
+          const er = seat().getBoundingClientRect();
+          const sx = fr.width / innerWidth;
+          const sy = fr.height / innerHeight;
+          const point = {
+            x: fr.left + (ir.left + er.left + er.width / 2) * sx,
+            y: fr.top + (ir.top + er.top + er.height / 2) * sy,
+          };
+          const was = seat().scrollTop;
+          await cdp().send("Input.dispatchMouseEvent", {
+            type: "mouseWheel",
+            x: point.x,
+            y: point.y,
+            deltaX: 0,
+            deltaY: 240,
+          });
+          await poll(
+            () => seat().scrollTop !== was,
+            5_000,
+            "wheel tick moved the seat",
+          );
+          // The wheel rest snaps on-grid (scrollend + the settle fallback).
+          await poll(
+            () => seatOffset() <= 1 || Math.abs(seatOffset() - pitch()) <= 1,
+            3_000,
+            "wheel rest snapped on-grid",
+          );
+          law("after wheel 390", false);
         }
 
         // --- 6. RE-FIT to 360×800 (live resize — no remount) --------------

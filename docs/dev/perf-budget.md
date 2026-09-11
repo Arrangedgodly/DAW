@@ -540,6 +540,47 @@ build` in CI, measures initial-load JS (entry chunk + every chunk it
   own UI-surface estimate, not the model seam): 3.3× headroom remains
   against the 300 KB law, and no lazy-split is warranted for a surface
   that must open on first paint of the booth.
+- **Iteration-7 record (measured 2026-09-10, N-6 close-out — phone MIDI
+  section rework: snap window, unified controls, pitch anchoring,
+  pinch-zoom, card headers, N-1 through N-5; same method as i5/i6: one
+  detached worktree per task boundary with the repo's node_modules, each
+  measured by its own `npm run build` + `npm run check:bundle`; every
+  worker-claimed boundary reproduced EXACTLY on the close-out rebuild)**:
+  final initial JS **95.57 KB gz** (32% of the 300 KB budget), PASS —
+  full iteration-7 delta **+1.90 KB gz** over the 93.67 iteration-start
+  baseline (the i6 close at 658005f incl. i6-crit1), attributed per task:
+  N-1 (audit, docs-only — src byte-identical) **+0.00 → 93.67** (worktree
+  rebuild at a24d2b7 reproduces the baseline exactly); N-2 (semitone-snap
+  law in the renderer + box clause + unified register controls + the
+  phone OCT drawer move) **+0.70 → 94.37**; N-3 (pitch-anchored notes +
+  live label re-derivation through the renderer seam) **+0.17 → 94.54**;
+  N-4 (pinch-to-zoom: renderer state machine + zoom-aware trailing fit +
+  chip + help ×3 lanes) **+1.17 → 95.71** (attributed at landing ≈0.4
+  renderer + ≈0.3 LaneGrid fit/chip plumbing + ≈0.4 help entries); N-5
+  (phone card header tiers) **−0.14 → 95.57** — the fragment extraction
+  dedupes the previously duplicated header buttons, the first negative
+  task delta of the project. CSS **18.72 → 19.04 KB gz** (+0.32: N-2
+  +0.09 box/stepper/drawer, N-3 +0.00, N-4 +0.07 chip + landscape law,
+  N-5 **+0.16 tier rows + shrink chain — corrected at this close-out**:
+  the N-5 journal's "+0.03 info" read the vite-report gzip line, not the
+  gate's node-zlib contract number; the close-out fence measures HEAD at
+  19.04; info-only, ungated); fonts **37.02 / 50 KB
+  unchanged** (zero new font/asset files through iteration 7).
+  **ESCALATION (the S-5 precedent, reviewed and closed at N-6): the plan's
+  fence said "≤ 93.67 KB gz + escalate if >~+0.6" — the +1.90 total is
+  3.2× over that line and is flagged here rather than silently absorbed
+  (already flagged per-task at N-2 +0.70 and N-4 +1.17, both explicitly
+  deferred to this close-out).** The verdict: ACCEPTED — 95.57 is 32% of
+  the 300 KB law (3.1× headroom remains), and the cost is the iteration's
+  actual product: three new interaction state machines on the eager entry
+  (snap/seat, label re-derivation, pinch) plus five phone surfaces'
+  UI/help copy, all of which must be present at first paint of the lane
+  (a lazy split would put a fetch+parse on the phone's first lane open —
+  the same one-click-surface reasoning as VZ-TH-4). Cheap trim: none
+  found — N-5's dedupe already banked −0.14, the N-4 help entries
+  (≈0.4) are HP-2-coverage law (every interactive control explains
+  itself), and the state machines are the user-facing laws themselves,
+  not speculation.
 - res-9 preload discipline: index.html preloads ONLY the critical
   font-display:swap faces that ship as separate files (Departure Mono,
   IBM Plex Mono 400). The font-display:optional faces (VT323, Press Start

@@ -16,7 +16,9 @@
  *     is OFF-WINDOW, shifted back — same note, same row, BYTE-IDENTICAL
  *     placement (dx/dy/width within its row, unchanged label).
  *  3. A TRUSTED CDP scroll gesture (the browser's own pipeline) up past the
- *     runs and back — the settle snap re-seats; anchoring survives.
+ *     runs and back — the settle snap re-seats; anchoring survives — plus
+ *     a REAL wheel tick down/back (N-6: audit §5.2 names the wheel among
+ *     the shift paths; the wheel rest goes through the same settle snap).
  *  4. ARROW-WALK focus-follow: keyboard cells walk the manifest; the window
  *     follows the roving cursor; the runs stay on their rows.
  *  5. LANE SWITCH away/back (setEditable re-anchor + surface remount) and
@@ -439,6 +441,55 @@ describe("N-3 pitch-anchored notes — every shift path keeps each run on its ro
         });
         await scrollBy(-480); // back up past the runs
         anchor("trusted scroll up", [run9, run7], { root: ROOT, mode: "minor" });
+
+        // --- 3b. THE WHEEL (N-6, audit §5.2): a real mouse-wheel tick
+        //         through the browser's own wheel pipeline — the off-grid
+        //         rest settles, the runs stay on their rows ---------------
+        {
+          const frame = window.frameElement as HTMLElement;
+          const fr = frame.getBoundingClientRect();
+          const ir = iframe.getBoundingClientRect();
+          const er = seat().getBoundingClientRect();
+          const sx = fr.width / innerWidth;
+          const sy = fr.height / innerHeight;
+          const point = {
+            x: fr.left + (ir.left + er.left + er.width / 2) * sx,
+            y: fr.top + (ir.top + er.top + er.height / 2) * sy,
+          };
+          const was = seat().scrollTop;
+          // The trusted scrolls left the seat clamped at the BOTTOM
+          // (scrollTop max) — wheel UP first (unclamped), then back down.
+          await cdp().send("Input.dispatchMouseEvent", {
+            type: "mouseWheel",
+            x: point.x,
+            y: point.y,
+            deltaX: 0,
+            deltaY: -240,
+          });
+          await poll(
+            () => seat().scrollTop !== was,
+            5_000,
+            "wheel tick moved the seat",
+          );
+          // The settle fallback snaps within 120 ms; give it room.
+          await new Promise((r) => setTimeout(r, 500));
+          anchor("wheel up", [run9, run7], { root: ROOT, mode: "minor" });
+          const wasUp = seat().scrollTop;
+          await cdp().send("Input.dispatchMouseEvent", {
+            type: "mouseWheel",
+            x: point.x,
+            y: point.y,
+            deltaX: 0,
+            deltaY: 480,
+          });
+          await poll(
+            () => seat().scrollTop !== wasUp,
+            5_000,
+            "wheel tick back moved the seat",
+          );
+          await new Promise((r) => setTimeout(r, 500));
+          anchor("wheel down", [run9, run7], { root: ROOT, mode: "minor" });
+        }
 
         // --- 4. ARROW-WALK focus-follow: the window follows the roving
         //     cursor; the runs stay on their rows ---------------------------

@@ -75,6 +75,28 @@ try {
         expect(text).toContain("OCT"); // points back at the SOUND control
       }
     });
+
+    // i7 N-6 (midi-i7-audit §3, the E9 ledger row): the fence wording was
+    // AMENDED where the strip reference goes stale on phone — both
+    // view-side entries must point at where the SOUND OCT actually lives
+    // per stage ("the strip on desktop, the OPTIONS drawer on phone") and
+    // the SEE-vs-HEAR fence itself must SURVIVE the amendment.
+    it("i7 E9 amendment: both view-side entries name BOTH homes (strip desktop / OPTIONS drawer phone) and keep the SEE-vs-HEAR fence", () => {
+      for (const lane of PITCHED) {
+        for (const id of [`grid.${lane}`, `lane.${lane}.regshift`]) {
+          const entry = getHelp(id);
+          expect(entry, `${id} registered`).toBeDefined();
+          const text = entry!.text;
+          expect(text).toContain("SOUNDS");
+          expect(text).toContain("use OCT — the strip on desktop, the OPTIONS drawer on phone");
+        }
+        // The sound-side entry keeps its own side of the fence (the two
+        // controls must never share a label — the E9 fence's reason).
+        const oct = getHelp(`lane.${lane}.oct`)!;
+        expect(oct.text).toContain("SOUND");
+        expect(oct.text).not.toContain("OPTIONS drawer"); // sound side never points at view chrome
+      }
+    });
   });
 
   describe("PX-4 language audit — cycle/bars vocabulary on the length surfaces", () => {

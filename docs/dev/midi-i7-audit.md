@@ -280,6 +280,23 @@ Recorded by the audit worker at commit 658005f, 2026-09-10:
 
 ## 5. New-gate list for N-2..N-6 (the fence numbers)
 
+> LANDED + crossed off at N-6 (2026-09-10, HEAD 1c88681) — the §5
+> reconciliation, per item: (1) → `tests/browser/register-window-snap
+> .test.tsx` (N-2; the i3-2/i3-3 phone extension carried by its
+> intersecting+contained+box===pin assertions at 390/360/430; the wheel
+> leg ADDED at N-6 per this list; desktop fingerprint = the standing m4
+> render-fingerprint battery gate + phone-header's 1280 desktop probe);
+> (2) → `tests/browser/register-pitch-anchor.test.tsx` (N-3 + the N-6
+> wheel legs; the 3-writers grep AC recorded in the N-3 journal); (3) →
+> `register-pinch-zoom.test.tsx` + `register-pinch-zoom-trusted.test.tsx`
+> (N-4; the bundle escalation closed at N-6 in perf-budget.md §3); (4) →
+> `phone-header.test.tsx` (N-5; help entries kept via the battery's
+> coverage walk). E9 wording checks: the amended phone-scope pointer
+> ("the strip on desktop, the OPTIONS drawer on phone") pinned in
+> `tests/helpLanguage.test.ts` at N-6. The only §5 items not in the
+> original N-2..N-5 landings were the two wheel legs + the E9 wording
+> pins — all three added at N-6, toothed, green.
+
 1. **N-2 snap/window gate** (extends m5 + i3-2/i3-3 to phone): at
    390/360/430 — visible rows === `modeSize` at boot, after button
    shifts, after wheel, and after a SETTLED native scroll; no partial row
@@ -295,7 +312,7 @@ Recorded by the audit worker at commit 658005f, 2026-09-10:
 3. **N-4 pinch gate** (trusted harness): pinch in/out/clamp [1,2],
    double-tap ≤350 ms/≤32 px reset, zoom chip ≥44 px, window count stays
    `modeSize` at ×1.5, tap-vs-pan + drag-create unchanged, bundle cost
-   attributed (escalate per S-5 if >~+0.6 KB gz).
+   attributed (escalate per S-5 if >~0.6 KB gz).
 4. **N-5 header gate**: no "· EDIT" text at phone, layout spec asserted
    (title+LED left, MUTE+SOLO right, PRESET own row, edit-tier aligned),
    no-wrap overflow + 44px audit at 360/390/430, every help entry kept,
