@@ -36,6 +36,7 @@ import { registerHelp } from "../help/registry";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
+import BoothScreen from "./BoothScreen";
 
 const session = getSession();
 
@@ -545,6 +546,11 @@ export default function Booth(props: BoothProps) {
         role="group"
         aria-label="Position"
       >
+        {/* THE FULL UNIT: the status screen, set into the status module —
+            it takes only the row's leftover width (zero layout px). */}
+        <Show when={!props.compact}>
+          <BoothScreen />
+        </Show>
         {/* LL-2 (KL-1 position law): this readout is the GLOBAL clock —
             BAR.BEAT.STEP within the FULL LCM cycle of the lane chains (at
             equal cycle lengths it wraps exactly at each lane's wrap, the

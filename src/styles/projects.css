@@ -68,7 +68,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 18%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   font: var(--text-ui);
   cursor: pointer;
 }
@@ -152,7 +152,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 18%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   cursor: pointer;
 }
 
@@ -181,7 +181,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-lane-drums) 70%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   cursor: pointer;
 }
 

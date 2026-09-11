@@ -81,6 +81,7 @@ import { closeFillRails, fillRailsOpen } from "../state/fillRails";
 import { noteEditAt, type Span } from "../interaction/drag";
 import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
+import LaneMeter from "./LaneMeter";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
 
@@ -1017,6 +1018,10 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
       rowHeightPx: mode === "phone" ? PHONE_ROW_PX : undefined,
       // LY-1: only the selected quadrant's grid starts editable.
       editable: activeLane() === lane,
+      // THE FULL UNIT (user call): every quadrant's pads are live under the
+      // pointer; the same click then selects the quadrant (onQuadrantClick).
+      // The keyboard law is unchanged — only the selected grid has a tab stop.
+      pointerEditable: true,
       host: {
         readFrame,
         prefersReducedMotion: () =>
@@ -1069,7 +1074,11 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
           }
         : {}),
       onToggle: (row, step) => {
-        selectLane(lane); // selection follows the latest grid interaction
+        // Selection follows the latest grid interaction. THE FULL UNIT: a
+        // press on a NON-selected quadrant's pad edits it too, so selection
+        // must go through the pointer law — it carries keyboard focus from
+        // the previously selected grid (never left in a view-only grid).
+        selectQuadrantFromPointer(lane);
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
           const res = toggleDrumStep(piece, step);
@@ -1550,6 +1559,7 @@ export default function LaneGrid(props: { lane: LaneId }) {
       onClick={onQuadrantClick}
     >
       <LaneHeader lane={props.lane} />
+      <LaneMeter lane={props.lane} />
       {/* M-5: the phone-only register-window shift row (pitched lanes). */}
       <Show
         when={

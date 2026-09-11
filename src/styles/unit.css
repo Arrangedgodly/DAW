@@ -1,0 +1,627 @@
+/*
+ * THE FULL UNIT (2026-09-11 overdrive) — the layer that turns the Machined
+ * Console into a heavy, milled object that answers like a lightning-fast
+ * digital unit. Imported LAST (App.tsx), so its rules win ties by order.
+ * Every rule is PAINT or compositor motion on existing class/attribute seams
+ * plus decorative, aria-hidden additions (the booth status screen, the lane
+ * channel meters, the readout ghost digits, the popover scan) — zero layout
+ * px at every desktop width, hit geometry byte-stable.
+ *
+ * Sections:
+ *   1. Material — bead-blasted grain + the studio key light on the plates.
+ *   2. Keycaps — lit caps, and the instant seat + LED-edge flash on press.
+ *   3. The display — milled grid pockets, a phosphor playhead, and every
+ *      readout as a scanned LCD window.
+ *   4. Response — the value roll, the popover scan-on, the rail landing
+ *      strobe.
+ *   5. The status screen + channel meters (BoothScreen / LaneMeter, fed by
+ *      audible note-ons through state/meterBus.ts).
+ *   6. The one-shot power-on (UnitOptics.tsx).
+ *
+ * PERF LAW (measured, 2026-09-11 clean run): nothing here paints INSIDE a
+ * grid scroller — no per-pad or per-note-bar gradients/insets, no image
+ * background on the scroller itself. The 128-bar virtualized gates (LP-1,
+ * TH-5 fling) collapsed with them (fling 84% slow frames); the pads keep
+ * their committed fill + notch + bloom. No new DOM writes mid-gesture (the
+ * TH-4(b) set is unchanged: everything that moves during playback is a Web
+ * Animation or pure CSS). Every motion carries its reduced-motion twin at
+ * the foot of this sheet.
+ */
+
+/* ---- 1. Material ---------------------------------------------------------- */
+
+.app {
+  background-image:
+    radial-gradient(
+      90% 70% at 22% 0%,
+      rgb(255 255 255 / 3.5%) 0%,
+      transparent 70%
+    ),
+    var(--metal-brush);
+}
+
+.lane-floor {
+  background-image: var(--panel-light), var(--metal-brush);
+}
+
+.phone-chrome {
+  background-color: var(--metal-panel);
+  background-image: var(--panel-light), var(--metal-grain);
+  box-shadow: var(--chamfer), 0 1px 1px rgb(0 0 0 / 55%),
+    0 10px 20px -8px rgb(0 0 0 / 70%);
+}
+
+/* ---- 2. Keycaps ------------------------------------------------------------ */
+
+.booth-btn-play.is-on {
+  box-shadow: var(--keycap-lit),
+    0 0 var(--glow-blur)
+      color-mix(in srgb, var(--color-lane-chords) 50%, transparent);
+}
+
+.booth-btn-loop.is-on {
+  box-shadow: var(--keycap-lit),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--color-lane-lead) 50%, transparent);
+}
+
+.booth-btn-metro.is-on {
+  box-shadow: var(--keycap-lit),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
+}
+
+.booth-btn-info.is-on,
+.booth-btn-viz.is-on {
+  box-shadow: var(--keycap-lit),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+
+.head-mix-btn.is-on,
+.lane-switch-tab[aria-selected="true"],
+.scale-pop-root[aria-pressed="true"],
+.scale-pop-mode[aria-pressed="true"],
+.scale-pop-commit {
+  box-shadow: var(--keycap-lit);
+}
+
+.scale-chip.is-lane {
+  box-shadow: var(--keycap),
+    0 0 3px color-mix(in srgb, var(--lane-hue) 45%, transparent);
+}
+
+.rail-tile[data-sounding="true"] {
+  box-shadow: var(--keycap),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--lane-hue) 55%, transparent);
+}
+
+/* The seated, LIT cap — on the pointerdown frame, off on the release frame
+ * (tiles excluded: they are the cue-sweep gesture surface). */
+.booth-btn:active,
+.booth-step-btn:active,
+.head-step-btn:active,
+.head-mix-btn:active,
+.head-fx:active,
+.scale-chip:active,
+.scale-pop-root:active,
+.scale-pop-mode:active,
+.scale-pop-commit:active,
+.scale-pop-detach:active,
+.row-fill-apply:not(:disabled):active,
+.lane-switch-tab:active,
+.register-shift-btn:not(:disabled):active,
+.rail-view-toggle:active,
+.rail-tool:not(:disabled):active,
+.rail-append:active,
+.fx-mod-btn:active,
+.lane-fx-close:active,
+.fx-add-btn:active,
+.fx-add-item:active,
+.projects-item:active,
+.projects-x:active,
+.projects-confirm:active {
+  box-shadow: var(--keycap-down);
+}
+
+/* ---- 3. The display -------------------------------------------------------- */
+
+/* The grid well: a milled pocket — a hard shadowed upper lip, a deep inner
+ * fall, the lower lip catching the key light. Box-shadow only (painted on
+ * the scroller's own non-scrolling layer, like the --led-window it
+ * replaces); no background image on a scroller (perf law above). */
+.lane-grid-scroll {
+  /* Blur budget = the --led-window it replaces (one 8px inset fall): the
+   * well re-rasters under every pad bloom near its top edge, so the lips are
+   * CRISP unblurred lines and only one blurred layer remains. */
+  box-shadow:
+    inset 0 1px 0 rgb(0 0 0 / 90%),
+    inset 0 3px 8px rgb(0 0 0 / 85%),
+    inset 0 -1px 0 rgb(255 255 255 / 9%),
+    0 1px 0 rgb(255 255 255 / 8%),
+    0 -1px 0 rgb(0 0 0 / 55%);
+}
+
+/* The playhead keeps grid.css's committed 14px scan-light slit. A 40px
+ * phosphor wake was tried and REVERTED (2026-09-11): each playhead is a
+ * moving composited layer with pad blooms painting above it, so a wider
+ * wake overlaps ~3x the pads and multiplies per-frame overlap compositing
+ * (TH-4/VZ-TH-4/LP-1 frame laws). */
+
+/* Every readout is a scanned LCD window: display scanlines (correct HERE —
+ * this is glass over emitters, not metal) under the split glass glint. */
+.booth-led,
+.booth-led-input,
+.save-indicator,
+.booth-screen {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 7%) 0%,
+      rgb(255 255 255 / 2.5%) 46%,
+      transparent 50%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgb(255 255 255 / 3.5%) 0 1px,
+      transparent 1px 3px
+    );
+}
+
+/* Ghost digits: an LCD's unlit cells show behind the lit ones. VT323 is
+ * monospaced, so a right-aligned row of 8s sits cell-for-cell behind the
+ * right-aligned BAR.BEAT.STEP digits. Painted under the text (negative
+ * z-index inside the window's own stacking context), never over it. */
+.booth-led {
+  position: relative;
+  isolation: isolate;
+}
+
+.booth-led::before {
+  content: "8888888888";
+  position: absolute;
+  inset: 0 var(--space-2);
+  z-index: -1;
+  direction: rtl;
+  overflow: hidden;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  text-shadow: none;
+  pointer-events: none;
+}
+
+input,
+textarea {
+  caret-color: var(--color-ink);
+}
+
+/* ---- 4. Response ----------------------------------------------------------- */
+
+/* The roll host (RollValue.tsx animates it with WAAPI). */
+.roll-value {
+  display: inline-block;
+}
+
+/* Popovers and the FX console SCAN ON: a phosphor refresh line sweeps the
+ * surface top → bottom in 200ms as it appears — a decorative pseudo
+ * (pointer-events none), so the surface is fully present and hit-testable
+ * from its first frame; only the light moves. */
+.scale-pop::after,
+.projects-pop::after,
+.rail-tools-menu::after,
+.fx-add-menu::after,
+.lane-fx-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgb(255 255 255 / 0%) 38%,
+      rgb(255 255 255 / 12%) 48%,
+      rgb(255 255 255 / 55%) 50%,
+      transparent 50.4%
+    )
+    0 0 / 100% 200% no-repeat;
+  opacity: 0;
+  animation: unit-scan-on 200ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+@keyframes unit-scan-on {
+  0% {
+    background-position: 0 100%;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 0 0;
+    opacity: 0;
+  }
+}
+
+/* The rail LANDING STROBE: when a pattern takes the floor (a quantized
+ * switch lands, or the chain advances), its tile strobes once — a
+ * pre-painted lit layer whose OPACITY double-flashes and decays (the rule
+ * starts matching the moment data-sounding moves; zero new DOM writes). */
+.rail-tile::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--lane-hue) 55%, rgb(255 255 255 / 40%));
+  box-shadow: inset 0 0 0 1px var(--color-ink);
+  opacity: 0;
+}
+
+.rail-tile[data-sounding="true"]::after {
+  animation: unit-land 260ms ease-out;
+}
+
+@keyframes unit-land {
+  0% {
+    opacity: 0.85;
+  }
+  22% {
+    opacity: 0.2;
+  }
+  38% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- 5. The status screen + channel meters --------------------------------- */
+
+/*
+ * The screen is set INTO the status module (first child of the position
+ * group) and costs ZERO layout px: it contributes no intrinsic width (width
+ * 0, flex-basis 0), and on the desktop stage the status module grows into
+ * its booth row's free space, handing it to the screen (capped at 600px) —
+ * the readouts stay right-aligned behind an auto margin. So the booth wraps
+ * exactly as it did without the screen at 1280, 1440 AND 1920 (the one-page
+ * and vertical-fill laws measure it). Container queries shed the
+ * annunciators, then the meter bank, when the leftover is narrow.
+ */
+.app[data-stage="desktop"] .booth-group-position {
+  flex-grow: 1;
+}
+
+.app[data-stage="desktop"] .booth-group-position > .booth-label {
+  margin-left: auto;
+}
+
+.booth-screen {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  max-width: 600px;
+  height: 28px;
+  box-sizing: border-box;
+  container-type: inline-size;
+  border-radius: 4px;
+  background-color: var(--metal-recess);
+  box-shadow: var(--led-window), 0 0 0 1px var(--metal-edge-lo),
+    0 1px 0 rgb(255 255 255 / 8%);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Tablet wraps the booth tighter — the screen stays a desktop instrument. */
+.app[data-stage="tablet"] .booth-screen {
+  display: none;
+}
+
+.screen-body {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+}
+
+@container (max-width: 470px) {
+  .screen-annun {
+    display: none;
+  }
+  .screen-main {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@container (max-width: 300px) {
+  .screen-meters {
+    display: none;
+  }
+}
+
+.screen-annun {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.screen-annun-item {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 16%, var(--metal-recess));
+}
+
+.screen-annun-item[data-on="true"] {
+  color: var(--color-ink);
+  text-shadow: 0 0 3px color-mix(in srgb, var(--color-ink) 45%, transparent);
+}
+
+.screen-bpm {
+  font: 400 20px/1 var(--font-led);
+  color: var(--led-on);
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+
+.screen-bpm-unit {
+  margin-left: 3px;
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-recess));
+}
+
+.screen-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+.screen-label {
+  flex: none;
+  font: var(--text-panel-label-sm);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-recess));
+  white-space: nowrap;
+}
+
+.screen-value {
+  position: relative;
+  isolation: isolate;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 400 20px/1 var(--font-led);
+  color: var(--led-on);
+  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 55%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Left-aligned ghost cells behind the echoed value. */
+.screen-value::before {
+  content: "888888888888888888";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: color-mix(in srgb, var(--color-ink) 7%, transparent);
+  text-shadow: none;
+  overflow: hidden;
+}
+
+.screen-meters {
+  flex: none;
+  display: grid;
+  gap: 1px;
+}
+
+.screen-meter-row {
+  --lane-hue: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.screen-meter-row[data-lane="drums"] {
+  --lane-hue: var(--color-lane-drums);
+}
+.screen-meter-row[data-lane="bass"] {
+  --lane-hue: var(--color-lane-bass);
+}
+.screen-meter-row[data-lane="chords"] {
+  --lane-hue: var(--color-lane-chords);
+}
+.screen-meter-row[data-lane="lead"] {
+  --lane-hue: var(--color-lane-lead);
+}
+
+.screen-meter-tag {
+  font: 700 8px/1 var(--font-label); /* decorative engraving (the 8px furniture pin) */
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--color-ink) 45%, var(--metal-recess));
+}
+
+/* Meters: an unlit segment row, a lane-hue bar scaled by the meter bus
+ * (transform only), and a static gap mask over both so segments stay crisp
+ * at any level. */
+.screen-meter,
+.lane-meter {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--lane-hue) 14%, var(--metal-recess));
+}
+
+.screen-meter {
+  width: 64px;
+  height: 4px;
+  border-radius: 1px;
+}
+
+.screen-meter-lit,
+.lane-meter-lit {
+  position: absolute;
+  inset: 0;
+  background: var(--lane-hue);
+}
+
+.screen-meter-lit {
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(
+    to right,
+    var(--lane-hue) 0 72%,
+    color-mix(in srgb, var(--color-ink) 70%, var(--lane-hue)) 100%
+  );
+}
+
+.screen-meter::after,
+.lane-meter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.screen-meter::after {
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 5px,
+    var(--metal-recess) 5px 7px
+  );
+}
+
+/* The channel meter: a segmented LED column in the floor's left padding
+ * (absolute — zero layout px), running the quadrant's height. */
+.lane-meter {
+  position: absolute;
+  left: 2px;
+  top: var(--space-5);
+  bottom: var(--space-5);
+  width: 3px;
+  border-radius: 1px;
+  box-shadow: var(--micro-recess);
+}
+
+.lane-meter-lit {
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  background: linear-gradient(
+    to top,
+    var(--lane-hue) 0 70%,
+    color-mix(in srgb, var(--color-ink) 70%, var(--lane-hue)) 100%
+  );
+}
+
+.lane-meter::after {
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0 6px,
+    var(--metal-recess) 6px 8px
+  );
+}
+
+/* ---- 6. The one-shot power-on ---------------------------------------------- */
+
+.unit-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  pointer-events: none;
+  background: var(--metal-recess);
+  animation: unit-power 520ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes unit-power {
+  0% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 0.92;
+  }
+  30% {
+    opacity: 0.5;
+  }
+  36% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.app.is-booting .lane-floor::after {
+  animation: unit-rim-check 460ms ease-out both;
+  animation-delay: calc(160ms + var(--boot-i, 0) * 70ms);
+}
+
+.app.is-booting .lane-floor[data-lane="bass"] {
+  --boot-i: 1;
+}
+.app.is-booting .lane-floor[data-lane="chords"] {
+  --boot-i: 2;
+}
+.app.is-booting .lane-floor[data-lane="lead"] {
+  --boot-i: 3;
+}
+
+@keyframes unit-rim-check {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.app.is-booting .booth-beat-led {
+  animation: unit-led-check 90ms linear;
+  animation-delay: calc(220ms + var(--boot-i, 0) * 55ms);
+}
+
+.app.is-booting .booth-beat-led:nth-child(2) {
+  --boot-i: 1;
+}
+.app.is-booting .booth-beat-led:nth-child(3) {
+  --boot-i: 2;
+}
+.app.is-booting .booth-beat-led:nth-child(4) {
+  --boot-i: 3;
+}
+
+@keyframes unit-led-check {
+  0%,
+  100% {
+    background: var(--color-lane-bass);
+    border-color: var(--color-lane-bass);
+  }
+}
+
+/* ---- Reduced-motion twin ---------------------------------------------------- */
+/* The boot never mounts (JS half); the scan-on, landing strobe and boot
+ * checks die here; RollValue and the meter bus never animate under reduce
+ * (JS half) — meters rest unlit, values change in place; the phosphor
+ * playhead is already display:none under reduce (grid.css). */
+@media (prefers-reduced-motion: reduce) {
+  .unit-boot {
+    display: none;
+  }
+
+  .scale-pop::after,
+  .projects-pop::after,
+  .rail-tools-menu::after,
+  .fx-add-menu::after,
+  .lane-fx-wrap::after,
+  .rail-tile[data-sounding="true"]::after,
+  .app.is-booting .lane-floor::after,
+  .app.is-booting .booth-beat-led {
+    animation: none;
+  }
+}

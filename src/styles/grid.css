@@ -279,7 +279,7 @@
 /* T3 pad feel: the press travel on the editable pad (80ms down / spring
  * return). Hit geometry NEVER changes — the renderer's gesture math reads
  * the .row-cells rect, never this visual transform. */
-.lane-floor[data-editing="true"] .cell:active {
+.lane-floor .cell:active {
   transform: translateY(var(--press-travel)) scale(0.985);
   transition-duration: var(--press-down);
   transition-timing-function: ease-out;
@@ -323,15 +323,15 @@
 
 /* Immediate light under the finger: the editable pad reaches full bloom on
  * press (fast attack; the 180ms decay above lets it fall back). */
-.lane-floor[data-editing="true"] .cell:active::after {
+.lane-floor .cell:active::after {
   opacity: 1;
   transition-duration: var(--press-down);
 }
 
-/* View-only cells are not clickable — the quadrant select handles clicks. */
-.lane-floor[data-editing="false"] .cell {
-  cursor: default;
-}
+/* THE FULL UNIT (2026-09-11, user call): EVERY quadrant's pads are live
+ * under the pointer — a press on any floor edits it (and the same click
+ * selects that quadrant). The keyboard law is unchanged: only the selected
+ * grid owns a tab stop. */
 
 .cell[data-beat="1"] {
   background: color-mix(in srgb, var(--color-ink) 11%, var(--color-ground));
@@ -650,10 +650,6 @@
 
 /* View-only quadrants: no resize affordance (not editable — E2's no-op law
  * for pointer interaction, matching the grid's ignored clicks). */
-.lane-floor[data-editing="false"] .note-edge {
-  pointer-events: none;
-  cursor: default;
-}
 
 /* Playhead — the scan-light slit (T3). Compositor-only movement (the same
  * translateX path the renderer has always driven; the horizontal offset is
@@ -720,7 +716,7 @@
     transition: none;
   }
 
-  .lane-floor[data-editing="true"] .cell:active {
+  .lane-floor .cell:active {
     transform: none;
   }
 

@@ -221,6 +221,12 @@ export interface DomGridRendererOptions {
   readonly fillRailMode?: "inline" | "overlay";
   /** Start editable (default true). `setEditable` flips it live. */
   readonly editable?: boolean;
+  /**
+   * THE FULL UNIT (2026-09-11, user call): pointer presses/drags edit even
+   * while the grid is not keyboard-editable (default false — pointer
+   * editing then follows `editable`). `setPointerEditable` flips it live.
+   */
+  readonly pointerEditable?: boolean;
   /** Cell activated (click / Enter / Space) — owner writes the document. */
   readonly onToggle: (row: number, step: number) => void;
   /**
@@ -328,6 +334,8 @@ export interface GridRenderer {
    * and no focusable descendants (E2 — never a focus trap).
    */
   setEditable(editable: boolean): void;
+  /** Pointer editing decoupled from the keyboard edit state (see opts). */
+  setPointerEditable(pointerEditable: boolean): void;
   /** Position the playhead light bar (px) or park it (null). */
   setPlayhead(x: number | null): void;
   /**
@@ -436,6 +444,7 @@ export class DomGridRenderer implements GridRenderer {
   private reducedMotion: MediaQueryList | null = null;
   /** LY-1 quadrant state (see setEditable). */
   private editable = true;
+  private pointerEditable = false;
   /** Geometry (LY-1): cell/gap/label/fill px + derived step width.
    * H-2: cellPx is MUTABLE (setCellWidth) — the phone stage fits the step
    * pitch to the measured well; every other stage pins it at construction. */
@@ -545,6 +554,7 @@ export class DomGridRenderer implements GridRenderer {
     // out of flow, so the cells begin right after the label).
     this.playheadLeftPx = this.labelPx + (this.fillOverlay ? 0 : this.fillPx);
     this.editable = opts.editable ?? true;
+    this.pointerEditable = opts.pointerEditable ?? false;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.virtual = opts.steps > GRID_VIRTUALIZE_MIN_STEPS;
     this.winEnd = opts.steps; // eager covers the pattern; virtual re-seats below
@@ -836,6 +846,16 @@ export class DomGridRenderer implements GridRenderer {
       // RC-1: the roving landing must be visible in the window (E2 extended).
       this.ensureRowVisible(this.rovingRowIndex());
     } else this.moveFocus(0, 0);
+  }
+
+  /**
+   * THE FULL UNIT: every desktop quadrant's pads take presses and drags
+   * while only the SELECTED grid owns the tab stop and keys (E2's keyboard
+   * half is unchanged). The host selects the quadrant on the same click,
+   * after the edit commits — so the edit row never shifts a grid mid-press.
+   */
+  setPointerEditable(pointerEditable: boolean): void {
+    this.pointerEditable = pointerEditable;
   }
 
   setEditable(editable: boolean): void {
@@ -1592,8 +1612,9 @@ export class DomGridRenderer implements GridRenderer {
 
   private onClick = (e: Event): void => {
     // View-only quadrants: clicks select the QUADRANT (LaneGrid wires that on
-    // the floor); the grid itself never toggles.
-    if (!this.editable) return;
+    // the floor); the grid itself never toggles — unless pointer editing
+    // is live on every quadrant (THE FULL UNIT): the click edits AND selects.
+    if (!this.editable && !this.pointerEditable) return;
     if (this.suppressClick) {
       // A committed/cancelled/activated pointer gesture — the trailing click
       // must not re-activate the anchor cell.
@@ -1752,7 +1773,8 @@ export class DomGridRenderer implements GridRenderer {
   // -- IN-2 pointer gestures -------------------------------------------------
 
   private onPointerDown = (e: PointerEvent): void => {
-    if (!this.editable || this.gesture || !e.isPrimary) return;
+    if ((!this.editable && !this.pointerEditable) || this.gesture || !e.isPrimary)
+      return;
     this.suppressClick = false; // a fresh press always re-arms normal clicks
     const target = e.target as HTMLElement;
 

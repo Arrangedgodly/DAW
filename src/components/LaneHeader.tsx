@@ -58,6 +58,7 @@ import {
 } from "../state/fxConsole";
 import { helpMode } from "../state/helpMode";
 import { helpOpen } from "../state/helpOverlay";
+import RollValue from "./RollValue";
 import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
 import { activeLane, stageMode } from "../state/selection";
@@ -415,7 +416,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
               –
             </button>
             <span class="head-ctl-value" aria-live="polite">
-              {soundName()}
+              <RollValue value={soundName()}>{soundName()}</RollValue>
             </span>
             <button
               type="button"
@@ -452,7 +453,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
                 –
               </button>
               <span class="head-ctl-value head-oct-value">
-                {octaveText(octave())}
+                <RollValue value={octave()}>{octaveText(octave())}</RollValue>
               </span>
               <button
                 type="button"
@@ -572,7 +573,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
               –
             </button>
             <span class="head-ctl-value">
-              {gate()}
+              <RollValue value={gate()}>{gate()}</RollValue>
               <span class="head-ctl-unit" aria-hidden="true">
                 ST
               </span>

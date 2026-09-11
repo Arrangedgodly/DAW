@@ -630,7 +630,7 @@
   background: var(--metal-raised);
   border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
   border-radius: 4px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   cursor: pointer;
 }
 
@@ -724,7 +724,7 @@ input[type="range"] {
   background: var(--metal-raised);
   border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
   border-radius: 4px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   cursor: pointer;
 }
 

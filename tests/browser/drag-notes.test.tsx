@@ -415,8 +415,9 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         ).toHaveLength(0);
         expect(freeCell.dataset.preview).toBeUndefined();
 
-        // View-only quadrants ignore pointer gestures (E2 pointer law): the
-        // lead grid is view-only while bass is selected.
+        // THE FULL UNIT (2026-09-11, user call): every quadrant's pads are
+        // live under the pointer — a press on the NON-selected lead grid
+        // edits it directly (the E2 keyboard half is unchanged: no tab stop).
         const leadCell = cellAt("lead", 0, 2);
         const l = center(leadCell);
         pe(leadCell, "pointerdown", l.x, l.y);
@@ -424,7 +425,7 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         pe(leadCell, "pointerup", l.x, l.y);
         const leadPattern = docStore.getState().doc.patterns.lead[0];
         if (leadPattern?.kind !== "pitched") throw new Error("expected lead");
-        expect(leadPattern.notes).toHaveLength(0); // nothing created
+        expect(leadPattern.notes).toHaveLength(1); // the press landed
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

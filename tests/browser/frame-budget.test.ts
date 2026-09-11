@@ -864,7 +864,10 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         };
 
         const selectLane = async (lane: string): Promise<void> => {
-          (floor(lane).querySelector(".cell") as HTMLElement).click();
+          // THE FULL UNIT (2026-09-11): every quadrant's pads are live under
+          // the pointer, so a pad click is an EDIT — select through the
+          // side-effect-free lane label (the e2e-happy-path precedent).
+          (floor(lane).querySelector(".lane-name") as HTMLElement).click();
           await poll(
             () => floor(lane).dataset.editing === "true",
             2000,
@@ -1054,10 +1057,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           "drums 4-bar grid displayed again after the pool strip",
         );
         // Deterministic click semantics: the pool-wide read now sees ONE
-        // pattern — the fresh 4-bar, empty except kick step 0 (the
-        // quadrant-select click above toggled it OFF against the demo's
-        // every-pattern kick[0] ON). Every one of the 48 clicks below
-        // therefore turns a cell ON.
+        // pattern — the fresh, empty 4-bar (selection now goes through the
+        // side-effect-free lane label, so no select click touches a pad).
+        // Every one of the 48 clicks below therefore turns a cell ON.
         clickCells("drums", [0, 1, 2, 3, 4, 5], [0, 8, 16, 24, 32, 40, 48, 56]);
         // The setup's own integrity tooth: 6 rows × 8 steps = 48 painted
         // hits on the only (empty, 64-step) pattern — the intended density,
@@ -1270,7 +1272,9 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         expect(doc().querySelector(".info-view")).toBeNull();
 
         // --- setup: two long bass notes (resize targets), some drums hits ---
-        (floor("bass").querySelector(".cell") as HTMLElement).click();
+        // THE FULL UNIT (2026-09-11): pads are live on every quadrant, so a
+        // pad click is an EDIT — select through the side-effect-free label.
+        (floor("bass").querySelector(".lane-name") as HTMLElement).click();
         await poll(
           () => floor("bass").dataset.editing === "true",
           2000,
@@ -1412,7 +1416,9 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         // Storm 3 — drums paint (select the drums quadrant first; selection
         // happens OUTSIDE any observed move window).
         {
-          (floor("drums").querySelector(".cell") as HTMLElement).click();
+          // THE FULL UNIT (2026-09-11): pads are live on every quadrant, so a
+          // pad click is an EDIT — select through the side-effect-free label.
+          (floor("drums").querySelector(".lane-name") as HTMLElement).click();
           await poll(
             () => floor("drums").dataset.editing === "true",
             2000,

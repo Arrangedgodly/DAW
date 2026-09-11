@@ -37,6 +37,9 @@ import "./styles/toasts.css";
 import "./styles/banner.css";
 import "./styles/help.css";
 import "./styles/viz.css";
+// THE FULL UNIT (overdrive): imported last — its paint rules win ties.
+import "./styles/unit.css";
+import UnitOptics from "./components/UnitOptics";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -154,6 +157,7 @@ export default function App() {
         <VizPage />
       </Show>
       <KeyboardShortcuts />
+      <UnitOptics />
     </div>
   );
 }
