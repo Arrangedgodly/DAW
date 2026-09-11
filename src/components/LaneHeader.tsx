@@ -428,11 +428,18 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           </div>
         </div>
 
-        <Show when={props.lane !== "drums"}>
+        <Show when={props.lane !== "drums" && stageMode() !== "phone"}>
           {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper — the
               preset/kit + gate stepper pattern, always operable from every
               quadrant (KL-1's COMPACT-row placement). SOUND-changing: the
-              help entry fences it from VIEW-only window scroll (E9). */}
+              help entry fences it from VIEW-only window scroll (E9).
+              i7 N-2 (midi-i7-audit §2.2, the LY-1 phone carve-out): at
+              PHONE scope this group HIDES (render guard, the M-2 KEYS/INFO
+              precedent — not CSS) and the SAME control moves into the phone
+              OPTIONS drawer — one card carries ONE octave control next to
+              ONE semitone control (the register VIEW row), so the two
+              same-labeled OCT controls never share a card. Desktop/tablet
+              markup is byte-identical (m4). */}
           <div
             class="head-ctl"
             role="group"

@@ -437,19 +437,19 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         await poll(
           () =>
             (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
-            "■ROWS 7–13 OF 15",
+            "■ROWS 6–12 OF 14",
           5_000,
           "default readout",
         );
-        const octUp = $$(
-          ".lane-floor[data-lane='lead'] .register-shift-btn",
-        ).find((b) => b.textContent?.trim() === "OCT +");
-        if (!octUp) throw new Error("missing OCT + shift button");
+        const octUp = $$('.lane-floor[data-lane="lead"] .register-shift-btn').find(
+          (b) => b.getAttribute("aria-label") === "LEAD octave view up",
+        );
+        if (!octUp) throw new Error("missing OCT up shift button");
         (octUp as HTMLButtonElement).click();
         await poll(
           () =>
             (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
-            "▲ROWS 9–15 OF 15",
+            "▲ROWS 8–14 OF 14",
           5_000,
           "readout re-anchored one octave up (clamped top)",
         );
@@ -479,7 +479,7 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         // The shifted window survives underneath the open drawer.
         expect(
           (readout.textContent ?? "").replace(/\s+/g, " ").trim(),
-        ).toBe("▲ROWS 9–15 OF 15");
+        ).toBe("▲ROWS 8–14 OF 14");
 
         // --- HELP MODE ON over everything (the `i` global) --------------
         idoc().body.dispatchEvent(

@@ -126,9 +126,13 @@
    * Chromium's scroll anchoring would "compensate" the pinned-height writes
    * with arbitrary offsets (measured jumps of +62/−78 px mid-walk) — off. */
   overflow-anchor: none;
-  /* Vertical wheel over the cells scrolls the window (the cells' pan-y
-   * touch law still lets the PAGE scroll on touch — the window is a desktop/
-   * tablet pointer-wheel concern; Shift+↑/↓ is the keyboard twin). */
+  /* i7 N-2 (midi-i7-audit §2.1, the snap law — replaces the stale
+   * wheel-only comment): EVERY vertical scroll source scrolls the window —
+   * wheel on desktop/tablet, the touch pan on phone (the seat itself is
+   * the scrolling surface) — and the seat SNAPS to a semitone boundary on
+   * scroll end (scrollend + the settle fallback in the renderer): sub-row
+   * drift is mid-gesture only, the resting window is always exactly
+   * modeSize complete rows. */
   overscroll-behavior-y: contain;
 }
 

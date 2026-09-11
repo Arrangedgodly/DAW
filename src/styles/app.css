@@ -428,6 +428,27 @@
 }
 
 /*
+ * i7 N-2 (midi-i7-audit §2.2): the drawer's lane OCTAVE group — the RC-1
+ * SOUND transpose the strip carries on desktop/tablet; its phone home.
+ * Column layout: the engraved label, the strip's own stepper vocabulary
+ * (.head-stepper — the phone 44×44 painted law is stage-scoped and applies
+ * here), then the E9-fence caption.
+ */
+.phone-options-drawer .phone-oct-group {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.phone-oct-fence {
+  font: var(--text-panel-label-sm);
+  line-height: 1.5;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 60%, var(--metal-panel));
+}
+
+/*
  * The M-4 outside-tap dismissal surface: fixed, full-viewport, BELOW the
  * sticky chrome (z 5 < 10) — a tap anywhere on the scrolling grid closes
  * the drawer while the chrome (transport + drawer panel) stays interactive
@@ -588,6 +609,20 @@
   min-height: 0; /* the recessed well owns the card's remainder (below the strip) */
 }
 
+/* i7 N-2 (midi-i7-audit §2.1, THE BOX LAW): a WINDOWED pane's box is the
+ * renderer's inline pin — exactly modeSize COMPLETE rows (+ its chrome per
+ * applyWindowHeight). The flex growth is retired for windowed panes ONLY:
+ * growing the pane past its pin showed an 8th row as a partial sliver (the
+ * measured 332-pin-in-344-box probe). The content basis + min 0 of the base
+ * rule survive; leftover goes to row-track growth through the pane's own
+ * re-pin (fitPhoneRows' windowed divisor, clamped [44,64]) and whatever
+ * survives the cap is the stage's honest remainder — never an 8th row, at
+ * any viewport or seat. Full-manifest panes (drums) and bare panes keep
+ * the recess exactly: the base rule still grows them. */
+.app[data-stage="phone"] .lane-grid-scroll.is-windowed {
+  flex: 0 1 auto; /* grow 0: the pane box EQUALS the renderer pin */
+}
+
 /* M-7 (iteration 4): phone-scoped strip gutter trim — the lane-head strips'
  * shared 4px bottom margin halves at phone (desktop/tablet untouched; the
  * one-page law keeps its own margins). Reclaimed px are grid budget. */
@@ -694,22 +729,48 @@ input[type="range"] {
 }
 
 /*
- * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — one row of four
- * ≥44 px touch buttons between the lane header and the grid. Painted box =
- * the target (the lane-switch-tab law: no strap, four buttons share the
- * row). Machined-key vocabulary (raised metal + 1px border + elev-1) with
- * the lane-hue border like an INACTIVE tab — the row is a view control,
- * not the primary lane control; disabled state = the native chassis
- * disabled dim (fill + reduced contrast + no pointer, never color-only:
- * the glyph text itself carries the state per D9). Desktop never renders
- * the row (LaneGrid render guard) — zero desktop CSS paths.
+ * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — between the lane
+ * header and the grid. i7 N-2 (midi-i7-audit §2.2, the unified controls
+ * law): ONE octave stepper + ONE semitone stepper (two labeled groups of
+ * ≥44 px touch buttons) + the readout chip — the four flat buttons and
+ * their duplicate octave labels end. Painted box = the target (the
+ * lane-switch-tab law: no strap). Machined-key vocabulary (raised metal +
+ * 1px border + elev-1) with the lane-hue border like an INACTIVE tab — the
+ * row is a view control, not the primary lane control; disabled state = the
+ * native chassis disabled dim (fill + reduced contrast + no pointer, never
+ * color-only: the glyph text itself carries the state per D9). Desktop
+ * never renders the row (LaneGrid render guard) — zero desktop CSS paths.
  */
 .app[data-stage="phone"] .register-shift {
   display: flex;
+  align-items: flex-end;
   gap: var(--space-2);
   /* M-7 (iteration 4): the bottom gutter trims to the world's finest step
    * — the buttons are painted-44 targets, the grid needs the px more. */
   padding: 0 var(--space-1) var(--space-1);
+}
+
+/* i7 N-2: one stepper = a tiny label over its −/+ pair (column, so 390 and
+ * 360 keep the full row: 4×44 buttons + the readout in one line). */
+.app[data-stage="phone"] .register-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app[data-stage="phone"] .register-stepper-label {
+  font: var(--text-panel-label);
+  line-height: 1;
+  letter-spacing: var(--track-panel-label);
+  text-transform: uppercase;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-ink) 60%, var(--metal-panel));
+}
+
+.app[data-stage="phone"] .register-stepper-btns {
+  display: flex;
+  gap: var(--space-1);
 }
 
 .app[data-stage="phone"] .register-shift-btn {
@@ -750,7 +811,11 @@ input[type="range"] {
  * both are direct children of .lane-floor (the keyed Show adds no wrapper).
  */
 .app[data-stage="phone"] .register-window-readout {
-  flex: 0 0 auto;
+  /* i7 N-2: takes the row's remaining width (centers) so the two steppers
+   * keep their full ≥44 pairs at 360/390/430 in ONE row. */
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
   display: flex;
   align-items: center;
   gap: var(--space-1);

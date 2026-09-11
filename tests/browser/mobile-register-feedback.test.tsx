@@ -215,22 +215,26 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
           5_000,
           "one-octave window",
         );
+        // i7 N-2: the readout now numbers in the GRID's base — 0-based
+        // indexes over the MOUNTED manifest (`ROWS start–end OF last`,
+        // exactly the grid's aria range; the old 1-based lane-tallest
+        // "OF 15" is the superseded wording).
         expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "■ROWS 7–13 OF 15",
+          "■ROWS 6–12 OF 14",
         );
 
-        const btn = (text: string): HTMLButtonElement => {
+        const btn = (label: string): HTMLButtonElement => {
           const el = $$(
             ".lane-floor[data-lane='lead'] .register-shift-btn",
-          ).find((b) => b.textContent?.trim() === text);
-          if (!el) throw new Error(`missing shift button ${text}`);
+          ).find((b) => b.getAttribute("aria-label") === label);
+          if (!el) throw new Error(`missing shift button ${label}`);
           return el as HTMLButtonElement;
         };
 
         // --- 1+2+3. SEMI+: label text + readout change within ONE frame,
         // cue stamped "up" with the ▲ shape glyph --------------------------
         const before = visibleLabels()[0];
-        btn("SEMI +").click();
+        btn("LEAD semitone view up").click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
         const afterOneFrame = visibleLabels()[0];
         expect(
@@ -240,7 +244,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         expect(
           readout.textContent?.replace(/\s+/g, " ").trim(),
           "readout re-anchored within one frame",
-        ).toBe("▲ROWS 8–14 OF 15");
+        ).toBe("▲ROWS 7–13 OF 14");
         expect(shiftRow.getAttribute("data-cue"), "cue direction").toBe("up");
         expect(arrow.textContent?.trim(), "shape-coded direction glyph").toBe(
           "▲",
@@ -248,14 +252,14 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         const parity1 = shiftRow.getAttribute("data-cue-parity");
 
         // --- 3. A rapid second shift RESTARTS the flash (parity flips) ---
-        btn("SEMI +").click();
+        btn("LEAD semitone view up").click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
         expect(
           shiftRow.getAttribute("data-cue-parity") !== parity1,
           "second shift restarts the cue (parity flip)",
         ).toBe(true);
         expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "▲ROWS 9–15 OF 15",
+          "▲ROWS 8–14 OF 14",
         );
 
         // --- 3. The cue is TRANSIENT: cleared after the flash ------------
@@ -267,7 +271,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         expect(arrow.textContent?.trim(), "arrow returns to rest").toBe("■");
 
         // --- 3. Direction is signed: SEMI− codes "down" ------------------
-        btn("SEMI −").click();
+        btn("LEAD semitone view down").click();
         await poll(
           () => shiftRow.getAttribute("data-cue") === "down",
           5_000,
@@ -275,7 +279,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         );
         expect(arrow.textContent?.trim()).toBe("▼");
         expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "▼ROWS 8–14 OF 15",
+          "▼ROWS 7–13 OF 14",
         );
       } finally {
         await teardown(iframe);
@@ -302,7 +306,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         );
         const arrow = $(".lane-floor[data-lane='lead'] .register-window-arrow");
         await poll(
-          () => readout.textContent?.includes("ROWS 7–13 OF 15"),
+          () => readout.textContent?.includes("ROWS 6–12 OF 14"),
           5_000,
           "default readout",
         );
@@ -324,13 +328,15 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         const before = visibleFirst();
         const semiPlus = $$(
           ".lane-floor[data-lane='lead'] .register-shift-btn",
-        ).find((b) => b.textContent?.trim() === "SEMI +")! as HTMLButtonElement;
+        ).find(
+          (b) => b.getAttribute("aria-label") === "LEAD semitone view up",
+        )! as HTMLButtonElement;
         semiPlus.click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
 
         // The static equivalent lands immediately: readout + label text.
         expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "■ROWS 8–14 OF 15",
+          "■ROWS 7–13 OF 14",
         );
         expect(visibleFirst(), "label re-anchor still immediate").not.toBe(
           before,

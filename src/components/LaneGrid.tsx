@@ -100,7 +100,7 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       text:
         lane === "drums"
           ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
-          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time: Shift+arrows scroll that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
+          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the OCT/SEMI steppers move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -108,13 +108,16 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
 /**
  * HP-2 help content — the M-5 phone register-window shift row (one entry per
  * pitched lane, colocated with the buttons that stamp the id; I2-6 law).
+ * i7 N-2: the OCT stepper steps one octave of the SCALE (modeSize rows) and
+ * the strip reference is amended — on the phone the SOUND-transpose OCT
+ * lives in the OPTIONS drawer (the E9 fence ledger entry).
  */
 for (const lane of ["bass", "chords", "lead"] as const) {
   registerHelp([
     {
       id: `lane.${lane}.regshift`,
       title: `${LANE_NAMES[lane]} REGISTER SHIFT`,
-      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave (12 rows); SEMI −/+ nudges it one row. The buttons disable at the top and bottom of the lane's row range. The readout beside the buttons shows the rows in view (ROWS start–end OF total) and flashes with a ▲/▼ arrow when the window moves. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT in the strip.`,
+      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave of the scale; SEMI −/+ nudges it one semitone. The buttons disable at the top and bottom of the lane's row range, and the window always snaps so exactly one octave of complete rows is showing. The readout beside the buttons shows the rows in view (ROWS start–end OF total, matching the grid's own range) and flashes with a ▲/▼ arrow when the window moves. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -456,20 +459,32 @@ function fitPhoneGeometry(): void {
 
 /**
  * H-3: the bottom-ownership row fit (i5 audit §3) — grows phone row tracks
- * into the MEASURED leftover the CSS stretch created, through the same
- * setRowHeight seam the quadrant budget fit uses. Natural pane height is
- * measured WRITE-FREE: a windowed pane's box is the renderer's inline pin
- * (the flex basis the stretch grows from); a full-manifest pane sizes to
- * its last row + the collapsed tail margin + the well's own bottom padding
- * (the in-well chrome growth never eats). The measure is then NORMALIZED
- * to the 44-basis — the leftover a fresh PHONE_ROW_PX grid would see — so
- * the target is idempotent across re-fits (a re-measure against
+ * into the MEASURED leftover, through the same setRowHeight seam the
+ * quadrant budget fit uses. Natural pane height is measured WRITE-FREE and
+ * NORMALIZED to the 44-basis — the leftover a fresh PHONE_ROW_PX grid would
+ * see — so the target is idempotent across re-fits (a re-measure against
  * already-grown rows would otherwise collapse the target back toward the
  * floor and oscillate) and shrinks back honestly when the stretch
  * disappears (rotation, drawer): no free space reads leftover ≤ 0 and the
- * M-7 44 px law stands. The write never re-triggers the fit: growth ≤
- * leftover keeps the content inside the CSS-fixed well box, so the well's
- * own size (what the observer watches) does not move.
+ * M-7 44 px law stands. The write never re-triggers the fit: growth keeps
+ * the content inside the space it was given, so the observed boxes do not
+ * move.
+ *
+ * i7 N-2 (audit §2.1, THE BOX LAW): a WINDOWED pane's box is the renderer's
+ * inline pin — the phone flex growth is retired for `.is-windowed` panes
+ * (app.css), so the leftover no longer stretches the pane. The windowed
+ * branch measures the leftover in the CARD (the space below the pane's top
+ * inside the lane-floor's content box — exactly what the retired stretch
+ * used to hand the pane) and divides by the PAINTED rows (the window, not
+ * the manifest — the old manifest divisor let the pane absorb only
+ * 7/15 of its own leftover, so the stretched box stayed taller than
+ * 7×track+chrome and an 8th row intersected as a sliver). Growth re-pins
+ * the box through setRowHeight → applyWindowHeight (exactly modeSize
+ * complete rows at EVERY track size); whatever survives the [44,64] cap is
+ * the STAGE's honest remainder — the card keeps the i5 stretch (dead-below
+ * ~0 at scroll end), the pane never shows more than one octave. Full-
+ * manifest panes (drums) keep the recess exactly: their pane still
+ * stretches, their divisor is still the manifest.
  */
 function fitPhoneRows(
   surface: PhoneWidthSurface,
@@ -482,14 +497,23 @@ function fitPhoneRows(
   // The rows that actually paint pane height: the window for a windowed
   // grid, the manifest otherwise (the scrolled-out rows cost nothing).
   const paintedRows = geo.windowRows ?? geo.manifestRows;
-  let natural: number;
+  let leftover: number;
   if (geo.windowRows != null) {
-    // The renderer's inline pin is content-box (applyWindowHeight's law);
-    // the stretch grew the box BEYOND it (padTop+padBottom both count).
-    natural =
-      (Number.parseFloat(well.style.height) || 0) +
-      Number.parseFloat(style.paddingTop) +
-      Number.parseFloat(style.paddingBottom);
+    // i7 N-2: the card-space measure — the total height the pane may occupy
+    // (floor content-box bottom − the pane's top), against the pane's
+    // 44-basis height. Both terms are invariant under track growth, so the
+    // target is idempotent and shrinks back honestly with the stretch.
+    const floor = well.closest<HTMLElement>(".lane-floor");
+    if (!floor) return;
+    const fs = getComputedStyle(floor);
+    const avail =
+      floor.getBoundingClientRect().bottom -
+      (Number.parseFloat(fs.paddingBottom) || 0) -
+      (Number.parseFloat(fs.borderBottomWidth) || 0) -
+      well.getBoundingClientRect().top;
+    const natural44 =
+      well.offsetHeight - (geo.trackPx - surface.rowFloorPx) * paintedRows;
+    leftover = avail - natural44;
   } else {
     const rows = well.querySelectorAll<HTMLElement>(".grid-row");
     const last = rows[rows.length - 1];
@@ -499,21 +523,21 @@ function fitPhoneRows(
       Number.parseFloat(getComputedStyle(last).marginBottom) || 0;
     // The rect delta already spans the well's top edge → top padding; the
     // tail margin collapses out of the grid, so it re-adds explicitly.
-    natural =
+    const natural =
       lastRect.bottom -
       well.getBoundingClientRect().top +
       marginBelow +
       (Number.parseFloat(style.paddingBottom) || 0);
+    // Normalize: what the pane would measure if its rows sat at the floor.
+    const natural44 =
+      natural - (geo.trackPx - surface.rowFloorPx) * paintedRows;
+    leftover = well.clientHeight - natural44;
   }
-  // Normalize: what the pane would measure if its rows sat at the floor.
-  const natural44 =
-    natural - (geo.trackPx - surface.rowFloorPx) * paintedRows;
-  const leftover = well.clientHeight - natural44;
   const target = Math.max(
     surface.rowFloorPx,
     Math.min(
       PHONE_ROW_MAX_PX,
-      surface.rowFloorPx + Math.floor(leftover / geo.manifestRows),
+      surface.rowFloorPx + Math.floor(leftover / paintedRows),
     ),
   );
   if (target !== geo.trackPx) renderer.setRowHeight(target);
@@ -531,7 +555,17 @@ function schedulePhoneWidthFit(): void {
 function registerPhoneWidthSurface(surface: PhoneWidthSurface): void {
   phoneWidthSurfaces.add(surface);
   const well = surface.well();
-  if (well) ensurePhoneWidthObserver()?.observe(well);
+  if (well) {
+    ensurePhoneWidthObserver()?.observe(well);
+    // i7 N-2: a WINDOWED pane no longer resizes when the card's leftover
+    // moves (the box is the renderer's pin — the flex growth is retired),
+    // so the well's own observer can miss the stretch appearing/disappearing
+    // (drawer open, rotation between scroll/stretch states). The FLOOR
+    // always moves in those transitions — observe it too (the fit itself is
+    // write-free and idempotent, so the extra pass is a no-op when stable).
+    const floor = well.closest<HTMLElement>(".lane-floor");
+    if (floor) ensurePhoneWidthObserver()?.observe(floor);
+  }
   // The mount compute: onMount may run before first layout — the rAF lands
   // it one frame later (the renderer's own mountPending precedent).
   schedulePhoneWidthFit();
@@ -546,7 +580,11 @@ function registerPhoneWidthSurface(surface: PhoneWidthSurface): void {
 
 function unregisterPhoneWidthSurface(surface: PhoneWidthSurface): void {
   const well = surface.well();
-  if (well) phoneWidthObserver?.unobserve(well);
+  if (well) {
+    phoneWidthObserver?.unobserve(well);
+    const floor = well.closest<HTMLElement>(".lane-floor");
+    if (floor) phoneWidthObserver?.unobserve(floor);
+  }
   phoneWidthSurfaces.delete(surface);
 }
 
@@ -1283,8 +1321,11 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
     });
 
     // RC-1: the lane's window start is lane-level view state — pattern
-    // switches (remounts) and cross-surface moves land here. The renderer's
-    // ≥1-row snap guard keeps the echo of its own wheel-derived writes inert.
+    // switches (remounts) and cross-surface moves land here. i7 N-2 (audit
+    // §2.1): the unforced distance guard is RETIRED — the echo no-ops only
+    // when the seat is ALREADY exactly there (px + semantic start), so a
+    // semantic ±1 shift from ANY rest always seats (the probe-4 swallow
+    // class eliminated).
     // A cleared entry (document replacement — selection resets the map)
     // re-derives the default for THIS grid instead of leaving the renderer
     // parked at the replaced document's window.
@@ -1352,32 +1393,46 @@ function GridSurface(props: { lane: LaneId; pattern: Pattern }) {
 }
 
 /**
- * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — one row of four
- * ≥44 px touch buttons (OCT − / SEMI − / SEMI + / OCT +) rendered between
- * the lane header and the grid on the phone stage. The window is VIEW-ONLY
- * (the RC-1 law): a shift writes ONLY `setRegisterWindowStart(lane,
- * clamp(start ± 12 / ± 1))` — the SAME selection.ts seam desktop
- * Shift+arrow uses, so the GridSurface effect (the registerWindowStarts
- * consumer) pushes it to the renderer; no note ever moves. Bounds are
- * computed eagerly from the lane's patterns (`rowDegrees` heights, the
- * defaultRegisterWindowStart input) so the buttons DISABLE at the manifest
- * edges before any click.
+ * M-5 (iteration 4): the phone REGISTER-WINDOW SHIFT ROW — rendered between
+ * the lane header and the grid on the phone stage. i7 N-2 (audit §2.2, THE
+ * UNIFIED CONTROLS LAW) regroups the four flat buttons into TWO labeled
+ * steppers — OCT −/+ (±modeSize rows, one octave of the scale) and SEMI −/+
+ * (±1 row, one semitone) — plus the readout chip: ONE octave control next
+ * to ONE semitone control per card (the duplicate-octave complaint; the
+ * strip's OCT SOUND transpose moves to the phone options drawer, N-2's
+ * LaneHeader carve-out). The window is VIEW-ONLY (the RC-1 law): a shift
+ * writes ONLY `setRegisterWindowStart(lane, clamp(start ± modeSize / ± 1))`
+ * — the SAME selection.ts seam desktop Shift+arrow uses, so the GridSurface
+ * effect (the registerWindowStarts consumer) pushes it to the renderer; no
+ * note ever moves.
+ *
+ * Bounds + readout (audit §2.3, ONE source of truth): both derive from the
+ * MOUNTED pattern's manifest (the `manifestRows` prop — the same rows the
+ * renderer clamps against), so the chip and the grid's aria range agree at
+ * every rest, same base (0-based `ROWS start–end OF last`), same totals —
+ * the old lane-tallest bounds printed "OF 15" beside the grid's "OF 14" in
+ * one card. Buttons DISABLE eagerly at the manifest edges.
  *
  * M-6 (iteration 4): the CHANGE FEEDBACK rides this same start() state — no
  * second source of truth. Two layers: (1) the persistent window READOUT chip
- * (`ROWS start–end OF total`, an aria-live polite region — the label
- * re-anchor announced to SR) and (2) a TRANSIENT cue (data-cue up/down +
- * parity on the row root) that flashes the chip and the grid's visible row
- * labels — fill (hue-tinted background) + border (inset 2px hue ring) + shape
- * (a ▲/▼ direction glyph in the chip), never color-only (D9). Under
- * prefers-reduced-motion the transient cue is SKIPPED entirely in JS and the
- * CSS twin kills the animation: the static equivalent is the readout text +
- * arrow-free re-anchor, immediate with no animation (the RES-9 law).
+ * (an aria-live polite region — the label re-anchor announced to SR) and
+ * (2) a TRANSIENT cue (data-cue up/down + parity on the row root) that
+ * flashes the chip and the grid's visible row labels — fill (hue-tinted
+ * background) + border (inset 2px hue ring) + shape (a ▲/▼ direction glyph
+ * in the chip), never color-only (D9). Under prefers-reduced-motion the
+ * transient cue is SKIPPED entirely in JS and the CSS twin kills the
+ * animation: the static equivalent is the readout text + arrow-free
+ * re-anchor, immediate with no animation (the RES-9 law).
  */
-function RegisterShiftControls(props: { lane: PitchedLaneId }) {
+function RegisterShiftControls(props: {
+  lane: PitchedLaneId;
+  /** The MOUNTED pattern's row manifest (rowDegrees.length — the grid's own
+   * clamp basis; one source of truth with the renderer's aria range). */
+  manifestRows: number;
+}) {
   // The document store is zustand/vanilla (the LaneHeader law): mirror doc
-  // identity into a signal so bounds re-derive on scale/pattern edits —
-  // never inside the render loop.
+  // identity into a signal so bounds re-derive on scale/mode edits — never
+  // inside the render loop.
   const [docVersion, setDocVersion] = createSignal(0);
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -1390,11 +1445,8 @@ function RegisterShiftControls(props: { lane: PitchedLaneId }) {
     void docVersion();
     const doc = docStore.getState().doc;
     const h = modeSize(effectiveScale(doc, props.lane).mode);
-    let rows = 0;
-    for (const p of doc.patterns[props.lane]) {
-      if (p.kind === "pitched") rows = Math.max(rows, p.rowDegrees.length);
-    }
-    return { h, maxStart: Math.max(0, rows - h) };
+    const rows = Math.max(h, props.manifestRows);
+    return { h, rows, maxStart: Math.max(0, rows - h) };
   });
 
   const start = createMemo(() => {
@@ -1411,12 +1463,13 @@ function RegisterShiftControls(props: { lane: PitchedLaneId }) {
     setRegisterWindowStart(props.lane, target);
   };
 
-  // M-6: the readout text (the re-anchor, announced via aria-live on the
-  // chip itself — one element is both the visual readout and the SR region).
+  // M-6 + i7 §2.3: the readout text — the SAME string the grid's aria-label
+  // carries (`… ROWS start–end OF last`, 0-based, the mounted manifest's
+  // last index), announced via aria-live on the chip itself.
   const readout = (): string => {
-    const { h, maxStart } = bounds();
+    const { h, rows } = bounds();
     const s = start();
-    return `ROWS ${s + 1}–${s + h} OF ${maxStart + h}`;
+    return `ROWS ${s}–${s + h - 1} OF ${rows - 1}`;
   };
 
   // M-6: the transient cue. Rides start() — any window move (buttons, a
@@ -1449,51 +1502,76 @@ function RegisterShiftControls(props: { lane: PitchedLaneId }) {
     if (cueTimer !== undefined) clearTimeout(cueTimer);
   });
 
+  const n = LANE_NAMES[props.lane];
   return (
     <Show when={bounds().maxStart > 0}>
       <div
         class="register-shift"
         role="group"
-        aria-label={`${LANE_NAMES[props.lane]} register window shift`}
+        aria-label={`${n} register window shift`}
         data-cue={cue() ? (cue()!.dir === 1 ? "up" : "down") : undefined}
         data-cue-parity={cue() ? String(cue()!.key % 2) : undefined}
       >
-        <button
-          type="button"
-          class="register-shift-btn"
+        <div
+          class="register-stepper"
+          role="group"
+          aria-label={`${n} octave view`}
           data-help={`lane.${props.lane}.regshift`}
-          disabled={start() <= 0}
-          onClick={() => shift(-12)}
         >
-          OCT −
-        </button>
-        <button
-          type="button"
-          class="register-shift-btn"
+          <span class="register-stepper-label" aria-hidden="true">
+            OCT
+          </span>
+          <div class="register-stepper-btns">
+            <button
+              type="button"
+              class="register-shift-btn"
+              aria-label={`${n} octave view down`}
+              disabled={start() <= 0}
+              onClick={() => shift(-bounds().h)}
+            >
+              –
+            </button>
+            <button
+              type="button"
+              class="register-shift-btn"
+              aria-label={`${n} octave view up`}
+              disabled={start() >= bounds().maxStart}
+              onClick={() => shift(bounds().h)}
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div
+          class="register-stepper"
+          role="group"
+          aria-label={`${n} semitone view`}
           data-help={`lane.${props.lane}.regshift`}
-          disabled={start() <= 0}
-          onClick={() => shift(-1)}
         >
-          SEMI −
-        </button>
-        <button
-          type="button"
-          class="register-shift-btn"
-          data-help={`lane.${props.lane}.regshift`}
-          disabled={start() >= bounds().maxStart}
-          onClick={() => shift(1)}
-        >
-          SEMI +
-        </button>
-        <button
-          type="button"
-          class="register-shift-btn"
-          data-help={`lane.${props.lane}.regshift`}
-          disabled={start() >= bounds().maxStart}
-          onClick={() => shift(12)}
-        >
-          OCT +
-        </button>
+          <span class="register-stepper-label" aria-hidden="true">
+            SEMI
+          </span>
+          <div class="register-stepper-btns">
+            <button
+              type="button"
+              class="register-shift-btn"
+              aria-label={`${n} semitone view down`}
+              disabled={start() <= 0}
+              onClick={() => shift(-1)}
+            >
+              –
+            </button>
+            <button
+              type="button"
+              class="register-shift-btn"
+              aria-label={`${n} semitone view up`}
+              disabled={start() >= bounds().maxStart}
+              onClick={() => shift(1)}
+            >
+              +
+            </button>
+          </div>
+        </div>
         <span class="register-window-readout" aria-live="polite">
           <span class="register-window-arrow" aria-hidden="true">
             {cue()?.dir === 1 ? "▲" : cue()?.dir === -1 ? "▼" : "■"}
@@ -1519,6 +1597,12 @@ export default function LaneGrid(props: { lane: LaneId }) {
   const pattern = createMemo(() => {
     void docVersion();
     return currentPattern(props.lane);
+  });
+  /** i7 N-2: the MOUNTED pattern's row manifest (RegisterShiftControls'
+   * bounds/readout basis — one source of truth with the renderer's clamp). */
+  const pitchedManifestRows = createMemo(() => {
+    const p = pattern();
+    return p && p.kind === "pitched" ? p.rowDegrees.length : 0;
   });
   const key = () => {
     const p = pattern();
@@ -1550,7 +1634,9 @@ export default function LaneGrid(props: { lane: LaneId }) {
       onClick={onQuadrantClick}
     >
       <LaneHeader lane={props.lane} />
-      {/* M-5: the phone-only register-window shift row (pitched lanes). */}
+      {/* M-5: the phone-only register-window shift row (pitched lanes). i7
+          N-2: bounds + readout derive from the MOUNTED pattern's manifest
+          (the same rows the grid clamps against — one source of truth). */}
       <Show
         when={
           stageMode() === "phone" &&
@@ -1558,7 +1644,10 @@ export default function LaneGrid(props: { lane: LaneId }) {
           pattern()?.kind === "pitched"
         }
       >
-        <RegisterShiftControls lane={props.lane as PitchedLaneId} />
+        <RegisterShiftControls
+          lane={props.lane as PitchedLaneId}
+          manifestRows={pitchedManifestRows()}
+        />
       </Show>
       <Show when={key()} keyed>
         {(keyed: string) =>

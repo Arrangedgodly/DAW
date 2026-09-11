@@ -9,15 +9,16 @@
  *     demo's tallest manifest, 15 rows) shows EXACTLY the scale-mode row
  *     count (modeSize(minor) = 7): not the 15-row manifest, not a grown
  *     window (the phone fill compressor never grows windows).
- *  2. SHIFT ACTIONS: the four phone-only buttons (OCT −/SEMI −/SEMI +/OCT +)
- *     move the window by exactly −12/−1/+1/+12 rows through the RC-1 seam —
- *     observed as the visible row-label set changing while the COUNT stays
- *     pinned at the one-octave default.
+ *  2. SHIFT ACTIONS (i7 N-2 regroup: TWO steppers — OCT −/+ steps ONE
+ *     OCTAVE OF THE SCALE (modeSize rows), SEMI −/+ steps ONE SEMITONE
+ *     (±1 row)) move the window through the RC-1 seam — observed as the
+ *     visible row-label set changing while the COUNT stays pinned at the
+ *     one-octave default.
  *  3. BOUNDS: the shifts CLAMP at the manifest edges and the buttons DISABLE
  *     eagerly at the bounds (demo lead: rows 15 − window 7 → maxStart 8;
  *     from the default start 6, OCT+ clamps to 8 and disables the + pair;
- *     OCT− from 8 clamps to 0 and disables the − pair; SEMI+ from 0 is
- *     exactly +1).
+ *     OCT− from 8 lands at 1 (8−7, mid-manifest), OCT− again clamps to 0
+ *     and disables the − pair; SEMI+ from 0 is exactly +1).
  *  4. TARGETS: every shift button carries a ≥44×44 painted hit box (the
  *     MB-3 painted-box law — no strap on these).
  *  5. DESKTOP NON-REGRESSION: at 1280×800 there is NO shift row, the lead
@@ -199,18 +200,26 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         const firstAtDefault = labels()[0];
 
         // --- 4. TARGETS: ≥44×44 painted hit boxes ------------------------
-        const btn = (text: string): HTMLButtonElement => {
+        // i7 N-2: the two steppers' four buttons (aria-labeled — the
+        // painted glyphs are −/+).
+        const btn = (label: string): HTMLButtonElement => {
           const el = $$(".lane-floor[data-lane='lead'] .register-shift-btn").find(
-            (b) => b.textContent?.trim() === text,
+            (b) => b.getAttribute("aria-label") === label,
           );
-          if (!el) throw new Error(`missing shift button ${text}`);
+          if (!el) throw new Error(`missing shift button ${label}`);
           return el as HTMLButtonElement;
         };
-        for (const text of ["OCT −", "SEMI −", "SEMI +", "OCT +"]) {
-          const r = btn(text).getBoundingClientRect();
+        const LABELS = [
+          "LEAD octave view down",
+          "LEAD octave view up",
+          "LEAD semitone view down",
+          "LEAD semitone view up",
+        ] as const;
+        for (const label of LABELS) {
+          const r = btn(label).getBoundingClientRect();
           expect(
             r.width >= 44 && r.height >= 44,
-            `${text} hit box ${r.width.toFixed(1)}×${r.height.toFixed(1)} < 44×44`,
+            `${label} hit box ${r.width.toFixed(1)}×${r.height.toFixed(1)} < 44×44`,
           ).toBe(true);
         }
 
@@ -230,20 +239,18 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         // (the most-noted-rows heuristic).
         expect(rowsLabel(), "default window start").toBe("6");
 
-        // --- 2+3. OCT+ (+12) CLAMPS to the top and disables --------------
-        const octPlus = btn("OCT +");
+        // --- 2+3. OCT+ (+modeSize) CLAMPS to the top and disables --------
+        const octPlus = btn("LEAD octave view up");
         expect(octPlus.disabled, "OCT+ enabled at start 6 (below max 8)").toBe(
           false,
         );
         octPlus.click();
         await poll(
-          () => octPlus.disabled && btn("SEMI +").disabled,
+          () => octPlus.disabled && btn("LEAD semitone view up").disabled,
           5_000,
           "+ pair disabled at the clamped top (maxStart 8)",
         );
-        expect(rowsLabel(), "OCT+ from 6: 6+12 clamped to maxStart 8").toBe(
-          "8",
-        );
+        expect(rowsLabel(), "OCT+ from 6: 6+7 clamped to maxStart 8").toBe("8");
         expect(labels().length, "window COUNT pinned at the octave").toBe(
           WINDOW,
         );
@@ -252,22 +259,30 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
           "OCT+ (clamped +2) must move the visible rows",
         ).toBe(true);
 
-        // --- OCT− (−12) from 8 CLAMPS to 0 and disables the − pair -------
-        const octMinus = btn("OCT −");
+        // --- OCT− (−modeSize) from 8 lands at 1 (mid-manifest) ----------
+        const octMinus = btn("LEAD octave view down");
         octMinus.click();
         await poll(
-          () => octMinus.disabled && btn("SEMI −").disabled,
+          () => rowsLabel() === "1",
+          5_000,
+          "OCT− from 8: 8−7 = 1 (mid-manifest, no clamp)",
+        );
+        expect(labels().length).toBe(WINDOW);
+        // --- OCT− again CLAMPS to 0 and disables the − pair -------------
+        octMinus.click();
+        await poll(
+          () => octMinus.disabled && btn("LEAD semitone view down").disabled,
           5_000,
           "− pair disabled at the bottom (start 0)",
         );
-        expect(rowsLabel(), "OCT− from 8: 8−12 clamped to 0").toBe("0");
+        expect(rowsLabel(), "OCT− from 1: 1−7 clamped to 0").toBe("0");
         expect(labels().length).toBe(WINDOW);
 
         // --- SEMI+ from the bottom is EXACTLY +1 row --------------------
         const bottomWindow = labels(); // snapshot BEFORE the +1 click
-        btn("SEMI +").click();
+        btn("LEAD semitone view up").click();
         await poll(
-          () => !btn("SEMI −").disabled && rowsLabel() === "1",
+          () => !btn("LEAD semitone view down").disabled && rowsLabel() === "1",
           5_000,
           "SEMI+ → start exactly 1 (±1 law), SEMI− re-enabled",
         );

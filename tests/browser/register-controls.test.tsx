@@ -601,22 +601,48 @@ describe("RC-1 register controls (real app, demo document)", () => {
           scrollOf(host, "lead").querySelectorAll(".grid-row").length,
         ).toBe(15);
 
-        // The OCT control is reachable at phone width (compact strip, the
-        // 44px target law sizes the steppers).
-        const octUp = laneHost(host, "lead").querySelector<HTMLButtonElement>(
+        // i7 N-2 (the LY-1 phone carve-out, midi-i7-audit §2.2): the strip's
+        // OCT group HIDES at phone — the RC-1 SOUND transpose lives in the
+        // OPTIONS drawer (PhoneOptions mounts the same stepper seam, the
+        // strip's own .head-stepper vocabulary + the E9-fence caption).
+        // Open the drawer and audit the control THERE (44px painted law).
+        const optionsToggle = host.querySelector<HTMLElement>(
+          '[data-help="phone.options"]',
+        )!;
+        optionsToggle.click();
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") !== null,
+          2000,
+          "options drawer open (the phone OCT home)",
+        );
+        const drawer = host.querySelector<HTMLElement>(
+          ".phone-options-drawer",
+        )!;
+        const drawerOctReadout = (): string =>
+          drawer
+            .querySelector(`[data-help="lane.lead.oct"] .head-oct-value`)
+            ?.textContent?.trim() ?? "";
+        const octUp = drawer.querySelector<HTMLButtonElement>(
           'button[aria-label="Octave up for LEAD"]',
         )!;
         expect(octUp).toBeTruthy();
         expect(octUp.getClientRects().length).toBeGreaterThan(0);
         expect(octUp.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
-        expect(octReadoutOf(host, "lead")).toBe("0");
+        expect(drawerOctReadout()).toBe("0");
         octUp.click();
         await waitFor(
           () => octLiveOf(host, "lead") === "LEAD OCTAVE +1",
           2000,
-          "OCT +1 at phone width",
+          "OCT +1 from the phone drawer",
         );
         expect(laneOctave("lead")).toBe(1);
+        expect(drawerOctReadout()).toBe("+1");
+        optionsToggle.click(); // close the drawer (the grid keys need the seat)
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") === null,
+          2000,
+          "options drawer closed",
+        );
 
         // Shift+arrows are grid keys everywhere; since M-5 the phone grid
         // is windowed, so the keys scroll the SAME RC-1 window as desktop —
@@ -638,12 +664,21 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // PX-4 (phone tap-to-inspect): with info mode ON, TAPPING the OCT
         // group shows its refined entry — the KL-1 fence readable on the
         // phone path (title says OCTAVE; text says SOUND vs SEE/HEAR).
+        // i7 N-2: at phone the group lives in the OPTIONS drawer.
         setHelpMode(true);
         await waitFor(() => host.querySelector(".info-view") !== null);
+        optionsToggle.click();
+        await waitFor(
+          () => host.querySelector(".phone-options-drawer") !== null,
+          2000,
+          "options drawer open (tap-to-inspect)",
+        );
         (
-          laneHost(host, "lead").querySelector(
-            '[data-help="lane.lead.oct"]',
-          ) as HTMLElement
+          host
+            .querySelector(".phone-options-drawer")!
+            .querySelector(
+              '[data-help="lane.lead.oct"]',
+            ) as HTMLElement
         ).dispatchEvent(
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );

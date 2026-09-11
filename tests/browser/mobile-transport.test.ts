@@ -282,13 +282,33 @@ describe("M-3 phone transport — pinned centered always-visible play/stop", () 
 
           // Seat BOTTOM.
           seat.scrollTop = seat.scrollHeight;
-          await new Promise((r) => setTimeout(r, 80));
-          // Fractional layout heights can leave a sub-pixel remainder —
-          // "at the bottom" is within 1 px of the max scroll.
+          await new Promise((r) => setTimeout(r, 220));
+          // i7 N-2 (the snap law) — the bottom rest is the LAST ON-GRID
+          // window: scrollend/settle SNAPS the seat onto the row grid, so
+          // it rests the pane's own padding-bottom short of the RAW max
+          // scroll (the old maxScroll ±1 assert is superseded — the snap
+          // never leaves the pane mid-row). "At the bottom" now means the
+          // manifest's LAST row is fully inside the box AND the seat is on
+          // the row grid.
+          const rowEls = [...seat.querySelectorAll<HTMLElement>(".grid-row")];
+          const gridPitch =
+            rowEls[1]!.getBoundingClientRect().top -
+            rowEls[0]!.getBoundingClientRect().top;
+          const gridBase =
+            rowEls[0]!.getBoundingClientRect().top -
+            seat.getBoundingClientRect().top +
+            seat.scrollTop;
+          const seatOff = Math.abs((seat.scrollTop - gridBase) % gridPitch);
           expect(
-            Math.abs(seat.scrollTop - (seat.scrollHeight - seat.clientHeight)),
-            "the seat actually scrolled to the bottom",
-          ).toBeLessThanOrEqual(1);
+            seatOff <= 1 || Math.abs(seatOff - gridPitch) <= 1,
+            "the bottom rest snapped onto the row grid",
+          ).toBe(true);
+          const seatBox = seat.getBoundingClientRect();
+          const lastRow = rowEls[rowEls.length - 1]!.getBoundingClientRect();
+          expect(
+            lastRow.bottom,
+            "the seat scrolled to the bottom (the manifest's last row fully visible)",
+          ).toBeLessThanOrEqual(seatBox.bottom + 1);
           assertPinnedCentered(idoc, win, `${w}×${h} seat-bottom`);
         } finally {
           await teardown(iframe);

@@ -926,11 +926,27 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           "bass stage editable",
         );
         // --- M-7 (iteration 4): the register-window shift row (pitched
-        // lanes only — bass here). All four shift buttons are painted-44
+        // lanes only). i7 N-2 flip: bounds derive from the MOUNTED
+        // pattern's manifest, so the row renders only where the mounted
+        // manifest EXCEEDS one octave — demo bass-1 (7 rows) is a
+        // full-manifest pane with no legal shift, and the row honestly
+        // hides on it (the old lane-tallest bounds rendered a dead row
+        // there). Audit on LEAD (the demo's tallest manifest, 15 rows —
+        // always windowed). All four stepper buttons are painted-44
         // targets (the lane-switch-tab law: no strap, four share the row);
         // the readout chip is a non-operable aria-live status (recorded
         // exempt, but its painted box is 44 tall too — it must not dip
         // under the row's target line).
+        selectLane("lead");
+        await waitFor(
+          () =>
+            document
+              .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
+              ?.getAttribute("aria-label")
+              ?.startsWith("LEAD grid · EDITING") === true,
+          2000,
+          "lead stage editable (register row audit)",
+        );
         await auditSelector(".register-shift-btn", "register shift", rows);
         rows.push(
           await auditControl(
@@ -938,6 +954,17 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             "register readout (EXEMPT: aria-live status, non-operable)",
             { exempt: true },
           ),
+        );
+        selectLane("bass");
+        await waitFor(
+          () =>
+            document
+              .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
+              // RC-1 journey delta: windowed names append the ROWS range.
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
+          2000,
+          "bass stage editable",
         );
         click('[data-help="lane.bass.fx"]');
         await waitFor(

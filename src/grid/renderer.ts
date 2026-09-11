@@ -393,6 +393,15 @@ export interface GridRenderer {
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+/**
+ * i7 N-2: the scroll-end settle window (ms) — how long after the LAST
+ * scroll event the fallback snap may fire when no `scrollend` arrives.
+ * Small by law (the audit: "keep the fallback small"): long enough to sit
+ * past a momentum fling's trailing events, short enough that the seat never
+ * rests visibly off-grid.
+ */
+const SNAP_SETTLE_MS = 120;
+
 /** One active pointer gesture (IN-2). */
 type Gesture =
   | { kind: "create"; pointerId: number; drag: CreateDrag; moved: boolean }
@@ -514,6 +523,13 @@ export class DomGridRenderer implements GridRenderer {
   private lastScrollLeft = 0;
   /** Last-seen vertical offset (the RC-1 seat's echo guard). */
   private seatedScrollTop = 0;
+  /**
+   * i7 N-2 (audit §2.1, the snap law): the scroll-end settle fallback. The
+   * committed target (Android Chrome) fires `scrollend`; this timer is the
+   * small fallback (platforms/edge flings without the event) — armed on
+   * every user scroll, disarmed by the real event. Zero = idle.
+   */
+  private snapSettleTimer = 0;
   /** Diagnostics (the LP-1 harness precedent): rewindow count + last cost. */
   rewindows = 0;
   lastRewindowMs = 0;
@@ -751,6 +767,10 @@ export class DomGridRenderer implements GridRenderer {
     // LL-1: the listener is shared with the COLUMN window — the axis check
     // inside keeps each law on its own axis.
     container.addEventListener("scroll", this.onScroll, { passive: true });
+    // i7 N-2 (audit §2.1): the SCROLL-END SNAP — `scrollend` is the primary
+    // signal on the committed target (Android Chrome); the settle fallback
+    // in onScroll covers platforms/edge flings without the event.
+    container.addEventListener("scrollend", this.onScrollEnd);
     // IN-2 pointer gestures (capture-on-down keeps up-outside deliverable).
     container.addEventListener("pointerdown", this.onPointerDown);
     container.addEventListener("pointermove", this.onPointerMove);
@@ -971,9 +991,11 @@ export class DomGridRenderer implements GridRenderer {
       this.windowRows = null;
       this.windowStepRows = 0;
       this.seatedStart = 0;
+      this.clearSnapSettle();
       container.classList.remove("is-windowed");
       container.style.height = "";
       container.scrollTop = 0;
+      this.seatedScrollTop = 0;
       this.updateGridName();
       return;
     }
@@ -999,27 +1021,66 @@ export class DomGridRenderer implements GridRenderer {
     const s = clampWindowStart(start, this.cells.length, this.windowRows);
     const target = this.rowTopInScroll(s);
     const container = this.opts.container;
-    // Snap guard: a free wheel scroll may rest between rows — only re-seat
-    // on WHOLE-window moves (the wheel path re-seats the semantic start
-    // itself via onScroll, so its echo never fights the user's scroll).
-    if (!force && Math.abs(container.scrollTop - target) < this.rowPitch()) {
+    // i7 N-2 (audit §2.1, GUARD RETIREMENT): the old unforced distance
+    // guard (`|scrollTop − target| < pitch` → return) could SWALLOW a
+    // semantic ±1 shift whenever the pane rested within one pitch of its
+    // target — the NORMAL state after any free scroll (the probe-4
+    // stagnation: SEMI+ re-rendered the readout while the pixels stayed).
+    // The echo no-op now comes from the seat ALREADY being exactly there
+    // (px + semantic start both agreeing); an intentional start change
+    // ALWAYS seats, through the one quantized path: rowTopInScroll of the
+    // clamped start.
+    if (!force && container.scrollTop === target && this.seatedStart === s) {
       return;
     }
     container.scrollTop = target;
     this.seatedStart = s;
+    this.seatedScrollTop = target;
     this.updateGridName();
   }
 
-  /** The semantic window start: the FIRST row crossing the visible top. */
-  private currentStart(): number {
-    if (!this.windowRows) return 0;
-    const boxTop = this.opts.container.getBoundingClientRect().top;
-    for (let i = 0; i < this.rowEls.length; i++) {
-      const el = this.rowEls[i]!;
-      const top = el.getBoundingClientRect().top;
-      if (top + el.offsetHeight > boxTop + 1) return i;
+  /**
+   * i7 N-2 (audit §2.1): THE SNAP. Quantize the pane's current rest onto
+   * the NEAREST on-grid seat and adopt THAT seated value as the semantic
+   * start (store write-back through onWindowScroll). This is the ONLY path
+   * by which a free scroll becomes view state — the law: view state holds
+   * seated starts only, sub-row drift is legal only mid-gesture, and the
+   * seat snaps on scroll end (scrollend, with the settle fallback) and on
+   * every intentional move.
+   */
+  private snapSeatToRow(): void {
+    if (!this.windowRows || this.disposed) return;
+    const container = this.opts.container;
+    const base = this.rowTopInScroll(0);
+    const pitch = this.rowPitch();
+    const nearest = Math.round((container.scrollTop - base) / pitch);
+    const s = clampWindowStart(nearest, this.cells.length, this.windowRows);
+    // One seat path: scrollWindowTo quantizes (rowTopInScroll of the
+    // clamped start) — the snap only picks the row.
+    this.scrollWindowTo(s, true);
+    this.opts.onWindowScroll?.(this.seatedStart);
+  }
+
+  /** The scrollend twin of the settle fallback (either may run first). */
+  private onScrollEnd = (): void => {
+    this.clearSnapSettle();
+    this.snapSeatToRow();
+  };
+
+  private clearSnapSettle(): void {
+    if (this.snapSettleTimer) {
+      window.clearTimeout(this.snapSettleTimer);
+      this.snapSettleTimer = 0;
     }
-    return Math.max(0, this.rowEls.length - 1);
+  }
+
+  /** Arm/disarm the settle fallback (one pending timer at most). */
+  private scheduleSnapSettle(): void {
+    this.clearSnapSettle();
+    this.snapSettleTimer = window.setTimeout(() => {
+      this.snapSettleTimer = 0;
+      this.snapSeatToRow();
+    }, SNAP_SETTLE_MS);
   }
 
   /** Row-to-row pitch in px (track height + the CSS row margin), from the DOM. */
@@ -1126,6 +1187,10 @@ export class DomGridRenderer implements GridRenderer {
    * scrollWindowTo, at every seat the cursor walk can produce. The row stays
    * visible at both edges (applyWindowHeight pins clientHeight to
    * windowRows × pitch, so the manifest-clamped seat always covers the row).
+   *
+   * i7 N-2 (audit §2.1): the seat records the QUANTIZED start itself —
+   * focus-follow is an intentional move and writes a seated, on-grid value
+   * (the old `currentStart()` re-adopt is retired with the free-adopt law).
    */
   private ensureRowVisible(row: number): void {
     if (!this.windowRows) return;
@@ -1151,8 +1216,12 @@ export class DomGridRenderer implements GridRenderer {
         this.windowRows,
       );
     }
-    if (start !== null) container.scrollTop = this.rowTopInScroll(start);
-    this.seatedStart = this.currentStart();
+    if (start !== null) {
+      const target = this.rowTopInScroll(start);
+      container.scrollTop = target;
+      this.seatedStart = start;
+      this.seatedScrollTop = target;
+    }
     this.updateGridName();
   }
 
@@ -1162,12 +1231,16 @@ export class DomGridRenderer implements GridRenderer {
   }
 
   /**
-   * The scroll twin of every USER scroll (wheel/drag): the semantic start
-   * follows the measured top row — the user's scroll IS the intent. Key and
-   * focus-follow seats keep their authoritative start instead.
+   * The scroll twin of every USER scroll (wheel/drag/touch). i7 N-2 (audit
+   * §2.1, the M-5 free-adopt flip): the FREE ADOPT IS RETIRED — a partial
+   * row never becomes view state. Mid-gesture the pane may drift sub-row
+   * (the finger is never fought); the seat SNAPS on scroll end (scrollend,
+   * with the settle fallback below) and only that seated value is adopted
+   * (snapSeatToRow → onWindowScroll). Key and focus-follow seats keep
+   * their authoritative start (they write seated values directly).
    * LL-1: the listener is shared with the COLUMN window; the axis check
    * routes horizontal scrolls to the (cheap, layout-free) rewindow check and
-   * keeps the vertical seat law off the x-axis path (its rect reads are the
+   * keeps the vertical law off the x-axis path (its rect reads are the
    * RC-1 layout cost — never paid during a horizontal fling).
    */
   private onScroll = (): void => {
@@ -1179,10 +1252,11 @@ export class DomGridRenderer implements GridRenderer {
     }
     if (!this.windowRows) return;
     if (container.scrollTop === this.seatedScrollTop) return;
-    this.seatedScrollTop = container.scrollTop;
-    this.seatedStart = this.currentStart();
-    this.updateGridName();
-    this.opts.onWindowScroll?.(this.seatedStart);
+    // A user scroll moved the seat off its last SEATED px (seat writes keep
+    // seatedScrollTop in step, so programmatic seats exit above). Nothing is
+    // adopted here — arm the settle fallback; the platform's scrollend (or
+    // the fallback) snaps and adopts.
+    this.scheduleSnapSettle();
   };
 
   private updateGridName(): void {
@@ -1221,6 +1295,10 @@ export class DomGridRenderer implements GridRenderer {
       return;
     }
     this.scrollWindowTo(target, true);
+    // i7 N-2: every intentional renderer-side seat writes its seated start
+    // back to the lane view state (the store must never hold a seat the
+    // pixels have left — the remount-stale class). Equal-guarded upstream.
+    this.opts.onWindowScroll?.(this.seatedStart);
     this.announceView(
       `VIEW ${dir > 0 ? "DOWN" : "UP"} ONE OCTAVE · ${range(target)}`,
     );
@@ -1471,6 +1549,7 @@ export class DomGridRenderer implements GridRenderer {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    this.clearSnapSettle();
     for (const timer of this.glowTimers) window.clearTimeout(timer);
     this.glowTimers.clear();
     if (this.suppressClearTimer) window.clearTimeout(this.suppressClearTimer);
@@ -1478,6 +1557,7 @@ export class DomGridRenderer implements GridRenderer {
     container.removeEventListener("click", this.onClick);
     container.removeEventListener("keydown", this.onKeyDown);
     container.removeEventListener("scroll", this.onScroll);
+    container.removeEventListener("scrollend", this.onScrollEnd);
     this.hscrollEl?.removeEventListener("scroll", this.onScroll);
     container.removeEventListener("pointerdown", this.onPointerDown);
     container.removeEventListener("pointermove", this.onPointerMove);

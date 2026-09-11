@@ -9,7 +9,10 @@
  *
  * Reuse law: the drawer mounts the ONE shared `BoothOptions` component
  * (compact copy — the same signals, the same store/session seams, the same
- * JSX groups as the desktop Booth). No transport logic lives here.
+ * JSX groups as the desktop Booth). No transport logic lives here. i7 N-2:
+ * the drawer also carries the ACTIVE lane's OCTAVE stepper (the strip
+ * group's phone home — LaneOctaveGroup below, the E9-fenced sound
+ * transpose; the audit §2.2 unified-controls law).
  *
  * Dismissal: Escape or an outside tap (the help-overlay precedent) — the
  * fixed backdrop sits BELOW the sticky chrome (z 5 < 10) so taps on the
@@ -17,13 +20,21 @@
  * stays interactive; focus returns to the OPTIONS toggle.
  */
 
-import { onCleanup, onMount } from "solid-js";
+import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { BoothOptions } from "./Booth";
 import {
   closeOptions,
   optionsOpen,
   toggleOptions,
 } from "../state/optionsDrawer";
+import {
+  activeLane,
+  octaveText,
+  stepLaneOctave,
+  type PitchedLaneId,
+} from "../state/selection";
+import { docStore } from "../state/store";
+import { LANE_NAMES } from "./laneMeta";
 import { registerHelp } from "../help/registry";
 
 // HP-2 help content (same registry): the drawer's own affordance.
@@ -92,6 +103,85 @@ export function OptionsBackdrop() {
   );
 }
 
+/**
+ * i7 N-2 (midi-i7-audit §2.2, the unified controls law): the phone drawer's
+ * lane OCTAVE group — the RC-1 SOUND transpose the strip carries on desktop/
+ * tablet moves here at phone scope (the strip group is render-guarded away,
+ * so the card's ONE octave control is the register VIEW row's OCT stepper).
+ * Same seam as the strip (stepLaneOctave: the −3..+3 clamp + the strip's
+ * SR announcements), the strip's own stepper vocabulary (.head-stepper —
+ * the phone 44×44 painted law is stage-scoped, so it applies here), and
+ * the E9-fenced "what you HEAR, not what you SEE" wording the audit pins.
+ * The ACTIVE pitched lane owns the stepper (phone mounts exactly one card);
+ * drums never renders the group.
+ */
+function LaneOctaveGroup() {
+  // The document store is zustand/vanilla (the LaneHeader law): mirror doc
+  // identity into a signal so the value re-derives on octave writes.
+  const [docVersion, setDocVersion] = createSignal(0);
+  onMount(() => {
+    const unsubscribe = docStore.subscribe((state, prev) => {
+      if (state.doc !== prev.doc) setDocVersion((v) => v + 1);
+    });
+    onCleanup(unsubscribe);
+  });
+  const lane = createMemo(() => {
+    const l = activeLane();
+    return l === "drums" ? null : (l as PitchedLaneId);
+  });
+  const octave = createMemo(() => {
+    void docVersion();
+    const l = lane();
+    if (!l) return 0;
+    const conf = docStore.getState().doc.lanes.find((c) => c.id === l);
+    return conf && conf.id !== "drums" ? (conf.octave ?? 0) : 0;
+  });
+
+  return (
+    <Show when={lane()} keyed>
+      {(l: PitchedLaneId) => (
+        <div
+          class="booth-group phone-oct-group"
+          role="group"
+          aria-label={`${LANE_NAMES[l]} octave (sound)`}
+          data-help={`lane.${l}.oct`}
+        >
+          <span class="booth-label" aria-hidden="true">
+            {LANE_NAMES[l]} OCTAVE
+          </span>
+          <div class="head-stepper">
+            <button
+              type="button"
+              class="head-step-btn"
+              aria-label={`Octave down for ${LANE_NAMES[l]}`}
+              onClick={() => stepLaneOctave(l, -1)}
+            >
+              –
+            </button>
+            <span class="head-ctl-value head-oct-value" aria-live="polite">
+              {octaveText(octave())}
+            </span>
+            <button
+              type="button"
+              class="head-step-btn"
+              aria-label={`Octave up for ${LANE_NAMES[l]}`}
+              onClick={() => stepLaneOctave(l, 1)}
+            >
+              +
+            </button>
+          </div>
+          {/* The E9 fence, spoken where the control lives: OCT transposes
+              the SOUND; the register row scrolls the VIEW. */}
+          <span class="phone-oct-fence">
+            Changes what you HEAR, not what you SEE — clamped at −3 and +3.
+            The OCT/SEMI row scrolls the view.
+          </span>
+        </div>
+      )}
+    </Show>
+  );
+}
+
 export function OptionsDrawerPanel() {
   // Focus lands INSIDE the drawer on open (the APG dialog expectation);
   // closeOptions() returns it to the opener. A macrotask, not a microtask:
@@ -119,6 +209,7 @@ export function OptionsDrawerPanel() {
       role="group"
       aria-label="Options"
     >
+      <LaneOctaveGroup />
       <BoothOptions compact />
     </div>
   );
