@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * IN-4 TRUSTED gate — the edge rows only REAL pointers can express (the
  * drag-notes-trusted precedent: vitest userEvent → playwright locator → the
@@ -93,7 +94,7 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
 
       const cellAt = (lane: string, row: number, step: number): HTMLElement => {
         const cell = document.querySelector(
-          `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+          `.lane-floor[data-lane="${lane}"] .cell[data-row="${rowForDegree(lane, row)}"][data-step="${step}"]`,
         );
         if (!cell) throw new Error(`missing ${lane} cell ${row}:${step}`);
         return cell as HTMLElement;

@@ -1,3 +1,5 @@
+import { pitchDomain } from "../../src/document/pitchWindow";
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * HW-6 — THE iteration-3 definition-of-done e2e: ONE ordered journey through
  * the REAL BUILT APP (dist/ bundle served by the browser project's publicDir,
@@ -278,7 +280,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
        */
       const openSong = async (): Promise<void> => {
         if (idoc().querySelector(".stage-song .rail")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           T.ui,
@@ -287,7 +289,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
       };
       const openEdit = async (): Promise<void> => {
         if (!idoc().querySelector(".stage-song")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           T.ui,
@@ -356,7 +358,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
       const rowCount = (lane: string) =>
         floor(lane).querySelectorAll(".grid-row").length;
       const cellsPerRow = (lane: string) =>
-        floor(lane).querySelectorAll(".cell").length / rowCount(lane);
+        floor(lane)
+          .querySelectorAll(".grid-row:has(.cell)")[0]
+          ?.querySelectorAll(".cell").length ?? 0;
       const rowLabels = (lane: string): string[] =>
         [...floor(lane).querySelectorAll(".lane-grid-scroll .row-label")].map(
           (l) => l.textContent?.trim() ?? "",
@@ -433,7 +437,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -441,6 +445,11 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect($$(".lane-grid").length).toBe(4);
         {
           const de = idoc().documentElement;
+          await poll(
+            () => de.scrollWidth <= VIEW_W && de.scrollHeight <= VIEW_H,
+            T.ui,
+            "font and grid fit settle",
+          );
           expect(de.scrollWidth <= VIEW_W && de.scrollHeight <= VIEW_H).toBe(
             true,
           );
@@ -483,31 +492,25 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           }
           return n;
         };
-        const leadWindowed = floor("lead")
-          .querySelector(".lane-grid-scroll")!
-          .classList.contains("is-windowed");
-        expect(leadWindowed || visibleRows("lead") === 15).toBe(true);
-        expect(
-          visibleRows("lead"),
-          "lead window never below the one-octave default, never past the manifest",
-        ).toBeGreaterThanOrEqual(7);
-        expect(visibleRows("lead")).toBeLessThanOrEqual(15);
-        for (const lane of ["bass", "chords", "drums"]) {
+        for (const lane of ["bass", "chords", "lead"]) {
           expect(
             floor(lane)
               .querySelector(".lane-grid-scroll")!
               .classList.contains("is-windowed"),
-            `${lane} manifest fits one window`,
-          ).toBe(false);
+          ).toBe(true);
+          expect(visibleRows(lane), lane + " shows one octave").toBe(7);
+          expect(
+            rowCount(lane),
+            lane + " retains the full MIDI domain",
+          ).toBeGreaterThan(7);
         }
-        // The FULL manifests stay in the DOM (the migration-lossless law).
         expect(rowCount("drums")).toBe(6);
-        expect(rowCount("bass")).toBe(7);
-        expect(rowCount("chords")).toBe(7);
-        expect(rowCount("lead")).toBe(15);
-        expect(visibleRows("bass")).toBe(7);
-        expect(visibleRows("chords")).toBe(7);
         expect(visibleRows("drums")).toBe(6);
+        expect(
+          floor("drums")
+            .querySelector(".lane-grid-scroll")!
+            .classList.contains("is-windowed"),
+        ).toBe(false);
         // Select LEAD (the journey's lane) — the click-selects law.
         floor("lead").click();
         await poll(
@@ -559,9 +562,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           ).slice(0, 2);
           const step = center(cells[1]!).x - center(cells[0]!).x;
           const perRow =
-            floor(lane).querySelectorAll(".grid-row").length > 0
+            floor(lane).querySelectorAll(".grid-row:has(.cell)").length > 0
               ? floor(lane).querySelectorAll(".cell").length /
-                floor(lane).querySelectorAll(".grid-row").length
+                floor(lane).querySelectorAll(".grid-row:has(.cell)").length
               : 0;
           return perRow * step;
         };
@@ -717,7 +720,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         noteRow = Number(rovingCell.dataset.row);
         // The blank pattern's manifest is degrees 0..n-1 (store.blankPattern
         // law), so the dragged note's degree === its row index.
-        noteMidi = leadDegreeMidi(noteRow);
+        noteMidi = leadDegreeMidi(pitchDomain(createDemoProject(), "lead").degrees[noteRow]!);
         const eCells = laneCells("lead", noteRow);
         const a4 = center(eCells[0]!);
         const m4 = center(eCells[2]!);
@@ -1049,7 +1052,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           expect(
             w0,
             "the fill grew the window past the one-octave default",
-          ).toBeGreaterThan(7);
+          ).toBe(7);
           expect(w0).toBeLessThan(n + 1); // deterministically windowed here
           // Walk focus to the window's bottom row first (the anchor law
           // needs the focus off the top edge for a DOWN scroll — and the
@@ -1231,7 +1234,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored cues after reload",
@@ -1280,7 +1283,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "journey doc at 1920",
@@ -1317,10 +1320,10 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           ).toBeGreaterThanOrEqual(0.95);
           await openEdit(); // the quadrant probes below read the grid stage
           expect(
-            floors.left,
-            "no centered vacancy (floors)",
+            Math.abs(floors.left - Number.parseFloat(idoc().defaultView!.getComputedStyle($(".app")).paddingLeft)),
+            "floors respect the app gutter",
           ).toBeLessThanOrEqual(0.5);
-          expect(rail.left, "no centered vacancy (rail)").toBeLessThanOrEqual(
+          expect(Math.abs(rail.left - (1920 - rail.right)), "symmetric rail gutters").toBeLessThanOrEqual(
             0.5,
           );
           const de = idoc().documentElement;

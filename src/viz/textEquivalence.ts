@@ -21,7 +21,7 @@
  * clock reads (`now` is the caller's audio-clock read), no DOM.
  */
 
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { ALL_LANE_IDS as LANE_IDS, type LaneId } from "../document/schema";
 
 /** Minimum spacing between emissions, audio-clock seconds (the rate law). */
 export const VIZ_ACTIVITY_MIN_INTERVAL_SECONDS = 2;
@@ -55,7 +55,12 @@ export interface VizActivitySummarizer {
 export function formatVizActivitySummary(
   counts: Readonly<Record<LaneId, number>>,
 ): string {
-  const parts = LANE_IDS.map((lane) => `${lane.toUpperCase()} ${counts[lane]}`);
+  const parts = LANE_IDS.filter(
+    (lane) => !lane.startsWith("extra") || counts[lane] > 0,
+  ).map(
+    (lane) =>
+      `${lane.startsWith("extra") ? `TRACK ${Number(lane.slice(-1)) + 4}` : lane.toUpperCase()} ${counts[lane]}`,
+  );
   return `${VIZ_ACTIVITY_PREFIX} — ${parts.join(" · ")}`;
 }
 

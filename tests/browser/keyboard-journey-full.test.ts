@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * DA-3 browser journey — the FULL make-a-loop + arrange + export walkthrough
  * driven ENTIRELY BY KEYBOARD against the REAL BUILT APP (dist/ bundle served
@@ -154,7 +155,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
        */
       const openSong = async (): Promise<void> => {
         if (idoc().querySelector(".stage-song .rail")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           T.ui,
@@ -163,7 +164,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
       };
       const openEdit = async (): Promise<void> => {
         if (!idoc().querySelector(".stage-song")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           T.ui,
@@ -187,8 +188,11 @@ describe("DA-3 full keyboard journey (built app)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -309,7 +313,8 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 8. PRESET + GATE STEPPERS --------------------------------------
         const bassSound = $('[aria-label="BASS sound"]');
         const presetName = () =>
-          bassSound.querySelector(".head-ctl-value")!.textContent ?? "";
+          bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
+            .value;
         const presetBefore = presetName();
         kbActivate(
           bassSound.querySelector<HTMLButtonElement>(
@@ -421,9 +426,14 @@ describe("DA-3 full keyboard journey (built app)", () => {
         const tiles = () =>
           Array.from(bassRow.querySelectorAll<HTMLButtonElement>(".rail-tile"));
         expect(tiles().length).toBe(4); // demo bass chain: 4 distinct patterns
+        expect(playBtn().getAttribute("aria-pressed")).toBe("true");
+        const sounding = tiles().findIndex(
+          (t) => t.dataset.sounding === "true",
+        );
+        const targetIndex = (Math.max(0, sounding) + 2) % tiles().length;
         tiles()[0]!.focus();
         // Rove to the last tile (arrows per the rail map) and trigger it.
-        for (let i = 1; i < tiles().length; i++) key(active()!, "ArrowRight");
+        for (let i = 0; i < targetIndex; i++) key(active()!, "ArrowRight");
         const target = active() as HTMLButtonElement;
         kbActivate(target);
         let sawPending = false;
@@ -503,8 +513,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
         await poll(
           () =>
             (bassRow.querySelector<HTMLElement>(".head-sr[role='status']")
-              ?.textContent ?? "") ===
-            "PATTERN F CREATED · 1 BAR · APPENDED",
+              ?.textContent ?? "") === "PATTERN F CREATED · 1 BAR · APPENDED",
           T.ui,
           "creation announcement",
         );

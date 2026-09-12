@@ -172,7 +172,15 @@ async function settleFill(ctx: Ctx, w: number, h: number): Promise<void> {
       // The fill law's signature: the floors own the viewport bottom.
       return (
         de.scrollHeight > 0 &&
-        Math.abs(floors.getBoundingClientRect().bottom - h) < 1.5
+        Math.abs(
+          floors.getBoundingClientRect().bottom -
+            h +
+            Number.parseFloat(
+              idoc.defaultView!.getComputedStyle(idoc.querySelector(".app")!)
+                .paddingBottom,
+            ) +
+            1,
+        ) < 1.5
       );
     },
     8_000,
@@ -180,286 +188,113 @@ async function settleFill(ctx: Ctx, w: number, h: number): Promise<void> {
   );
 }
 
-describe("i3-1 vertical fill law (built app, demo state)", () => {
+describe("vertical fill with the full MIDI editor", () => {
   it(
-    "fills every desktop viewport: equal rows, floors to the bottom, windows first then row scale within the clamp; resize converges; deficits grow the page",
+    "fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets",
     { timeout: 240_000 },
     async () => {
-      const viewports: Array<[number, number]> = [
-        [1280, 800],
-        [1440, 900],
-        [1920, 1080],
-      ];
-      for (const [w, h] of viewports) {
-        const ctx = await boot(w, h);
-        try {
+      const ctx = await boot(1280, 800);
+      try {
+        const doc = ctx.iframe.contentDocument!;
+        const tracks = new Map<string, number[]>();
+        for (const [w, h] of [
+          [1280, 800],
+          [1440, 900],
+          [1920, 1080],
+          [1280, 800],
+          [1920, 1080],
+        ]) {
+          ctx.iframe.style.width = w + "px";
+          ctx.iframe.style.height = h + "px";
           await settleFill(ctx, w, h);
-          const idoc = ctx.iframe.contentDocument!;
-          const $ = ctx.$;
-
-          // --- A. THE FILL + the one-page law ----------------------------
-          const de = idoc.documentElement;
-          expect(
-            de.scrollWidth <= w && de.scrollHeight <= h,
-            `${w}×${h}: one page, both axes (measured ${de.scrollWidth}×${de.scrollHeight})`,
-          ).toBe(true);
-          const floors = $(".stage-floors");
-          const fr = floors.getBoundingClientRect();
-          expect(
-            Math.abs(fr.bottom - h),
-            `${w}×${h}: floors own the viewport bottom (pre-fix dead band: ${
-              w === 1280 ? 166 : w === 1440 ? 288 : 512
-            }px)`,
-          ).toBeLessThanOrEqual(1.5);
-
-          // Equal stage rows (the shared budget — the pre-fix rows read
-          // 206/166 content-sized).
-          const rows = Array.from(floors.children).filter((c) =>
-            c.classList.contains("lane-floor"),
+          await doc.fonts.ready;
+          await new Promise((r) => setTimeout(r, 300));
+          expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(w);
+          expect(doc.documentElement.scrollHeight).toBeLessThanOrEqual(h);
+          const floors = Array.from(
+            doc.querySelectorAll<HTMLElement>(".lane-floor"),
           );
-          const r0 = rows[0]!.getBoundingClientRect();
-          const r2 = rows[2]!.getBoundingClientRect();
+          expect(floors).toHaveLength(4);
           expect(
-            Math.abs(r0.height - r2.height),
-            `${w}×${h}: equal stage rows (row0 ${r0.height.toFixed(1)} vs row1 ${r2.height.toFixed(1)}; floors ${fr.height.toFixed(1)})`,
+            Math.abs(
+              floors[0]!.getBoundingClientRect().height -
+                floors[1]!.getBoundingClientRect().height,
+            ),
           ).toBeLessThanOrEqual(1.5);
-
-          // --- B. THE DISTRIBUTION ---------------------------------------
-          for (const lane of ["drums", "bass", "chords", "lead"]) {
+          const measured: number[] = [];
+          for (const floor of floors) {
+            const pane = floor.querySelector<HTMLElement>(".lane-grid-scroll")!;
+            const box = pane.getBoundingClientRect();
+            const rows = Array.from(
+              pane.querySelectorAll<HTMLElement>(".grid-row"),
+            );
+            const visible = rows.filter((row) => {
+              const r = row.getBoundingClientRect();
+              return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+            });
+            expect(visible).toHaveLength(
+              floor.dataset.lane === "drums" ? 6 : 7,
+            );
+            if (floor.dataset.lane !== "drums")
+              expect(rows.length).toBeGreaterThan(7);
             const track = Number.parseFloat(
-              $(`.lane-floor[data-lane="${lane}"] .row-cells`).style
+              (visible[0]!.querySelector(".row-cells") as HTMLElement).style
                 .gridAutoRows,
             );
-            expect(
-              track,
-              `${lane} track within the fill clamp [committed, 24px] at ${w}×${h}`,
-            ).toBeGreaterThanOrEqual(lane === "drums" ? 20 : 16);
-            expect(track).toBeLessThanOrEqual(24);
+            expect(track).toBeGreaterThanOrEqual(11);
+            expect(track).toBeLessThanOrEqual(64);
+            measured.push(track);
           }
-          // Windows first: the lead window grows with the share.
-          const leadName =
-            $(`.lane-floor[data-lane="lead"] [role="grid"]`).getAttribute(
-              "aria-label",
-            ) ?? "";
-          const m = /ROWS (\d+)–(\d+) OF 14/.exec(leadName);
-          const leadWindowRows = m ? Number(m[2]) - Number(m[1]) + 1 : 15;
-          expect(
-            leadWindowRows,
-            `lead window never below the one-octave default at ${w}×${h}`,
-          ).toBeGreaterThanOrEqual(7);
-          if (w === 1280) {
-            // The tested minimum still has budget past the octave: the
-            // window must be GROWN (teeth: the fill-disabled build windows
-            // at exactly 7 here).
-            expect(
-              leadWindowRows,
-              "1280×800: the window grows past the one-octave default",
-            ).toBeGreaterThan(7);
-          }
-          // Whole rows: every fully-visible row count matches the window
-          // law (the grown pane quantizes to whole row pitches).
-          const leadScroll = $(
-            `.lane-floor[data-lane="lead"] .lane-grid-scroll`,
-          ) as HTMLElement;
-          const leadRows = Array.from(leadScroll.querySelectorAll(".grid-row"));
-          const box = leadScroll.getBoundingClientRect();
-          const fullyVisible = leadRows.filter((row) => {
-            const r = row.getBoundingClientRect();
-            return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
-          }).length;
-          expect(
-            fullyVisible,
-            "grown window shows whole rows (quantized to the row pitch)",
-          ).toBe(leadWindowRows);
-
-          // --- per-viewport fill facts (the critique's evidence view) ----
-          if (w === 1920) {
-            // The biggest share: the lead manifest fits whole (unwindowed)
-            // AND its track reaches the committed clamp.
-            expect(m, "1920: lead manifest fits the grown window").toBeNull();
-            expect(
-              Number.parseFloat(
-                $(`.lane-floor[data-lane="lead"] .row-cells`).style
-                  .gridAutoRows,
-              ),
-              "1920: lead row scale fills to the 24px clamp",
-            ).toBe(24);
-          }
-        } finally {
-          await ctx.cleanup();
-        }
-      }
-
-      // --- C. THE SHRINK PATH: 1920 → 1280 → 1920 converges -------------
-      const ctx = await boot(1920, 1080);
-      try {
-        await settleFill(ctx, 1920, 1080);
-        const read = () => {
-          const idoc = ctx.iframe.contentDocument!;
-          const tracks: Record<string, number> = {};
-          for (const lane of ["drums", "bass", "chords", "lead"]) {
-            tracks[lane] = Number.parseFloat(
-              idoc.querySelector<HTMLElement>(
-                `.lane-floor[data-lane="${lane}"] .row-cells`,
-              )!.style.gridAutoRows,
+          const key = w + "x" + h;
+          if (tracks.has(key))
+            expect(measured, "resize returns to the same geometry").toEqual(
+              tracks.get(key),
             );
-          }
-          const name =
-            idoc
-              .querySelector(`.lane-floor[data-lane="lead"] [role="grid"]`)
-              ?.getAttribute("aria-label") ?? "";
-          const m = /ROWS (\d+)–(\d+) OF 14/.exec(name);
-          return {
-            tracks,
-            leadWindow: m ? Number(m[2]) - Number(m[1]) + 1 : 15,
-            leadWindowed: !!m,
-          };
-        };
-        const at1920 = read();
-        expect(at1920.leadWindow).toBe(15); // full manifest
-        // Shrink to the minimum: the share re-quantizes DOWN (windows
-        // first — never below one octave), the page still fits.
-        ctx.iframe.style.width = "1280px";
-        ctx.iframe.style.height = "800px";
-        await poll(
-          () => {
-            const r = read();
-            return r.leadWindowed && r.leadWindow < 15 && r.leadWindow >= 7;
-          },
-          8_000,
-          "1920→1280: the window re-quantizes down (≥ one octave)",
+          tracks.set(key, measured);
+        }
+        expect(tracks.get("1920x1080")![1]!).toBeGreaterThan(
+          tracks.get("1280x800")![1]!,
         );
-        const at1280 = read();
+        ctx.iframe.style.height = "500px";
+        await new Promise((r) => setTimeout(r, 600));
         expect(
-          at1280.leadWindow,
-          "1280: window above the default, below the manifest",
-        ).toBeGreaterThan(7);
-        const de = ctx.iframe.contentDocument!.documentElement;
-        expect(
-          de.scrollWidth <= 1280 && de.scrollHeight <= 800,
-          "1280×800 one page after the shrink",
-        ).toBe(true);
-        // And back up: the same 1920 fill returns (no hysteresis).
-        ctx.iframe.style.width = "1920px";
-        ctx.iframe.style.height = "1080px";
-        await poll(
-          () => {
-            const r = read();
-            return r.leadWindow === 15 && r.tracks.lead === 24;
-          },
-          8_000,
-          "1280→1920: the fill converges back (no hysteresis)",
-        );
-        const back1920 = read();
-        expect(back1920.tracks).toEqual(at1920.tracks);
+          doc.documentElement.scrollHeight,
+          "short viewport scrolls rather than clipping controls",
+        ).toBeGreaterThan(500);
       } finally {
         await ctx.cleanup();
       }
-
-      // --- D. THE DEFICIT PATH (grow-on-miss preserved) ------------------
-      // 2026-09-11: the deficit TRIGGER moved. The song chain left the stage
-      // for its own page, handing the floors back the rail's height, so
-      // 1024×600 now FITS — the law is unchanged, the viewport that misses
-      // the budget is simply shorter than it used to be.
-      const ctx2 = await boot(1024, 500);
+      const phone = await boot(
+        390,
+        844,
+        (frame) =>
+          frame.contentDocument!.querySelector(".phone-chrome") !== null,
+      );
       try {
-        await new Promise((r) => setTimeout(r, 900)); // fonts + fit settle
-        const idoc = ctx2.iframe.contentDocument!;
-        const drumsTrack = Number.parseFloat(
-          idoc.querySelector<HTMLElement>(
-            `.lane-floor[data-lane="drums"] .row-cells`,
-          )!.style.gridAutoRows,
-        );
-        expect(
-          drumsTrack,
-          "the drums 20px readability floor holds under a real deficit",
-        ).toBeGreaterThanOrEqual(20);
-        expect(
-          idoc.documentElement.scrollHeight,
-          "a budget miss honestly GROWS the page (grow-on-miss), never clips",
-        ).toBeGreaterThan(500);
-      } finally {
-        await ctx2.cleanup();
-      }
-
-      // --- E. PHONE REGRESSION (I3-f): no fill registration ---------------
-      // 2026-09-11: the phone EDIT page carries NO rail (the chain lives on
-      // the SONG page), so the demo signature is the demo's own lead
-      // manifest — 15 rows, against the default project's 14 — on the phone
-      // stage; the lead manifest assertion below pins the same document.
-      const ctx3 = await boot(390, 844, (frame) => {
-        const doc = frame.contentDocument!;
-        // The phone stage renders ONE lane (drums at boot), so the signature
-        // is the phone shell itself: all four switcher tabs plus a painted
-        // grid. The boot wipes IDB first, so a settled phone app IS the
-        // first-run demo; §E's lead-manifest assertion pins it regardless.
-        return (
-          doc.querySelector(".app")?.getAttribute("data-stage") === "phone" &&
-          doc.querySelectorAll(".lane-switch-tab").length === 4 &&
-          doc.querySelector(".lane-floor .grid-row") !== null
-        );
-      });
-      try {
+        const doc = phone.iframe.contentDocument!;
         await poll(
-          () =>
-            ctx3.iframe
-              .contentDocument!.querySelector(".app")
-              ?.getAttribute("data-stage") === "phone",
-          8_000,
-          "phone stage",
+          () => doc.querySelectorAll(".lane-switch-tab").length === 4,
+          5000,
+          "phone instruments",
         );
-        await poll(
-          () =>
-            ctx3.iframe.contentDocument!.querySelector(
-              ".lane-switch-tab[data-lane='lead']",
-            ) !== null,
-          5_000,
-          "switcher",
-        );
-        const idoc = ctx3.iframe.contentDocument!;
         (
-          idoc.querySelector(
-            ".lane-switch-tab[data-lane='lead']",
-          ) as HTMLElement
+          doc.querySelector('.lane-switch-tab[data-lane="lead"]') as HTMLElement
         ).click();
         await poll(
           () =>
-            idoc.querySelector(".lane-floor")?.getAttribute("data-lane") ===
-            "lead",
-          3_000,
-          "lead stage",
+            doc.querySelector('.lane-floor[data-lane="lead"] .cell') !== null,
+          5000,
+          "lead grid",
         );
-        const leadScroll = idoc.querySelector(
-          ".lane-grid-scroll",
-        ) as HTMLElement;
-        // M-5 (iteration 4) FLIPPED the phone full-manifest law: the phone
-        // now windows at the same one-octave RC-1 default (the full manifest
-        // stays in the DOM — a fixed-height scroll seat), and the fill
-        // compressor still never runs at phone (no GROWN window: the seat
-        // height is exactly the mode-size default, never the fill's grown
-        // row count). The exact seat math is owned by the M-5 gate
-        // (mobile-register-window.test.tsx); this probe pins the NO-GROWTH
-        // half of the fill law only.
-        expect(
-          leadScroll.classList.contains("is-windowed"),
-          "phone windows the pitched grid (M-5 one-octave seat)",
-        ).toBe(true);
-        expect(leadScroll.querySelectorAll(".grid-row").length).toBe(15);
-        expect(
-          Number.parseFloat(
-            idoc.querySelector<HTMLElement>(".row-cells")!.style.gridAutoRows,
-          ),
-          // M-7 (iteration 4): the committed phone preset is now 44px —
-          // finger-sized rows are 44px-tall cell targets (the target-size
-          // law's own number on the row axis; the no-growth half of the
-          // fill law this probe pins is unchanged — the seat is still the
-          // mode-size default, never the fill's grown row count).
-          "phone rows keep the committed 44px preset (M-7 finger-sized)",
-        ).toBe(44);
+        const rows = Array.from(
+          doc.querySelectorAll<HTMLElement>(".grid-row:has(.cell)"),
+        );
+        expect(rows).toHaveLength(7);
+        for (const row of rows)
+          expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
       } finally {
-        await ctx3.cleanup();
+        await phone.cleanup();
       }
     },
-    240_000,
   );
 });

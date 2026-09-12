@@ -18,12 +18,11 @@ import { ALL_LANE_IDS } from "../document/schema";
 
 import {
   DRUM_PIECES,
-  PITCH_CLASS_NAMES,
   type LaneId,
   type PatternBars,
   type ProjectDocument,
 } from "../document/schema";
-import { effectiveScale, modeSize } from "../document/scales";
+import { midiLabel, pitchDomain } from "../document/pitchWindow";
 import type { PendingSwitchSnapshot } from "../engine/session";
 
 /** One chain slot as the rail renders it. */
@@ -135,9 +134,8 @@ export function barOfStep(step: number): number {
 /**
  * The ROW LABEL a refusal names — the grid's own row vocabulary: drum
  * pieces uppercase (KICK…), pitched rows as the pitch-name labels the grid
- * renders (LaneGrid.pitchedLabels' law: pitch class + ′ above the first
- * octave). `fallback` covers a degree outside the manifest (not
- * UI-reachable; validation ties notes to rows in practice).
+ * renders, including the octave and negative scale degrees. The degree
+ * belongs to the saved note; it is not an index into the descending grid.
  */
 export function resizeRowLabel(
   doc: ProjectDocument,
@@ -146,11 +144,9 @@ export function resizeRowLabel(
 ): string {
   if (typeof row === "string") return row.toUpperCase();
   if (lane === "drums") return (DRUM_PIECES[row] ?? `ROW ${row}`).toUpperCase();
-  const scale = effectiveScale(doc, lane);
-  const size = modeSize(scale.mode);
-  const pc = (scale.root + scale.intervals[row % size]) % 12;
-  const octave = Math.floor(row / size);
-  return PITCH_CLASS_NAMES[pc] + (octave > 0 ? "′" : "");
+  const domain = pitchDomain(doc, lane);
+  const index = domain.degrees.indexOf(row);
+  return index < 0 ? `DEGREE ${row}` : midiLabel(domain.pitches[index]!);
 }
 
 // ---------------------------------------------------------------------------

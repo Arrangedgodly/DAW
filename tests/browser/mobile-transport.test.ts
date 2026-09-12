@@ -99,7 +99,7 @@ async function bootIframe(
   // the demo loaded — and they never were the thing under test here. The
   // drums KIT readout is the stage-independent demo signal (it was already
   // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+  await poll(() => $$(".head-ctl-value").some((v) => (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP"), 5_000, "demo loaded");
   // M-3: the pinned transport row is part of the phone boot signal — the
   // gate fails LOUD if the row (or its button) never renders.
   if (w < 768) {

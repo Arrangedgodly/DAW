@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "solid-js/web";
 import LaneGrid from "../../src/components/LaneGrid";
+import { closeFillRails } from "../../src/state/fillRails";
 import { applyEuclidFill, docStore } from "../../src/state/store";
 // DA-3 fix precedent (fx-console-trusted/help gates): components import
 // their CSS but NOT the token sheet — main.tsx's job in the real bundle.
@@ -30,11 +31,13 @@ function mount(lane: "drums" | "bass"): {
   cleanup: () => void;
 } {
   const host = document.createElement("div");
+  closeFillRails();
   document.body.append(host);
   const dispose = render(() => <LaneGrid lane={lane} />, host);
   return {
     host,
     cleanup: () => {
+      closeFillRails();
       dispose();
       host.remove();
     },
@@ -177,26 +180,16 @@ describe("Euclidean fill control (browser DOM)", () => {
     ]);
     await document.fonts.ready;
     try {
-      const rail = host.querySelector(
-        '.row-fill[data-row="0"]',
-      ) as HTMLElement;
-      expect(rail.style.width, "slot width renderer-pinned inline").toBe(
-        "220px",
-      );
+      host.querySelector<HTMLButtonElement>(".head-fill-toggle")!.click();
+      const rail = host.querySelector('.row-fill[data-row="0"]') as HTMLElement;
+      expect(rail.classList.contains("is-overlay")).toBe(true);
       const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
-      const value = rail.querySelector(".row-fill-value")!;
-      const charPx =
-        value.getBoundingClientRect().width /
-        Math.max(1, (value.textContent ?? "0/16").length);
       expect(
         ctl.scrollWidth,
-        "control natural width fits the slot (+1 readout char headroom)",
-      ).toBeLessThanOrEqual(rail.clientWidth - charPx);
-      const cells = [
-        ...host.querySelectorAll(".grid-row"),
-      ][0]!.querySelector(".row-cells")!;
+        "control natural width fits the overlay",
+      ).toBeLessThanOrEqual(rail.clientWidth);
       expect(ctl.getBoundingClientRect().right).toBeLessThanOrEqual(
-        cells.getBoundingClientRect().left + 0.5,
+        rail.getBoundingClientRect().right + 0.5,
       );
       // The critique's exact probe: elementFromPoint at every control's
       // center (SET used to resolve to a .cell under the paint order).

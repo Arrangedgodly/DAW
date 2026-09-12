@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * HW-5 — THE iteration-2 definition-of-done e2e: one ordered journey through
  * the REAL BUILT APP (dist/ bundle served by the browser project's publicDir,
@@ -81,7 +82,10 @@ function poll(
 
 // --- tiny test-owned parsers (same laws as the HW-4/MF-4 suites) -----------
 
-function decodeWav16(bytes: Uint8Array): { frames: number; mono: Float32Array } {
+function decodeWav16(bytes: Uint8Array): {
+  frames: number;
+  mono: Float32Array;
+} {
   const ascii = (at: number, n: number) =>
     String.fromCharCode(...bytes.slice(at, at + n));
   const u16 = (at: number) => bytes[at]! | (bytes[at + 1]! << 8);
@@ -103,8 +107,7 @@ function decodeWav16(bytes: Uint8Array): { frames: number; mono: Float32Array } 
   const frames = dataBytes / 4;
   const mono = new Float32Array(frames);
   for (let i = 0; i < frames; i++) {
-    mono[i] =
-      (i16(44 + i * 4) / 32767 + i16(44 + i * 4 + 2) / 32767) / 2;
+    mono[i] = (i16(44 + i * 4) / 32767 + i16(44 + i * 4 + 2) / 32767) / 2;
   }
   return { frames, mono };
 }
@@ -185,7 +188,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
        */
       const openSong = async (): Promise<void> => {
         if (idoc().querySelector(".stage-song .rail")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           T.ui,
@@ -194,7 +197,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
       };
       const openEdit = async (): Promise<void> => {
         if (!idoc().querySelector(".stage-song")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           T.ui,
@@ -234,9 +237,9 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       };
       const tile = (lane: string, slot: number): HTMLButtonElement => {
-        const el = $(`.rail-row[data-lane="${lane}"]`).querySelectorAll<
-          HTMLButtonElement
-        >(".rail-tile")[slot];
+        const el = $(
+          `.rail-row[data-lane="${lane}"]`,
+        ).querySelectorAll<HTMLButtonElement>(".rail-tile")[slot];
         if (!el) throw new Error(`missing ${lane} rail tile ${slot}`);
         return el;
       };
@@ -292,7 +295,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -300,6 +303,11 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         expect($$(".lane-grid").length).toBe(4);
         {
           const de = idoc().documentElement;
+          await poll(
+            () => de.scrollWidth <= VIEW_W && de.scrollHeight <= VIEW_H,
+            T.ui,
+            "font and grid fit settle",
+          );
           expect(de.scrollWidth <= VIEW_W && de.scrollHeight <= VIEW_H).toBe(
             true,
           );
@@ -320,14 +328,16 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
             ?.startsWith("LEAD grid · EDITING"),
         ).toBe(true);
         expect(
-          floor("drums").querySelector("[role='grid']")!.getAttribute("aria-label"),
+          floor("drums")
+            .querySelector("[role='grid']")!
+            .getAttribute("aria-label"),
         ).toBe("DRUMS grid · VIEW ONLY");
         // Keyboard twin: focus the (now editable) lead grid's roving cell,
         // then PageUp selects the previous quadrant (lead → chords).
         const roving = () =>
-          [
-            ...floor("lead").querySelectorAll<HTMLElement>(".cell"),
-          ].find((c) => c.tabIndex === 0);
+          [...floor("lead").querySelectorAll<HTMLElement>(".cell")].find(
+            (c) => c.tabIndex === 0,
+          );
         await poll(
           () => roving() !== undefined,
           T.ui,
@@ -364,14 +374,20 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           ).sort((a, b) => Number(a.dataset.step) - Number(b.dataset.step));
         let dragRow = -1;
         let dragStart = -1;
-        outer: for (let row = 0; row < 8; row++) {
+        const mountedBassRows = [
+          ...new Set(
+            Array.from(
+              floor("bass").querySelectorAll<HTMLElement>(".cell"),
+              (cell) => Number(cell.dataset.row),
+            ),
+          ),
+        ];
+        outer: for (const row of mountedBassRows) {
           const cells = bassCells(row);
           if (cells.length < 16) continue;
           // ≤ 8 so the stage-4 edge-drag (+2 steps) stays inside the pattern.
           for (let s = 0; s + 3 < cells.length && s <= 8; s++) {
-            if (
-              cells.slice(s, s + 4).every((c) => c.dataset.on !== "true")
-            ) {
+            if (cells.slice(s, s + 4).every((c) => c.dataset.on !== "true")) {
               dragRow = row;
               dragStart = s;
               break outer;
@@ -414,8 +430,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // --- 4. RESIZE: edge-drag, then keyboard (announcement parity) ----
         const rowEl = cells[0]!.parentElement as HTMLElement;
         const origin = rowEl.getBoundingClientRect();
-        const stepW =
-          center(cells[1]!).x - center(cells[0]!).x;
+        const stepW = center(cells[1]!).x - center(cells[0]!).x;
         const px = (frac: number) => origin.left + frac * stepW;
         const edge = myEdge()!;
         const runEl = edge.parentElement as HTMLElement;
@@ -466,7 +481,12 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         const d2 = center(tile("drums", 2));
         const b2 = center(tile("bass", 2));
         pe(tile("drums", 0), "pointerdown", d0.x, d0.y);
-        pe(tile("drums", 1), "pointermove", center(tile("drums", 1)).x, center(tile("drums", 1)).y);
+        pe(
+          tile("drums", 1),
+          "pointermove",
+          center(tile("drums", 1)).x,
+          center(tile("drums", 1)).y,
+        );
         pe(tile("drums", 2), "pointermove", d2.x, d2.y);
         pe(tile("bass", 2), "pointermove", b2.x, b2.y);
         // Preview marks before the commit.
@@ -488,7 +508,9 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // (The rail's active read follows switches; natural chain advance
         // does not move it — pre-existing v0 law, recorded in the log.)
         const landed = () =>
-          ["active", "selected"].includes(tile("drums", 2).dataset.state ?? "") &&
+          ["active", "selected"].includes(
+            tile("drums", 2).dataset.state ?? "",
+          ) &&
           ["active", "selected"].includes(tile("bass", 2).dataset.state ?? "");
         await poll(landed, T.switch, "both cued lanes to land together");
         playBtn().click();
@@ -503,9 +525,10 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // --- 6. PRESETS: Karplus-Strong, then sample-backed (LAZY path) ---
         const bassSound = () => $('[aria-label="BASS sound"]');
         const presetName = () =>
-          bassSound().querySelector(".head-ctl-value")!.textContent ?? "";
+          bassSound().querySelector<HTMLSelectElement>("select")!
+            .selectedOptions[0]!.textContent ?? "";
         const stepPreset = async (target: string) => {
-          for (let i = 0; i < 16 && presetName() !== target; i++) {
+          for (let i = 0; i < bassSound().querySelector<HTMLSelectElement>("select")!.options.length && presetName() !== target; i++) {
             bassSound()
               .querySelector<HTMLButtonElement>(
                 'button[aria-label="Next preset for BASS"]',
@@ -546,8 +569,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         )!;
         bassVol.focus();
         await poll(
-          () =>
-            ($(".info-view-text")?.textContent ?? "").length > 10,
+          () => ($(".info-view-text")?.textContent ?? "").length > 10,
           T.ui,
           "focus-driven info text",
         );
@@ -563,9 +585,9 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         );
         await poll(
           () =>
-            ($(".info-view-title")?.textContent ?? "").toLowerCase().includes(
-              "tempo",
-            ),
+            ($(".info-view-title")?.textContent ?? "")
+              .toLowerCase()
+              .includes("tempo"),
           T.ui,
           "hover-driven info text (TEMPO)",
         );
@@ -677,24 +699,25 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored cues after reload",
         );
         await poll(
           () =>
-            floor("drums").querySelector<HTMLButtonElement>(
-              'button[aria-label="Mute DRUMS"]',
-            )!.getAttribute("aria-pressed") === "true",
+            floor("drums")
+              .querySelector<HTMLButtonElement>(
+                'button[aria-label="Mute DRUMS"]',
+              )!
+              .getAttribute("aria-pressed") === "true",
           T.ui,
           "mix (drums MUTE) survived the reload",
         );
         await poll(
           () =>
             $('[aria-label="BASS sound"]')
-              .querySelector(".head-ctl-value")!
-              .textContent?.trim() === "SUB DROP",
+              .querySelector<HTMLSelectElement>("select")!.selectedOptions[0]!.textContent?.trim() === "SUB DROP",
           T.ui,
           "sample preset survived the reload",
         );
@@ -703,21 +726,31 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         const noteSurvived = async (): Promise<boolean> => {
           await openSong(); // the tiles this clicks through are on the page
           const bassTiles = Array.from(
-            $('.rail-row[data-lane="bass"]').querySelectorAll<HTMLButtonElement>(
-              ".rail-tile",
-            ),
+            $(
+              '.rail-row[data-lane="bass"]',
+            ).querySelectorAll<HTMLButtonElement>(".rail-tile"),
           );
           for (const t of bassTiles) {
             t.click();
             await new Promise((r) => setTimeout(r, 120));
+            await openEdit();
+            const pane = floor("bass").querySelector<HTMLElement>(".lane-grid-scroll")!;
+            const row = floor("bass").querySelectorAll<HTMLElement>(".grid-row")[created.row]!;
+            pane.scrollTop += row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+            await new Promise(r => setTimeout(r, 250));
             const e = floor("bass").querySelector(
               `.note-edge[data-row="${created.row}"][data-start="${created.start}"]`,
             );
             if (e && Number(e.dataset.length) === created.length) return true;
+            await openSong();
           }
           return false;
         };
-        await poll(() => noteSurvived(), T.save, "dragged note survived reload");
+        await poll(
+          () => noteSurvived(),
+          T.save,
+          "dragged note survived reload",
+        );
         // Post-reload export: byte-identical (determinism through save).
         const wavAfterReload = await exportVia("EXPORT WAV");
         expect(wavAfterReload.byteLength).toBe(wavMixed2.byteLength);
@@ -756,7 +789,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "migrated demo cues",
@@ -765,18 +798,18 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // (6-step gate + 9 sustains) migrate to 15-step notes.
         await openSong();
         const chordsTiles = Array.from(
-          $('.rail-row[data-lane="chords"]').querySelectorAll<HTMLButtonElement>(
-            ".rail-tile",
-          ),
+          $(
+            '.rail-row[data-lane="chords"]',
+          ).querySelectorAll<HTMLButtonElement>(".rail-tile"),
         );
         let saw15StepPad = false;
         for (const t of chordsTiles) {
           t.click();
           await new Promise((r) => setTimeout(r, 120));
           if (
-            Array.from(
-              floor("chords").querySelectorAll(".note-edge"),
-            ).some((e) => Number(e.dataset.length) === 15)
+            Array.from(floor("chords").querySelectorAll(".note-edge")).some(
+              (e) => Number(e.dataset.length) === 15,
+            )
           ) {
             saw15StepPad = true;
             break;

@@ -1,3 +1,4 @@
+import { createLaneDisplayNames } from "../state/laneDisplayNames";
 /**
  * StageFloor (DES-4, DES-6, LY-1): the four lane QUADRANTS in the committed
  * 2×2 arrangement (town-hall I2-1 — user synthesis, not re-derived here):
@@ -49,7 +50,6 @@ import { addInstrumentLane, docStore } from "../state/store";
 import { densityBand } from "../state/ambientDensity";
 import { registerHelp } from "../help/registry";
 import LaneGrid from "./LaneGrid";
-import { LANE_NAMES } from "./laneMeta";
 
 const LANES: readonly LaneId[] = ["drums", "bass", "chords", "lead"];
 
@@ -58,6 +58,11 @@ const LANES: readonly LaneId[] = ["drums", "bass", "chords", "lead"];
  * registration law). Only mounted at phone width.
  */
 registerHelp([
+  {
+    id: "stage.addInstrument",
+    title: "ADD INSTRUMENT",
+    text: "Adds an empty instrument lane and opens its note editor. Choose a preset to set its sound. You can add four instruments beyond the default drums, bass, chords, and lead. Added instruments appear in the second row of tabs.",
+  },
   {
     id: "stage.switcher",
     title: "LANE SWITCHER",
@@ -74,6 +79,7 @@ registerHelp([
  * select + move focus (automatic activation).
  */
 export function LaneSwitcher(): JSX.Element {
+  const displayName = createLaneDisplayNames();
   const [lanes, setLanes] = createSignal(
     docStore.getState().doc.lanes.map((lane) => lane.id),
   );
@@ -144,15 +150,18 @@ export function LaneSwitcher(): JSX.Element {
               data-help="stage.switcher"
               onClick={() => select(lane)}
             >
-              {lane.startsWith("extra")
-                ? `Track ${Number(lane.slice(-1)) + 4}`
-                : LANE_NAMES[lane]}
+              {displayName(lane)}
             </button>
           )}
         </For>
       </div>
       <Show when={lanes().length < 8}>
-        <button type="button" class="phone-add-instrument" onClick={add}>
+        <button
+          type="button"
+          class="phone-add-instrument"
+          data-help="stage.addInstrument"
+          onClick={add}
+        >
           <span aria-hidden="true">+</span> Add new instrument
         </button>
       </Show>

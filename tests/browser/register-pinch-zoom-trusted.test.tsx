@@ -105,7 +105,7 @@ async function bootIframe(
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
       $$(".head-ctl-value").some((v) =>
-        (v.textContent ?? "").includes("SOFT STEP"),
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",
@@ -177,7 +177,8 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
         const pitch = (): number => {
           const r = rows();
           return (
-            r[1]!.getBoundingClientRect().top - r[0]!.getBoundingClientRect().top
+            r[1]!.getBoundingClientRect().top -
+            r[0]!.getBoundingClientRect().top
           );
         };
         /** The row TRACK px (gridAutoRows) — the honest zoom factor basis:
@@ -185,9 +186,8 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
          * ratio carries it unscaled; the track ratio is exactly the factor. */
         const track = (): number =>
           Number.parseFloat(
-            getComputedStyle(
-              $(".lane-floor[data-lane='lead'] .row-cells"),
-            ).gridAutoRows,
+            getComputedStyle($(".lane-floor[data-lane='lead'] .row-cells"))
+              .gridAutoRows,
           );
         const rowBase = (): number =>
           rows()[0]!.getBoundingClientRect().top -
@@ -298,7 +298,9 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           maxTouchPoints: 5,
         });
         const map = (ix: number, iy: number) => {
-          const fr = (window.frameElement as HTMLElement).getBoundingClientRect();
+          const fr = (
+            window.frameElement as HTMLElement
+          ).getBoundingClientRect();
           const ir = iframe.getBoundingClientRect();
           const sx = fr.width / innerWidth;
           const sy = fr.height / innerHeight;
@@ -319,10 +321,7 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           const r = seat().getBoundingClientRect();
           const cx = r.left + r.width / 2;
           const cy = r.top + r.height / 2;
-          const p = (half: number) => [
-            map(cx - half, cy),
-            map(cx + half, cy),
-          ];
+          const p = (half: number) => [map(cx - half, cy), map(cx + half, cy)];
           const [f1a, f2a] = p(halfA);
           await c.send("Input.dispatchTouchEvent", {
             type: "touchStart",
@@ -395,10 +394,12 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           rows()[row]!.querySelector(".row-label")!.textContent ?? "";
         const run0Label = labelAt(run0Row);
         const stepPitch = (): number => {
-          const r0 = rows()[0]!
+          const r0 = rows()
+            .find((r) => r.querySelector(".cell"))!
             .querySelectorAll(".cell")[0]!
             .getBoundingClientRect();
-          const r1 = rows()[0]!
+          const r1 = rows()
+            .find((r) => r.querySelector(".cell"))!
             .querySelectorAll(".cell")[1]!
             .getBoundingClientRect();
           return r1.left - r0.left;
@@ -422,15 +423,18 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
         {
           const run = $$(".lane-floor[data-lane='lead'] .note-run").find(
             (r) =>
-              Number((r.querySelector(".note-edge") as HTMLElement).dataset.row) ===
-                run0Row && Number(r.dataset.start) === run0Start,
+              Number(
+                (r.querySelector(".note-edge") as HTMLElement).dataset.row,
+              ) === run0Row && Number(r.dataset.start) === run0Start,
           );
-          expect(run, "the demo note's run still exists (row + start)").toBeTruthy();
+          expect(
+            run,
+            "the demo note's run still exists (row + start)",
+          ).toBeTruthy();
           expect(labelAt(run0Row)).toBe(run0Label);
           expect(
             Math.abs(
-              run!.getBoundingClientRect().width -
-                (run0Len * stepPitch() - 1),
+              run!.getBoundingClientRect().width - (run0Len * stepPitch() - 1),
             ),
             "run width = true length × ZOOMED step pitch − gap",
           ).toBeLessThan(1.5);
@@ -438,22 +442,41 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           expect(ariaStart()).toBe(baseStart); // zoom is view-only: same seat
         }
 
-        // --- 2. SEMI+ at ×1.5 steps EXACTLY one ZOOMED pitch --------------
+        // A semitone shifts the displayed pitch origin, independently of zoom.
         {
-          const before = seat().scrollTop;
+          const origin = () => {
+            const label = $(".register-window-readout").textContent ?? "";
+            const m = /([A-G](?:♯|#)?)(-?\d+)/.exec(label);
+            if (!m) throw new Error(`Missing pitch readout: ${label}`);
+            return (
+              (Number(m[2]) + 1) * 12 +
+              [
+                "C",
+                "C#",
+                "D",
+                "D#",
+                "E",
+                "F",
+                "F#",
+                "G",
+                "G#",
+                "A",
+                "A#",
+                "B",
+              ].indexOf(m[1]!.replace("♯", "#"))
+            );
+          };
+          const before = origin();
           const btn = $$(".register-shift-btn").find(
             (b) => b.getAttribute("aria-label") === "LEAD semitone view up",
           ) as HTMLButtonElement;
           btn.click();
           await poll(
-            () => ariaStart() === baseStart + 1,
-            5_000,
-            "SEMI+ at ×1.5 shifts the semantic window +1",
+            () => origin() === before + 1,
+            5000,
+            "SEMI+ raises the pitch origin by one semitone",
           );
-          expect(
-            Math.abs(seat().scrollTop - before - pitch()),
-            "SEMI+ moves the pane EXACTLY one ZOOMED row pitch",
-          ).toBeLessThanOrEqual(1.5);
+          expect(chip()).toBe("1.50×");
           law("after SEMI+ ×1.5");
         }
 
@@ -567,7 +590,10 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
         const docH = idoc().documentElement.scrollHeight;
         const floorBottom =
           $(".lane-floor").getBoundingClientRect().bottom + win.scrollY;
-        expect(docH - floorBottom).toBeLessThanOrEqual(1);
+        const reserve = Number.parseFloat(
+          win.getComputedStyle($(".app")).paddingBottom,
+        );
+        expect(Math.abs(docH - floorBottom - reserve)).toBeLessThanOrEqual(1);
       } finally {
         await teardown(iframe);
       }

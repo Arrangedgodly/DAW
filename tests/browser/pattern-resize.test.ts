@@ -144,24 +144,26 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         };
         const selected = () => {
           const id = activePatterns().bass;
-          return docStore.getState().doc.patterns.bass.find(
-            (p) => p.id === id,
-          )!;
+          return docStore
+            .getState()
+            .doc.patterns.bass.find((p) => p.id === id)!;
         };
         const bars = () => selected().bars as number;
-        const bassFloor = () =>
-          $<HTMLElement>('.lane-floor[data-lane="bass"]');
+        const bassFloor = () => $<HTMLElement>('.lane-floor[data-lane="bass"]');
         const rowCount = () =>
-          bassFloor().querySelectorAll(".grid-row").length;
+          new Set(
+            Array.from(
+              bassFloor().querySelectorAll<HTMLElement>(".cell"),
+              (cell) => cell.dataset.row,
+            ),
+          ).size;
         const cellsPerRow = () =>
           bassFloor().querySelectorAll(".cell").length / rowCount();
         /** The lane's rail status region (the E10 target). */
         const announce = (): string =>
-          host
-            .querySelector<HTMLSpanElement>(
-              '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
-            )
-            ?.textContent ?? "";
+          host.querySelector<HTMLSpanElement>(
+            '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
+          )?.textContent ?? "";
 
         // --- 1. The ladder: 1→2→4 with announcements + extent remounts ----
         key(document.body, "b");
@@ -200,9 +202,7 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         key(document.body, "b"); // 8→16
         await waitFor(() => bars() === 16, 2000, "the rapid burst lands");
         await waitFor(
-          () =>
-            bassFloor().querySelectorAll(".cell").length <
-            rowCount() * 256,
+          () => bassFloor().querySelectorAll(".cell").length < rowCount() * 256,
           4000,
           "the 16-bar grid renders windowed (cells ≪ eager)",
         );
@@ -279,23 +279,23 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         };
         const selected = () => {
           const id = activePatterns().bass;
-          return docStore.getState().doc.patterns.bass.find(
-            (p) => p.id === id,
-          )!;
+          return docStore
+            .getState()
+            .doc.patterns.bass.find((p) => p.id === id)!;
         };
         const bars = () => selected().bars as number;
         const announce = (): string =>
-          host
-            .querySelector<HTMLSpanElement>(
-              '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
-            )
-            ?.textContent ?? "";
+          host.querySelector<HTMLSpanElement>(
+            '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
+          )?.textContent ?? "";
         const menuOpen = () =>
           host.querySelector('.rail-row[data-lane="bass"] .rail-tools-menu') !==
           null;
 
         // --- 1. The stepper owns its lifecycle ------------------------------
-        $<HTMLElement>('.rail-row[data-lane="bass"] .rail-tools-trigger').click();
+        $<HTMLElement>(
+          '.rail-row[data-lane="bass"] .rail-tools-trigger',
+        ).click();
         await waitFor(menuOpen, 2000, "PAT menu open");
         const grow = () =>
           $<HTMLButtonElement>(
@@ -307,7 +307,11 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
           );
         grow().click();
         await waitFor(() => bars() === 2, 2000, "LENGTH + grows 1→2");
-        await waitFor(menuOpen, 500, "menu STAYS OPEN across presses (own lifecycle)");
+        await waitFor(
+          menuOpen,
+          500,
+          "menu STAYS OPEN across presses (own lifecycle)",
+        );
         expect(
           $<HTMLElement>('.rail-row[data-lane="bass"] .rail-length-value')
             .textContent,
@@ -332,26 +336,28 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         const id = selected().id;
         for (let i = 0; i < 2; i++) key(document.body, "b");
         await waitFor(() => bars() === 8, 2000, "grown to 8 bars");
-        expect(
-          addNote("bass", id, { degree: 0, start: 64, length: 4 }),
-        ).toBe(true);
+        expect(addNote("bass", id, { degree: 0, start: 64, length: 4 })).toBe(
+          true,
+        );
         shrinkKey(); // 8→4: must REFUSE
         await waitFor(
           () =>
             announce() ===
-            "CANNOT SHRINK PATTERN A TO 4 BARS · C NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+            "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
           2000,
           "the exact E10 refusal names the blocking note",
         );
         expect(bars()).toBe(8); // store untouched
         // Every path produces the SAME text (the stepper twin).
-        $<HTMLElement>('.rail-row[data-lane="bass"] .rail-tools-trigger').click();
+        $<HTMLElement>(
+          '.rail-row[data-lane="bass"] .rail-tools-trigger',
+        ).click();
         await waitFor(menuOpen, 2000, "PAT menu open (refusal twin)");
         shrink().click();
         await waitFor(
           () =>
             announce() ===
-            "CANNOT SHRINK PATTERN A TO 4 BARS · C NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+            "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
           2000,
           "the stepper refuses with the identical text (one funnel)",
         );
@@ -406,13 +412,12 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         };
         const selected = () => {
           const id = activePatterns().bass;
-          return docStore.getState().doc.patterns.bass.find(
-            (p) => p.id === id,
-          )!;
+          return docStore
+            .getState()
+            .doc.patterns.bass.find((p) => p.id === id)!;
         };
         const bars = () => selected().bars as number;
-        const bassFloor = () =>
-          $<HTMLElement>('.lane-floor[data-lane="bass"]');
+        const bassFloor = () => $<HTMLElement>('.lane-floor[data-lane="bass"]');
 
         // Grow to 8 bars (the virtualized extent) and land focus on a cell
         // far past the 4-bar space.
@@ -462,7 +467,12 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
           4000,
           "the windowed grid mounts (sticky layer present)",
         );
-        const rows = bassFloor().querySelectorAll(".grid-row").length;
+        const rows = new Set(
+          Array.from(
+            bassFloor().querySelectorAll<HTMLElement>(".cell"),
+            (cell) => cell.dataset.row,
+          ),
+        ).size;
         const cells = bassFloor().querySelectorAll(".cell").length;
         expect(cells).toBeLessThan(rows * 2048); // never the eager census
         // The split horizontal scroller carries the pattern-wide extent

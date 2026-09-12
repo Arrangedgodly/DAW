@@ -1,3 +1,4 @@
+import { readPitchRange } from "./register-readout";
 /**
  * N-2 browser gate (iteration 7) — THE SEMITONE-SNAP WINDOW LAW + THE BOX
  * LAW on the REAL BUILT APP (the m5 harness law: iframe + dist bundle,
@@ -32,7 +33,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { cdp } from "vitest/browser";
+import { cdp, page } from "vitest/browser";
 import { modeSize } from "../../src/document/scales";
 
 const bundleGlob = import.meta.glob("/dist/assets/index-*.js");
@@ -108,8 +109,10 @@ async function bootIframe(
   await poll(
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
-      $$(".head-ctl-value").some((v) =>
-        (v.textContent ?? "").includes("SOFT STEP"),
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",
@@ -166,7 +169,6 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
     { timeout: 300_000 },
     async () => {
       const WINDOW = modeSize("minor"); // 7 — the demo's scale
-      const MAX_START = 8; // demo lead: 15 rows − 7 window
       const { iframe, win, $, $$, idoc } = await bootIframe(390, 844);
       try {
         $<HTMLElement>('.lane-switch-tab[data-lane="lead"]').click();
@@ -214,21 +216,15 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
           if (!r) throw new Error(`grid aria carries no ROWS range: ${m}`);
           return r[0];
         };
-        const readoutRange = (): string => {
-          const t = (
+        const readoutRange = (): number[] =>
+          readPitchRange(
             $(".lane-floor[data-lane='lead'] .register-window-readout")
-              .textContent ?? ""
-          )
-            .replace(/\s+/g, " ")
-            .trim();
-          const r = /ROWS \d+–\d+ OF \d+/.exec(t);
-          if (!r) throw new Error(`readout carries no ROWS range: ${t}`);
-          return r[0];
-        };
-        const btn = (label: string): HTMLButtonElement => {
-          const el = $$(".lane-floor[data-lane='lead'] .register-shift-btn").find(
-            (b) => b.getAttribute("aria-label") === label,
+              .textContent,
           );
+        const btn = (label: string): HTMLButtonElement => {
+          const el = $$(
+            ".lane-floor[data-lane='lead'] .register-shift-btn",
+          ).find((b) => b.getAttribute("aria-label") === label);
           if (!el) throw new Error(`missing shift button ${label}`);
           return el as HTMLButtonElement;
         };
@@ -264,61 +260,75 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
             off <= 1 || Math.abs(off - p) <= 1,
             `${state}: scrollTop seated on the row grid (offset ${off.toFixed(2)}px of ${p.toFixed(2)}px pitch)`,
           ).toBe(true);
+          const range = readoutRange();
           expect(
-            readoutRange(),
-            `${state}: readout chip === grid aria range (one source of truth)`,
-          ).toBe(ariaRange());
+            range[1]! - range[0]!,
+            state + ": readout spans twelve semitones",
+          ).toBe(11);
+          expect(ariaRange()).toContain(
+            "ROWS " + ariaStart() + "–" + (ariaStart() + WINDOW - 1),
+          );
+          const visibleLabels = rows()
+            .filter((row) => {
+              const r = row.getBoundingClientRect();
+              return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+            })
+            .map((row) => row.querySelector(".row-label")!.textContent!);
+          const endpoints = readPitchRange(
+            visibleLabels[WINDOW - 1] + " – " + visibleLabels[0],
+          );
+          expect(endpoints[0]!).toBeGreaterThanOrEqual(range[0]!);
+          expect(endpoints[1]!).toBeLessThanOrEqual(range[1]!);
           if (deadBelow) {
             win.scrollTo(0, win.scrollY + 10_000);
             const docH = idoc().documentElement.scrollHeight;
             const floorBottom =
               $(".lane-floor").getBoundingClientRect().bottom + win.scrollY;
             expect(
-              docH - floorBottom,
+              Math.abs(
+                docH -
+                  floorBottom -
+                  Number.parseFloat(
+                    win.getComputedStyle($(".app")).paddingBottom,
+                  ),
+              ),
               `${state}: dead-below at scroll end (i5 H-3: the card owns the document bottom)`,
             ).toBeLessThanOrEqual(1);
           }
         };
 
-        // The demo lead: 15-row manifest, window 7, default start 6.
         await poll(
-          () => ariaStart() === 6,
+          () =>
+            rows().filter((row) => row.querySelector(".cell")).length ===
+            WINDOW,
           5_000,
-          "default window start 6 seated at boot",
+          "one octave mounted",
         );
-
-        // --- 1. BOOT at 390×844 ------------------------------------------
         law("boot 390×844", true);
-
-        // --- 2. BUTTON SHIFT: SEMI+ seats exactly ONE row -----------------
-        const before = seat().scrollTop;
+        const initialOrigin = readoutRange()[0]!;
         btn("LEAD semitone view up").click();
-        await poll(() => ariaStart() === 7, 5_000, "SEMI+ → start 7");
-        expect(
-          Math.abs(seat().scrollTop - before - pitch()),
-          "SEMI+ moves the pane EXACTLY one row pitch",
-        ).toBeLessThanOrEqual(1);
-        law("after SEMI+ 390", false);
-
-        // --- 3. THE PROBE-4 SWALLOW, RED→GREEN (start 7 — mid-manifest,
-        //         so +20px is real drift, not a clamped no-op) --------------
-        const seated0 = seat().scrollTop;
-        seat().scrollTop = seated0 + 20; // the +20 unseated rest (probe 4)
-        btn("LEAD semitone view up").click(); // SAME task — no settle ran
         await poll(
-          () => ariaStart() === 8,
+          () => readoutRange()[0] === initialOrigin + 1,
           5_000,
-          "SEMI+ from an unseated rest still shifts the semantic window (+1, clamped at maxStart 8)",
+          "SEMI+ shifts one semitone",
         );
-        expect(
-          seat().scrollTop,
-          "probe-4: SEMI+ from ANY rest seats the pane one row down (the OLD guard left the pixels at +20)",
-        ).toBe(seated0 + pitch());
+        law("after SEMI+ 390", false);
+        const seated0 = seat().scrollTop;
+        seat().scrollTop = seated0 + 20;
+        btn("LEAD semitone view up").click();
+        await poll(
+          () => readoutRange()[0] === initialOrigin + 2,
+          5_000,
+          "SEMI+ from an unseated rest",
+        );
         law("after probe-4 SEMI+ 390", false);
-        // The late settle (scrollend/fallback for the +20 write) must NOT
-        // fight the new seat: after it fires, still on-grid at start 8.
+        const shiftedStart = ariaStart();
         await new Promise((r) => setTimeout(r, 400));
-        expect(ariaStart(), "the late settle kept the semantic seat").toBe(8);
+        expect(
+          ariaStart(),
+          "late scroll settle preserves the shifted seat",
+        ).toBe(shiftedStart);
+        expect(readoutRange()[0]).toBe(initialOrigin + 2);
         law("after the settle settles 390", false);
 
         // --- 4. SETTLED SCROLL: an off-grid rest SNAPS back on-grid ------
@@ -346,6 +356,8 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         // (the MB-2 law's scrolling half) at the seat's center, mapped
         // through the app iframe's box and the tester frame's scale.
         {
+          const targetBox = seat().getBoundingClientRect();
+          await page.elementLocator(iframe).hover({ position: { x: targetBox.left + targetBox.width / 2 + 2, y: targetBox.top + targetBox.height / 2 + 2 } });
           const frame = window.frameElement as HTMLElement;
           const fr = frame.getBoundingClientRect();
           const ir = iframe.getBoundingClientRect();
@@ -357,6 +369,12 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
             y: fr.top + (ir.top + er.top + er.height / 2) * sy,
           };
           const was = seat().scrollTop;
+
+          await cdp().send("Input.dispatchMouseEvent", {
+            type: "mouseMoved",
+            x: point.x,
+            y: point.y,
+          });
           await cdp().send("Input.synthesizeScrollGesture", {
             x: point.x,
             y: point.y,
@@ -383,6 +401,8 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         //         half of the free-scroll→state path — the off-grid rest
         //         it leaves MUST settle-snap before law() holds --------
         {
+          const targetBox = seat().getBoundingClientRect();
+          await page.elementLocator(iframe).hover({ position: { x: targetBox.left + targetBox.width / 2 + 2, y: targetBox.top + targetBox.height / 2 + 2 } });
           const frame = window.frameElement as HTMLElement;
           const fr = frame.getBoundingClientRect();
           const ir = iframe.getBoundingClientRect();
@@ -394,6 +414,11 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
             y: fr.top + (ir.top + er.top + er.height / 2) * sy,
           };
           const was = seat().scrollTop;
+          await cdp().send("Input.dispatchMouseEvent", {
+            type: "mouseMoved",
+            x: point.x,
+            y: point.y,
+          });
           await cdp().send("Input.dispatchMouseEvent", {
             type: "mouseWheel",
             x: point.x,
@@ -418,18 +443,14 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         // --- 6. RE-FIT to 360×800 (live resize — no remount) --------------
         iframe.style.width = "360px";
         iframe.style.height = "800px";
-        await poll(
-          () => win.innerWidth === 360,
-          5_000,
-          "iframe resized 360",
-        );
+        await poll(() => win.innerWidth === 360, 5_000, "iframe resized 360");
         await new Promise((r) => setTimeout(r, 400)); // the fit's rAF passes
         law("boot 360×800", true);
         {
-          const from = ariaStart();
+          const from = readoutRange()[0]!;
           btn("LEAD octave view up").click();
           await poll(
-            () => ariaStart() === Math.min(from + WINDOW, MAX_START),
+            () => readoutRange()[0] === from + 12,
             5_000,
             "OCT+ shifts one octave of the scale (±modeSize rows, clamped)",
           );
@@ -439,18 +460,14 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         // --- 7. RE-FIT to 430×932 -----------------------------------------
         iframe.style.width = "430px";
         iframe.style.height = "932px";
-        await poll(
-          () => win.innerWidth === 430,
-          5_000,
-          "iframe resized 430",
-        );
+        await poll(() => win.innerWidth === 430, 5_000, "iframe resized 430");
         await new Promise((r) => setTimeout(r, 400));
         law("boot 430×932", true);
         {
-          const from = ariaStart();
+          const from = readoutRange()[0]!;
           btn("LEAD octave view down").click();
           await poll(
-            () => ariaStart() === Math.max(0, from - WINDOW),
+            () => readoutRange()[0] === from - 12,
             5_000,
             "OCT− shifts one octave of the scale down (−modeSize rows)",
           );
@@ -466,9 +483,9 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
           "drums stage",
         );
         expect(
-          $(".lane-floor[data-lane='drums'] .lane-grid-scroll").classList.contains(
-            "is-windowed",
-          ),
+          $(
+            ".lane-floor[data-lane='drums'] .lane-grid-scroll",
+          ).classList.contains("is-windowed"),
           "drums stays a full-manifest pane (never windowed)",
         ).toBe(false);
       } finally {

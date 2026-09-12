@@ -1,3 +1,4 @@
+import { createLaneDisplayNames } from "../state/laneDisplayNames";
 /**
  * PatternRail (DES-6 + IN-3): the song arrangement rail under the booth. Per
  * lane, one row of pattern TILES — chain instances in the lane's chain order
@@ -498,6 +499,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   const [tiles, setTiles] = createSignal(
     railTiles(docStore.getState().doc, props.lane),
   );
+  const displayName = createLaneDisplayNames();
   const [pool, setPool] = createSignal(
     patternPool(docStore.getState().doc, props.lane),
   );
@@ -978,10 +980,8 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         railRowEl = el;
       }}
     >
-      <span class="rail-lane-name" title={LANE_NAMES[props.lane]}>
-        {props.lane.startsWith("extra")
-          ? `Track ${Number(props.lane.slice(-1)) + 4}`
-          : LANE_NAMES[props.lane]}
+      <span class="rail-lane-name" title={displayName(props.lane)}>
+        {displayName(props.lane)}
       </span>
 
       {/*

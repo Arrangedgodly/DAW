@@ -40,6 +40,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:browser
+      - run: npm run test:browser -- --reporter=default --reporter=json --outputFile=browser-results.json
         env:
           CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: |
+            browser-results.json
+            tests/browser/__screenshots__/
+          retention-days: 7

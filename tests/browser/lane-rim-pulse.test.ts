@@ -151,7 +151,7 @@ describe("T5 lane-rim sounding pulse (built app)", () => {
         await poll(
           () =>
             Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo cues",
@@ -240,7 +240,7 @@ describe("T5 lane-rim sounding pulse (built app)", () => {
         await poll(
           () =>
             Array.from(rmDoc().querySelectorAll(".head-ctl-value")).some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo cues (reduced-motion boot)",

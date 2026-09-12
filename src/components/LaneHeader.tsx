@@ -67,7 +67,7 @@ import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
 import { activeLane, stageMode } from "../state/selection";
 import { fillRailsOpen, toggleFillRails } from "../state/fillRails";
 import { registerHelp, type HelpEntry } from "../help/registry";
-import { LANE_NAMES, soundOptionsFor } from "./laneMeta";
+import { LANE_NAMES, laneDisplayName, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
 import FxStrip from "./FxStrip";
 import TrackColorControl from "./TrackColorControl";
@@ -356,11 +356,12 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   // edits). Solid fragments add no wrapper, so each instantiation is the
   // exact HEAD markup.
   const NameLabel = () => (
-    <span class="lane-name">
-      {props.lane.startsWith("extra")
-        ? `Track ${Number(props.lane.slice(-1)) + 4}`
-        : props.lane[0]!.toUpperCase() + props.lane.slice(1)}
-    </span>
+    <>
+      <span class="lane-name">{laneDisplayName(props.lane, soundId())}</span>
+      <Show when={stageMode() === "phone" && editable()}>
+        <TrackColorControl lane={props.lane} />
+      </Show>
+    </>
   );
 
   const SoundGroup = () => (
@@ -612,7 +613,9 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           editRowEl = el;
         }}
       >
-        <TrackColorControl lane={props.lane} />
+        <Show when={stageMode() !== "phone"}>
+          <TrackColorControl lane={props.lane} />
+        </Show>
         <span class="head-scale-wrap">
           <button
             type="button"
@@ -647,6 +650,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           class="head-ctl"
           role="group"
           aria-label={`${LANE_NAMES[props.lane]} gate length`}
+          classList={{ "head-gate": true }}
           data-help={`lane.${props.lane}.gate`}
         >
           <span class="head-ctl-label" aria-hidden="true">
@@ -773,16 +777,24 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             fxFocusHost = el;
             // Pin the chassis top to the strip's real bottom edge (the
             // renderer-pinned-geometry precedent — CSS holds the fallback).
-            // The strip cannot wrap into a second line in the supported
-            // viewport range, but measuring keeps every viewport honest.
-            const floor = el.closest(".lane-floor");
-            if (floor && stripEl) {
+            // Measure after attachment so wrapped controls remain above the FX panel.
+            const position = () => {
+              const floor = el.closest(".lane-floor");
+              if (!floor || !stripEl || !el.isConnected) return;
               const below =
                 stripEl.getBoundingClientRect().bottom -
                 floor.getBoundingClientRect().top +
                 4;
               el.style.top = `${Math.max(0, below)}px`;
-            }
+            };
+            // Solid refs run before insertion; measure after attachment.
+            const observer = new ResizeObserver(position);
+            queueMicrotask(() => {
+              if (!el.isConnected) return;
+              position();
+              if (stripEl) observer.observe(stripEl);
+            });
+            onCleanup(() => observer.disconnect());
           }}
         >
           <div class="lane-fx-title">

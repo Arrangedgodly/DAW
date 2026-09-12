@@ -1,10 +1,20 @@
 import { setTheme, theme } from "../state/theme";
+import { registerHelp } from "../help/registry";
+
+registerHelp([
+  {
+    id: "appearance.theme",
+    title: "COLOR THEME",
+    text: "Switches between light and dark colors. Your choice is saved on this device and applies to the editor, arrangement, and visualizer controls.",
+  },
+]);
 
 export default function ThemeSelector() {
   return (
     <button
       type="button"
       class="theme-selector"
+      data-help="appearance.theme"
       aria-label={`Switch to ${theme() === "dark" ? "light" : "dark"} theme`}
       onClick={() => setTheme(theme() === "dark" ? "light" : "dark")}
       title="Theme is saved on this device"

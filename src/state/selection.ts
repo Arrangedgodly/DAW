@@ -266,9 +266,10 @@ export { registerWindowStarts };
 export function setRegisterWindowStart(
   lane: PitchedLaneId,
   start: number,
+  reseat = false,
 ): void {
   setRegisterWindowStarts((prev) =>
-    prev[lane] === start ? prev : { ...prev, [lane]: start },
+    prev[lane] === start && !reseat ? prev : { ...prev, [lane]: start },
   );
 }
 

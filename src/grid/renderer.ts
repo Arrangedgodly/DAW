@@ -40,11 +40,10 @@
  * LL-1 (iteration 3, i3-4 — LP-1 §10a, seams G3/G5/G6/G8): the COLUMN-WINDOW
  * virtualization. Patterns longer than GRID_VIRTUALIZE_MIN_STEPS (the v0.1
  * 4-bar maximum — every shipped shape stays EAGER and byte-identical) render
- * through a sticky-layer column window, the approach LP-1 measured and
- * committed: the scroll container keeps a native, pattern-wide scroll extent
- * via an invisible absolute SIZER, and a `position: sticky; left: 0` LAYER
- * holds the grid — the compositor pins it to the visible edge while the
- * sizer scrolls under it, with NO JS on the per-scroll path. Each row's
+ * through a column window: the scroll container keeps a native,
+ * pattern-wide scroll extent via an invisible absolute SIZER. A relatively
+ * positioned LAYER holds the grid at the first materialized column's
+ * pattern coordinate, so native scrolling moves it smoothly. Each row's
  * template carries ONLY the window's tracks; rewindow is hysteresis-gated
  * (fires only when the visible range exhausts the ±GRID_OVERSCAN_COLS
  * overscan) and RECYCLES the cell pool (re-tagging existing cells — zero
@@ -325,6 +324,8 @@ export interface DomGridRendererOptions {
    * drums never pass it, so their pointer law is byte-identical.
    */
   readonly pinchZoom?: boolean;
+  /** Pause automatic scrolling while the host has a pointer held elsewhere. */
+  readonly isInteractionHeld?: () => boolean;
   /**
    * i7 N-4: the zoom factor CHANGED — live during the pinch (each rAF apply,
    * the owner re-fits through setCellWidth/setRowHeight, NEVER a CSS
@@ -600,6 +601,7 @@ export class DomGridRenderer implements GridRenderer {
   private sizerEl: HTMLElement | null = null;
   /** Window [start, end) in PATTERN steps; eager grids hold [0, steps). */
   private winStart = 0;
+  private columnLayerEl: HTMLElement | null = null;
   private winEnd = 0;
   private readonly overscan = GRID_OVERSCAN_COLS;
   /** Flattened on-state per row over the FULL pattern: 0 off / 1 anchor / 2
@@ -693,9 +695,8 @@ export class DomGridRenderer implements GridRenderer {
     const { container, rowLabels, steps } = this.opts;
     container.replaceChildren();
     // LL-1: the virtualized grid keeps a NATIVE, pattern-wide scroll extent
-    // via an invisible absolute sizer, and the whole grid lives in a sticky
-    // layer pinned to the visible edge by the compositor (grid.css owns the
-    // positioning classes; the renderer pins the sizer's px). Eager grids
+    // via an invisible absolute sizer, and the grid's layer is positioned
+    // at the first materialized column's pattern coordinate. Eager grids
     // append the grid directly — today's DOM, byte-identical.
     //
     // TWO-AXIS SPLIT (measured in-task): the sizer + sticky layer live in a
@@ -719,6 +720,10 @@ export class DomGridRenderer implements GridRenderer {
       this.sizerEl = sizer;
       layerEl = document.createElement("div");
       layerEl.className = "grid-col-layer";
+      // Keep the materialized window at its actual pattern coordinate.
+      // Native scrolling then moves notes continuously between rebuilds.
+      layerEl.style.position = "relative";
+      this.columnLayerEl = layerEl;
       hscroll.append(layerEl);
       hscroll.addEventListener("scroll", this.onScroll, { passive: true });
     }
@@ -1054,7 +1059,7 @@ export class DomGridRenderer implements GridRenderer {
       return;
     }
     this.playheadEl.style.opacity = "1";
-    // LL-1: the sticky layer's origin IS winStart — the pattern-coordinate x
+    // LL-1: the column layer's origin IS winStart — the pattern-coordinate x
     // shifts by the window offset (O(1); the off-window playhead simply
     // paints outside the layer, clipped by the scrollport).
     const wx = this.virtual ? x - this.winStart * this.stepWidthPx : x;
@@ -1350,7 +1355,10 @@ export class DomGridRenderer implements GridRenderer {
     const borderY =
       Number.parseFloat(style.borderTopWidth) +
       Number.parseFloat(style.borderBottomWidth);
-    const first = this.rowEls[0]?.offsetHeight ?? this.rowHeightPx;
+    // Pinch factors can produce fractional row tracks. Integer offsetHeight
+    // plus a rounded pane height can expose a sliver of the eighth row.
+    const first =
+      this.rowEls[0]?.getBoundingClientRect().height ?? this.rowHeightPx;
     const marginBelow = this.rowEls[0]
       ? Number.parseFloat(getComputedStyle(this.rowEls[0]).marginBottom)
       : this.gapPx;
@@ -1369,7 +1377,7 @@ export class DomGridRenderer implements GridRenderer {
         0,
         container.offsetHeight - container.clientHeight - borderY,
       );
-      const target = `${Math.round(boundary + hsb - padY - borderY)}px`;
+      const target = `${boundary + hsb - padY - borderY}px`;
       if (container.style.height === target) break;
       container.style.height = target;
     }
@@ -1677,6 +1685,9 @@ export class DomGridRenderer implements GridRenderer {
     const { first, last } = this.visibleRange();
     const start = Math.max(0, first - this.overscan);
     const end = Math.min(this.opts.steps, last + this.overscan);
+    // Width changes can move the layer even when its column range is stable.
+    if (this.columnLayerEl)
+      this.columnLayerEl.style.left = `${start * this.stepWidthPx}px`;
     if (!force && start === this.winStart && end === this.winEnd) return;
     const rewindowT0 = performance.now();
     // The cursor (focused or merely remembered) survives the re-tag by
@@ -1757,17 +1768,35 @@ export class DomGridRenderer implements GridRenderer {
     this.rewindow(false);
   }
 
-  /** Keep the sounding column visible, paging ahead before it leaves the bed.
+  /** Follow the playhead at the center of the visible note bed, clamping at
+   * either pattern edge. Reduced motion retains discrete column paging.
    * Uses the renderer's scroll owner for both eager and virtual grids. Never
    * moves keyboard focus or the vertical register window. */
-  private followPlayback(step: number): void {
-    if (this.gesture || this.pinchPointers.size > 0) return;
+  private followPlayback(positionPx: number, reduced: boolean): void {
+    if (
+      this.gesture ||
+      this.pinchPointers.size > 0 ||
+      this.opts.isInteractionHeld?.()
+    )
+      return;
     const scroll = this.hScroll();
     const width = scroll.clientWidth;
     if (width <= 0 || scroll.scrollWidth <= width) return;
-    const column = step * this.stepWidthPx;
+    const column = positionPx;
     const usable = width - this.playheadLeftPx;
     if (usable <= this.stepWidthPx) return;
+    if (!reduced) {
+      const target = Math.min(
+        scroll.scrollWidth - width,
+        Math.max(0, column - usable / 2),
+      );
+      scroll.scrollLeft = target;
+      if (this.virtual && scroll.scrollLeft !== this.lastScrollLeft) {
+        this.lastScrollLeft = scroll.scrollLeft;
+        this.rewindowIfNeeded();
+      }
+      return;
+    }
     const margin = Math.min(2 * this.stepWidthPx, usable / 4);
     if (
       column < scroll.scrollLeft ||
@@ -2290,7 +2319,7 @@ export class DomGridRenderer implements GridRenderer {
   /**
    * The pointer's step-space position on one row (x only; gestures are
    * row-locked). LL-1: the cells element's left edge is the WINDOW's column
-   * 0 (the sticky layer is pinned) — pattern step = winStart + offset.
+   * 0 — pattern step = winStart + offset.
    */
   private pointerStepFloat(e: PointerEvent, row: number): number {
     const cellsEl = this.cells[row]?.[0]?.parentElement;
@@ -2730,6 +2759,16 @@ export class DomGridRenderer implements GridRenderer {
     } else {
       const reduced =
         this.reducedMotion?.matches ?? this.opts.host.prefersReducedMotion();
+      const q = quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
+      const x = playheadX(
+        frame.loopTime,
+        frame.options,
+        this.stepWidthPx,
+        this.opts.steps,
+      );
+      // Scroll first: virtual grids may re-seat their column window, which
+      // setPlayhead must use in this same frame to avoid a one-frame jump.
+      this.followPlayback(reduced ? q * this.stepWidthPx : x, reduced);
       if (reduced) {
         // D9: quantized column highlight, no sweep.
         this.setPlayhead(null);
@@ -2737,17 +2776,8 @@ export class DomGridRenderer implements GridRenderer {
         // LL-2: the frame's options carry the LANE's chain-cycle basis;
         // playheadX wraps the position into THIS renderer's pattern extent
         // (gridSteps) — same law as the glow modulus below.
-        this.setPlayhead(
-          playheadX(
-            frame.loopTime,
-            frame.options,
-            this.stepWidthPx,
-            this.opts.steps,
-          ),
-        );
+        this.setPlayhead(x);
       }
-      const q = quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
-      this.followPlayback(q);
       // LL-1/LL-2 (seam G5): BOTH the glow wrap modulus AND the sweep wrap
       // are the renderer's OWN step count (the pattern width), while the
       // frame's basis is the LANE's chain-cycle total (LaneGrid's readFrame)

@@ -93,7 +93,10 @@ async function wipeOrigin(win: Window): Promise<void> {
 async function bootIframe(w: number, h: number) {
   const bundleKey = Object.keys(bundleGlob)[0];
   const cssKey = Object.keys(cssGlob)[0];
-  expect(bundleKey, "built bundle missing (globalSetup build failed?)").toBeTruthy();
+  expect(
+    bundleKey,
+    "built bundle missing (globalSetup build failed?)",
+  ).toBeTruthy();
   const iframe = document.createElement("iframe");
   iframe.style.width = `${w}px`;
   iframe.style.height = `${h}px`;
@@ -132,7 +135,7 @@ async function bootIframe(w: number, h: number) {
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
       Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
-        (v.textContent ?? "").includes("SOFT STEP"),
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",
@@ -195,15 +198,11 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
             const cr = rectOf(compact);
 
             // --- probe 1: the state word is GONE at phone; LED stays -----
-            const state = $(
-              `.lane-floor[data-lane="${lane}"] .lane-state`,
-            );
-            const stateCS = idoc().defaultView!.getComputedStyle(state);
             expect(
-              stateCS.display,
-              `${where}: · EDIT/· VIEW word must be display:none at phone (one lane mounted — constant noise)`,
-            ).toBe("none");
-            expect(state.getBoundingClientRect().width).toBe(0);
+              idoc().querySelector(
+                `.lane-floor[data-lane="${lane}"] .lane-state`,
+              ),
+            ).toBeNull();
             const name = $(
               `.lane-floor[data-lane="${lane}"] .lane-strip-compact .lane-name`,
             );
@@ -233,7 +232,10 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
             const soloBtn = $$(
               `.lane-floor[data-lane="${lane}"] .lane-strip-row-id .head-mix-btn`,
             )[1];
-            expect(soloBtn, `${where}: SOLO key in the identity row`).toBeTruthy();
+            expect(
+              soloBtn,
+              `${where}: SOLO key in the identity row`,
+            ).toBeTruthy();
             const mr = rectOf(muteBtn);
             const sr = rectOf(soloBtn!);
             // both mix keys live on the identity row, beside the name
@@ -288,7 +290,9 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
 
             // --- probe 3: no wrap, no overflow, no tier creep -------------
             expect(
-              $$(`.lane-floor[data-lane="${lane}"] .lane-strip-compact > .lane-strip-row`),
+              $$(
+                `.lane-floor[data-lane="${lane}"] .lane-strip-compact > .lane-strip-row`,
+              ),
               `${where}: exactly the two tier rows`,
             ).toHaveLength(2);
             expect(
@@ -299,7 +303,9 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
               `.lane-floor[data-lane="${lane}"] .lane-strip-compact button, .lane-floor[data-lane="${lane}"] .lane-strip-compact input`,
             );
             expect(controls.length).toBeGreaterThanOrEqual(5);
-            for (const el of controls) {
+            for (const el of controls.filter(
+              (control) => control.getClientRects().length > 0,
+            )) {
               const r = rectOf(el);
               expect(
                 r.left,
@@ -320,9 +326,7 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
 
             // --- probe 4: the 44px audit (MB-3 painted-box law) -----------
             const audit44 = (sel: string, what: string) => {
-              const els = $$(
-                `.lane-floor[data-lane="${lane}"] ${sel}`,
-              );
+              const els = $$(`.lane-floor[data-lane="${lane}"] ${sel}`);
               for (const el of els) {
                 const r = rectOf(el);
                 expect(
@@ -337,22 +341,20 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
             };
             audit44(".lane-strip-compact .head-mix-btn", "MUTE/SOLO");
             audit44(
-              '.lane-strip-compact .head-stepper .head-step-btn',
+              ".lane-strip-compact .head-stepper .head-step-btn",
               "PRESET/KIT stepper",
             );
             audit44(".lane-strip-compact .head-range", "VOLUME slider");
             audit44(".lane-strip-edit .scale-chip", "scale chip");
             audit44(
-              '.lane-strip-edit .head-stepper .head-step-btn',
+              ".lane-strip-edit .head-stepper .head-step-btn",
               "GATE stepper",
             );
             audit44(".lane-strip-edit .head-fx", "FX");
             audit44(".lane-strip-edit .head-fill-toggle", "FILL toggle");
 
             // --- probe 2c: edit tier consistent alignment ------------------
-            const edit = $(
-              `.lane-floor[data-lane="${lane}"] .lane-strip-edit`,
-            );
+            const edit = $(`.lane-floor[data-lane="${lane}"] .lane-strip-edit`);
             const editChildren = Array.from(edit.children).filter(
               (c) => rectOf(c).width > 0,
             );
@@ -386,7 +388,9 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
             }
 
             // --- probe 5: tab order = visual order, scoped to the strip ---
-            const strip = $(`.lane-floor[data-lane="${lane}"] .lane-head-strip`);
+            const strip = $(
+              `.lane-floor[data-lane="${lane}"] .lane-head-strip`,
+            );
             const tabbables = Array.from(
               strip.querySelectorAll<HTMLElement>("button, input"),
             ).filter(
@@ -397,12 +401,13 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
                 el.getClientRects().length > 0,
             );
             expect(tabbables.length).toBeGreaterThanOrEqual(6);
-            const labels = tabbables.map((el) =>
-              el.getAttribute("aria-label") ?? el.className,
+            const labels = tabbables.map(
+              (el) => el.getAttribute("aria-label") ?? el.className,
             );
             // the identity row's keys precede the mix row's stepper/slider
             const muteIdx = tabbables.findIndex(
-              (el) => el.getAttribute("aria-label")?.startsWith("Mute") ?? false,
+              (el) =>
+                el.getAttribute("aria-label")?.startsWith("Mute") ?? false,
             );
             const presetPrev = tabbables.findIndex(
               (el) =>
@@ -465,9 +470,7 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
         const { iframe, $, idoc } = await bootIframe(ROTATED[0], ROTATED[1]);
         try {
           const lane = "lead";
-          (
-            $(`.lane-switch-tab[data-lane="${lane}"]`) as HTMLElement
-          ).click();
+          ($(`.lane-switch-tab[data-lane="${lane}"]`) as HTMLElement).click();
           await poll(
             () =>
               idoc().querySelector(
@@ -478,9 +481,7 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
           );
           await new Promise((r) => setTimeout(r, 150));
           expect(
-            idoc()
-              .querySelector(".app")
-              ?.getAttribute("data-stage"),
+            idoc().querySelector(".app")?.getAttribute("data-stage"),
             "844×390 stays the phone stage",
           ).toBe("phone");
           const compact = $(
@@ -503,10 +504,10 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
           ).toBeLessThan(2);
           // the state word stays hidden here too (one card, stage-wide law)
           expect(
-            idoc().defaultView!.getComputedStyle(
-              $(`.lane-floor[data-lane="${lane}"] .lane-state`),
-            ).display,
-          ).toBe("none");
+            idoc().querySelector(
+              `.lane-floor[data-lane="${lane}"] .lane-state`,
+            ),
+          ).toBeNull();
           // nothing overflows the card
           const floor = $(`.lane-floor[data-lane="${lane}"]`);
           const cs = idoc().defaultView!.getComputedStyle(floor);
@@ -523,51 +524,24 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
         const { iframe, $, idoc } = await bootIframe(1280, 800);
         try {
           await poll(
-            () =>
-              idoc().querySelectorAll(".lane-floor").length === 4,
+            () => idoc().querySelectorAll(".lane-floor").length === 4,
             5000,
             "four quadrant floors",
           );
-          // drums: no OCT group — the exact HEAD sequence
-          const drumsCompact = $(
-            '.lane-floor[data-lane="drums"] .lane-strip-compact',
-          );
-          const drumsSeq = Array.from(drumsCompact.children).map(
-            (c) => c.className,
-          );
-          expect(drumsSeq).toEqual([
-            "lane-name",
-            "head-ctl",
-            "head-ctl head-ctl-vol",
-            "head-mix-btn",
-            "head-mix-btn",
-          ]);
-          // bass (pitched): OCT stays between sound and VOL — byte-identical
-          const bassCompact = $(
-            '.lane-floor[data-lane="bass"] .lane-strip-compact',
-          );
-          const bassSeq = Array.from(bassCompact.children).map(
-            (c) => c.className,
-          );
-          expect(bassSeq).toEqual([
-            "lane-name",
-            "head-ctl",
-            "head-ctl",
-            "head-ctl head-ctl-vol",
-            "head-mix-btn",
-            "head-mix-btn",
-          ]);
-          // the state word renders on desktop
-          for (const lane of ["drums", "bass"]) {
-            const state = $(
-              `.lane-floor[data-lane="${lane}"] .lane-state`,
+          // All desktop lanes share identity and sound/mix rows.
+          for (const lane of ["drums", "bass", "chords", "lead"]) {
+            const floor = $(`.lane-floor[data-lane="${lane}"]`);
+            expect(floor.querySelector(".lane-state")).toBeNull();
+            expect(floor.querySelectorAll(".lane-strip-row")).toHaveLength(2);
+            const identity = floor.querySelector(".lane-strip-row-id")!;
+            const mix = floor.querySelector(".lane-strip-row-mix")!;
+            expect(identity.querySelectorAll(".head-mix-btn")).toHaveLength(2);
+            expect(mix.querySelector(".head-sound-select")).not.toBeNull();
+            expect(mix.querySelector(".head-range")).not.toBeNull();
+            expect(mix.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+              identity.getBoundingClientRect().bottom,
             );
-            const r = state.getBoundingClientRect();
-            expect(r.width, `${lane} desktop state word visible`).toBeGreaterThan(0);
-            expect(state.textContent).toMatch(/^· (EDIT|VIEW)$/);
           }
-          // no phone tier rows anywhere on desktop
-          expect(idoc().querySelectorAll(".lane-strip-row")).toHaveLength(0);
         } finally {
           iframe.remove();
         }

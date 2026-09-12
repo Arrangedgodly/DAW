@@ -560,7 +560,7 @@ export async function bootVizApp(
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
     10_000,
     "demo cue labels in the rail (first-run demo)",

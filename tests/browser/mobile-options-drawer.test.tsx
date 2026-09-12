@@ -1,3 +1,4 @@
+import { readPitchRange } from "./register-readout";
 /**
  * M-4 browser gate (iteration 4) — the phone-stage collapsible options
  * drawer, on the REAL BUILT APP (the mobile-transport harness law: iframe +
@@ -107,7 +108,14 @@ async function bootIframe(
   // the demo loaded — and they never were the thing under test here. The
   // drums KIT readout is the stage-independent demo signal (it was already
   // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+  await poll(
+    () =>
+      $$(".head-ctl-value").some((v) =>
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      ),
+    5_000,
+    "demo loaded",
+  );
   if (w < 768) {
     await poll(
       () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
@@ -213,8 +221,10 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         while (oTop > ocy - guard && strapBelongs(ocx, oTop - 1)) oTop--;
         while (oBottom < ocy + guard && strapBelongs(ocx, oBottom + 1))
           oBottom++;
-        const hitW = Math.max(obr.right, oRight + 0.5) - Math.min(obr.left, oLeft - 0.5);
-        const hitH = Math.max(obr.bottom, oBottom + 0.5) - Math.min(obr.top, oTop - 0.5);
+        const hitW =
+          Math.max(obr.right, oRight + 0.5) - Math.min(obr.left, oLeft - 0.5);
+        const hitH =
+          Math.max(obr.bottom, oBottom + 0.5) - Math.min(obr.top, oTop - 0.5);
         expect(
           hitW >= 44 && hitH >= 44,
           `OPTIONS hit box ${hitW.toFixed(1)}×${hitH.toFixed(1)} < 44×44`,
@@ -226,9 +236,9 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
           const r = play.getBoundingClientRect();
           return r.left + r.width / 2;
         };
-        expect(Math.abs(playCenterX() - win.innerWidth / 2)).toBeLessThanOrEqual(
-          8,
-        );
+        expect(
+          Math.abs(playCenterX() - win.innerWidth / 2),
+        ).toBeLessThanOrEqual(8);
         const closedCenterX = playCenterX();
 
         // --- 2. OPEN: drawer + backdrop, transport still centered -------
@@ -324,7 +334,9 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         const swingBefore = Number(swing.value);
         swing.value = String(Math.min(100, swingBefore + 7));
         swing.dispatchEvent(new win.Event("input", { bubbles: true }));
-        const swingValue = $(".phone-options-drawer .booth-group[aria-label='Swing'] .booth-value");
+        const swingValue = $(
+          ".phone-options-drawer .booth-group[aria-label='Swing'] .booth-value",
+        );
         await poll(
           () => swingValue.textContent === `${swing.value}%`,
           3_000,
@@ -338,7 +350,9 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         const masterBefore = Number(master.value);
         master.value = String(Math.max(0, masterBefore - 5));
         master.dispatchEvent(new win.Event("input", { bubbles: true }));
-        const masterValue = $(".phone-options-drawer .booth-group[aria-label='Master volume'] .booth-value");
+        const masterValue = $(
+          ".phone-options-drawer .booth-group[aria-label='Master volume'] .booth-value",
+        );
         await poll(
           () => masterValue.textContent === `${master.value}%`,
           3_000,
@@ -371,7 +385,8 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
           new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
         );
         await poll(
-          () => $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
+          () =>
+            $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
           3_000,
           "drawer closed by Escape (zero DOM again)",
         );
@@ -385,20 +400,15 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
           5_000,
           "drawer reopened",
         );
-        const grid = $(".stage");
-        const gr = grid.getBoundingClientRect();
-        const gy = Math.max(
-          gr.top + 10,
-          Math.min(gr.bottom - 10, win.innerHeight - 20),
-        );
-        const tapped = idoc().elementFromPoint(gr.left + gr.width / 2, gy);
+        const tapped = idoc().elementFromPoint(4, win.innerHeight - 60);
         expect(
           tapped?.classList.contains("phone-options-backdrop"),
-          "a tap on the scrolling grid lands on the backdrop (outside-tap law)",
+          "a tap outside the drawer lands on its backdrop",
         ).toBeTruthy();
         (tapped as HTMLElement).click();
         await poll(
-          () => $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
+          () =>
+            $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
           3_000,
           "drawer closed by outside tap",
         );
@@ -425,9 +435,7 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         );
 
         // --- PLAY: the pinned transport's button flips to STOP ----------
-        const play = $<HTMLButtonElement>(
-          ".phone-transport .booth-btn-play",
-        );
+        const play = $<HTMLButtonElement>(".phone-transport .booth-btn-play");
         play.click();
         await poll(
           () => play.getAttribute("aria-pressed") === "true",
@@ -440,21 +448,22 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
           ".lane-floor[data-lane='lead'] .register-window-readout",
         );
         await poll(
-          () =>
-            (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
-            "■ROWS 6–12 OF 14",
+          () => (readout.textContent ?? "").includes("–"),
           5_000,
           "default readout",
         );
-        const octUp = $$('.lane-floor[data-lane="lead"] .register-shift-btn').find(
-          (b) => b.getAttribute("aria-label") === "LEAD octave view up",
-        );
+        const initialRange = readPitchRange(readout.textContent);
+        const shiftedRange = initialRange.map((pitch) => pitch + 12);
+        const octUp = $$(
+          '.lane-floor[data-lane="lead"] .register-shift-btn',
+        ).find((b) => b.getAttribute("aria-label") === "LEAD octave view up");
         if (!octUp) throw new Error("missing OCT up shift button");
         (octUp as HTMLButtonElement).click();
         await poll(
           () =>
-            (readout.textContent ?? "").replace(/\s+/g, " ").trim() ===
-            "▲ROWS 8–14 OF 14",
+            readPitchRange(readout.textContent).every(
+              (pitch, index) => pitch === shiftedRange[index],
+            ),
           5_000,
           "readout re-anchored one octave up (clamped top)",
         );
@@ -482,9 +491,9 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         expect(atPlay === play || play.contains(atPlay)).toBeTruthy();
         expect(play.getAttribute("aria-pressed")).toBe("true");
         // The shifted window survives underneath the open drawer.
-        expect(
-          (readout.textContent ?? "").replace(/\s+/g, " ").trim(),
-        ).toBe("▲ROWS 8–14 OF 14");
+        expect((readout.textContent ?? "").replace(/\s+/g, " ").trim()).toBe(
+          "▲A♯5 – A6",
+        );
 
         // --- HELP MODE ON over everything (the `i` global) --------------
         idoc().body.dispatchEvent(
@@ -532,7 +541,8 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
           new win.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
         );
         await poll(
-          () => $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
+          () =>
+            $$(".phone-options-drawer, .phone-options-backdrop").length === 0,
           3_000,
           "drawer closed by second Escape",
         );

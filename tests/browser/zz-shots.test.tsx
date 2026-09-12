@@ -44,11 +44,11 @@ async function bootIframe(w: number, h: number) {
       const doc = idoc();
       return doc.querySelector(".lane-switch-tab") !== null
         ? Array.from(doc.querySelectorAll(".head-ctl-value")).some((v) =>
-            (v.textContent ?? "").includes("SOFT STEP"),
+            (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
           )
         // 2026-09-11: rail-free on every stage (the chain is its own page).
         : Array.from(doc.querySelectorAll(".head-ctl-value")).some((v) =>
-            (v.textContent ?? "").includes("SOFT STEP"),
+            (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
           );
     },
     8000,
@@ -65,7 +65,7 @@ describe("RC-1 evidence shots", () => {
     try {
       await new Promise((r) => setTimeout(r, 400));
       await page.screenshot({
-        path: "/Users/arrangedgodly/Documents/Projects/daw/.impeccable/review/rc1-equal-windows-1440x900.png",
+        path: "__screenshots__/evidence/rc1-equal-windows-1440x900.png",
       });
     } finally {
       iframe.remove();
@@ -90,7 +90,7 @@ describe("RC-1 evidence shots", () => {
       (idoc().querySelector('.lane-switch-tab[data-lane="lead"]') as HTMLElement).click();
       await new Promise((r) => setTimeout(r, 700));
       await page.screenshot({
-        path: "/Users/arrangedgodly/Documents/Projects/daw/.impeccable/review/rc1-phone-lead-oct-390x844.png",
+        path: "__screenshots__/evidence/rc1-phone-lead-oct-390x844.png",
       });
     } finally {
       iframe.remove();
@@ -135,7 +135,7 @@ describe("FV-1 evidence shots (full-viewport densification)", () => {
         }
         await new Promise((r) => setTimeout(r, 400));
         await page.screenshot({
-          path: `/Users/arrangedgodly/Documents/Projects/daw/.impeccable/review/fv1-${w}x${h}${fourBar ? "-4bar" : ""}.png`,
+          path: `__screenshots__/evidence/fv1-${w}x${h}${fourBar ? "-4bar" : ""}.png`,
         });
       } finally {
         iframe.remove();

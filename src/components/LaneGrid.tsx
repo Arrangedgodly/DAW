@@ -31,6 +31,7 @@ import {
  */
 
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -187,7 +188,8 @@ const QUADRANT_GEOMETRY: Record<
   // (long patterns scroll INSIDE the quadrant — a 1-bar pattern,
   // 72+228+350=650 px, still fits the 666 px quadrant gut at 1440×900 with
   // zero internal scroll; 4-bar scrolls, exactly as before).
-  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 220, minRowPx: 20 },
+  // Fill controls now overlay the grid; they no longer require 20px rows.
+  drums: { cellPx: 20, gapPx: 2, labelPx: 72, fillRailPx: 220, minRowPx: 11 },
   bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
   chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
@@ -245,7 +247,7 @@ const NARROW_GEOMETRY: Record<
     minRowPx: number;
   }
 > = {
-  drums: { cellPx: 15, gapPx: 1, labelPx: 60, fillRailPx: 220, minRowPx: 11 },
+  drums: { cellPx: 15, gapPx: 1, labelPx: 56, fillRailPx: 220, minRowPx: 11 },
   bass: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
   chords: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
@@ -471,29 +473,29 @@ const fillRowBaselines = new WeakMap<
  * lands the deferred fit. Blur resets (a pointer lost to the OS never
  * delivered its up).
  */
-let phoneHeldPointers = 0;
+let heldPointers = 0;
 if (typeof document !== "undefined") {
   document.addEventListener(
     "pointerdown",
     () => {
-      phoneHeldPointers++;
+      heldPointers++;
     },
     true,
   );
   const release = (): void => {
-    phoneHeldPointers = Math.max(0, phoneHeldPointers - 1);
+    heldPointers = Math.max(0, heldPointers - 1);
     schedulePhoneWidthFit();
   };
   document.addEventListener("pointerup", release, true);
   document.addEventListener("pointercancel", release, true);
   document.defaultView?.addEventListener("blur", () => {
-    phoneHeldPointers = 0;
+    heldPointers = 0;
   });
 }
 
 function fitPhoneGeometry(): void {
   if (stageMode() !== "phone") return; // live re-fit is phone law only
-  if (phoneHeldPointers > 0) {
+  if (heldPointers > 0) {
     schedulePhoneWidthFit(); // trailing: one rAF past the release
     return;
   }
@@ -838,10 +840,7 @@ function fitQuadrantRows(): void {
 
     const width = Math.max(
       16,
-      Math.min(
-        48,
-        Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2,
-      ),
+      Math.min(48, Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2),
     );
 
     renderer.setCellWidth(width);
@@ -1240,6 +1239,7 @@ function GridSurface(props: {
       // pointer; the same click then selects the quadrant (onQuadrantClick).
       // The keyboard law is unchanged — only the selected grid has a tab stop.
       pointerEditable: true,
+      isInteractionHeld: () => heldPointers > 0,
       host: {
         readFrame,
         prefersReducedMotion: () =>
@@ -1750,34 +1750,38 @@ function RegisterShiftControls(props: {
 
     const row = pitchWindowStart(b.pitches, target, b.h);
 
-    setRegisterWindowStart(props.lane, row);
-
-    setOriginOverride({ row, origin: target });
+    batch(() => {
+      // A chromatic shift can keep the same scale row. Still snap any
+      // partially scrolled pane back to that row's boundary.
+      setRegisterWindowStart(props.lane, row, true);
+      setOriginOverride({ row, origin: target });
+    });
   };
 
   const readout = (): string =>
     `${midiLabel(origin())} – ${midiLabel(Math.min(127, origin() + 11))}`;
 
-  // M-6: the transient cue. Rides start() — any window move (buttons, a
+  // M-6: the transient cue follows pitch origin, including a semitone
+  // shift that stays between the same two scale rows. Any window move (buttons, a
   // later echo path) flashes, not just these clicks. Parity key: alternating
   // data-cue-parity values de-/re-match the CSS animation selectors so a
   // rapid second shift RESTARTS the flash. Reduced motion: never set.
   const [cue, setCue] = createSignal<{ dir: 1 | -1; key: number } | null>(null);
   const reducedMotion = (): boolean =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let lastStart: number | undefined;
+  let lastOrigin: number | undefined;
   let cueTimer: ReturnType<typeof setTimeout> | undefined;
   createEffect(() => {
-    const s = start();
-    if (lastStart === undefined) {
-      lastStart = s;
+    const currentOrigin = origin();
+    if (lastOrigin === undefined) {
+      lastOrigin = currentOrigin;
       return;
     }
-    if (s === lastStart) return;
+    if (currentOrigin === lastOrigin) return;
 
-    const dir: 1 | -1 = s < lastStart ? 1 : -1;
+    const dir: 1 | -1 = currentOrigin > lastOrigin ? 1 : -1;
 
-    lastStart = s;
+    lastOrigin = currentOrigin;
     if (reducedMotion()) {
       setCue(null);
       return;

@@ -272,8 +272,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-sound-select option:checked").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+            $$(".head-sound-select").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -753,8 +756,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-sound-select option:checked").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+            $$(".head-sound-select").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored demo cues",

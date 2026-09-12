@@ -244,7 +244,7 @@ describe("HL-1 resize edge table (real app)", () => {
           addNote("bass", c.patternId(), { degree: 0, start: 60, length: 10 }),
         ).toBe(true); // end 70: spans the 4-bar edge (anchor bar 4)
         const refusal =
-          "CANNOT SHRINK PATTERN A TO 4 BARS · C NOTE AT BAR 4 WOULD BE LOST · MOVE OR SHORTEN IT FIRST";
+          "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 4 WOULD BE LOST · MOVE OR SHORTEN IT FIRST";
         shrinkKey();
         await waitFor(
           () => c.announce() === refusal,
@@ -368,7 +368,7 @@ describe("HL-1 resize edge table (real app)", () => {
         await waitFor(
           () =>
             c.announce() ===
-            "CANNOT SHRINK PATTERN A TO 1 BAR · C NOTE AT BAR 2 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+            "CANNOT SHRINK PATTERN A TO 1 BAR · C2 NOTE AT BAR 2 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
           2000,
           "mid-play refusal announces",
         );

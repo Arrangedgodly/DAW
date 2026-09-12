@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+
+ Test Files  95 passed (95)
+      Tests  1802 passed (1802)
+   Start at  14:58:52
+   Duration  12.16s (transform 12.18s, setup 0ms, import 23.52s, tests 35.34s, environment 16ms)

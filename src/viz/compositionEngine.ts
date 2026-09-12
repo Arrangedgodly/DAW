@@ -1,8 +1,4 @@
-import {
-  isDefaultLane,
-  LANE_IDS,
-  type DefaultLaneId as LaneId,
-} from "../document/schema";
+import { ALL_LANE_IDS as LANE_IDS, type LaneId } from "../document/schema";
 import type { VizNoteOn } from "../engine/session";
 import type { VizFrameInfo } from "./renderer";
 import {
@@ -47,7 +43,7 @@ export function attackLevel(activity: LayerActivity, now: number): number {
 /** Four bounded ledgers; dense MIDI never allocates more geometry or particles. */
 export function createCompositionEngine(
   initial: VisualComposition,
-  colors: Record<LaneId, string>,
+  colors: Partial<Record<LaneId, string>>,
 ) {
   let composition = initial,
     reduced = false,
@@ -87,7 +83,7 @@ export function createCompositionEngine(
       mode = next.motion ?? "fluid";
       blended = next.blended ?? true;
     },
-    setColors(next: Record<LaneId, string>) {
+    setColors(next: Partial<Record<LaneId, string>>) {
       colors = { ...next };
     },
     setReducedMotion(next: boolean) {
@@ -109,7 +105,7 @@ export function createCompositionEngine(
         !Number.isFinite(hit.velocity) ||
         hit.velocity <= 0 ||
         !Number.isFinite(hit.pitch) ||
-        !isDefaultLane(hit.lane) ||
+        !LANE_IDS.includes(hit.lane) ||
         !audible[hit.lane]
       )
         return;
@@ -194,7 +190,7 @@ export function createCompositionEngine(
           reduced ? 0 : (a.pitch - 60) / 36,
           frame.width,
           frame.height,
-          colors[id],
+          colors[id] ?? "#e8eff2",
           id,
           reduced ? 0 : impact,
           Math.min(1, presence * 2),
@@ -208,7 +204,7 @@ export function createCompositionEngine(
     probe(now = previousTime) {
       return {
         disposed,
-        layers: disposed ? 0 : 4,
+        layers: disposed ? 0 : LANE_IDS.length,
         activity: structuredClone(activity),
         motion,
         reduced,

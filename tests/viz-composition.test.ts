@@ -130,7 +130,7 @@ describe("per-instrument composition", () => {
     for (let n = 0; n < 10000; n++)
       engine.ignite({ lane: "bass", pitch: 42, velocity: 0.8, audibleAt: 10 });
     const p = engine.probe();
-    expect(p.layers).toBe(4);
+    expect(p.layers).toBe(8);
     expect(p.activity.bass.velocity).toBe(0.8);
     expect(p.activity.drums.velocity).toBe(0);
     expect(activityLevel(p.activity.bass, 9)).toBe(0);
@@ -267,4 +267,36 @@ it("restores motion choices, migrates old compositions, and rejects corrupt sett
     expect(
       parseComposition(JSON.stringify({ ...current, ...patch })),
     ).toBeNull();
+});
+
+describe("extra instrument visuals", () => {
+  it("upgrades four-lane saved settings without changing their effects", () => {
+    const original = defaultComposition();
+    const legacy = {
+      ...original,
+      lanes: Object.fromEntries(LANE_IDS.map((id) => [id, original.lanes[id]])),
+    };
+    const restored = parseComposition(JSON.stringify(legacy))!;
+    expect(restored.lanes.drums).toEqual(original.lanes.drums);
+    expect(restored.lanes.extra4).toEqual(original.lanes.extra4);
+  });
+  it("keeps extra voices independent and clears a muted or removed layer", () => {
+    const engine = createCompositionEngine(defaultComposition(), {});
+    for (const lane of ["extra1", "extra2", "extra3", "extra4"] as const) {
+      for (let n = 0; n < 25; n++)
+        engine.ignite({
+          lane,
+          pitch: 65,
+          velocity: 0.6,
+          audibleAt: 1,
+          holdSeconds: 1,
+        });
+      expect(engine.probe(1.1).voices[lane]).toBe(16);
+      expect(engine.probe(1.1).energy[lane]).toBeGreaterThan(0);
+    }
+    engine.setAudible("extra2", false);
+    expect(engine.probe(1.1).voices.extra2).toBe(0);
+    expect(engine.probe(1.1).voices.extra3).toBe(16);
+    engine.dispose();
+  });
 });

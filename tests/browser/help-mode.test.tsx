@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * HP-1 browser gate — help mode (info view) mechanics on the REAL app,
  * iteration-2 AC #6 + a11y §7 E6 + keyboard.md v2 §"Help mode":
@@ -438,7 +439,7 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         );
         const bassCell = (step: number): HTMLElement =>
           $(
-            `.lane-floor[data-lane="bass"] .cell[data-row="0"][data-step="${step}"]`,
+            `.lane-floor[data-lane="bass"] .cell[data-row="${rowForDegree("bass", 0)}"][data-step="${step}"]`,
           );
         const a = center(bassCell(4));
         const mid = center(bassCell(5));
@@ -542,7 +543,12 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
 // Registry anti-rot invariants (HP-2 extends this into full coverage)
 // ---------------------------------------------------------------------------
 
+const newHelpSources = import.meta.glob(
+  "../../src/components/{PhonePageToggle,ThemeSelector,TrackColorControl,AgentAccess}.tsx",
+  { eager: true, query: "?raw", import: "default" },
+);
 const SOURCES = [
+  ...(Object.values(newHelpSources) as string[]),
   boothSrc,
   phoneOptionsSrc,
   stageFloorSrc,

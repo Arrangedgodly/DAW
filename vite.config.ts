@@ -123,9 +123,12 @@ export default defineConfig({
           extends: true,
           include: ["tests/browser/**/*.test.{ts,tsx}"],
           globalSetup: ["tests/browser/globalSetup.ts"],
+          setupFiles: ["tests/browser/diagnostics.ts"],
           alias: [{ find: /^zustand$/, replacement: "zustand/vanilla" }],
           browser: {
             enabled: true,
+            // diagnostics.ts captures failures with bounded filenames.
+            screenshotFailures: false,
             provider: playwright({
               launchOptions: {
                 args: ["--autoplay-policy=no-user-gesture-required"],

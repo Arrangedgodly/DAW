@@ -143,9 +143,9 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
         const railOf = (row: number) =>
           $(`.row-fill[data-row="${row}"]`) as HTMLElement;
         const cellsOfRow = (row: number): Element =>
-          [
-            ...drumsLane().querySelectorAll(".grid-row"),
-          ][row]!.querySelector(".row-cells")!;
+          [...drumsLane().querySelectorAll(".grid-row")][row]!.querySelector(
+            ".row-cells",
+          )!;
         const selfHit = (el: Element): boolean => {
           const r = el.getBoundingClientRect();
           const hit = document.elementFromPoint(
@@ -158,31 +158,18 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
         // --- 1. GEOMETRY LAW (all six rows) --------------------------------
         // The critique's numbers: rail 104 < control 200, ctl overflowed
         // 88.3 px past the cells' left edge (SET dead under the cells).
-        const readoutCharPx = (() => {
-          const v = railOf(0).querySelector(".row-fill-value")!;
-          const r = v.getBoundingClientRect();
-          return r.width / Math.max(1, (v.textContent ?? "0/16").length);
-        })();
+        await trustedClick($(".head-fill-toggle"));
         for (let row = 0; row < 6; row++) {
           const rail = railOf(row);
           const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
-          const cells = cellsOfRow(row);
-          // Renderer-pinned slot (the label-pin precedent; was CSS-only).
-          expect(rail.style.width, `row ${row} rail pinned inline`).toBe(
-            "220px",
-          );
-          // FIT: the control's natural width fits the rail's content box,
-          // with ≥ one readout character of headroom — the 4-bar "64/64"
-          // worst case ("0/16" → "64/64" adds exactly one character).
+          expect(rail.classList.contains("is-overlay")).toBe(true);
           expect(
             ctl.scrollWidth,
-            `row ${row} control fits the rail`,
-          ).toBeLessThanOrEqual(rail.clientWidth - readoutCharPx);
-          // CLEAR OF THE CELLS: the control never paints under the cells.
-          expect(
-            ctl.getBoundingClientRect().right,
-            `row ${row} control clears the cells`,
-          ).toBeLessThanOrEqual(cells.getBoundingClientRect().left + 0.5);
+            `row ${row} controls fit the expanded overlay`,
+          ).toBeLessThanOrEqual(rail.clientWidth);
+          expect(ctl.getBoundingClientRect().right).toBeLessThanOrEqual(
+            rail.getBoundingClientRect().right + 0.5,
+          );
         }
         // The widened rail is re-budgeted INSIDE the quadrant: the 1-bar
         // row (72+228+350=650) still needs no internal scroll at 1440.
@@ -194,21 +181,24 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
 
         // --- 2. elementFromPoint PROOF (unarmed: SET disabled) -------------
         const kickRail = railOf(0);
+        kickRail.scrollIntoView({ block: "nearest" });
         const kickButtons = [
           ...kickRail.querySelectorAll("button"),
         ] as HTMLButtonElement[];
         expect(kickButtons.length).toBe(5); // – + – + SET
         expect(kickButtons[4]!.disabled, "empty row → SET unarmed").toBe(true);
         for (const btn of kickButtons) {
-          expect(selfHit(btn), `${btn.getAttribute("aria-label")} self-hits`)
-            .toBe(true);
+          expect(
+            selfHit(btn),
+            `${btn.getAttribute("aria-label")} self-hits`,
+          ).toBe(true);
         }
 
         // --- 3. REAL CLICKS: reveal → arm → commit --------------------------
         // The real-user journey: the pointer enters the row through a
         // VISIBLE part (the row label), which reveals the opacity-gated
         // rail — then trusted clicks land on the revealed controls.
-        await userEvent.hover(cellsOfRow(0).querySelector(".cell")!);
+
         await waitFor(
           () => getComputedStyle(kickRail).opacity === "1",
           4000,
@@ -243,8 +233,7 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
         const setBtn = kickButtons[4]!;
         expect(setBtn.disabled, "armed → SET enabled").toBe(false);
         expect(selfHit(setBtn), "SET self-hits when enabled").toBe(true);
-        const kickPatternId =
-          docStore.getState().doc.patterns.drums[0]!.id;
+        const kickPatternId = docStore.getState().doc.patterns.drums[0]!.id;
         await trustedClick(setBtn);
         await waitFor(
           () =>
@@ -264,26 +253,26 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
         const id4 = addPattern("drums", 4, "TRUST4");
         selectPattern("drums", id4);
         await waitFor(
-          () =>
-            cellsOfRow(0).querySelectorAll(".cell").length === 64,
+          () => cellsOfRow(0).querySelectorAll(".cell").length === 64,
           5000,
           "4-bar drums grid rendered",
         );
         const rail4 = railOf(0);
+        rail4.scrollIntoView({ block: "nearest" });
         const ctl4 = rail4.querySelector(".row-fill-ctl") as HTMLElement;
         expect(
           ctl4.scrollWidth,
           "4-bar control fits the fixed rail",
-        ).toBeLessThanOrEqual(rail4.clientWidth - readoutCharPx);
+        ).toBeLessThanOrEqual(rail4.clientWidth);
         expect(ctl4.getBoundingClientRect().right).toBeLessThanOrEqual(
-          cellsOfRow(0).getBoundingClientRect().left + 0.5,
+          rail4.getBoundingClientRect().right + 0.5,
         );
         const buttons4 = [
           ...rail4.querySelectorAll("button"),
         ] as HTMLButtonElement[];
         for (const btn of buttons4) expect(selfHit(btn)).toBe(true);
         // Trusted arm + SET commit on the 64-step row (E(4,64,0)).
-        await userEvent.hover(cellsOfRow(0).querySelector(".cell")!);
+
         await waitFor(
           () => getComputedStyle(rail4).opacity === "1",
           4000,

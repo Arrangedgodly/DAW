@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * MB-4 browser gate — MOBILE RESILIENCE on the real app at phone viewport
  * (town-hall mobile addendum m5 first clauses; the plan's AC):
@@ -77,6 +78,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { closeOptions } from "../../src/state/optionsDrawer";
 import { showPhonePage } from "../../src/state/phonePage";
 import { cdp, page } from "vitest/browser";
 import { render } from "solid-js/web";
@@ -91,7 +93,12 @@ import {
 import { activePatterns, selectLane } from "../../src/state/selection";
 import { clearToasts } from "../../src/state/toasts";
 import { getSession } from "../../src/engine/session";
-import { getActiveProjectId, getAutosaveController, getBootDb, initPersistence } from "../../src/persist/boot";
+import {
+  getActiveProjectId,
+  getAutosaveController,
+  getBootDb,
+  initPersistence,
+} from "../../src/persist/boot";
 import { decode } from "../../src/document/codec";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { saveProject } from "../../src/persist/projectStore";
@@ -149,7 +156,11 @@ interface PhoneApp {
     extra: { x: number; y: number },
     move: { x: number; y: number },
   ) => Promise<void>;
-  scrollGesture: (origin: Element, xDistance: number, yDistance: number) => Promise<void>;
+  scrollGesture: (
+    origin: Element,
+    xDistance: number,
+    yDistance: number,
+  ) => Promise<void>;
   rowLine: (
     rowBox: DOMRect,
     from: { x: number; y: number },
@@ -161,6 +172,7 @@ interface PhoneApp {
 
 async function mountPhoneApp(w: number, h: number): Promise<PhoneApp> {
   await page.viewport(w, h);
+  window.scrollTo(0, 0);
   const host = document.createElement("div");
   document.body.append(host);
   const disposeApp = render(() => <App />, host);
@@ -209,12 +221,27 @@ async function mountPhoneApp(w: number, h: number): Promise<PhoneApp> {
   };
   const tools: PhoneApp = {
     el: (sel: string) => document.querySelector(sel) as HTMLElement,
-    cell: (lane: string, row: number, step: number) =>
-      document.querySelector(
-        `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
-      ) as HTMLElement,
+    cell: (lane: string, row: number, step: number) => {
+      const cell = document.querySelector<HTMLElement>(
+        `.lane-floor[data-lane="${lane}"] .cell[data-row="${rowForDegree(lane, row)}"][data-step="${step}"]`,
+      )!;
+      const box = cell.getBoundingClientRect();
+      if (box.bottom > innerHeight - 48)
+        window.scrollBy(0, box.bottom - innerHeight + 48);
+      return cell;
+    },
     tapEl: async (target: Element): Promise<void> => {
+      await document.fonts.ready;
+
       const r = target.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+      );
+      if (!hit || !(target === hit || target.contains(hit)))
+        throw new Error(
+          `Touch target ${target.getAttribute("class")} covered by ${hit?.getAttribute("class")} at ${r.left},${r.top}`,
+        );
       await touch([map(r.left + r.width / 2, r.top + r.height / 2)], 40);
     },
     touch,
@@ -273,7 +300,11 @@ async function mountPhoneApp(w: number, h: number): Promise<PhoneApp> {
       });
       await sleep(120);
     },
-    scrollGesture: async (origin: Element, xDistance: number, yDistance: number) => {
+    scrollGesture: async (
+      origin: Element,
+      xDistance: number,
+      yDistance: number,
+    ) => {
       const r = origin.getBoundingClientRect();
       const p = map(r.left + r.width / 2, r.top + r.height / 2);
       await c.send("Input.synthesizeScrollGesture", {
@@ -324,7 +355,9 @@ async function snapshotDb(): Promise<{
   }
 }
 
-async function restoreDb(snap: Awaited<ReturnType<typeof snapshotDb>>): Promise<void> {
+async function restoreDb(
+  snap: Awaited<ReturnType<typeof snapshotDb>>,
+): Promise<void> {
   try {
     await getAutosaveController()?.stop();
     if (snap) {
@@ -419,7 +452,10 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         );
         const t0 = ctx.currentTime;
         await sleep(200);
-        expect(ctx.currentTime, "the clock advances after unlock").toBeGreaterThan(t0);
+        expect(
+          ctx.currentTime,
+          "the clock advances after unlock",
+        ).toBeGreaterThan(t0);
 
         // (b) FIRST gesture = a touch tap on PLAY (the transport path).
         await ctx.suspend();
@@ -444,7 +480,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           4000,
           "TAP TO RESUME AUDIO surfaced while playing",
         );
-        expect(app.el(".audio-resume").textContent).toContain("TAP TO RESUME AUDIO");
+        expect(app.el(".audio-resume").textContent).toContain(
+          "TAP TO RESUME AUDIO",
+        );
         await app.tapEl(app.el(".audio-resume"));
         await waitFor(
           () => ctx.state === "running",
@@ -460,7 +498,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // STOP, then (d) FIRST gesture = a preset STEPPER tap (the
         // LaneHeader audition path — the plan's third example).
         await app.tapEl(app.el(".booth-btn-play"));
-        await waitFor(() => !session.transport.snapshot.playing, 4000, "stopped");
+        await waitFor(
+          () => !session.transport.snapshot.playing,
+          4000,
+          "stopped",
+        );
         await ctx.suspend();
         expect(ctx.state).toBe("suspended");
         const bassConf = () =>
@@ -481,6 +523,7 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         clearToasts(); // a toast left open covers the booth for the next test
         session.audition = origAudition;
         session.transport.stop();
+        closeOptions();
         app.dispose();
         await restoreDb(snap);
         await page.viewport(1280, 800);
@@ -527,7 +570,8 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // The rendered playhead must be live BEFORE the rotation.
         const playhead = app.el(".grid-playhead");
         const playheadX = () =>
-          Number.parseFloat(playhead.style.transform.replace(/[^\d.-]/g, "")) || 0;
+          Number.parseFloat(playhead.style.transform.replace(/[^\d.-]/g, "")) ||
+          0;
         const ph0 = playheadX();
 
         // --- same-stage rotation: 390×844 portrait → 844×390 landscape ---
@@ -544,7 +588,10 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         ).toBe(true);
         const after = sample();
         const dt = after.clock - before.clock;
-        expect(dt, "the audio clock advanced in lockstep with wall time").toBeGreaterThan(0.2);
+        expect(
+          dt,
+          "the audio clock advanced in lockstep with wall time",
+        ).toBeGreaterThan(0.2);
         let dl = after.loopTime - before.loopTime;
         // Modulo the loop length (wrap is legal — continuity is the law).
         while (dl < 0) dl += loopLen;
@@ -553,7 +600,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         // The rendered playhead is still LIVE after the rotation (the rAF
         // reader restarted with the remounted chrome and moved on).
         await waitFor(
-          () => Math.abs(playheadX() - ph0) > 0.01 || playhead.style.opacity === "1",
+          () =>
+            Math.abs(playheadX() - ph0) > 0.01 ||
+            playhead.style.opacity === "1",
           3000,
           "rendered playhead live after rotation",
         );
@@ -592,9 +641,18 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         await page.viewport(390, 844);
         await sleep(150);
         await app.touchCancelAll();
-        await waitFor(() => previews() === 0, 2000, "preview cleared after cancel");
-        expect(bassNotes().length, "rotation-interrupted gesture committed nothing").toBe(0);
-        expect(historyDepth(), "undo history untouched by the cancel").toBe(depth0);
+        await waitFor(
+          () => previews() === 0,
+          2000,
+          "preview cleared after cancel",
+        );
+        expect(
+          bassNotes().length,
+          "rotation-interrupted gesture committed nothing",
+        ).toBe(0);
+        expect(historyDepth(), "undo history untouched by the cancel").toBe(
+          depth0,
+        );
 
         // --- cross-stage rotation mid-gesture: phone → tablet REMOUNTS the
         // grid surface + the rail — the gesture dies with its surface. ---
@@ -616,7 +674,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         await app.sendTouch("touchStart", [downPt]);
         await sleep(30);
         await app.sendTouch("touchMove", [movePt]);
-        await waitFor(() => previews() > 0, 2000, "preview armed before the crossing");
+        await waitFor(
+          () => previews() > 0,
+          2000,
+          "preview armed before the crossing",
+        );
         // The crossing: phone → tablet. The GridSurface key includes the
         // stage mode → remount; the rail remounts with it and its onCleanup
         // clears the module sweep.
@@ -639,10 +701,7 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           bassNotes().length,
           "the rotation-remounted gesture committed nothing (no phantom note)",
         ).toBe(0);
-        expect(
-          previews(),
-          "no stuck preview after the remount",
-        ).toBe(0);
+        expect(previews(), "no stuck preview after the remount").toBe(0);
         expect(
           document.querySelectorAll("[data-cue-preview]").length,
           "no stuck rail sweep after the remount",
@@ -695,7 +754,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           "switcher works after rotation churn",
         );
         await app.tapEl(app.el(".booth-btn-play"));
-        await waitFor(() => !session.transport.snapshot.playing, 4000, "stopped");
+        await waitFor(
+          () => !session.transport.snapshot.playing,
+          4000,
+          "stopped",
+        );
       } finally {
         clearToasts(); // a toast left open covers the booth for the next test
         session.transport.stop();
@@ -769,7 +832,8 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         setVisibility("hidden");
         visibilityRestored = true;
         await waitFor(
-          async () => (await rowDirty()) === false && (await rowBassNotes()) === 1,
+          async () =>
+            (await rowDirty()) === false && (await rowBassNotes()) === 1,
           750,
           "visibilitychange→hidden flushed the edit inside the debounce window",
         );
@@ -810,12 +874,17 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         app.cell("bass", 0, 6).click(); // the second pending edit (2 notes)
         window.dispatchEvent(new Event("pagehide"));
         await waitFor(
-          async () => (await rowDirty()) === false && (await rowBassNotes()) === 2,
+          async () =>
+            (await rowDirty()) === false && (await rowBassNotes()) === 2,
           750,
           "pagehide flushed the edit inside the debounce window",
         );
         await app.tapEl(app.el(".booth-btn-play"));
-        await waitFor(() => !session.transport.snapshot.playing, 4000, "stopped");
+        await waitFor(
+          () => !session.transport.snapshot.playing,
+          4000,
+          "stopped",
+        );
 
         // --- the recovery affordance re-offers on a dirty-row boot ---
         await getAutosaveController()?.stop();
@@ -829,7 +898,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         const result = await initPersistence({ db: snap!.db });
         expect(result.restored).toBe(true);
         await waitFor(
-          () => document.body.textContent?.includes("RECOVERED UNSAVED WORK") === true,
+          () =>
+            document.body.textContent?.includes("RECOVERED UNSAVED WORK") ===
+            true,
           4000,
           "the HU-3 recovery affordance re-offered at phone width",
         );
@@ -931,7 +1002,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         );
         // Wait INTO the exhausted tail: the 1.5s horizon has covered the
         // pass end long before the audible end (~2.1s at 120bpm 1 bar).
-        await sleep(1400);
+        await waitFor(
+          () => session.transport.getLoopTime() >= 1.5,
+          2000,
+          "audible exhausted tail",
+        );
         expect(session.transport.snapshot.playing).toBe(true); // still the tail
         await app.tapEl(loopBtn); // the stall moment
         await waitFor(
@@ -949,7 +1024,11 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         const lt = session.transport.getLoopTime();
         expect(lt).toBeLessThan(2.2); // wrapped into the next pass
         await app.tapEl(playBtn);
-        await waitFor(() => !session.transport.snapshot.playing, 4000, "stopped");
+        await waitFor(
+          () => !session.transport.snapshot.playing,
+          4000,
+          "stopped",
+        );
         // M-4: close the drawer before dispose — `optionsOpen` is module
         // state and would otherwise leak an OPEN drawer (backdrop and all)
         // into the next test's fresh mount.
@@ -1012,13 +1091,20 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         await waitFor(() => previews() > 0, 2000, "create preview armed");
         const cancels = cancelCounter();
         await app.touchCancelAll();
-        await waitFor(() => previews() === 0, 2000, "preview cleared by touchCancel");
+        await waitFor(
+          () => previews() === 0,
+          2000,
+          "preview cleared by touchCancel",
+        );
         expect(
           cancels.count(),
           "a REAL pointercancel was derived from the trusted touchCancel",
         ).toBeGreaterThanOrEqual(1);
         cancels.stop();
-        expect(bassNotes().length, "T1: interrupted create committed nothing").toBe(0);
+        expect(
+          bassNotes().length,
+          "T1: interrupted create committed nothing",
+        ).toBe(0);
         expect(historyDepth(), "T1: no history entry").toBe(depth0);
         expect(auditions.length, "T1: no auditions").toBe(aud0);
 
@@ -1118,7 +1204,10 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           bassNotes().length,
           "T3: the second finger contributed nothing",
         ).toBe(notesBefore + 1);
-        expect(bassNotes().some((n) => n.start === 1), "T3: committed the sweep finger's span").toBe(true);
+        expect(
+          bassNotes().some((n) => n.start === 1),
+          "T3: committed the sweep finger's span",
+        ).toBe(true);
 
         // -- T4: long-press contextmenu during a held touch gesture ---------
         const lpRow = app.cell("bass", 2, 0).parentElement!;
@@ -1165,7 +1254,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           cancelable: true,
         });
         document.querySelector(".lane-grid-scroll")!.dispatchEvent(menuIdle);
-        expect(menuIdle.defaultPrevented, "T4: idle contextmenu free").toBe(false);
+        expect(menuIdle.defaultPrevented, "T4: idle contextmenu free").toBe(
+          false,
+        );
 
         // -- T5: scroll-cancel during an armed gesture (edge law) -----------
         // (a) the vertical touch swipe pointercancels the armed gesture with
@@ -1179,7 +1270,12 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         ];
         for (let i = 1; i <= 8; i++) {
           down.push(
-            app.rowLine(swR, { x: 7, y: 12 + i * 14 }, { x: 7, y: 12 + i * 14 }, 0)[0]!,
+            app.rowLine(
+              swR,
+              { x: 7, y: 12 + i * 14 },
+              { x: 7, y: 12 + i * 14 },
+              0,
+            )[0]!,
           );
         }
         const cancels5 = cancelCounter();
@@ -1193,7 +1289,9 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           bassNotes().length,
           "T5: the cancelled gesture committed nothing",
         ).toBe(notesBefore5);
-        expect(historyDepth(), "T5: undo history untouched (coherent)").toBe(depth5);
+        expect(historyDepth(), "T5: undo history untouched (coherent)").toBe(
+          depth5,
+        );
         expect(previews(), "T5: no stuck preview").toBe(0);
         // (b) the same vertical pan still scrolls from that cell origin
         //     (pan-y — the committed scrolling law). M-5 (iteration 4)
@@ -1202,7 +1300,15 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         //     retired), so the SEAT is the scrolling surface the pan
         //     commits to. Real scroll range: the LEAD manifest (14 rows)
         //     exceeds the 7-row seat.
+        // Let the preceding native pan finish; a tap during inertia stops
+        // scrolling before Chromium will activate a different control.
+        await sleep(500);
         await app.tapEl(app.el('.lane-switch-tab[data-lane="lead"]'));
+        // A first tap can stop native fling inertia without activating.
+        if (app.el(".lane-floor").dataset.lane !== "lead") {
+          await sleep(150);
+          await app.tapEl(app.el('.lane-switch-tab[data-lane="lead"]'));
+        }
         await waitFor(
           () => app.el(".lane-floor").dataset.lane === "lead",
           3000,

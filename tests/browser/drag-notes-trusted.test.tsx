@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * IN-2 FIX gate — TRUSTED single-click activation on the source-mounted real
  * app (the verifier-FAIL class, pinned so it can never pass silently again).
@@ -105,7 +106,7 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
 
       const cellAt = (lane: string, row: number, step: number): HTMLElement => {
         const cell = document.querySelector(
-          `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+          `.lane-floor[data-lane="${lane}"] .cell[data-row="${rowForDegree(lane, row)}"][data-step="${step}"]`,
         );
         if (!cell) throw new Error(`missing ${lane} cell ${row}:${step}`);
         return cell as HTMLElement;

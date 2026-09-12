@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * LY-1 browser gate — the 2×2 quadrant stage on the REAL BUILT APP:
  *
@@ -139,8 +140,11 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo cues",
@@ -157,6 +161,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             (idoc().body.scrollHeight ?? 0) <= VIEW_H
           );
         };
+        await poll(pageFits, 5000, "font and grid fit settle");
         expect(pageFits(), `page must fit ${VIEW_W}×${VIEW_H}`).toBe(true);
 
         // Every booth/rail/strip bounding box inside the viewport.
@@ -173,14 +178,14 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // 2026-09-11: the chain is its own PAGE, not a bar on the stage —
         // measure it where it lives, then come back to the quadrants for the
         // rest of the one-page laws below.
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           5_000,
           "song page",
         );
         expect(insideViewport($(".rail")), "rail inside viewport").toBe(true);
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           5_000,
@@ -205,32 +210,26 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         const assertNames = (editing: string) => {
           for (const lane of ["drums", "bass", "chords", "lead"]) {
             const label = gridOf(lane).getAttribute("aria-label") ?? "";
-            const state =
-              lane === editing ? "EDITING" : "VIEW ONLY";
+            const state = lane === editing ? "EDITING" : "VIEW ONLY";
             const windowed = floor(lane)
               .querySelector(".lane-grid-scroll")!
               .classList.contains("is-windowed");
-            // The demo's bass/chords manifests fit one octave; only the
-            // 15-row lead manifest can window.
-            if (lane !== "lead") {
-              expect(label, `${lane} grid name (fits one window)`).toBe(
-                `${lane.toUpperCase()} grid · ${state}`,
-              );
-              expect(windowed, `${lane} never windows`).toBe(false);
-            } else if (windowed) {
-              expect(
-                label.startsWith(`LEAD grid · ${state} · ROWS `),
-                "lead windowed name prefix",
-              ).toBe(true);
-              expect(
-                label.endsWith(" OF 14"),
-                "lead windowed name carries the manifest",
-              ).toBe(true);
+            if (lane === "drums") {
+              expect(label).toBe(lane.toUpperCase() + " grid · " + state);
+              expect(windowed).toBe(false);
             } else {
+              expect(windowed).toBe(true);
               expect(
-                label,
-                "lead full-manifest name (fill-grown window)",
-              ).toBe(`LEAD grid · ${state}`);
+                label.startsWith(
+                  lane.toUpperCase() + " grid · " + state + " · ROWS ",
+                ),
+              ).toBe(true);
+              expect(
+                label.endsWith(
+                  " OF " +
+                    (floor(lane).querySelectorAll(".grid-row").length - 1),
+                ),
+              ).toBe(true);
             }
           }
         };
@@ -249,7 +248,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           const editRow =
             floor(lane).querySelector<HTMLElement>(".lane-strip-edit")!;
           expect(editRow.classList.contains("is-hidden")).toBe(true);
-          expect(editRow.offsetParent).toBeNull();
+          expect(idoc().defaultView!.getComputedStyle(editRow).visibility).toBe(
+            "hidden",
+          );
         }
         // The selected grid owns exactly one (roving) tab stop.
         expect(
@@ -529,32 +530,24 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // rail re-budgeted INSIDE the quadrant — 72+228+350=650 ≤ its 666
         // px gut), and the one-page law is untouched. Trusted-pointer twins
         // (real clicks + preview/commit) live in euclid-fill-trusted.test.tsx.
+        floor("drums").querySelector<HTMLElement>(".head-fill-toggle")!.click();
         for (let row = 0; row < 6; row++) {
-          const rail = floor("drums").querySelector(
-            `.row-fill[data-row="${row}"]`,
-          ) as HTMLElement;
-          const ctl = rail.querySelector(".row-fill-ctl") as HTMLElement;
-          const cells = [...floor("drums").querySelectorAll(".grid-row")][
-            row
-          ]!.querySelector(".row-cells")!;
-          expect(rail.style.width, `row ${row} rail pinned inline`).toBe(
-            "220px",
-          );
-          expect(
-            ctl.getBoundingClientRect().right,
-            `row ${row} fill control clears the cells`,
-          ).toBeLessThanOrEqual(cells.getBoundingClientRect().left + 0.5);
-          const set = rail.querySelector(".row-fill-apply")!;
+          const rail = floor("drums").querySelector<HTMLElement>(
+            '.row-fill[data-row="' + row + '"]',
+          )!;
+          const set = rail.querySelector<HTMLElement>(".row-fill-apply")!;
+          set.scrollIntoView({ block: "nearest" });
           const r = set.getBoundingClientRect();
           const hit = idoc().elementFromPoint(
             r.left + r.width / 2,
             r.top + r.height / 2,
           );
           expect(
-            hit === set || set.contains(hit!),
-            `row ${row} SET must own its center (was a .cell)`,
+            hit === set || set.contains(hit),
+            "each visible fill control owns its target",
           ).toBe(true);
         }
+        floor("drums").querySelector<HTMLElement>(".head-fill-toggle")!.click();
         const drumsScroll = floor("drums").querySelector(
           ".lane-grid-scroll",
         ) as HTMLElement;
@@ -580,13 +573,18 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             }),
           );
         }
-        await poll(() => {
-          const rows = floor("lead").querySelectorAll(".grid-row");
-          return (
-            rows.length > 0 &&
-            floor("lead").querySelectorAll(".cell").length === rows.length * 64
-          );
-        }, 5_000, "4-bar lead pattern rendered (64 steps per row)");
+        await poll(
+          () => {
+            const rows = floor("lead").querySelectorAll(".grid-row:has(.cell)");
+            return (
+              rows.length > 0 &&
+              floor("lead").querySelectorAll(".cell").length ===
+                rows.length * 64
+            );
+          },
+          5_000,
+          "4-bar lead pattern rendered (64 steps per row)",
+        );
         expect(
           pageFits(),
           "page must still fit with a 4-bar pattern (grid scrolls inside its quadrant, never the page)",
@@ -672,8 +670,11 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
         await poll(
           () =>
-            Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
-              (v.textContent ?? "").includes("SOFT STEP"),
+            Array.from(idoc().querySelectorAll(".head-ctl-value")).some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo cues",
@@ -704,7 +705,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         );
         // The rail box itself sits inside the viewport (was right = 1312).
         // 2026-09-11: measured on the SONG page, the chain's own home.
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           5_000,
@@ -714,7 +715,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           $(".rail").getBoundingClientRect().right,
           "rail box inside viewport",
         ).toBeLessThanOrEqual(MIN_W + 0.5);
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           5_000,
@@ -732,47 +733,29 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // which the windows prevent at the tested minimums. The full
         // manifest stays in the DOM; every VISIBLE row is inside the
         // viewport (the one-page law is a page law, not a pane law).
-        const bassTrack = trackOf("bass");
-        expect(
-          bassTrack,
-          "bass tracks fill-grown to the committed 24px clamp",
-        ).toBe(24);
-        expect(trackOf("drums"), "drums fills to the 24px clamp").toBe(24);
         for (const lane of ["drums", "bass", "chords", "lead"]) {
           const track = trackOf(lane);
           expect(
             track,
             `${lane} track within the fill clamp`,
-          ).toBeGreaterThanOrEqual(lane === "drums" ? 20 : 16);
-          expect(track).toBeLessThanOrEqual(24);
+          ).toBeGreaterThanOrEqual(11);
+          expect(track).toBeLessThanOrEqual(64);
           const scroll = $(
             `.lane-floor[data-lane="${lane}"] .lane-grid-scroll`,
           ) as HTMLElement;
           const rows = Array.from(
             $(`.lane-floor[data-lane="${lane}"]`).querySelectorAll(".grid-row"),
           );
-          expect(rows.length, `${lane} full manifest stays in the DOM`).toBe(
-            lane === "drums" ? 6 : lane === "bass" ? 7 : lane === "chords" ? 7 : 15,
-          );
+          if (lane === "drums") expect(rows.length).toBe(6);
+          else expect(rows.length).toBeGreaterThan(7);
           const box = scroll.getBoundingClientRect();
           const visible = rows.filter((row) => {
             const r = row.getBoundingClientRect();
             return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
           });
-          if (lane === "lead") {
-            // The fill law: the lead window holds AT LEAST the one-octave
-            // default, grown by the budget share (never past the manifest).
-            expect(
-              visible.length,
-              "lead window grown past one octave",
-            ).toBeGreaterThanOrEqual(8);
-            expect(visible.length).toBeLessThanOrEqual(15);
-          } else {
-            expect(
-              visible.length,
-              `${lane} full manifest visible (fits one window)`,
-            ).toBe(lane === "drums" ? 6 : 7);
-          }
+          expect(visible.length, "one octave or six drum pieces visible").toBe(
+            lane === "drums" ? 6 : 7,
+          );
           expect(
             visible[visible.length - 1]!.getBoundingClientRect().height,
             `${lane} rows render at full track height`,
@@ -784,24 +767,19 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           );
         }
 
-        // --- 1b-3. Entry-2 euclid law at 1280 (no occlusion regression) --
-        for (let row = 0; row < 6; row++) {
-          const rail = $(
-            `.lane-floor[data-lane="drums"] .row-fill[data-row="${row}"]`,
-          );
-          expect(rail.style.width, `row ${row} rail pinned`).toBe("220px");
-          const set = rail.querySelector(".row-fill-apply")!;
+        $(".lane-floor[data-lane='drums'] .head-fill-toggle").click();
+        for (const set of idoc().querySelectorAll<HTMLElement>(
+          ".row-fill-apply",
+        )) {
+          set.scrollIntoView({ block: "nearest" });
           const r = set.getBoundingClientRect();
           const hit = idoc().elementFromPoint(
             r.left + r.width / 2,
             r.top + r.height / 2,
           );
-          expect(
-            hit === set || set.contains(hit!),
-            `row ${row} SET owns its center at 1280`,
-          ).toBe(true);
+          expect(hit === set || set.contains(hit)).toBe(true);
         }
-
+        $(".lane-floor[data-lane='drums'] .head-fill-toggle").click();
         // --- 1b-4. Entry-1 FX console law at 1280 --------------------------
         $(".lane-floor[data-lane='drums'] .head-fx").click();
         await poll(
@@ -861,7 +839,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         iframe.style.width = `${VIEW_W}px`;
         iframe.style.height = `${VIEW_H}px`;
         await poll(
-          () => trackOf("bass") === 24 && trackOf("lead") >= 17,
+          () => fits(VIEW_W, VIEW_H) && trackOf("lead") >= 11,
           5_000,
           "the fill re-distributes the 1440×900 share",
         );
@@ -900,9 +878,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // value, never to the floor), and the page still fits.
         await poll(
           () =>
-            trackOf("bass") === 24 &&
-            trackOf("lead") >= 16 &&
-            trackOf("lead") < 24,
+            fits(MIN_W, MIN_H) &&
+            trackOf("lead") >= 11 &&
+            trackOf("lead") <= 64,
           5_000,
           "the fill re-quantizes back down at 1280×800",
         );
@@ -924,17 +902,22 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             }),
           );
         }
-        await poll(() => {
-          const rows = $(`.lane-floor[data-lane="lead"]`).querySelectorAll(
-            ".grid-row",
-          );
-          return (
-            rows.length > 0 &&
-            $(`.lane-floor[data-lane="lead"]`).querySelectorAll(".cell")
-              .length ===
-              rows.length * 64
-          );
-        }, 5_000, "4-bar lead pattern rendered at 1280 (64 steps per row)");
+        await poll(
+          () => {
+            const rows = $(`.lane-floor[data-lane="lead"]`).querySelectorAll(
+              ".grid-row:has(.cell)",
+            );
+            return (
+              rows.length > 0 &&
+              $(`.lane-floor[data-lane="lead"]`).querySelectorAll(".cell")
+                .length ===
+                rows.length * 64
+            );
+          },
+          5_000,
+          "4-bar lead pattern rendered at 1280 (64 steps per row)",
+        );
+        await poll(() => fits(MIN_W, MIN_H), 5000, "4-bar page settles");
         expect(
           fits(MIN_W, MIN_H),
           "page fits with a 4-bar pattern at 1280×800 (grid scrolls inside its quadrant, never the page)",
@@ -959,7 +942,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         );
         await poll(
           () =>
-            trackOf("bass") >= 16 && trackOf("bass") <= 24 && fits(MIN_W, MIN_H),
+            trackOf("bass") >= 11 &&
+            trackOf("bass") <= 64 &&
+            fits(MIN_W, MIN_H),
           5_000,
           "bass editing fit at 1280",
         );

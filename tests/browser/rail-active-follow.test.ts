@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * Refinement-7 browser gate — the rail active-tile follow + the two polish
  * laws (critique P2-3 / deferred #14 + the P3s), on the REAL BUILT APP:
@@ -177,11 +178,11 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         // stage — open it before any rail assertion. The booth SONG key is
         // the desktop entry (the phone's transport-row key is the twin).
         await poll(
-          () => !!idoc().querySelector(".booth-btn-song"),
+          () => !!idoc().querySelector(WORKSPACE_TOGGLE),
           5_000,
           "booth SONG key",
         );
-        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        idoc().querySelector<HTMLButtonElement>(WORKSPACE_TOGGLE)!.click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           5_000,
@@ -397,9 +398,12 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
           const cs = view.getComputedStyle(group);
           expect(
             Number.parseFloat(cs.paddingTop),
-            "booth group carries the --space-1 vertical inset",
-          ).toBe(2);
-          expect(Number.parseFloat(cs.paddingBottom)).toBe(2);
+            "position group separates its second row; other groups stay symmetric",
+          ).toBe(
+            group.classList.contains("booth-group-position")
+              ? 9
+              : Number.parseFloat(cs.paddingBottom),
+          );
         }
         const boothBox = $<HTMLElement>(".booth").getBoundingClientRect();
         console.log(
@@ -414,12 +418,19 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         iframe.style.width = `${MIN_W}px`;
         iframe.style.height = `${MIN_H}px`;
         const dbgFit = { w: 0, h: 0 };
-        await poll(() => {
-          const de = idoc().documentElement;
-          dbgFit.w = Math.max(de.scrollWidth, idoc()!.body.scrollWidth ?? 0);
-          dbgFit.h = Math.max(de.scrollHeight, idoc()!.body.scrollHeight ?? 0);
-          return fits(MIN_W, MIN_H);
-        }, 8_000, "1280 fit settle").catch((err: Error) => {
+        await poll(
+          () => {
+            const de = idoc().documentElement;
+            dbgFit.w = Math.max(de.scrollWidth, idoc()!.body.scrollWidth ?? 0);
+            dbgFit.h = Math.max(
+              de.scrollHeight,
+              idoc()!.body.scrollHeight ?? 0,
+            );
+            return fits(MIN_W, MIN_H);
+          },
+          8_000,
+          "1280 fit settle",
+        ).catch((err: Error) => {
           const stage = idoc()!.querySelector("main.stage");
           const railEl = idoc()!.querySelector(".rail");
           throw new Error(

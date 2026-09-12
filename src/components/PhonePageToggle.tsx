@@ -20,7 +20,11 @@ import { phonePage, showPhonePage, togglePhonePage } from "../state/phonePage";
 
 export function DesktopPageNavigation(): JSX.Element {
   return (
-    <nav class="desktop-page-nav" aria-label="Workspace view">
+    <nav
+      class="desktop-page-nav"
+      aria-label="Workspace view"
+      data-help="workspace.pages"
+    >
       <button
         type="button"
         data-page="edit"
@@ -51,9 +55,14 @@ export function DesktopPageNavigation(): JSX.Element {
 
 registerHelp([
   {
+    id: "workspace.pages",
+    title: "WORKSPACE PAGES",
+    text: "Instruments 1–4 opens the default note editors. Instruments 5–8 opens four optional instrument slots. Song arrangement shows the pattern chains for every instrument in the project. Playback continues when you change pages.",
+  },
+  {
     id: "phone.page",
     title: "SONG PAGE",
-    text: "Switches between the note grid (EDIT) and the SONG page — every lane's chain of patterns as tiles, all four lanes at once. Tap a tile while playing to jump that lane to it; tap a tile's arrow to choose what it does when it ends: ⟲ loops it until you pick another, → plays it once and moves on.",
+    text: "Switches between editing notes and the song arrangement for all instruments in the project. Tap a pattern while playing to cue it. Each pattern can loop until you choose another, or play once and advance to the next pattern.",
   },
 ]);
 

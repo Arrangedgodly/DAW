@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * MB-3 browser gate — the PHONE TARGET-SIZE AUDIT (town-hall mobile addendum
  * m2 / WCAG 2.5.5, ≥44×44) + the phone-stage focus-order + rotation-coherence
@@ -550,7 +551,8 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           const normalW = popoverFits("normal", vw2, vh2);
           // The saved-list laws need rows; a wiped origin audits the actions
           // + the fit law only (the :256-258 `optional` rationale).
-          const hasRows = document.querySelector(".projects-item") !== null;
+          const hasRows =
+            document.querySelector(".projects-list .projects-item") !== null;
           if (hasRows) {
             // A1 tooth presence: the seeded long-titled row is in THIS walk
             // (most-recent-first puts it first). The paint may ellipsize it;
@@ -562,10 +564,15 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
               longRow?.textContent ?? "",
               "the long-title tooth row is present in the walk",
             ).toContain("Codepoints");
-            await auditSelector(".projects-item", "projects row", walkRows, {
-              limit: 2,
-              optional: true,
-            });
+            await auditSelector(
+              ".projects-list .projects-item",
+              "projects row",
+              walkRows,
+              {
+                limit: 2,
+                optional: true,
+              },
+            );
             await auditSelector(".projects-x", "projects row key", walkRows, {
               limit: 2,
               optional: true,
@@ -722,7 +729,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await closeOptionsDrawer(); // stage surfaces below must not sit under the backdrop
         // --- pinned chrome: switcher + the SONG page key -----------------
         await auditSelector(".lane-switch-tab", "switcher tab", rows);
-        rows.push(await auditControl($(".phone-page-toggle"), "SONG page key"));
+        rows.push(await auditControl($(WORKSPACE_TOGGLE), "SONG page key"));
         // 2026-09-11: the chain rail lives on the SONG page (the EDIT page
         // dropped the condensed row) — audit it there, then return to EDIT.
         showPhonePage("song");
@@ -1085,6 +1092,10 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           "the open drawer contributes its tools as tab stops",
         ).toBeGreaterThanOrEqual(7);
         await closeOptionsDrawer();
+        // Earlier hit audits scroll controls into view. Return to the top
+        // before comparing document order with the sticky header's geometry.
+        window.scrollTo(0, 0);
+        await raf();
         for (const el of tabbables) {
           expect(
             el.tabIndex,
@@ -1287,7 +1298,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         await closeOptionsDrawer();
         await auditSelector(".lane-switch-tab", "switcher tab", rows360);
         rows360.push(
-          await auditControl($(".phone-page-toggle"), "SONG page key (360)"),
+          await auditControl($(WORKSPACE_TOGGLE), "SONG page key (360)"),
         );
         showPhonePage("song"); // the chain rail lives there (2026-09-11)
         await waitFor(

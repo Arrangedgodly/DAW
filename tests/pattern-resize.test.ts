@@ -89,8 +89,9 @@ describe("length ladder", () => {
     const base = createDefaultProject();
     expect(resizeRowLabel(base, "drums", 2)).toBe("HAT");
     // Default project = C minor: degree 0 → C, degree 7 → C′ (one octave up).
-    expect(resizeRowLabel(base, "bass", 0)).toBe("C");
-    expect(resizeRowLabel(base, "bass", 7)).toBe("C′");
+    expect(resizeRowLabel(base, "bass", 0)).toBe("C2");
+    expect(resizeRowLabel(base, "bass", 7)).toBe("C3");
+    expect(resizeRowLabel(base, "bass", -1)).toBe("A♯1");
   });
 
   it("barOfStep is 1-based over 16-step bars", () => {

@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * Refinement-6 browser gate — rail tools row density (critique P3,
  * heuristic 8 "Aesthetic and Minimalist Design": the per-lane six-tool row
@@ -188,11 +189,11 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         // stage — open it before any rail assertion. The booth SONG key is
         // the desktop entry (the phone's transport-row key is the twin).
         await poll(
-          () => !!idoc().querySelector(".booth-btn-song"),
+          () => !!idoc().querySelector(WORKSPACE_TOGGLE),
           5_000,
           "booth SONG key",
         );
-        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        idoc().querySelector<HTMLButtonElement>(WORKSPACE_TOGGLE)!.click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           5_000,

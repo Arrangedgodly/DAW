@@ -79,6 +79,11 @@ import "../styles/projects.css";
  */
 registerHelp([
   {
+    id: "projects.demos",
+    title: "BUILT-IN DEMOS",
+    text: "Open a demo to listen and explore its instruments and arrangement. Demos are previews until you edit them. Your first edit creates a local copy, so the original demo stays available.",
+  },
+  {
     id: "projects.open",
     title: "PROJECTS",
     text: "Opens the projects panel: everything you have saved, plus new project, exports and file save/open. Escape closes it.",
@@ -689,7 +694,7 @@ export default function Projects(): JSX.Element {
             </For>
           </ul>
           <AgentAccess />
-          <details class="projects-demos">
+          <details class="projects-demos" data-help="projects.demos">
             <summary>Built-in demos</summary>
             <p>Try a demo. A local copy is saved only when you edit it.</p>
             <For each={BUILT_IN_DEMOS}>

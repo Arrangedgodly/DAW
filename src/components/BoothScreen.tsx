@@ -1,3 +1,4 @@
+import { createLaneDisplayNames } from "../state/laneDisplayNames";
 /**
  * BoothScreen — the unit's STATUS DISPLAY (THE FULL UNIT, screen-first
  * pass). A recessed LCD window set into the booth's status module that
@@ -23,7 +24,6 @@
  */
 
 import { For, createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { type LaneId } from "../document/schema";
 import { docStore } from "../state/store";
 import { getSession } from "../engine/session";
 import { getHelp } from "../help/registry";
@@ -32,16 +32,6 @@ import { vizMode } from "../state/vizMode";
 
 const MAX_LABEL = 22;
 const MAX_VALUE = 18;
-const LANE_SHORT: Record<LaneId, string> = {
-  drums: "DRUMS",
-  bass: "BASS",
-  chords: "CHORDS",
-  lead: "LEAD",
-  extra1: "TRACK 5",
-  extra2: "TRACK 6",
-  extra3: "TRACK 7",
-  extra4: "TRACK 8",
-};
 
 function clampText(text: string, max: number): string {
   const t = text.replace(/\s+/g, " ").trim().toUpperCase();
@@ -77,6 +67,7 @@ function readValue(target: Element, host: HTMLElement): string {
 }
 
 export default function BoothScreen() {
+  const displayName = createLaneDisplayNames();
   const [lanes, setLanes] = createSignal(
     docStore.getState().doc.lanes.map((lane) => lane.id),
   );
@@ -191,7 +182,9 @@ export default function BoothScreen() {
                 data-lane={lane}
                 style={{ "--lane-hue": `var(--color-lane-${lane})` }}
               >
-                <span class="screen-meter-tag">{LANE_SHORT[lane]}</span>
+                <span class="screen-meter-tag" title={displayName(lane)}>
+                  {displayName(lane)}
+                </span>
                 <span class="screen-meter">
                   <span
                     class="screen-meter-lit"

@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * MB-3 browser gate — TAP-TO-INSPECT under TRUSTED CDP TOUCH (town-hall
  * mobile addendum m3: "help mode via tap-to-inspect (no hover)"; Professor
@@ -134,6 +135,8 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         const el = (sel: string): HTMLElement =>
           document.querySelector(sel) as HTMLElement;
         const tapEl = async (target: Element): Promise<void> => {
+          await document.fonts.ready;
+          await page.elementLocator(target).hover();
           const r = target.getBoundingClientRect();
           await touch([map(r.left + r.width / 2, r.top + r.height / 2)], 40);
         };
@@ -272,9 +275,7 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         // The SONG page scrolls (four lane rows) — bring the tile into the
         // viewport so the trusted tap's mapped point lands on it.
         tile.scrollIntoView({ block: "center" });
-        await new Promise((r) =>
-          requestAnimationFrame(() => setTimeout(r, 0)),
-        );
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
         const tilePattern = activePatterns().bass;
         const cueSpan = tile.querySelector(".rail-tile-cue") as HTMLElement;
         expect(cueSpan.closest("[data-help]")?.getAttribute("data-help")).toBe(
@@ -331,12 +332,17 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
 
         // --- 4. PERSISTENCE on unregistered ground ------------------------
         const laneName = el(".lane-head-strip .lane-name");
-        expect(laneName.closest("[data-help]"), "the premise: no entry").toBeNull();
+        expect(
+          laneName.closest("[data-help]"),
+          "the premise: no entry",
+        ).toBeNull();
+        await page.elementLocator(laneName).hover();
+        const entryBeforeUnregisteredTap = title();
         await tapEl(laneName);
         expect(
           title(),
           "tapping unregistered ground keeps the last entry",
-        ).toBe("CHAIN TILE");
+        ).toBe(entryBeforeUnregisteredTap);
 
         // --- 5. EXIT by the `i` twin (M-2: no phone INFO ? button) --------
         pressI();
@@ -352,7 +358,7 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         const notes = () =>
           (docStore.getState().doc.patterns.bass[0] as PitchedPattern).notes;
         const bassCell = el(
-          '.lane-floor[data-lane="bass"] .cell[data-row="0"][data-step="0"]',
+          `.lane-floor[data-lane="bass"] .cell[data-row="${rowForDegree("bass", 0)}"][data-step="0"]`,
         );
         await tapEl(bassCell);
         await waitFor(

@@ -1,3 +1,4 @@
+import { trustedTapAt } from "./trusted-touch";
 /**
  * i6 S-5 browser gate — the SAVED-SONG MANAGEMENT JOURNEY by TRUSTED CDP
  * TOUCH on the BUILT APP at the phone stage (390×844): the committed form
@@ -85,9 +86,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * blocked by a lingering test handle (the S-4 probe's snapshot/restore
  * needed exactly this discipline).
  */
-function appDbOp<T>(
-  op: (store: IDBObjectStore) => IDBRequest,
-): Promise<T> {
+function appDbOp<T>(op: (store: IDBObjectStore) => IDBRequest): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const req = indexedDB.open("bitbounce");
     req.onsuccess = () => {
@@ -124,7 +123,10 @@ async function bootPhone(
   iwin: () => Window;
   $: <T extends Element>(sel: string) => T;
   $$: <T extends Element>(sel: string) => T[];
-  tapStable: (el: Element, opts: { effect: () => boolean; what: string }) => Promise<void>;
+  tapStable: (
+    el: Element,
+    opts: { effect: () => boolean; what: string },
+  ) => Promise<void>;
   teardown: () => Promise<void>;
 }> {
   const bundleKey = Object.keys(bundleGlob)[0];
@@ -191,13 +193,21 @@ async function bootPhone(
 
     await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
     // 2026-09-11: boot readiness is RAIL-FREE on every stage. The chain moved
-  // off the stage into its own SONG page, so rail tiles are no longer proof
-  // the demo loaded — and they never were the thing under test here. The
-  // drums KIT readout is the stage-independent demo signal (it was already
-  // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+    // off the stage into its own SONG page, so rail tiles are no longer proof
+    // the demo loaded — and they never were the thing under test here. The
+    // drums KIT readout is the stage-independent demo signal (it was already
+    // the phone branch's).
     await poll(
-      () => idoc().querySelector(".app")?.getAttribute("data-stage") === "phone",
+      () =>
+        $$(".head-ctl-value").some((v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+        ),
+      5_000,
+      "demo loaded",
+    );
+    await poll(
+      () =>
+        idoc().querySelector(".app")?.getAttribute("data-stage") === "phone",
       5_000,
       "phone stage",
     );
@@ -274,13 +284,7 @@ async function bootPhone(
         const ix = rMeasure.left + rMeasure.width / 2;
         const iy = rMeasure.top + rMeasure.height / 2;
         const p = map(ix, iy);
-        await c.send("Input.synthesizeTapGesture", {
-          x: p.x,
-          y: p.y,
-          duration: 50,
-          tapCount: 1,
-          gestureSourceType: "touch",
-        });
+        await trustedTapAt(p, 1);
         await sleep(120); // click finalization is async in the gesture pipeline
         const rSynth = el.getBoundingClientRect();
         const hit = idoc().elementFromPoint(ix, iy);
@@ -322,167 +326,191 @@ async function bootPhone(
 // gap, not a product defect; authoritative on macOS).
 const onLinuxCI = /Linux/.test(navigator.userAgent);
 
-describe.skipIf(onLinuxCI)("i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage)", () => {
-  it(
-    // Short title on purpose (the MB-6 ENAMETOOLONG lesson); the stage list
-    // lives in the header comment.
-    "390×844 — tap-only rename/delete/undo journey",
-    { timeout: 180_000 },
-    async () => {
-      // Size the TESTER window to the phone too (the help-touch convention):
-      // the config default is 1280×800, so an 844-tall app iframe overflows
-      // it and bottom-region taps (the toast's UNDO key) would map outside
-      // the page — CDP rejects out-of-bounds gesture positions. At 390×844
-      // the iframe fits exactly (scale 1:1) and the whole journey is
-      // tappable.
-      await page.viewport(390, 844);
-      const app = await bootPhone(390, 844);
-      const { idoc, $, $$, tapStable } = app;
-      try {
-        // Seed the journey's target row into the app's real database (the
-        // demo row the app itself saved at boot stays the working row).
-        const seedId = crypto.randomUUID();
-        const seedName = "SEED SONG";
-        const seedDoc = { ...createFreshProjectDocument(), name: seedName };
-        await appPutRecord(
-          makeRecord(seedId, seedDoc, encode(seedDoc), Date.now(), false),
-        );
-
-        // --- 1. open PROJECTS by tap ---------------------------------------
-        await tapStable($("[data-help='projects.open']"), {
-          effect: () => idoc().querySelector(".projects-pop") !== null,
-          what: "PROJECTS tap opens the popover",
-        });
-        await poll(
-          () => idoc().querySelector(`li[data-id="${CSS.escape(seedId)}"]`) !== null,
-          4_000,
-          "the seeded row is listed",
-        );
-        const rowOf = () =>
-          idoc().querySelector(`li[data-id="${CSS.escape(seedId)}"]`);
-        expect(
-          rowOf()!.querySelector(".projects-name")!.textContent,
-          "the seed row shows its saved name",
-        ).toBe(seedName);
-
-        // --- 2. rename by TAP + trusted text -------------------------------
-        await tapStable(rowOf()!.querySelector(".projects-ren")!, {
-          effect: () => rowOf()!.querySelector(".projects-edit") !== null,
-          what: "RENAME tap swaps in the editor",
-        });
-        const editor = rowOf()!.querySelector<HTMLInputElement>(
-          ".projects-edit",
-        )!;
-        // The editor's mount law (IN-4): focused with the initial text fully
-        // selected — the state in which a trusted text insert REPLACES the
-        // whole name, like a user typing over the selection.
-        await poll(
-          () =>
-            idoc().activeElement === editor &&
-            editor.selectionStart === 0 &&
-            editor.selectionEnd === seedName.length,
-          3_000,
-          "editor focused with the name selected",
-        );
-        const newName = "TAP RENAMED";
-        await cdp().send("Input.insertText", { text: newName });
-        await poll(
-          () => editor.value === newName,
-          2_000,
-          "trusted insertText replaced the selection",
-        );
-
-        // --- 3. BLUR-COMMIT by tapping ground (a tap, not a key) ----------
-        // The note <p> is non-focusable content INSIDE the popover: the tap
-        // can only commit through the editor's real blur handler (§2.5).
-        await tapStable($(".projects-note"), {
-          effect: () => rowOf()?.querySelector(".projects-edit") === null,
-          what: "ground tap blurs the editor (commit)",
-        });
-        await poll(
-          () =>
-            rowOf()?.querySelector(".projects-name")?.textContent === newName,
-          4_000,
-          "the row shows the committed name",
-        );
-        // Inactive row → renameProjectRecord: envelope AND decoded json, and
-        // the working demo row keeps its own name.
-        await poll(
-          async () => (await appGetRecord(seedId))?.name === newName,
-          4_000,
-          "the record envelope carries the new name",
-        );
-        const renamed = await appGetRecord(seedId);
-        expect(decode(renamed!.json).name).toBe(newName);
-        const demoRow = () =>
-          [...$$(".projects-item")].find(
-            (r) => r.querySelector(".projects-name")?.textContent === "WELCOME SONG",
+describe.skipIf(onLinuxCI)(
+  "i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage)",
+  () => {
+    it(
+      // Short title on purpose (the MB-6 ENAMETOOLONG lesson); the stage list
+      // lives in the header comment.
+      "390×844 — tap-only rename/delete/undo journey",
+      { timeout: 180_000 },
+      async () => {
+        // Size the TESTER window to the phone too (the help-touch convention):
+        // the config default is 1280×800, so an 844-tall app iframe overflows
+        // it and bottom-region taps (the toast's UNDO key) would map outside
+        // the page — CDP rejects out-of-bounds gesture positions. At 390×844
+        // the iframe fits exactly (scale 1:1) and the whole journey is
+        // tappable.
+        await page.viewport(390, 844);
+        const app = await bootPhone(390, 844);
+        const { idoc, $, $$, tapStable } = app;
+        try {
+          // The welcome demo is a preview until its first edit. Make that
+          // edit before testing management of a separate, inactive song.
+          const kick = $(
+            '.lane-floor[data-lane="drums"] .cell[data-row="0"][data-step="1"]',
           );
-        expect(demoRow(), "the demo row is still listed").toBeTruthy();
-        expect(demoRow()!.getAttribute("aria-current")).toBe("true");
+          const wasOn = kick.getAttribute("data-on");
+          await tapStable(kick, {
+            effect: () => kick.getAttribute("data-on") !== wasOn,
+            what: "editing the welcome demo creates a local project",
+          });
+          await poll(
+            async () =>
+              (await appDbOp<ProjectRecord[]>((store) => store.getAll()))
+                .length > 0,
+            4000,
+            "edited demo saved",
+          );
+          // Seed the journey's target row into the app's real database (the
+          // demo row the app itself saved at boot stays the working row).
+          const seedId = crypto.randomUUID();
+          const seedName = "SEED SONG";
+          const seedDoc = { ...createFreshProjectDocument(), name: seedName };
+          await appPutRecord(
+            makeRecord(seedId, seedDoc, encode(seedDoc), Date.now(), false),
+          );
 
-        // The exact pre-delete bytes (the UNDO round-trip's comparator).
-        const held = renamed!;
+          // --- 1. open PROJECTS by tap ---------------------------------------
+          await tapStable($("[data-help='projects.open']"), {
+            effect: () => idoc().querySelector(".projects-pop") !== null,
+            what: "PROJECTS tap opens the popover",
+          });
+          await poll(
+            () =>
+              idoc().querySelector(`li[data-id="${CSS.escape(seedId)}"]`) !==
+              null,
+            4_000,
+            "the seeded row is listed",
+          );
+          const rowOf = () =>
+            idoc().querySelector(`li[data-id="${CSS.escape(seedId)}"]`);
+          expect(
+            rowOf()!.querySelector(".projects-name")!.textContent,
+            "the seed row shows its saved name",
+          ).toBe(seedName);
 
-        // --- 4. delete: two taps + the sticky toast ------------------------
-        await tapStable(rowOf()!.querySelector(".projects-del")!, {
-          effect: () => rowOf()!.querySelector(".projects-confirm") !== null,
-          what: "DELETE tap arms CONFIRM DELETE",
-        });
-        expect(
-          rowOf()!.querySelector(".projects-item"),
-          "the confirm state REPLACES the row content",
-        ).toBeNull();
+          // --- 2. rename by TAP + trusted text -------------------------------
+          await tapStable(rowOf()!.querySelector(".projects-ren")!, {
+            effect: () => rowOf()!.querySelector(".projects-edit") !== null,
+            what: "RENAME tap swaps in the editor",
+          });
+          const editor =
+            rowOf()!.querySelector<HTMLInputElement>(".projects-edit")!;
+          // The editor's mount law (IN-4): focused with the initial text fully
+          // selected — the state in which a trusted text insert REPLACES the
+          // whole name, like a user typing over the selection.
+          await poll(
+            () =>
+              idoc().activeElement === editor &&
+              editor.selectionStart === 0 &&
+              editor.selectionEnd === seedName.length,
+            3_000,
+            "editor focused with the name selected",
+          );
+          const newName = "TAP RENAMED";
+          await cdp().send("Input.insertText", { text: newName });
+          await poll(
+            () => editor.value === newName,
+            2_000,
+            "trusted insertText replaced the selection",
+          );
 
-        const deletedToast = () =>
-          [...idoc().querySelectorAll(".toast")].find((t) =>
-            (t.textContent ?? "").includes(`DELETED "${newName}"`),
-          ) ?? null;
-        await tapStable(rowOf()!.querySelector(".projects-confirm")!, {
-          effect: () =>
-            rowOf() === null && deletedToast() !== null,
-          what: "CONFIRM DELETE tap removes the row and raises the toast",
-        });
-        await poll(
-          async () => (await appGetRecord(seedId)) === undefined,
-          4_000,
-          "the db row is gone",
-        );
+          // --- 3. BLUR-COMMIT by tapping ground (a tap, not a key) ----------
+          // The note <p> is non-focusable content INSIDE the popover: the tap
+          // can only commit through the editor's real blur handler (§2.5).
+          await tapStable($(".projects-note"), {
+            effect: () => rowOf()?.querySelector(".projects-edit") === null,
+            what: "ground tap blurs the editor (commit)",
+          });
+          await poll(
+            () =>
+              rowOf()?.querySelector(".projects-name")?.textContent === newName,
+            4_000,
+            "the row shows the committed name",
+          );
+          // Inactive row → renameProjectRecord: envelope AND decoded json, and
+          // the working demo row keeps its own name.
+          await poll(
+            async () => (await appGetRecord(seedId))?.name === newName,
+            4_000,
+            "the record envelope carries the new name",
+          );
+          const renamed = await appGetRecord(seedId);
+          expect(decode(renamed!.json).name).toBe(newName);
+          const demoRow = () =>
+            [...$$(".projects-item")].find(
+              (r) =>
+                r.querySelector(".projects-name")?.textContent ===
+                "WELCOME SONG",
+            );
+          expect(demoRow(), "the demo row is still listed").toBeTruthy();
+          expect(demoRow()!.getAttribute("aria-current")).toBe("true");
 
-        // XP-1 teeth: the DELETED toast is STICKY — a transient toast would
-        // be gone at 5 s; the undo window must still be open at 5.5 s.
-        await sleep(5_500);
-        const stickyCard = deletedToast();
-        expect(stickyCard, "the DELETED toast stays armed past 5 s").toBeTruthy();
-        expect(
-          stickyCard!.querySelector(".toast-action")?.textContent?.trim(),
-        ).toBe("UNDO");
+          // The exact pre-delete bytes (the UNDO round-trip's comparator).
+          const held = renamed!;
 
-        // --- 5. UNDO by tap: exact restore, never a switch ------------------
-        await tapStable(stickyCard!.querySelector(".toast-action")!, {
-          effect: () =>
-            rowOf() !== null && deletedToast() === null,
-          what: "UNDO tap restores the row and dismisses the toast",
-        });
-        const restored = await appGetRecord(seedId);
-        // The exact held record: byte-identical json, original name and
-        // updatedAt (§3.4 — no decode/re-encode, no dirty drift).
-        expect(restored!.json).toBe(held.json);
-        expect(restored!.name).toBe(held.name);
-        expect(restored!.updatedAt).toBe(held.updatedAt);
-        expect(restored!.dirty).toBe(held.dirty);
-        // UNDO never auto-switches: the restored row returns INACTIVE and the
-        // working row is still the demo (DOM law — the built app's store is
-        // not importable here, and need not be).
-        const restoredItem = rowOf()!.querySelector(".projects-item")!;
-        expect(restoredItem.classList.contains("is-current")).toBe(false);
-        expect(restoredItem.getAttribute("aria-current")).toBeNull();
-        expect(demoRow()!.getAttribute("aria-current")).toBe("true");
-      } finally {
-        await app.teardown();
-        await page.viewport(1280, 800); // leave the tester viewport as configured
-      }
-    },
-    180_000,
-  );
-});
+          // --- 4. delete: two taps + the sticky toast ------------------------
+          await tapStable(rowOf()!.querySelector(".projects-del")!, {
+            effect: () => rowOf()!.querySelector(".projects-confirm") !== null,
+            what: "DELETE tap arms CONFIRM DELETE",
+          });
+          expect(
+            rowOf()!.querySelector(".projects-item"),
+            "the confirm state REPLACES the row content",
+          ).toBeNull();
+
+          const deletedToast = () =>
+            [...idoc().querySelectorAll(".toast")].find((t) =>
+              (t.textContent ?? "").includes(`DELETED "${newName}"`),
+            ) ?? null;
+          await tapStable(rowOf()!.querySelector(".projects-confirm")!, {
+            effect: () => rowOf() === null && deletedToast() !== null,
+            what: "CONFIRM DELETE tap removes the row and raises the toast",
+          });
+          await poll(
+            async () => (await appGetRecord(seedId)) === undefined,
+            4_000,
+            "the db row is gone",
+          );
+
+          // XP-1 teeth: the DELETED toast is STICKY — a transient toast would
+          // be gone at 5 s; the undo window must still be open at 5.5 s.
+          await sleep(5_500);
+          const stickyCard = deletedToast();
+          expect(
+            stickyCard,
+            "the DELETED toast stays armed past 5 s",
+          ).toBeTruthy();
+          expect(
+            stickyCard!.querySelector(".toast-action")?.textContent?.trim(),
+          ).toBe("UNDO");
+
+          // --- 5. UNDO by tap: exact restore, never a switch ------------------
+          await tapStable(stickyCard!.querySelector(".toast-action")!, {
+            effect: () => rowOf() !== null && deletedToast() === null,
+            what: "UNDO tap restores the row and dismisses the toast",
+          });
+          const restored = await appGetRecord(seedId);
+          // The exact held record: byte-identical json, original name and
+          // updatedAt (§3.4 — no decode/re-encode, no dirty drift).
+          expect(restored!.json).toBe(held.json);
+          expect(restored!.name).toBe(held.name);
+          expect(restored!.updatedAt).toBe(held.updatedAt);
+          expect(restored!.dirty).toBe(held.dirty);
+          // UNDO never auto-switches: the restored row returns INACTIVE and the
+          // working row is still the demo (DOM law — the built app's store is
+          // not importable here, and need not be).
+          const restoredItem = rowOf()!.querySelector(".projects-item")!;
+          expect(restoredItem.classList.contains("is-current")).toBe(false);
+          expect(restoredItem.getAttribute("aria-current")).toBeNull();
+          expect(demoRow()!.getAttribute("aria-current")).toBe("true");
+        } finally {
+          await app.teardown();
+          await page.viewport(1280, 800); // leave the tester viewport as configured
+        }
+      },
+      180_000,
+    );
+  },
+);

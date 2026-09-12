@@ -1,4 +1,4 @@
-import { LANE_IDS, type DefaultLaneId as LaneId } from "../document/schema";
+import { ALL_LANE_IDS as LANE_IDS, type LaneId } from "../document/schema";
 
 export const COMPOSITION_KEY = "bitbounce.viz.composition.v2";
 export const VISUAL_EFFECTS = [
@@ -184,6 +184,22 @@ export function defaultComposition(): VisualComposition {
       bass: { effect: "contour", x: 0.7, y: 0.32, scale: 80, variation: 48271 },
       chords: { effect: "mesh", x: 0.3, y: 0.7, scale: 80, variation: 48271 },
       lead: { effect: "current", x: 0.72, y: 0.7, scale: 80, variation: 48271 },
+      extra1: { effect: "orbit", x: 0.5, y: 0.16, scale: 65, variation: 19381 },
+      extra2: { effect: "weave", x: 0.84, y: 0.5, scale: 65, variation: 29411 },
+      extra3: {
+        effect: "contour",
+        x: 0.5,
+        y: 0.84,
+        scale: 65,
+        variation: 39521,
+      },
+      extra4: {
+        effect: "current",
+        x: 0.16,
+        y: 0.5,
+        scale: 65,
+        variation: 49631,
+      },
     },
   };
 }
@@ -273,6 +289,7 @@ export function parseComposition(raw: string | null): VisualComposition | null {
     out.blended = (v.blended as boolean | undefined) ?? true;
     for (const id of LANE_IDS) {
       const layer: unknown = (v.lanes as Record<string, unknown>)[id];
+      if (layer === undefined && id.startsWith("extra")) continue;
       if (!layer || typeof layer !== "object") return null;
       const l = layer as Record<string, unknown>;
       if (

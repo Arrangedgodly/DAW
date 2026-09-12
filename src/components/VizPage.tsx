@@ -7,9 +7,9 @@ import {
 } from "solid-js";
 import { getSession } from "../engine/session";
 import {
-  LANE_IDS,
+  ALL_LANE_IDS as LANE_IDS,
   documentLaneMixGains,
-  type DefaultLaneId as LaneId,
+  type LaneId,
 } from "../document/schema";
 import { docStore } from "../state/store";
 import { helpOpen } from "../state/helpOverlay";
@@ -66,7 +66,7 @@ export default function VizPage(): JSX.Element {
       pending = undefined;
       changeComposition(rerollComposition(composition()));
       announce(
-        "Composition rerolled. All four effects and orbit angles changed.",
+        "Composition rerolled. All instrument effects and orbit angles changed.",
       );
     }, 150);
   };
@@ -107,8 +107,11 @@ export default function VizPage(): JSX.Element {
       const doc = docStore.getState().doc;
       bpm = doc.transport.bpm;
       mixGains = documentLaneMixGains(doc);
+      for (const id of LANE_IDS)
+        if (!doc.lanes.some((lane) => lane.id === id))
+          engine?.setAudible(id, false);
       mixGains.forEach((gain, index) =>
-        engine?.setAudible(LANE_IDS[index]!, gain > 0),
+        engine?.setAudible(doc.lanes[index]!.id, gain > 0),
       );
     };
     syncMix();
@@ -140,7 +143,9 @@ export default function VizPage(): JSX.Element {
       audioTime: clock,
       onDueHits: (hits, now) => {
         for (const hit of hits) {
-          const index = LANE_IDS.findIndex((id) => id === hit.lane);
+          const index = docStore
+            .getState()
+            .doc.lanes.findIndex((lane) => lane.id === hit.lane);
           if (index < 0 || !(mixGains[index]! > 0)) continue;
           engine?.ignite(hit);
           if (reduced()) {

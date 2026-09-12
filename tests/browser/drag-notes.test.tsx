@@ -1,3 +1,4 @@
+import { rowForDegree } from "./pitch-fixture";
 /**
  * IN-2 browser gate — drag-created notes + resize + drums paint on the REAL
  * app (iteration-2 AC #2), pointer-event simulation throughout:
@@ -126,7 +127,7 @@ function center(el: Element): { x: number; y: number } {
 
 function cellAt(lane: string, row: number, step: number): HTMLElement {
   const cell = document.querySelector(
-    `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+    `.lane-floor[data-lane="${lane}"] .cell[data-row="${rowForDegree(lane, row)}"][data-step="${step}"]`,
   );
   if (!cell) throw new Error(`missing ${lane} cell ${row}:${step}`);
   return cell as HTMLElement;
@@ -213,10 +214,10 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
 
         // E4: cell names carry note state in text.
         expect(start.getAttribute("aria-label")).toBe(
-          "C step 3, note starts, 4 steps",
+          "C2 step 3, note starts, 4 steps",
         );
         expect(cellAt("bass", 0, 3).getAttribute("aria-label")).toBe(
-          "C step 4, note continues",
+          "C2 step 4, note continues",
         );
 
         // --- 2. PLAYS SUSTAINED (SC-2 compiler) ---------------------------

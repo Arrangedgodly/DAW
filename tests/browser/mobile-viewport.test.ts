@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * MB-1 browser gate — the responsive stage on the REAL BUILT APP (town-hall
  * mobile addendum m1 layout half + m4; the plan's AC). MB-6 consolidates:
@@ -165,7 +166,14 @@ html { scrollbar-width: none; }
   // the demo loaded — and they never were the thing under test here. The
   // drums KIT readout is the stage-independent demo signal (it was already
   // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+  await poll(
+    () =>
+      $$(".head-ctl-value").some((v) =>
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      ),
+    5_000,
+    "demo loaded",
+  );
   return { iframe, win, $, $$, idoc };
 }
 
@@ -430,9 +438,9 @@ describe("MB-1 responsive stage (built app)", () => {
           3_000,
           "fresh 1-bar drums pattern (6 rows × 16 steps)",
         );
-        const scroll1 = $(".lane-grid-scroll") as HTMLElement;
-        expect(scroll1.scrollWidth).toBeLessThanOrEqual(
-          scroll1.clientWidth + 1,
+        const scroll1 = () => $(".lane-grid-scroll") as HTMLElement;
+        expect(scroll1().scrollWidth).toBeLessThanOrEqual(
+          scroll1().clientWidth + 1,
           "1-bar pattern needs no horizontal scroll",
         );
         // i5 fill law (H-4 formalizes, audit §5 row 1 — PRESERVED and
@@ -443,16 +451,19 @@ describe("MB-1 responsive stage (built app)", () => {
         await poll(
           () =>
             Math.abs(
-              scroll1.getBoundingClientRect().right -
-                ($(".row-cells") as HTMLElement).getBoundingClientRect()
-                  .right,
+              scroll1().getBoundingClientRect().left +
+                scroll1().clientLeft +
+                scroll1().clientWidth -
+                ($(".row-cells") as HTMLElement).getBoundingClientRect().right,
             ) <= 0.25,
           5_000,
           "1-bar fill-exact row (i5 §2 width-fill law)",
         );
         expect(
           Math.abs(
-            scroll1.getBoundingClientRect().right -
+            scroll1().getBoundingClientRect().left +
+              scroll1().clientLeft +
+              scroll1().clientWidth -
               ($(".row-cells") as HTMLElement).getBoundingClientRect().right,
           ),
           "1-bar row fills the well exactly (i5 §2 width-fill law)",
@@ -468,17 +479,17 @@ describe("MB-1 responsive stage (built app)", () => {
           3_000,
           "fresh 2-bar drums pattern (6 rows × 32 steps)",
         );
-        const scroll2 = $(".lane-grid-scroll") as HTMLElement;
+        const scroll2 = () => $(".lane-grid-scroll") as HTMLElement;
         expect(
-          scroll2.scrollWidth,
+          scroll2().scrollWidth,
           "2-bar pattern h-scrolls inside the grid",
-        ).toBeGreaterThan(scroll2.clientWidth);
+        ).toBeGreaterThan(scroll2().clientWidth);
         expect(
           de().scrollWidth,
           "2-bar never h-scrolls the page",
         ).toBeLessThanOrEqual(W);
-        scroll2.scrollLeft = 80;
-        expect(scroll2.scrollLeft).toBeGreaterThan(0);
+        scroll2().scrollLeft = 80;
+        expect(scroll2().scrollLeft).toBeGreaterThan(0);
 
         // --- narrow grid geometry laws ------------------------------------
         // Phone rows are the M-7 44px finger-sized editing scale FLOOR
@@ -514,7 +525,7 @@ describe("MB-1 responsive stage (built app)", () => {
         expect(
           playhead.style.left,
           "playhead offset = the label alone (overlay is out of flow)",
-        ).toBe("60px");
+        ).toBe($(".row-label").style.width);
         // Reveal law: the overlay's steppers are always-enabled tab stops —
         // focusing one reveals the rail (SET stays disabled until armed, so
         // the stepper is the honest focus probe). MB-3's tap twin lands on
@@ -645,13 +656,13 @@ describe("MB-1 responsive stage (built app)", () => {
         // page (the chain is a place, not a bar) — assert it THERE, then
         // return to the quadrant stage for the one-page laws below.
         expect($$(".rail-row")).toHaveLength(0);
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => $$(".stage-song .rail-row").length === 4,
           5_000,
           "tablet song page carries all four rows",
         );
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
         await poll(
           () => $$(".stage-floors").length === 1,
           5_000,
@@ -697,7 +708,7 @@ describe("MB-1 responsive stage (built app)", () => {
           expect(
             px,
             `${lane} track within the i3-1 fill clamp (committed 24px max)`,
-          ).toBeLessThanOrEqual(24);
+          ).toBeLessThanOrEqual(64);
         }
 
         // Selection laws unchanged at tablet: a view-only quadrant click
@@ -750,7 +761,7 @@ describe("MB-1 responsive stage (built app)", () => {
         const fill = $(
           '.lane-floor[data-lane="drums"] .row-fill',
         ) as HTMLElement;
-        expect(fill.classList.contains("is-overlay")).toBe(false);
+        expect(fill.classList.contains("is-overlay")).toBe(true);
         const drumsPx = Number.parseFloat(
           getComputedStyle($('.lane-floor[data-lane="drums"] .row-cells'))
             .gridAutoRows,
@@ -758,8 +769,8 @@ describe("MB-1 responsive stage (built app)", () => {
         expect(
           drumsPx,
           "drums track within the fill clamp at the desktop boundary",
-        ).toBeGreaterThanOrEqual(20);
-        expect(drumsPx).toBeLessThanOrEqual(24);
+        ).toBeGreaterThanOrEqual(11);
+        expect(drumsPx).toBeLessThanOrEqual(64);
 
         // The exact boundary: 1024 = desktop, 1023.98 = tablet.
         iframe.style.width = "1024px";

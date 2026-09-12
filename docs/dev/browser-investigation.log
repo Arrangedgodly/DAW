@@ -1,0 +1,54 @@
+12:14:35 PM [vite] (client) [console.error] [vitest] Failed to take a screenshot Error: STACK_TRACE_ERROR
+    at ensureAwaited (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:10:22)
+    at Object.screenshot (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:465:10)
+    at async BrowserTestRunner.onTaskFinished (http://localhost:63315/__vitest_browser__/tester-BJtsJFpD.js:926:28)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2969:6
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundEachHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2800:2)
+    at async runTest (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2941:4)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:3160:10
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundAllHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2792:2)
+12:17:34 PM [vite] (client) [console.error] [vitest] Failed to take a screenshot Error: STACK_TRACE_ERROR
+    at ensureAwaited (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:10:22)
+    at Object.screenshot (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:465:10)
+    at async BrowserTestRunner.onTaskFinished (http://localhost:63315/__vitest_browser__/tester-BJtsJFpD.js:926:28)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2969:6
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundEachHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2800:2)
+    at async runTest (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2941:4)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:3160:10
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundAllHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2792:2)
+12:17:35 PM [vite] (client) [console.warn] [persist] stored project failed validation; quarantining MigrationError: migrate v1→v2: patterns.bass[0]: notesFromRowCells: invalid pitched cell 3 at step 0 (degree 0) — not a v1 pattern
+    at http://localhost:63315/src/document/migrate.ts:64:11
+    at Array.map (<anonymous>)
+    at migrateV1ToV2 (http://localhost:63315/src/document/migrate.ts:51:39)
+    at migrateWith (http://localhost:63315/src/document/migrate.ts:143:13)
+    at migrate (http://localhost:63315/src/document/migrate.ts:153:9)
+    at decode (http://localhost:63315/src/document/codec.ts:174:19)
+    at initPersistence (http://localhost:63315/src/persist/boot.ts:194:17)
+    at async http://localhost:63315/@fs/C:/Users/arran/Projects/DAW/tests/browser/pointer-edge-states.test.tsx?import&browserv=1789237054867:639:19
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:1903:20
+12:20:23 PM [vite] (client) [console.error] [vitest] Failed to take a screenshot Error: STACK_TRACE_ERROR
+    at ensureAwaited (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:10:22)
+    at Object.screenshot (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:465:10)
+    at async BrowserTestRunner.onTaskFinished (http://localhost:63315/__vitest_browser__/tester-BJtsJFpD.js:926:28)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2969:6
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundEachHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2800:2)
+    at async runTest (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2941:4)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:3160:10
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundAllHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2792:2)
+12:22:01 PM [vite] (client) [console.error] [vitest] Failed to take a screenshot Error: STACK_TRACE_ERROR
+    at ensureAwaited (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:10:22)
+    at Object.screenshot (http://localhost:63315/node_modules/@vitest/browser/dist/context.js?v=853630bd:465:10)
+    at async BrowserTestRunner.onTaskFinished (http://localhost:63315/__vitest_browser__/tester-BJtsJFpD.js:926:28)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2969:6
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundEachHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2800:2)
+    at async runTest (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2941:4)
+    at async http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:3160:10
+    at async callAroundHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2664:3)
+    at async callAroundAllHooks (http://localhost:63315/node_modules/@vitest/runner/dist/chunk-artifact.js?v=853630bd:2792:2)

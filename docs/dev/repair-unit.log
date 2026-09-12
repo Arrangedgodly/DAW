@@ -1,0 +1,26 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ❯ |unit| tests/fuzz-codec.test.ts (21 tests | 1 failed) 7809ms
+     × every one of 2000 seeded mutation cases is safe 6059ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| tests/fuzz-codec.test.ts > CA-2 fuzz: decode parse surface is total (validate or typed-reject) > every one of 2000 seeded mutation cases is safe
+Error: Test timed out in 6000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/fuzz-codec.test.ts:41:3
+     39|
+     40| describe("CA-2 fuzz: decode parse surface is total (validate or typed-…
+     41|   it(
+       |   ^
+     42|     `every one of ${CASES} seeded mutation cases is safe`,
+     43|     async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 94 passed (95)
+      Tests  1 failed | 1801 passed (1802)
+   Start at  12:54:12
+   Duration  12.95s (transform 13.37s, setup 0ms, import 25.24s, tests 37.46s, environment 18ms)

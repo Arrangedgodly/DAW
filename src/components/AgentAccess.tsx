@@ -1,4 +1,5 @@
 import { Show } from "solid-js";
+import { registerHelp } from "../help/registry";
 import {
   agentStatus,
   agentError,
@@ -14,10 +15,22 @@ import {
   saveAndStartAgentProject,
 } from "../webmcp/access";
 
+registerHelp([
+  {
+    id: "projects.agent",
+    title: "AGENT ACCESS",
+    text: "Allows a connected agent to inspect this project. Choose the current song or a new project before allowing edits. The agent provider may process project data. Access ends on reload or a project switch. Restore before agent returns to the saved recovery point, including removal of manual edits made after it.",
+  },
+]);
+
 export default function AgentAccess() {
   const supported = Boolean(modelContext());
   return (
-    <section class="agent-access" aria-label="Agent access">
+    <section
+      class="agent-access"
+      aria-label="Agent access"
+      data-help="projects.agent"
+    >
       <p>
         Connect an agent to inspect this project. Before edits, choose this song
         or a new project. Its provider may process project data. Access and

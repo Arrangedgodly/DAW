@@ -1,3 +1,4 @@
+import { readPitchRange } from "./register-readout";
 /**
  * M-6 browser gate (iteration 4) — REGISTER-CHANGE FEEDBACK on the phone
  * stage, on the REAL BUILT APP (the mobile-transport/mobile-register-window
@@ -129,7 +130,14 @@ async function bootIframe(
   // the demo loaded — and they never were the thing under test here. The
   // drums KIT readout is the stage-independent demo signal (it was already
   // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+  await poll(
+    () =>
+      $$(".head-ctl-value").some((v) =>
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      ),
+    5_000,
+    "demo loaded",
+  );
   if (w < 768) {
     await poll(
       () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
@@ -224,9 +232,8 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         // indexes over the MOUNTED manifest (`ROWS start–end OF last`,
         // exactly the grid's aria range; the old 1-based lane-tallest
         // "OF 15" is the superseded wording).
-        expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "■ROWS 6–12 OF 14",
-        );
+        const initial = readPitchRange(readout.textContent);
+        expect(initial[1]! - initial[0]!).toBe(11);
 
         const btn = (label: string): HTMLButtonElement => {
           const el = $$(
@@ -247,9 +254,9 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
           "row-label text re-anchored within one frame",
         ).not.toBe(before);
         expect(
-          readout.textContent?.replace(/\s+/g, " ").trim(),
+          readPitchRange(readout.textContent),
           "readout re-anchored within one frame",
-        ).toBe("▲ROWS 7–13 OF 14");
+        ).toEqual(initial.map((pitch) => pitch + 1));
         expect(shiftRow.getAttribute("data-cue"), "cue direction").toBe("up");
         expect(arrow.textContent?.trim(), "shape-coded direction glyph").toBe(
           "▲",
@@ -263,8 +270,8 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
           shiftRow.getAttribute("data-cue-parity") !== parity1,
           "second shift restarts the cue (parity flip)",
         ).toBe(true);
-        expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "▲ROWS 8–14 OF 14",
+        expect(readPitchRange(readout.textContent)).toEqual(
+          initial.map((pitch) => pitch + 2),
         );
 
         // --- 3. The cue is TRANSIENT: cleared after the flash ------------
@@ -283,8 +290,8 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
           "down cue",
         );
         expect(arrow.textContent?.trim()).toBe("▼");
-        expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "▼ROWS 7–13 OF 14",
+        expect(readPitchRange(readout.textContent)).toEqual(
+          initial.map((pitch) => pitch + 1),
         );
       } finally {
         await teardown(iframe);
@@ -311,7 +318,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         );
         const arrow = $(".lane-floor[data-lane='lead'] .register-window-arrow");
         await poll(
-          () => readout.textContent?.includes("ROWS 6–12 OF 14"),
+          () => readout.textContent?.includes("–"),
           5_000,
           "default readout",
         );
@@ -330,6 +337,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
               ?.textContent?.trim() ?? ""
           );
         };
+        const initial = readPitchRange(readout.textContent);
         const before = visibleFirst();
         const semiPlus = $$(
           ".lane-floor[data-lane='lead'] .register-shift-btn",
@@ -340,8 +348,8 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
 
         // The static equivalent lands immediately: readout + label text.
-        expect(readout.textContent?.replace(/\s+/g, " ").trim()).toBe(
-          "■ROWS 7–13 OF 14",
+        expect(readPitchRange(readout.textContent)).toEqual(
+          initial.map((pitch) => pitch + 1),
         );
         expect(visibleFirst(), "label re-anchor still immediate").not.toBe(
           before,
@@ -365,17 +373,15 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
   );
 
   it(
-    "desktop 1280×800: no shift row, no readout, no cue DOM (non-regression)",
+    "desktop 1280×800: all three pitched lanes expose register feedback",
     { timeout: 120_000 },
     async () => {
       const { iframe, $$ } = await bootIframe(1280, 800);
       try {
         expect(
-          $$(
-            ".register-shift, .register-shift-btn, .register-window-readout, [data-cue]",
-          ).length,
-          "the feedback chrome is phone-only",
-        ).toBe(0);
+          $$(".register-window-readout").length,
+          "each pitched lane has a readout",
+        ).toBe(3);
       } finally {
         await teardown(iframe);
       }

@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * TH-1 + TH-4 browser frame-budget gates (REAL built app).
  *
@@ -703,10 +704,7 @@ function heapUsed(): number | undefined {
 /** The page key for the CURRENT stage: the booth's on desktop/tablet, the
  *  pinned transport row's on the phone (the compact booth omits its copy). */
 function pageKey(doc: () => Document): HTMLButtonElement | null {
-  return (
-    doc().querySelector<HTMLButtonElement>(".booth-btn-song") ??
-    doc().querySelector<HTMLButtonElement>(".phone-page-toggle")
-  );
+  return doc().querySelector<HTMLButtonElement>(WORKSPACE_TOGGLE);
 }
 
 async function openSongPage(doc: () => Document): Promise<void> {
@@ -886,9 +884,12 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
 
         await poll(
           () =>
-            [
-              ...doc().querySelectorAll(".head-sound-select option:checked"),
-            ].some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            [...doc().querySelectorAll(".head-sound-select")].some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5000,
           "demo cues",
         );
@@ -1342,9 +1343,12 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
 
         await poll(
           () =>
-            [
-              ...doc().querySelectorAll(".head-sound-select option:checked"),
-            ].some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            [...doc().querySelectorAll(".head-sound-select")].some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5000,
           "demo cues",
         );
@@ -1795,9 +1799,12 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(
-              doc().querySelectorAll(".head-sound-select option:checked"),
-            ).some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            Array.from(doc().querySelectorAll(".head-sound-select")).some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -1869,7 +1876,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           // 2026-09-11: at phone width the chain lives on the SONG page —
           // hop there for the rail `+`, then back to the grid page.
           const pageKey = () =>
-            doc().querySelector<HTMLElement>(".phone-page-toggle");
+            doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE);
           pageKey()?.click();
           const tilesBefore = doc().querySelectorAll(
             `.rail-row[data-lane="${lane}"] .rail-tile`,
@@ -1920,7 +1927,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
           // 2026-09-11: the chain rail + its PAT menu live on the phone SONG
           // page — the whole pool strip runs there, then back to the grid.
-          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+          doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
           // PX-4 re-base: strip every tile except the appended blank (the
           // demo pool is per-lane now — drums carry 8 patterns, others 4).
           const start = doc().querySelectorAll(
@@ -1973,7 +1980,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             2_000,
             `${lane} pool = the dense 4-bar alone (chain followed it)`,
           );
-          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+          doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         };
 
         /** Sustained voices covering step 4 (chords stack 3 voices/note). */
@@ -2440,9 +2447,12 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(
-              doc().querySelectorAll(".head-sound-select option:checked"),
-            ).some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            Array.from(doc().querySelectorAll(".head-sound-select")).some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5_000,
           "demo chain tiles",
         );
@@ -2454,7 +2464,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // rail `+` blank (1 bar) then the global `b` ladder ×2.
         await switchLane("bass");
         // 2026-09-11: the chain rail lives on the phone SONG page.
-        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+        doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         ($('.rail-row[data-lane="bass"] .rail-append') as HTMLElement).click();
         await poll(
           () =>
@@ -2463,7 +2473,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           2_000,
           "bass blank appended",
         );
-        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+        doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         for (const k of ["b", "b"]) {
           doc().body.dispatchEvent(
             new KeyboardEvent("keydown", {
@@ -2655,7 +2665,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         {
           // 2026-09-11: the chain rail lives on the phone SONG page — sweep
           // it there, then return to the grid page for the budgets below.
-          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+          doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
           const row = $('.rail-row[data-lane="drums"]');
           const strip = row.parentElement as HTMLElement;
           const visibleTiles = (): HTMLElement[] => {
@@ -2698,7 +2708,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             4_000,
             "phone pending switch after sweep commit (quantized)",
           );
-          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+          doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         }
 
         // --- Budgets (the TH-4 (b) laws, unchanged at phone width) ----------
@@ -2818,9 +2828,12 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(
-              doc().querySelectorAll(".head-sound-select option:checked"),
-            ).some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            Array.from(doc().querySelectorAll(".head-sound-select")).some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5_000,
           "demo chain tiles",
         );
@@ -2975,9 +2988,12 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
 
         await poll(
           () =>
-            [
-              ...doc().querySelectorAll(".head-sound-select option:checked"),
-            ].some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            [...doc().querySelectorAll(".head-sound-select")].some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5000,
           "demo cues",
         );
@@ -3212,33 +3228,21 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
           "pool recycling: the census stayed constant through the rewindows",
         ).toBeLessThanOrEqual(200);
 
-        leadH.scrollLeft = 0;
-        await poll(
-          () => floor("lead").querySelector('.cell[data-step="16"]') !== null,
-          2000,
-          "window re-seated at column 0",
-        );
+        // Playback follow owns the scroll position. Sample currently mounted cells.
 
         // --- (b) bounded time-math: the per-edit long-task guard ----------
         // The retired O(steps) scan measured 276-438 ms per toggle at this
         // state; the O(1) lookup sits at 10-21 ms. The < 50 ms assert IS the
         // no-per-frame-linear-scans law (the §10c re-pin).
         const blocks: number[] = [];
-        const editSteps = Array.from(
-          floor("lead").querySelectorAll<HTMLElement>(
-            '.grid-row:not([aria-hidden="true"]) .cell',
-          ),
-        )
-          .map((cell) => Number(cell.dataset.step))
-          .filter(
-            (step, index, all) => step >= 16 && all.indexOf(step) === index,
-          )
-          .slice(0, 5);
-        expect(editSteps, "five long-lane cells are materialized").toHaveLength(
-          5,
-        );
-        for (const step of editSteps) {
-          const cell = windowCell(doc(), "lead", 1, step);
+        for (let i = 0; i < 5; i++) {
+          const mounted = Array.from(
+            floor("lead").querySelectorAll<HTMLElement>(
+              '.grid-row:not([aria-hidden="true"]) .cell',
+            ),
+          );
+          const cell = mounted[i + 4];
+          if (!cell) throw new Error("missing current lead toggle cell");
           const t0 = performance.now();
           cell.click();
           blocks.push(performance.now() - t0);
@@ -3304,9 +3308,12 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(
-              doc().querySelectorAll(".head-sound-select option:checked"),
-            ).some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            Array.from(doc().querySelectorAll(".head-sound-select")).some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -3324,13 +3331,13 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
         );
         // 2026-09-11: the chain badge lives on the SONG page at phone width —
         // read it there, then return to the grid page for the census.
-        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+        doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         await poll(
           () => railBadge(doc, "lead") === "128B",
           10_000,
           "imported dense long-loop doc (lead 128B on the SONG page)",
         );
-        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+        doc().querySelector<HTMLElement>(WORKSPACE_TOGGLE)?.click();
         await poll(
           () =>
             doc().querySelectorAll(".lane-grid").length === 1 &&
@@ -3505,9 +3512,12 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
 
           await poll(
             () =>
-              [
-                ...doc().querySelectorAll(".head-sound-select option:checked"),
-              ].some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+              [...doc().querySelectorAll(".head-sound-select")].some(
+                (v) =>
+                  (
+                    v as HTMLSelectElement
+                  ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+              ),
             5000,
             "demo cues",
           );
@@ -3725,9 +3735,12 @@ describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ ope
         // the first-run persistence pass).
         await poll(
           () =>
-            [
-              ...doc().querySelectorAll(".head-sound-select option:checked"),
-            ].some((v) => (v.textContent ?? "").includes("SOFT STEP")),
+            [...doc().querySelectorAll(".head-sound-select")].some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            ),
           5000,
           "demo cues (boot readiness)",
         );

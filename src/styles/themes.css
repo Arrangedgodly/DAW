@@ -595,6 +595,9 @@ body,
   color: var(--display-ink);
   font-family: "IBM Plex Mono", monospace;
 }
+.app .screen-bpm-unit {
+  color: var(--display-ink);
+}
 .app .screen-annun-item {
   color: color-mix(in srgb, var(--display-ink) 78%, var(--display-ground));
   text-shadow: none;
@@ -754,7 +757,8 @@ body,
 /* Physical finish over the current console layout, shared by both themes. */
 :root {
   --panel-light: linear-gradient(180deg, #ffffff14, transparent 40%, #00000018);
-  --keycap: inset 0 1px 0 #ffffff45, inset 1px 0 0 #ffffff12,
+  --keycap:
+    inset 0 1px 0 #ffffff45, inset 1px 0 0 #ffffff12,
     inset 0 -3px 1px #00000055, 0 3px 5px -2px #00000099;
   --keycap-down: inset 0 2px 4px #00000066, inset 0 -1px 0 #ffffff20;
   --led-window: inset 0 3px 7px #00000055, inset 0 -1px 0 #ffffff20;
@@ -768,8 +772,11 @@ body,
 .app .fx-strip,
 .app .lane-fx-wrap {
   background-image: var(--panel-light);
-  box-shadow: inset 0 1px 0 #ffffff30, inset 0 -3px 2px #00000030,
-    0 3px 5px #00000035, 0 12px 18px -12px #00000080;
+  box-shadow:
+    inset 0 1px 0 #ffffff30,
+    inset 0 -3px 2px #00000030,
+    0 3px 5px #00000035,
+    0 12px 18px -12px #00000080;
 }
 .app button:not(.cell):not(.row-label),
 .app select {

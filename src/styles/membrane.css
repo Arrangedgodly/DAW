@@ -159,6 +159,9 @@
 }
 .app.membrane .screen-meter-tag {
   width: 39px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font: 500 9px/1.1 var(--font-ui);
   letter-spacing: 0.02em;
 }
@@ -533,6 +536,20 @@
 .app.membrane[data-stage="phone"] .lane-name {
   font-size: 20px;
 }
+.app.membrane[data-stage="phone"]
+  [data-lane^="extra"]
+  .lane-strip-row-id
+  .lane-name {
+  font-size: 17px;
+  white-space: normal;
+  min-width: 0;
+}
+.app.membrane[data-stage="phone"]
+  [data-lane^="extra"]
+  .lane-strip-edit
+  > .track-color-control {
+  position: static;
+}
 .app.membrane .lane-head[data-editing="true"] .lane-name {
   color: var(--lane-hue);
 }
@@ -697,7 +714,7 @@
   display: none;
 }
 .app.membrane[data-stage="phone"] .stage-floors {
-  margin-top: 4px;
+  margin-top: 0;
 }
 .app.membrane[data-stage="phone"] .lane-floor,
 .app.membrane[data-stage="phone"] .lane-floor[data-editing] {
@@ -762,7 +779,7 @@
   .lane-strip-edit
   > .track-color-control
   .track-color-trigger {
-  min-width: 40px;
+  min-width: 44px;
   padding: 5px 9px;
 }
 .app.membrane[data-stage="phone"]
@@ -771,4 +788,84 @@
   .track-color-trigger
   > span {
   display: none;
+}
+
+/* Keep touch targets inside their buttons in the expanded options drawer. */
+.app.membrane[data-stage="phone"] .phone-options-drawer {
+  gap: 12px;
+  padding: 12px;
+}
+.app.membrane[data-stage="phone"]
+  .phone-options-drawer
+  :is(.booth-btn, .booth-step-btn, .scale-chip) {
+  min-height: 44px;
+  height: 44px;
+  min-width: 44px;
+}
+.app.membrane[data-stage="phone"]
+  .phone-options-drawer
+  :is(.booth-btn, .booth-step-btn, .scale-chip)::before {
+  inset: 0;
+}
+
+/* Gate readouts need three characters, not the preset readout's eight.
+   Keep the tools on one phone row while preserving full touch targets. */
+.app.membrane[data-stage="phone"] .head-gate > .head-ctl-label {
+  display: none;
+}
+.app.membrane[data-stage="phone"] .head-gate .head-ctl-value {
+  min-width: 3ch;
+}
+.app.membrane[data-stage="phone"] .head-gate .head-step-btn,
+.app.membrane[data-stage="phone"] .head-fill-toggle,
+.app.membrane[data-stage="phone"] .track-color-trigger {
+  min-width: 44px;
+}
+
+.app.membrane[data-stage="phone"] .lane-strip-row-id .track-color-trigger {
+  padding: 5px 9px;
+}
+.app.membrane[data-stage="phone"]
+  .lane-strip-row-id
+  .track-color-trigger
+  > span {
+  display: none;
+}
+
+/* Full-size transport keys no longer need empty vertical hit-area padding. */
+.app.membrane[data-stage="phone"] .phone-transport {
+  padding: 0 8px;
+}
+.app.membrane[data-stage="phone"] .phone-transport .booth-btn {
+  height: 44px;
+  min-height: 44px;
+}
+.app.membrane[data-stage="phone"] .phone-transport .booth-btn::before {
+  inset: 0;
+}
+.app.membrane[data-stage="phone"] .register-shift {
+  padding-block: 0;
+}
+
+/* Expanded fill controls scroll inside the drum pane on compact desktops. */
+.app.membrane:not([data-stage="phone"]) .lane-grid-scroll.fill-rails-open {
+  min-height: 0;
+  overflow-y: auto;
+}
+.app.membrane:not([data-stage="phone"])
+  .lane-grid-scroll.fill-rails-open
+  .grid-row {
+  min-height: 40px;
+}
+.app.membrane:not([data-stage="phone"]) .row-fill.is-overlay {
+  width: max-content;
+  max-width: 100%;
+}
+
+/* Keep long-pattern scrollbars inside the short desktop's note-page budget. */
+@media (max-height: 850px) {
+  .app.membrane:not([data-stage="phone"]) .lane-floor {
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
 }

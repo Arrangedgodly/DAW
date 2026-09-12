@@ -108,7 +108,14 @@ async function bootIframe(
   // the demo loaded — and they never were the thing under test here. The
   // drums KIT readout is the stage-independent demo signal (it was already
   // the phone branch's).
-  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
+  await poll(
+    () =>
+      $$(".head-ctl-value").some((v) =>
+        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      ),
+    5_000,
+    "demo loaded",
+  );
   if (w < 768) {
     await poll(
       () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
@@ -208,9 +215,9 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         // i7 N-2: the two steppers' four buttons (aria-labeled — the
         // painted glyphs are −/+).
         const btn = (label: string): HTMLButtonElement => {
-          const el = $$(".lane-floor[data-lane='lead'] .register-shift-btn").find(
-            (b) => b.getAttribute("aria-label") === label,
-          );
+          const el = $$(
+            ".lane-floor[data-lane='lead'] .register-shift-btn",
+          ).find((b) => b.getAttribute("aria-label") === label);
           if (!el) throw new Error(`missing shift button ${label}`);
           return el as HTMLButtonElement;
         };
@@ -240,67 +247,76 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
           if (!r) throw new Error(`grid name carries no ROWS range: ${m}`);
           return r[1]!;
         };
-        // Demo lead: 15 rows − 7 window → maxStart 8; the default start is 6
-        // (the most-noted-rows heuristic).
-        expect(rowsLabel(), "default window start").toBe("6");
-
-        // --- 2+3. OCT+ (+modeSize) CLAMPS to the top and disables --------
+        // OCT and SEMI move MIDI pitch, independently of the scale's row indices.
+        const origin = () => {
+          const text = $(".register-window-readout").textContent ?? "";
+          const match = /([A-G](?:♯|#)?)(-?\d+)/.exec(text);
+          if (!match) throw new Error(`Missing pitch readout: ${text}`);
+          const note = match[1]!.replace("♯", "#");
+          return (
+            (Number(match[2]) + 1) * 12 +
+            [
+              "C",
+              "C#",
+              "D",
+              "D#",
+              "E",
+              "F",
+              "F#",
+              "G",
+              "G#",
+              "A",
+              "A#",
+              "B",
+            ].indexOf(note)
+          );
+        };
+        const initial = origin();
+        const initialRow = Number(rowsLabel());
         const octPlus = btn("LEAD octave view up");
-        expect(octPlus.disabled, "OCT+ enabled at start 6 (below max 8)").toBe(
-          false,
-        );
+        const octMinus = btn("LEAD octave view down");
         octPlus.click();
         await poll(
-          () => octPlus.disabled && btn("LEAD semitone view up").disabled,
-          5_000,
-          "+ pair disabled at the clamped top (maxStart 8)",
+          () => origin() === initial + 12,
+          3000,
+          "octave up adds 12 semitones",
         );
-        expect(rowsLabel(), "OCT+ from 6: 6+7 clamped to maxStart 8").toBe("8");
-        expect(labels().length, "window COUNT pinned at the octave").toBe(
-          WINDOW,
-        );
-        expect(
-          labels()[0] !== firstAtDefault,
-          "OCT+ (clamped +2) must move the visible rows",
-        ).toBe(true);
-
-        // --- OCT− (−modeSize) from 8 lands at 1 (mid-manifest) ----------
-        const octMinus = btn("LEAD octave view down");
+        expect(Number(rowsLabel())).toBe(initialRow - WINDOW);
+        expect(labels()[0]).not.toBe(firstAtDefault);
+        expect(labels()).toHaveLength(WINDOW);
         octMinus.click();
         await poll(
-          () => rowsLabel() === "1",
-          5_000,
-          "OCT− from 8: 8−7 = 1 (mid-manifest, no clamp)",
+          () => origin() === initial,
+          3000,
+          "octave down restores pitch",
         );
-        expect(labels().length).toBe(WINDOW);
-        // --- OCT− again CLAMPS to 0 and disables the − pair -------------
-        octMinus.click();
-        await poll(
-          () => octMinus.disabled && btn("LEAD semitone view down").disabled,
-          5_000,
-          "− pair disabled at the bottom (start 0)",
-        );
-        expect(rowsLabel(), "OCT− from 1: 1−7 clamped to 0").toBe("0");
-        expect(labels().length).toBe(WINDOW);
-
-        // --- SEMI+ from the bottom is EXACTLY +1 row --------------------
-        const bottomWindow = labels(); // snapshot BEFORE the +1 click
         btn("LEAD semitone view up").click();
         await poll(
-          () => !btn("LEAD semitone view down").disabled && rowsLabel() === "1",
-          5_000,
-          "SEMI+ → start exactly 1 (±1 law), SEMI− re-enabled",
+          () => origin() === initial + 1,
+          3000,
+          "semitone up adds one MIDI semitone",
         );
-        expect(rowsLabel()).toBe("1");
-        // The one-row nudge: the bottom window's SECOND label is the new
-        // first (the manifest is one contiguous ascending label sequence).
-        const afterSemi = labels();
-        expect(afterSemi.length).toBe(WINDOW);
-        expect(
-          afterSemi[0],
-          "SEMI+ shifts the visible rows by exactly one",
-        ).toBe(bottomWindow[1]);
-
+        btn("LEAD semitone view down").click();
+        await poll(
+          () => origin() === initial,
+          3000,
+          "semitone down restores pitch",
+        );
+        for (let i = 0; i < 12 && !octPlus.disabled; i++) octPlus.click();
+        await poll(
+          () => octPlus.disabled && btn("LEAD semitone view up").disabled,
+          3000,
+          "upper MIDI bound disables both up controls",
+        );
+        expect(origin()).toBeLessThanOrEqual(116);
+        for (let i = 0; i < 12 && !octMinus.disabled; i++) octMinus.click();
+        await poll(
+          () => octMinus.disabled && btn("LEAD semitone view down").disabled,
+          3000,
+          "lower MIDI bound disables both down controls",
+        );
+        expect(origin()).toBe(0);
+        expect(labels()).toHaveLength(WINDOW);
         // The drums lane (unpitched) never gets a shift row.
         $<HTMLElement>('.lane-switch-tab[data-lane="drums"]').click();
         await poll(
@@ -309,8 +325,8 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
           "drums stage",
         );
         expect(
-          $$(".register-shift").length,
-          "drums (unpitched) has no shift row",
+          $$(".register-shift-btn").length,
+          "drums (unpitched) has no pitch shift buttons",
         ).toBe(0);
       } finally {
         await teardown(iframe);
@@ -320,15 +336,15 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
   );
 
   it(
-    "desktop 1280×800: no shift row anywhere; the lead quadrant still windows at one octave (non-regression)",
+    "desktop 1280×800: pitched lanes expose register controls and a full octave window",
     { timeout: 120_000 },
     async () => {
       const { iframe, $, $$ } = await bootIframe(1280, 800);
       try {
         expect(
-          $$(".register-shift, .register-shift-btn").length,
-          "the shift row is phone-only",
-        ).toBe(0);
+          $$(".register-shift-btn").length,
+          "four register controls for each of the three pitched lanes",
+        ).toBe(12);
         // The desktop lead quadrant still windows (RC-1 law untouched): the
         // seat carries .is-windowed and shows at LEAST the one-octave count
         // (the desktop fill law may GROW windows — the surplus growth M-5
@@ -348,12 +364,12 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         // painted labels just below.
         void scroll.classList.contains("is-windowed");
         const box = scroll.getBoundingClientRect();
-        const leadLabels = $$(".lane-floor[data-lane='lead'] .row-label").filter(
-          (l) => {
-            const r = l.getBoundingClientRect();
-            return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
-          },
-        );
+        const leadLabels = $$(
+          ".lane-floor[data-lane='lead'] .row-label",
+        ).filter((l) => {
+          const r = l.getBoundingClientRect();
+          return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+        });
         expect(
           leadLabels.length,
           "desktop lead window ≥ one octave (fill growth allowed, up to the full manifest)",

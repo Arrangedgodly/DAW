@@ -6,6 +6,15 @@ import {
   TRACK_COLOR_SWATCHES,
 } from "../state/trackColorSwatches";
 import "../styles/track-colors.css";
+import { registerHelp } from "../help/registry";
+
+registerHelp([
+  {
+    id: "appearance.track",
+    title: "TRACK COLOR",
+    text: "Choose a color for this instrument's notes, title, activity meter, and visualizer. The palette offers shades of each color. Reset restores the instrument's default color.",
+  },
+]);
 
 export default function TrackColorControl(props: { lane: LaneId }) {
   const id = createUniqueId();
@@ -33,7 +42,7 @@ export default function TrackColorControl(props: { lane: LaneId }) {
     )?.focus();
   };
   return (
-    <div class="track-color-control">
+    <div class="track-color-control" data-help="appearance.track">
       <button
         ref={(el) => (trigger = el)}
         type="button"
@@ -136,4 +145,3 @@ export default function TrackColorControl(props: { lane: LaneId }) {
     </div>
   );
 }
-

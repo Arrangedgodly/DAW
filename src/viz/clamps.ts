@@ -65,7 +65,7 @@
  * ignite/draw domain), supplied by the caller.
  */
 
-import { LANE_IDS } from "../document/schema";
+import { ALL_LANE_IDS as LANE_IDS } from "../document/schema";
 import type { VizNoteOn } from "../engine/session";
 
 // ---------------------------------------------------------------------------

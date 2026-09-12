@@ -21,7 +21,11 @@ import App from "../../src/App";
 import { getHelp } from "../../src/help/registry";
 import { createDemoProject } from "../../src/document/demoSong";
 import { docStore } from "../../src/state/store";
-import { activePatterns, currentPatternFor, selectLane } from "../../src/state/selection";
+import {
+  activePatterns,
+  currentPatternFor,
+  selectLane,
+} from "../../src/state/selection";
 import { getAutosaveController } from "../../src/persist/boot";
 import { showPhonePage } from "../../src/state/phonePage";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
@@ -204,11 +208,15 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         key(document.body, "b");
         await waitFor(() => selectedBars() === 4, 2000, "b grows A 2→4");
         const rowCount = () =>
-          bassFloor().querySelectorAll(".grid-row").length;
+          new Set(
+            Array.from(
+              bassFloor().querySelectorAll<HTMLElement>(".cell"),
+              (cell) => cell.dataset.row,
+            ),
+          ).size;
         await waitFor(
           () =>
-            bassFloor().querySelectorAll(".cell").length ===
-            rowCount() * 64,
+            bassFloor().querySelectorAll(".cell").length === rowCount() * 64,
           4000,
           "4-bar grid rendered (64 steps per row)",
         );
@@ -228,13 +236,15 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         firstCell.click();
         await waitFor(
           () =>
-            (docStore.getState().doc.patterns.bass.find((p) => p.id === blankId)
+            docStore.getState().doc.patterns.bass.find((p) => p.id === blankId)
               ?.kind === "pitched" &&
-              (
-                docStore.getState().doc.patterns.bass.find(
-                  (p) => p.id === blankId,
-                ) as { notes: unknown[] }
-              ).notes.length > 0),
+            (
+              docStore
+                .getState()
+                .doc.patterns.bass.find((p) => p.id === blankId) as {
+                notes: unknown[];
+              }
+            ).notes.length > 0,
           2000,
           "a painted cell lands inside the new blank pattern",
         );
@@ -248,9 +258,7 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         // reverted §2's blank), the blank E (§4 button), the blank F (key).
         expect(poolSize()).toBe(6);
         const keyTile = tiles()[5]!;
-        expect(keyTile.querySelector(".rail-tile-name")?.textContent).toBe(
-          "F",
-        );
+        expect(keyTile.querySelector(".rail-tile-name")?.textContent).toBe("F");
         await waitFor(
           () => announce() === "PATTERN F CREATED · 1 BAR · APPENDED",
           2000,
@@ -270,9 +278,10 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         );
         expect(chainLen()).toBe(chainBeforeDup); // duplication never chains
         expect(
-          docStore.getState().doc.patterns.bass.find(
-            (p) => p.id === activePatterns().bass,
-          )?.name,
+          docStore
+            .getState()
+            .doc.patterns.bass.find((p) => p.id === activePatterns().bass)
+            ?.name,
           "the copy is selected, named after its source",
         ).toMatch(/\+$/);
         // …and the PAT-menu twin behaves identically.

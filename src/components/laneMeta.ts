@@ -59,3 +59,12 @@ export function soundOptionsFor(lane: LaneId): SoundOption[] {
         a.family.localeCompare(b.family) || a.name.localeCompare(b.name),
     );
 }
+
+/** Keep the default identities; optional tracks take their preset's category. */
+export function laneDisplayName(lane: LaneId, presetId?: string): string {
+  if (!lane.startsWith("extra")) return lane[0]!.toUpperCase() + lane.slice(1);
+  const family = presetId ? soundFamily(presetId) : "Instrument";
+  if (family === "Plucked strings") return "Plucks";
+  if (family === "Sound effects") return "FX";
+  return family;
+}

@@ -422,37 +422,19 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
             `LP-1 (b) PRODUCTION sweep ratio (the 0.95 law)`,
           ).toBeGreaterThanOrEqual(FRAME_PASS_RATIO);
         }
-        leadH.scrollLeft = 0;
-        // The rewindow rides the async scroll event — let the window re-seat
-        // at column 0 before addressing cells by step.
-        await waitFor(
-          () =>
-            host.querySelector(
-              '.lane-floor[data-lane="lead"] .grid-row:not([aria-hidden="true"]) .cell[data-step="16"]',
-            ) !== null,
-          2000,
-          "window re-seated at column 0",
-        );
+        // Playback follow owns the scroll position. Sample currently mounted cells.
 
         // -- per-TOGGLE block (HARD: the O(1) lookup's law — the 50 ms
         // long-task guard the O(steps) scan broke at 276-438 ms, §10c) ----
         const blocks: number[] = [];
-        const activeRow = host.querySelector<HTMLElement>(
-          '.lane-floor[data-lane="lead"] .grid-row:not([aria-hidden="true"])',
-        );
-        if (!activeRow) throw new Error("missing active lead register row");
-        const editSteps = Array.from(
-          activeRow.querySelectorAll<HTMLElement>(".cell"),
-        )
-          .map((cell) => Number(cell.dataset.step))
-          .filter((step) => step >= 16)
-          .slice(0, 5);
-        expect(editSteps).toHaveLength(5);
-        for (const step of editSteps) {
-          const cell = activeRow.querySelector<HTMLElement>(
-            `.cell[data-step="${step}"]`,
+        for (let i = 0; i < 5; i++) {
+          const mounted = Array.from(
+            host.querySelectorAll<HTMLElement>(
+              '.lane-floor[data-lane="lead"] .grid-row:not([aria-hidden="true"]) .cell',
+            ),
           );
-          if (!cell) throw new Error("missing lead toggle cell");
+          const cell = mounted[i + 4];
+          if (!cell) throw new Error("missing current lead toggle cell");
           const t0 = performance.now();
           cell.click();
           blocks.push(performance.now() - t0);

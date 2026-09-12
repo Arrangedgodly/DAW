@@ -42,7 +42,7 @@ import { getHelp, helpEntryIds } from "../../src/help/registry";
 import { setHelpMode } from "../../src/state/helpMode";
 import { setVizMode } from "../../src/state/vizMode";
 import { selectLane } from "../../src/state/selection";
-import { loadDocument } from "../../src/state/store";
+import { loadDocument, setProjectName } from "../../src/state/store";
 import { createDemoProject } from "../../src/document/demoSong";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
@@ -260,6 +260,9 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         click('[data-help="lane.bass.fx"]'); // close the strip
 
         // --- STATE 4: projects popover ---------------------------------
+        // Demo previews become saved projects after the first edit.
+        setProjectName("Help coverage project");
+        await getAutosaveController()!.flush();
         click('[data-help="projects.open"]');
         await waitFor(
           () => host.querySelector(".projects-pop") !== null,
@@ -267,9 +270,9 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           "projects popover open",
         );
         await waitFor(
-          () => host.querySelector(".projects-item") !== null,
+          () => host.querySelector(".projects-list .projects-item") !== null,
           2000,
-          "a saved row is listed (boot law: never zero rows)",
+          "edited demo is saved and listed",
         );
         findings = walkInteractive("projects popover");
         expect(
@@ -294,9 +297,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         // finalization (the IN-4 law) — Esc must be dispatched from the
         // focused editor, exactly as a user's keystroke lands.
         await waitFor(
-          () =>
-            document.activeElement ===
-            host.querySelector(".projects-edit"),
+          () => document.activeElement === host.querySelector(".projects-edit"),
           2000,
           "rename editor focused",
         );
@@ -325,8 +326,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         // refocus) — dispatch the stand-down Esc from the focused key.
         await waitFor(
           () =>
-            document.activeElement ===
-            host.querySelector(".projects-confirm"),
+            document.activeElement === host.querySelector(".projects-confirm"),
           2000,
           "confirm key focused",
         );
@@ -571,14 +571,16 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           4000,
           "drums stage editable (demo loaded)",
         );
-        expect(
-          host.querySelector(".app")?.getAttribute("data-stage"),
-        ).toBe("phone");
+        expect(host.querySelector(".app")?.getAttribute("data-stage")).toBe(
+          "phone",
+        );
 
         const click = (sel: string) =>
-          host.querySelector(sel)!.dispatchEvent(
-            new MouseEvent("click", { bubbles: true, cancelable: true }),
-          );
+          host
+            .querySelector(sel)!
+            .dispatchEvent(
+              new MouseEvent("click", { bubbles: true, cancelable: true }),
+            );
         const keyAt = (k: string) =>
           ((document.activeElement as Element) ?? document.body).dispatchEvent(
             new KeyboardEvent("keydown", {
@@ -627,7 +629,8 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () =>
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
-              ?.getAttribute("aria-label") === "BASS grid · EDITING",
+              ?.getAttribute("aria-label")
+              ?.startsWith("BASS grid · EDITING") === true,
           2000,
           "bass stage editable",
         );

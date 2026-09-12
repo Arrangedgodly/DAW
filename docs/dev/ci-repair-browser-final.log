@@ -1,0 +1,717 @@
+
+ RUN  v4.1.11 C:/Users/arran/AppData/Local/Temp/daw-ci-repair-20260912
+
+stdout | tests/browser/frame-budget.test.ts > frame budget (built app, playing + 200 toggles) > keeps ≥95% of frames under 33.4 ms and toggles block < 50 ms
+[TH-1 frame budget] frames=237 over33.4ms=1 max=66.2ms median=16.7ms toggles=200 worstToggleBlock=2.40ms playheadMoves=237
+stdout | tests/browser/frame-budget.test.ts > TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes playing) > ≥95% frames < 33.4 ms with dense 4-bar quadrants (3 view-only, live playheads), ≥16 sustained voices, FX on every lane; help mode off (HP-1 baseline)
+[TH-4 quadrant budget] frames=241 over33.4ms=0 max=29.2ms p95=17.7ms median=16.6ms playheadMoves={"drums":240,"bass":240,"chords":240,"lead":240} noteRuns={"drums":0,"bass":10,"chords":2,"lead":4} sustainedVoices=17
+stdout | tests/browser/frame-budget.test.ts > TH-4 (b) drag pointermove budgets (built app, playing, pointermove storm) > drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture
+[TH-4 storm drag-create preview] frames=91 over33.4ms=0 moves=364 worstMove=1.30ms medianMove=0.30ms
+stdout | tests/browser/frame-budget.test.ts > TH-4 (b) drag pointermove budgets (built app, playing, pointermove storm) > drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture
+[TH-4 storm edge-resize] frames=90 over33.4ms=0 moves=360 worstMove=0.90ms medianMove=0.20ms
+stdout | tests/browser/frame-budget.test.ts > TH-4 (b) drag pointermove budgets (built app, playing, pointermove storm) > drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture
+[TH-4 storm drums paint] frames=91 over33.4ms=0 moves=364 worstMove=0.90ms medianMove=0.30ms
+stdout | tests/browser/frame-budget.test.ts > TH-4 (b) drag pointermove budgets (built app, playing, pointermove storm) > drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture
+[TH-4 storm rail sweep] frames=91 over33.4ms=0 moves=364 worstMove=1.20ms medianMove=0.30ms
+stdout | tests/browser/frame-budget.test.ts > TH-4 (b) drag pointermove budgets (built app, playing, pointermove storm) > drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture
+[TH-4 storm totals] frames=363 over33.4ms=0 moves=1452 worstMove=1.30ms medianMove=0.20ms
+stdout | tests/browser/frame-budget.test.ts > TH-4 (d) lazy-content budget (built app, simulated asset stall) > first paint + PLAY never await content fetch/decode; zero audio-asset fetches before play
+[TH-4 lazy budget] paintMs=109 playMs=107 decodeCalls=0 fetches=[]
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-a) playing + editing + scroll keep ≥95% frames < 33.4 ms in the densest phone-realistic state (4-bar chains, sample sounds, FX on every lane, sustained runs, euclid fill overlay revealed); help off; voices as budgeted (≥16 sustained)
+[MB-5 phone window A lead] frames=121 over33.4ms=0 playheadMoves=121 edits=50 noteRunsMax=4 maxScrollY=3270 scrolled=true chromeTopDev=0.00px
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-a) playing + editing + scroll keep ≥95% frames < 33.4 ms in the densest phone-realistic state (4-bar chains, sample sounds, FX on every lane, sustained runs, euclid fill overlay revealed); help off; voices as budgeted (≥16 sustained)
+[MB-5 phone window B drums+fill] frames=121 over33.4ms=0 playheadMoves=121 edits=121 fillOpacityMin=1.00 hScrolled=true chromeTopDev=0.00px
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-a) playing + editing + scroll keep ≥95% frames < 33.4 ms in the densest phone-realistic state (4-bar chains, sample sounds, FX on every lane, sustained runs, euclid fill overlay revealed); help off; voices as budgeted (≥16 sustained)
+[MB-5 phone budget] frames=242 over33.4ms=0 max=30.6ms p95=18.1ms median=16.6ms edits=171 worstEditBlock=8.50ms sustainedVoices={"bass":7,"chords":6,"lead":4,"drums":0}
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture
+[MB-5 storm drag-create preview @390] frames=90 over33.4ms=0 moves=360 worstMove=1.00ms medianMove=0.30ms
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture
+[MB-5 storm edge-resize @390] frames=91 over33.4ms=0 moves=364 worstMove=0.50ms medianMove=0.20ms
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture
+[MB-5 storm drums paint @390] frames=91 over33.4ms=0 moves=364 worstMove=0.80ms medianMove=0.20ms
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture
+[MB-5 storm rail sweep @390] frames=90 over33.4ms=0 moves=360 worstMove=0.80ms medianMove=0.30ms
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture
+[MB-5 storm totals @390] frames=362 over33.4ms=0 moves=1448 max=18.8ms worstMove=1.00ms medianMove=0.20ms
+stdout | tests/browser/frame-budget.test.ts > MB-5 mobile frame budget (built app, 390×844 phone stage) > (m-c) lazy sample decode mid-playback stays off the critical path; zero eager audio-asset fetch at phone; voice budget unchanged (8/lane, 32 total)
+[MB-5 lazy decode @390] frames=181 over33.4ms=0 max=18.3ms median=16.6ms stepperClicks=2 worstClickBlock=1.70ms decodeCalls=1 audioFetches=1 preset=SUB DROP
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead) > dense long chains: frames · census · fling sweep · per-edit blocks
+[TH-5 census @dense-128, 1440×900] 1,588 cells (259 note-runs) — eager 38,208 (4.2%)
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead) > dense long chains: frames · census · fling sweep · per-edit blocks
+[TH-5 census-vs-pattern] bass 4B→16B (steps ×4): cells 448→182 (eager 16-bar would be 1792)
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead) > dense long chains: frames · census · fling sweep · per-edit blocks
+[TH-5 long-lane frames @dense-128, 4 s pure rendering] frames=241 over33.4ms=0 max=21.9ms p95=18.2ms median=16.6ms playheadMoves={"drums":241,"bass":241,"chords":241,"lead":241} (per-lane cycles 64/16/8/128 bars)
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead) > dense long chains: frames · census · fling sweep · per-edit blocks
+[TH-5 fling sweep @2048 cols] frames=121 over33.4ms=0 max=19.5ms p95=18.1ms median=16.6ms | window first-step max 368 | lead census 238-238 | 100.0% < 33.4 ms
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900, dense mixed chains incl. a 128-bar lead) > dense long chains: frames · census · fling sweep · per-edit blocks
+[TH-5 toggle blocks @128-bar lead] 31/25/1/21/19 ms per toggle (store → validate → recompile → renderer sync on the O(1) step lookup)
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar lead visible) > the phone stage playing the dense long-loop doc keeps ≥95% frames < 33.4 ms (pure render + the 2048-column register sweep); census window-bounded
+[TH-5 census @dense-128 lead, 390×844] 399 cells (eager was 30,720)
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar lead visible) > the phone stage playing the dense long-loop doc keeps ≥95% frames < 33.4 ms (pure render + the 2048-column register sweep); census window-bounded
+[TH-5 phone pure render @390×844] frames=120 over33.4ms=0 max=18.1ms median=16.7ms
+stdout | tests/browser/frame-budget.test.ts > TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar lead visible) > the phone stage playing the dense long-loop doc keeps ≥95% frames < 33.4 ms (pure render + the 2048-column register sweep); census window-bounded
+[TH-5 phone register sweep @390×844] frames=120 over33.4ms=0 max=18.4ms median=16.6ms
+stdout | tests/browser/frame-budget.test.ts > TH-5 (c) export-cost ceiling (REAL offline render, 64-bar gate render) > the 64-bar musical-density LCM render stays under the pinned wall-time ceiling; loop buffer + heap delta recorded
+[TH-5 export 64-bar ceiling] 4.94 s wall for 128 s audio (x26 real-time) | loop buffer 43 MB | heap delta 0 MB | ceiling 25 s
+stdout | tests/browser/frame-budget.test.ts > TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half) > the demo + 4-bar lead playing at 1920×1080 keep ≥95% frames < 33.4 ms, all four playheads live (the wide quadrant, not a capped stage)
+[TH-5 densified stage @1920×1080, 4 s] frames=237 over33.4ms=2 max=48.8ms p95=18.1ms median=16.7ms playheadMoves={"drums":237,"bass":237,"chords":237,"lead":237} | lead quadrant 921 px
+stdout | tests/browser/frame-budget.test.ts > VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ open on a DPR-2 display) > ≥95% frames < 33.4 ms with 4-lane dense 16ths @ 200 BPM + VIZ open at the composition DPR cap; worst hit-batch frame < 50 ms; canvas live; clamps pinned; thrash injection goes red
+[VZ-TH-4 viz budget] frames=183 over33.4ms=5 max=38.7ms p95=29.0ms median=22.7ms canvasChangeFrames=141 backing=852x550@DPR0.75
+stdout | tests/browser/frame-budget.test.ts > VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ open on a DPR-2 display) > ≥95% frames < 33.4 ms with 4-lane dense 16ths @ 200 BPM + VIZ open at the composition DPR cap; worst hit-batch frame < 50 ms; canvas live; clamps pinned; thrash injection goes red
+[VZ-TH-4 viz tooth] frames=18 over33.4ms=17 (injected 70ms/frame thrash — must break the ratio)
+ ✓ |browser (chromium)| tests/browser/frame-budget.test.ts (12 tests) 182521ms
+     ✓ keeps ≥95% of frames under 33.4 ms and toggles block < 50 ms  4501ms
+     ✓ ≥95% frames < 33.4 ms with dense 4-bar quadrants (3 view-only, live playheads), ≥16 sustained voices, FX on every lane; help mode off (HP-1 baseline)  5493ms
+     ✓ drag-create / edge-resize / drums-paint / rail-sweep storms keep ≥95% frames < 33.4 ms, move dispatches < 50 ms, zero non-preview mutations mid-gesture  6934ms
+     ✓ (m-a) playing + editing + scroll keep ≥95% frames < 33.4 ms in the densest phone-realistic state (4-bar chains, sample sounds, FX on every lane, sustained runs, euclid fill overlay revealed); help off; voices as budgeted (≥16 sustained)  16811ms
+     ✓ (m-b) drag storms at 390×844 during playback keep the TH-4 (b) laws: frame budget, move dispatch budgets, zero non-preview mutations mid-gesture  6865ms
+     ✓ (m-c) lazy sample decode mid-playback stays off the critical path; zero eager audio-asset fetch at phone; voice budget unchanged (8/lane, 32 total)  3658ms
+     ✓ dense long chains: frames · census · fling sweep · per-edit blocks  53833ms
+     ✓ the phone stage playing the dense long-loop doc keeps ≥95% frames < 33.4 ms (pure render + the 2048-column register sweep); census window-bounded  46546ms
+     ✓ the 64-bar musical-density LCM render stays under the pinned wall-time ceiling; loop buffer + heap delta recorded  4944ms
+     ✓ the demo + 4-bar lead playing at 1920×1080 keep ≥95% frames < 33.4 ms, all four playheads live (the wide quadrant, not a capped stage)  25915ms
+     ✓ ≥95% frames < 33.4 ms with 4-lane dense 16ths @ 200 BPM + VIZ open at the composition DPR cap; worst hit-batch frame < 50 ms; canvas live; clamps pinned; thrash injection goes red  6787ms
+stdout | tests/browser/rail-active-follow.test.ts > refinement-7 rail active-tile follow + polish (built app) > active tile follows natural chain advance per lane · parks on stop · flag ≥10px · booth insets keep one page
+[refinement-7 rail follow] 1290 samples / 40000ms @112bpm · per-lane advance drums:[0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2] bass:[0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2] chords:[0,1,2,3,0,1,2,3,0,1] lead:[0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2] · max cyclic distance to the transport bar: drums:0 bass:0 chords:0 lead:0
+stdout | tests/browser/rail-active-follow.test.ts > refinement-7 rail active-tile follow + polish (built app) > active tile follows natural chain advance per lane · parks on stop · flag ≥10px · booth insets keep one page
+[refinement-7 polish] booth 182px tall (the margin-canceled group inset keeps the committed chassis box) · flag 10px
+ ✓ |browser (chromium)| tests/browser/rail-active-follow.test.ts (1 test) 40663ms
+     ✓ active tile follows natural chain advance per lane · parks on stop · flag ≥10px · booth insets keep one page  40663ms
+ ✓ |browser (chromium)| tests/browser/long-render-failure.test.ts (4 tests) 34518ms
+     ✓ 1. export module call fails UNEXPECTEDLY: honest toast, never stuck, retry works  482ms
+     ✓ 2. render failure mid-export: typed toast, busy recovers, 0 blobs, doc + autosave untouched, retry works  6662ms
+     ✓ 3. download io failure: typed io toast, retry works  1474ms
+     ✓ 4. tab hidden mid-render + double-tap race + popover close/reopen: render completes, busy survives  25899ms
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a)(b): production column-window at 128 bars (LL-1) > dense-128 production: census · extents · frames · sweep · toggles
+[LP-1 (a) PRODUCTION windowed census @dense-128] 975 cells (183 note-runs, 3,397 elements total) across the four quadrants — eager baseline was 38,208 (2.6%)
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a)(b): production column-window at 128 bars (LL-1) > dense-128 production: census · extents · frames · sweep · toggles
+[LP-1 (a) PRODUCTION windowed frames @dense-128, 4 s pure rendering] 193 frames, median 20.9 ms, p95 26.2 ms, max 29.8 ms, 100.0% < 33.4 ms | playhead moves/s: 48/48/48/48
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a)(b): production column-window at 128 bars (LL-1) > dense-128 production: census · extents · frames · sweep · toggles
+[LP-1 (b) PRODUCTION windowed scroll sweep @2048 cols] 88 frames, median 22.6 ms, p95 29.0 ms, max 30.7 ms, 100.0% < 33.4 ms
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a)(b): production column-window at 128 bars (LL-1) > dense-128 production: census · extents · frames · sweep · toggles
+[LP-1 (a) PRODUCTION toggle blocks @128-bar lead] 21/1/17/17/16 ms per toggle (store → validate → engineBridge recompile → renderer sync on the O(1) step lookup)
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (a″) windowed census @dense-128] 2,151 cells in DOM (vs 38,208 eager) | per-grid windows: 324/441/441/945
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (a″) windowed frames @dense-128, 4 s pure rendering] 241 frames, median 16.6 ms, p95 18.1 ms, max 18.8 ms, 100.0% < 33.4 ms | playhead moves/s: 60/60/60/60
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (b) windowed scroll sweep @2048 cols] 120 frames, median 19.4 ms, p95 31.6 ms, max 36.9 ms, 97.5% < 33.4 ms | rewindows 63, last rebuild 2.1 ms
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a′): phone window at 390×844 (RECORDED, emulation caveat) > dense 128-bar lead on the phone stage: frame deltas while all four lanes play
+[LP-1 (a′) phone PRODUCTION windowed census @dense-128 lead] 196 cells (eager was 30,720)
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a′): phone window at 390×844 (RECORDED, emulation caveat) > dense 128-bar lead on the phone stage: frame deltas while all four lanes play
+[LP-1 (a′) phone eager frames @dense-128 lead, 2 s] 121 frames, median 16.7 ms, p95 18.0 ms, max 25.8 ms, 100.0% < 33.4 ms (desktop-class CI hardware emulating 390×844 — the MB-5 caveat)
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (d): export wall-time + memory at the LCM cycles (REAL pipeline) > user's 64-bar LCM (drums 64B + bass 4B + chords 8B) renders; wall + memory recorded
+[LP-1 (d) export 64-bar LCM] 4.74 s wall for 128 s audio (x27 real-time) | loop buffer 43 MB | heap delta 0 MB
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (d): export wall-time + memory at the LCM cycles (REAL pipeline) > worst-case 128-bar LCM (every lane 128B, musical density) renders; wall + memory recorded
+[LP-1 (d) export 128-bar LCM worst case] 8.74 s wall for 256 s audio (x29 real-time) | loop buffer 86 MB | heap delta 0 MB
+ ✓ |browser (chromium)| tests/browser/lp1-perf-spike.test.tsx (5 tests) 80497ms
+     ✓ dense-128 production: census · extents · frames · sweep · toggles  32388ms
+     ✓ four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep  30799ms
+     ✓ dense 128-bar lead on the phone stage: frame deltas while all four lanes play  3832ms
+     ✓ user's 64-bar LCM (drums 64B + bass 4B + chords 8B) renders; wall + memory recorded  4739ms
+     ✓ worst-case 128-bar LCM (every lane 128B, musical density) renders; wall + memory recorded  8738ms
+ ✓ |browser (chromium)| tests/browser/e2e-iteration3.test.ts (1 test) 30914ms
+     ✓ poly-loop boot → play (LCM/unsynced sweeps) → + twins → edit → resize ladder + refusal → OCT (export-reflected) → window scroll → LCM exports → reload → 1920 probe  30914ms
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #1 (PLAY tap starts the transport)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #2 (playing tile tap cues the slot (tile goes pending))] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #3 (STOP tap stops the transport)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #4 (switcher tap selects + announces BASS)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #5 (touch tap places the gate-default note)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #6 (touch anchor tap removes the note)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #7 (preset stepper advances by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #8 (MUTE toggles on by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #9 (MUTE toggles back off by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #10 (SOLO engages by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #11] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #12 (FX console opens by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #13 (FX bypass flips by touch tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #14] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #15 (FX add menu opens by touch)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #16 (FX device added by touch)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #17 (FX console closes by touch)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #18 (drums stage by switcher tap)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #19 (FILL reveals the overlay rail)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #20 (fill stepper tap arms the overlay)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #21 (stepper taps arm SET)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #22 (SET taps the Euclidean row in (10 painted hits — rotation-agnostic euclid count))] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #23 (FILL hides the rails again)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #24 (stopped tile tap selects the tapped tile)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #25 (projects popover opens by touch)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #26 (export busy guard engages (actions disabled mid-render))] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #27] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #28] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #29 (NEW lands the empty-project stage note)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #30 (projects popover reopens)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 390×844 — the full editing model by touch
+[MB-6 tap #31 (switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo preset returns))] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #1 (PLAY tap at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #2 (STOP tap at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #3 (switcher tap at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #4 (tap place at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #5 (tap remove at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #6 (preset stepper at 360)] MISS on attempt 1 — one re-measured retry · elementFromPoint@(220.0,270.0)=<button class="head-step-btn"> target@measure=[198.0,248.0 44.0×44.0] target@synth=[198.0,248.0 44.0×44.0] synthesized@page=(198.0,243.0)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #6 (preset stepper at 360)] HIT (attempt 2, after the re-measured retry)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #7 (MUTE at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #8] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #9 (drums stage at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #10 (FILL reveal at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #11 (SET armed at 360)] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #12 (euclid SET commits at 360 (wrapped commit line))] HIT (attempt 1)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #13] single attempt (no per-tap effect to verify)
+stdout | tests/browser/mobile-touch-trusted.test.tsx > MB-6 mobile acceptance: trusted CDP touch on the BUILT app (m1) > 360×800 — core gesture classes + transport by touch
+[MB-6 tap #14 (stopped tile tap at 360)] HIT (attempt 1)
+ ✓ |browser (chromium)| tests/browser/mobile-touch-trusted.test.tsx (2 tests) 28700ms
+     ✓ 390×844 — the full editing model by touch  17639ms
+     ✓ 360×800 — core gesture classes + transport by touch  11060ms
+ ✓ |browser (chromium)| tests/browser/per-lane-sweep.test.ts (4 tests) 27296ms
+     ✓ each quadrant sweeps over ITS OWN chain cycle — exact modulo vs the transport clock, short lanes wrapping while long ones have not, four distinct sweep positions  7560ms
+     ✓ LOOP off plays EXACTLY one full LCM cycle then parks (still playing past every lane's own shorter cycle; booth parks at 8.4.4)  16315ms
+     ✓ `p` announces POSITION BAR x OF 8 · <LANE> BAR x OF y (exact numbers vs the transport), parks while stopped, and stands down in text entries / under AT modifiers  837ms
+     ✓ zero-drift at equal lengths: the fresh project keeps the v0.1 basis (LCM 16 — BAR digit stays 1, `p` omits the lane half)  2583ms
+ ✓ |browser (chromium)| tests/browser/e2e-happy-path.test.ts (1 test) 22164ms
+     ✓ first-run → play → edit → chain → arrange → lazy exports → reload → determinism  22163ms
+ ✓ |browser (chromium)| tests/browser/mobile-resilience.test.tsx (5 tests) 16945ms
+     ✓ 1 · first-touch unlock: suspended context resumes from the FIRST trusted touch (cell audition, PLAY, preset stepper) + the TAP-TO-RESUME affordance  1528ms
+     ✓ 2 · rotation mid-playback: audio + playhead continuous; mid-gesture rotation cancels (same stage) or remounts (crossing) cleanly; focus never strands  2784ms
+     ✓ 3 · visibility at phone: audio continues + playhead resyncs; hidden + pagehide flush autosave; the recovery affordance re-offers  1483ms
+     ✓ 4 · one-shot LOOP re-enable law at phone (R-3): auto-stop parks, LOOP+PLAY restarts, tail re-enable keeps playing  6316ms
+     ✓ 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence  4833ms
+ ✓ |browser (chromium)| tests/browser/hu3.test.ts (11 tests) 19272ms
+     ✓ Projects popover switches projects without clobbering the old row  2251ms
+     ✓ renames the CURRENT row through the store; empty is a no-op; the normalizer clamps to 48  3398ms
+     ✓ renames an OTHER row via record rewrite (blur commits); duplicates allowed; the working doc is untouched  1197ms
+     ✓ delete is two-step: CONFIRM replaces the row; Esc, click-away, and 5 s all stand it down; the second press deletes an inactive row  6455ms
+     ✓ deletes the ACTIVE row: successor switch, NO resurrection after a full flush window (armed debounce)  2251ms
+     ✓ UNDO re-puts the exact held record (byte-identical json, original updatedAt) and never auto-switches  1142ms
+     ✓ popover contract with an editor open: the Tab trap enumerates the input, Esc cancels the edit ONLY, focus returns on close  1170ms
+     ✓ a FAILED UNDO re-put keeps the DELETED toast armed (i6 §4.6 storage-full): retry after the quota frees succeeds one-shot  1165ms
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #1 (bass stage via touch tap on the switcher)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #2 (touch tap places the gate-default note)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #3 (touch anchor tap removes the note)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #4 (drums stage)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #5 (transport playing after touch PLAY)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #6 (stopped)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #7 (FILL reveals the overlay rail)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #8 (fill stepper tap arms the overlay)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #9 (stepper taps arm SET)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #10 (SET taps the Euclidean row in)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #11 (FILL hides the rails again)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #12 (bass stage (steppers))] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #13 (preset stepper advances by touch tap)] HIT (attempt 1)
+stdout | tests/browser/touch-gestures.test.tsx > MB-2 touch gesture parity (trusted CDP touch, phone stage) > tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll
+[MB-2 tap #14 (lead stage (scroll phase))] HIT (attempt 1)
+ ✓ |browser (chromium)| tests/browser/touch-gestures.test.tsx (1 test) 13118ms
+     ✓ tap place/remove · drag · paint · sweep · dbltap · euclid · tap-vs-scroll  13118ms
+ ✓ |browser (chromium)| tests/browser/e2e-iteration2.test.ts (1 test) 11800ms
+     ✓ quadrants → drag notes → resize → sweep cue → mix → presets (lazy samples) → help → mixed exports → reload → v1 migration  11800ms
+stdout | tests/browser/audio-determinism.test.ts > HW-2 double-render determinism (real worklet + FX graph) > same project rendered twice is bit-identical: 'XP-1: 128-bar worst case (LCM 2048 st…'
+[xp1] 128-bar worst case: 11289600 samples/ch, concurrent double render 7967 ms wall
+ ✓ |browser (chromium)| tests/browser/audio-determinism.test.ts (8 tests) 11349ms
+     ✓ same project rendered twice is bit-identical: 'full-FX chains on every lane'  469ms
+     ✓ same project rendered twice is bit-identical: 'demo song (4 dense lanes, 4-pattern c…'  1998ms
+     ✓ same project rendered twice is bit-identical: 'XP-1: 128-bar worst case (LCM 2048 st…'  8315ms
+ ✓ |browser (chromium)| tests/browser/register-window-quantize.test.ts (1 test) 11407ms
+     ✓ every windowed pane edge lands exactly on a row boundary — boot, key scrolls, rhythm flips, pattern switches, growth, deficit  11406ms
+ ✓ |browser (chromium)| tests/browser/pattern-resize-edges.test.ts (4 tests) 10725ms
+     ✓ 5-7. grow/refuse while PLAYING; resize while one-shot PARKED  4345ms
+     ✓ 8. grow that changes the LCM mid-play: the booth BAR readout never resets (absolute-grid continuity)  3454ms
+     ✓ 9. grow of the LAST pattern in a chain mid-play: commit now, engine rebuild at the boundary, lane cycle follows  2692ms
+ ✓ |browser (chromium)| tests/browser/zz-shots.test.tsx (5 tests) 10021ms
+     ✓ 1440x900 equal windows  1438ms
+     ✓ 390x844 phone lead  1551ms
+     ✓ 1280x800  1659ms
+     ✓ 1440x900 + 4-bar lead  2678ms
+     ✓ 1920x1080 + 4-bar lead  2694ms
+ ✓ |browser (chromium)| tests/browser/axe-a11y.test.tsx (7 tests) 8879ms
+     ✓ main screen: no critical/serious violations  980ms
+     ✓ phone stage 390×844 + 360×800: main screen + help mode clean  1831ms
+     ✓ booth scale popover open: dialog semantics clean  787ms
+     ✓ help overlay open: modal dialog clean  945ms
+     ✓ help mode on (info view): status-region semantics clean  1074ms
+     ✓ viz mode on (remote chrome): toolbar semantics clean  835ms
+     ✓ viz states (VZ-HW-3): playing · idle · reduced-motion · phone-gate — axe clean  2426ms
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #1 (editing the welcome demo creates a local project)] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #2 (PROJECTS tap opens the popover)] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #3 (RENAME tap swaps in the editor)] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #4 (ground tap blurs the editor (commit))] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #5 (DELETE tap arms CONFIRM DELETE)] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #6 (CONFIRM DELETE tap removes the row and raises the toast)] HIT (attempt 1)
+stdout | tests/browser/projects-trusted.test.tsx > i6 S-5 — saved-song management journey by trusted touch on the BUILT app (phone stage) > 390×844 — tap-only rename/delete/undo journey
+[S-5 tap #7 (UNDO tap restores the row and dismisses the toast)] HIT (attempt 1)
+ ✓ |browser (chromium)| tests/browser/projects-trusted.test.tsx (1 test) 8641ms
+     ✓ 390×844 — tap-only rename/delete/undo journey  8640ms
+ ✓ |browser (chromium)| tests/browser/register-pitch-anchor.test.tsx (1 test) 7851ms
+     ✓ retains note placement across register shifts, scroll, focus, lane/pattern switches, scale changes and resize  7851ms
+stdout | tests/browser/export-busy-guard.test.ts > XP-1 export busy-guard (real app, long render) > RENDERING state visible through the render; mid-render second taps swallowed; toasts report CYCLE bars
+[xp1] busy-guard gate: RENDERING visible after 0 ms; render+download busy window 2778 ms (64-bar cycle)
+ ✓ |browser (chromium)| tests/browser/export-busy-guard.test.ts (1 test) 6686ms
+     ✓ RENDERING state visible through the render; mid-render second taps swallowed; toasts report CYCLE bars  6685ms
+ ✓ |browser (chromium)| tests/browser/keyboard-journey-full.test.ts (1 test) 6460ms
+     ✓ make-a-loop + arrange + export without ever touching the mouse  6460ms
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 chrome budget · 390×844 steady] chrome 190.0 px (22.5% of viewport)
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 390×844]
+  PASS   painted     75×44  hit     76×45  booth PLAY
+  PASS   painted     45×44  hit     46×45  booth LOOP
+  PASS   painted     75×44  hit     76×45  booth METRONOME
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #0
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #1
+  PASS   painted     51×44  hit     52×45  booth scale chip (strap)
+  PASS   painted     64×44  hit     65×45  booth slider #0
+  PASS   painted     64×44  hit     65×45  booth slider #1
+  PASS   painted     83×44  hit     84×45  switcher tab #0
+  PASS   painted     83×44  hit     84×45  switcher tab #1
+  PASS   painted     83×44  hit     84×45  switcher tab #2
+  PASS   painted     83×44  hit     84×45  switcher tab #3
+  PASS   painted     64×44  hit     65×45  SONG page key
+  PASS   painted     67×84  hit     68×91  rail tile #0
+  PASS   painted     67×84  hit     68×91  rail tile #1
+  PASS   painted     67×84  hit     68×91  rail tile #2
+  PASS   painted     67×44  hit     68×44  rail append +
+  PASS   painted     44×44  hit     45×45  rail PAT trigger
+  PASS   painted     44×44  hit     45×45  strip preset − #0
+  PASS   painted     44×44  hit     45×45  strip preset + #0
+  PASS   painted     93×44  hit     94×45  strip VOLUME slider
+  PASS   painted     45×44  hit     46×45  strip MUTE
+  PASS   painted     45×44  hit     46×45  strip SOLO
+  PASS   painted    118×44  hit    120×45  strip scale chip
+  PASS   painted     44×44  hit     45×45  strip gate −
+  PASS   painted     44×44  hit     45×45  strip gate +
+  PASS   painted     44×44  hit     45×45  strip FX
+  PASS   painted     45×44  hit     46×45  strip FILL toggle
+  EXEMPT painted     17×55  hit         —  grid cell (DATA TARGET — gesture laws)
+  EXEMPT painted     58×40  hit         —  tempo input (EXEMPT: equivalent steppers ≥44)
+  EXEMPT painted    122×24  hit         —  save indicator (EXEMPT: non-operable status)
+  PASS   painted     44×44  hit     45×45  euclid stepper #0
+  PASS   painted     44×44  hit     45×45  euclid stepper #1
+  PASS   painted     44×44  hit     45×45  euclid stepper #2
+  PASS   painted     44×44  hit     45×45  euclid stepper #3
+  PASS   painted     44×44  hit     45×45  euclid stepper #4
+  PASS   painted     44×44  hit     45×45  euclid stepper #5
+  PASS   painted     44×44  hit     45×45  euclid stepper #6
+  PASS   painted     44×44  hit     45×45  euclid stepper #7
+  PASS   painted     44×44  hit     45×45  euclid stepper #8
+  PASS   painted     44×44  hit     45×45  euclid stepper #9
+  PASS   painted     44×44  hit     45×45  euclid stepper #10
+  PASS   painted     44×44  hit     45×45  euclid stepper #11
+  PASS   painted     44×44  hit     45×45  euclid stepper #12
+  PASS   painted     44×44  hit     45×45  euclid stepper #13
+  PASS   painted     44×44  hit     45×45  euclid stepper #14
+  PASS   painted     44×44  hit     45×45  euclid stepper #15
+  PASS   painted     44×44  hit     45×45  euclid stepper #16
+  PASS   painted     44×44  hit     45×45  euclid stepper #17
+  PASS   painted     44×44  hit     45×45  euclid stepper #18
+  PASS   painted     44×44  hit     45×45  euclid stepper #19
+  PASS   painted     44×44  hit     45×45  euclid stepper #20
+  PASS   painted     44×44  hit     45×45  euclid stepper #21
+  PASS   painted     44×44  hit     45×45  euclid stepper #22
+  PASS   painted     44×44  hit     45×45  euclid stepper #23
+  PASS   painted     44×44  hit     45×45  euclid SET
+  PASS   painted     44×44  hit     45×45  PAT menu item #0
+  PASS   painted     65×44  hit     66×45  PAT menu item #1
+  PASS   painted     65×44  hit     66×45  PAT menu item #2
+  PASS   painted     44×44  hit     45×45  PAT menu item #3
+  PASS   painted     44×44  hit     45×45  PAT menu item #4
+  PASS   painted     52×44  hit     52×45  scale root #0
+  PASS   painted     52×44  hit     52×45  scale root #1
+  PASS   painted    320×44  hit    321×45  scale mode
+  PASS   painted    320×44  hit    321×45  scale commit
+  PASS   painted    320×44  hit    321×45  scale detach
+  PASS   painted     52×44  hit     52×45  booth scale root
+  PASS   painted     44×44  hit     45×45  register shift #0
+  PASS   painted     44×44  hit     45×45  register shift #1
+  PASS   painted     44×44  hit     45×45  register shift #2
+  PASS   painted     44×44  hit     45×45  register shift #3
+  EXEMPT painted    104×56  hit         —  register readout (EXEMPT: aria-live status, non-operable)
+  PASS   painted     49×44  hit     50×45  fx CLOSE
+  PASS   painted     44×44  hit     45×45  fx module button #0
+  PASS   painted     44×44  hit     45×45  fx module button #1
+  PASS   painted     44×44  hit     45×45  fx module button #2
+  PASS   painted     44×44  hit     45×45  fx module button #3
+  PASS   painted     44×44  hit     45×45  fx module button #4
+  PASS   painted     44×44  hit     45×45  fx module button #5
+  PASS   painted     44×44  hit     45×45  fx module button #6
+  PASS   painted     44×44  hit     45×45  fx module button #7
+  PASS   painted    145×44  hit    146×45  fx param slider #0
+  PASS   painted    145×44  hit    146×45  fx param slider #1
+  PASS   painted     71×44  hit     72×45  fx + ADD FX
+  PASS   painted     55×44  hit     56×45  fx add item #0
+  PASS   painted     49×44  hit     50×45  fx add item #1
+  PASS   painted     49×44  hit     50×45  fx add item #2
+  PASS   painted     49×44  hit     50×45  fx add item #3
+  PASS   painted     55×44  hit     56×45  fx add item #4
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+  PASS   painted     59×44  hit     60×45  toast action
+  PASS   painted     44×44  hit     45×45  toast dismiss
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 chrome budget · 360×800] chrome 190.0 px (23.8% of viewport) · usable 610.0 px (76.3%)
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 360×800 fill]
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #0
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #1
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #2
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #3
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #4
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #5
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #6
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #7
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #8
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #9
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #10
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #11
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #12
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #13
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #14
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #15
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #16
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #17
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #18
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #19
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #20
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #21
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #22
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #23
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #0
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #1
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #2
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #3
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #4
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #5
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 360×800]
+  PASS   painted     75×44  hit     76×45  booth PLAY
+  PASS   painted     45×44  hit     46×45  booth LOOP
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #0
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #1
+  PASS   painted     64×44  hit     65×45  booth slider #0
+  PASS   painted     64×44  hit     65×45  booth slider #1
+  PASS   painted     76×44  hit     76×45  switcher tab #0
+  PASS   painted     76×44  hit     76×45  switcher tab #1
+  PASS   painted     76×44  hit     76×45  switcher tab #2
+  PASS   painted     76×44  hit     76×45  switcher tab #3
+  PASS   painted     64×44  hit     65×45  SONG page key (360)
+  PASS   painted     82×84  hit     82×85  rail tile #0
+  PASS   painted     82×84  hit     82×85  rail tile #1
+  PASS   painted     44×44  hit     45×45  PAT trigger
+  PASS   painted     44×44  hit     45×45  strip preset + #0
+  PASS   painted     45×44  hit     46×45  strip MUTE
+  PASS   painted     44×44  hit     45×45  strip FX
+  PASS   painted     45×44  hit     46×45  strip FILL
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/target-size.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 430×932 projects]
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+ ✓ |browser (chromium)| tests/browser/target-size.test.tsx (1 test) 6293ms
+     ✓ 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence  6292ms
+stdout | tests/browser/viz-composition-journeys.test.tsx > built composition journeys > plays real MIDI visuals, rerolls during playback, returns focus, and restores the composition on a fresh boot
+Composition frame intervals ms {
+  "median": 16.700000047683716,
+  "p95": 19.19999998807907,
+}
+ ✓ |browser (chromium)| tests/browser/viz-composition-journeys.test.tsx (1 test) 5898ms
+     ✓ plays real MIDI visuals, rerolls during playback, returns focus, and restores the composition on a fresh boot  5898ms
+stdout | tests/browser/lane-rim-pulse.test.ts > T5 lane-rim sounding pulse (built app) > idle shows no phantom · playing pulses .is-sounding per beat on every lane-floor · park clears · reduced-motion holds statically
+[T5 rim pulse] motion mode over 2143ms @25ms samples — present/absent per lane: drums:16/64 bass:16/64 chords:20/60 lead:16/64
+stdout | tests/browser/lane-rim-pulse.test.ts > T5 lane-rim sounding pulse (built app) > idle shows no phantom · playing pulses .is-sounding per beat on every lane-floor · park clears · reduced-motion holds statically
+[T5 rim pulse] reduced-motion twin held statically over 52 samples, cleared on park
+ ✓ |browser (chromium)| tests/browser/lane-rim-pulse.test.ts (1 test) 5842ms
+     ✓ idle shows no phantom · playing pulses .is-sounding per beat on every lane-floor · park clears · reduced-motion holds statically  5842ms
+ ✓ |browser (chromium)| tests/browser/preset-library.test.ts (3 tests) 5689ms
+     ✓ every pitched preset is audible, finite, and within sane peak bounds  2385ms
+     ✓ every drum kit piece is audible, finite, and within sane peak bounds  3074ms
+ ✓ |browser (chromium)| tests/browser/mobile-viewport.test.ts (6 tests) 5134ms
+     ✓ phone 390×844: lane switcher IS selection; sticky chrome; scrolling-grid law  637ms
+     ✓ phone 360×800: same laws at the tight viewport + the usable-grid budget  489ms
+     ✓ rotation re-budgets live: 390×844 → 844×390 phone-law → 768×1024 tablet → 1280×800 desktop  477ms
+     ✓ bootIframe wipe integrity: a blocked wipe waits out transient blockers, then fails LOUD (DA-3 precedent)  3083ms
+ ✓ |browser (chromium)| tests/browser/transport-loop-reenable.test.ts (2 tests) 4882ms
+     ✓ critique repro: auto-stop → LOOP re-enable → PLAY sounds within the normal first-lookahead window (energy + step clock)  2329ms
+     ✓ stall window: LOOP re-enabled during the exhausted tail keeps audio sounding past the pass end (no silent playing)  2552ms
+ ✓ |browser (chromium)| tests/browser/help-touch.test.tsx (1 test) 4705ms
+     ✓ touch enters/inspects/exits help mode: tap shows the entry AND activates; span tap rides the click path; persistence; live semantics  4705ms
+stdout | tests/browser/zero-network.test.ts > CA-1 zero-network journey (built app under full CSP) > boots, plays, edits, exports, and saves with zero network activity
+[CA-1 zero-network] resources=14 (all same-origin) thirdPartyCalls=0 cspViolations=0 blobDownloads=3
+stdout | tests/browser/zero-network.test.ts > CA-1 zero-network journey (built app under full CSP) > boots, plays, edits, exports, and saves with zero network activity
+[CA-1 PS-2 probes] sameOriginOgg=/assets/drums-808-clap-XcuMeuxC.ogg 17337B decoded; crossOriginBlockedBy=CSP
+ ✓ |browser (chromium)| tests/browser/zero-network.test.ts (1 test) 4587ms
+     ✓ boots, plays, edits, exports, and saves with zero network activity  4587ms
+stdout | tests/browser/exportWav.test.ts > MF-4 WAV export — the file IS the loop (real render + encoder) > XP-1: unequal chains export EXACTLY one LCM cycle (64 bars, sample-exact)
+[xp1] 64-bar LCM offline render wall: 2578 ms
+ ✓ |browser (chromium)| tests/browser/exportWav.test.ts (3 tests) 4313ms
+     ✓ exports the reference project: header fields exact + sample-exact length  935ms
+     ✓ loop-tight at the file level: IM-5 stitch assertion on the exported bytes  619ms
+     ✓ XP-1: unequal chains export EXACTLY one LCM cycle (64 bars, sample-exact)  2758ms
+ ✓ |browser (chromium)| tests/browser/register-pinch-zoom-trusted.test.tsx (1 test) 4050ms
+     ✓ 390×844 lead: live pinch to ×1.5 then ×2 clamp; 7 complete rows at every factor; SEMI+ steps a zoomed pitch; trailing fit keeps the factor; double-tap + chip reset; tap/drag-create still work after  4050ms
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 grid utilization · 390×844] grid 365px = 43.2% of viewport; chrome 190px; 6 rows ≥44px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 390×844 drums] cell 16.9375px (expected available width); track 55px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 390×844 bass] cell 17.4375px (expected available width); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 390×844 chords] cell 15.0000px (expected 15 floor); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 390×844 lead] cell 17.4375px (expected available width); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 grid utilization · 360×800] grid 294px = 36.8% of viewport; chrome 190px; 6 rows ≥44px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 360×800 drums] cell 15.0625px (expected available width); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 360×800 bass] cell 15.5625px (expected available width); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 360×800 chords] cell 15.0000px (expected 15 floor); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 360×800 lead] cell 15.5625px (expected available width); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 grid utilization · 430×932] grid 453px = 48.6% of viewport; chrome 190px; 6 rows ≥44px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 430×932 drums] cell 19.4375px (expected available width); track 64px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 430×932 bass] cell 19.9375px (expected available width); track 56px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 430×932 chords] cell 15.0000px (expected 15 floor); track 44px; bottom Δ 45.00px
+stdout | tests/browser/viewport-utilization.test.ts > M-7 phone-stage grid utilization (built app, 390×844 + 360×800 + 430×932) > grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane
+[M-7 i5 · 430×932 lead] cell 19.9375px (expected available width); track 56px; bottom Δ 45.00px
+ ✓ |browser (chromium)| tests/browser/viewport-utilization.test.ts (2 tests) 3629ms
+     ✓ ≥95% width utilization at all three viewports; one-page at both law viewports; 1920 preserves visible columns with larger cells  976ms
+     ✓ grid share floors; rows within [44,64]; i5 width-fill + bottom-ownership per lane  2652ms
+ ✓ |browser (chromium)| tests/browser/mobile-register-feedback.test.tsx (3 tests) 3303ms
+     ✓ 390×844 lead lane: labels + aria-live readout change within one frame; cue fires, restarts, and fades; direction coded  1339ms
+     ✓ reduced motion: no transient cue at all (static readout re-anchor is the equivalent); labels still change  1769ms
+ ✓ |browser (chromium)| tests/browser/background-tab.test.ts (1 test) 3195ms
+     ✓ audio clock keeps running and every tick is scheduled exactly once across a hidden window  3195ms
+ ✓ |browser (chromium)| tests/browser/phone-header.test.tsx (1 test) 3057ms
+     ✓ 390/360/430 × every lane: no · EDIT, identity/mix tiers anchored both edges, no wrap/overflow, ≥44 hits, tab order visual; desktop 1280 fingerprint unchanged  3057ms
+ ✓ |browser (chromium)| tests/browser/vertical-fill.test.ts (1 test) 2835ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets  2835ms
+ ✓ |browser (chromium)| tests/browser/viz-composition.test.tsx (8 tests) 2655ms
+     ✓ renders every library effect, rerolls all layers, and cancels pending reroll on disposal  934ms
+     ✓ keeps reduced-motion pixels static even under MIDI, with working controls  533ms
+     ✓ fits desktop and phone, keeps controls reachable, and restores editing after view mode  499ms
+ ✓ |browser (chromium)| tests/browser/fileIO.test.ts (4 tests) 2478ms
+     ✓ imports a file and retargets autosave (existing saved project: false)  1225ms
+     ✓ imports a file and retargets autosave (existing saved project: true)  1223ms
+ ✓ |browser (chromium)| tests/browser/render-parity.test.ts (6 tests) 2027ms
+     ✓ same project rendered twice offline is bit-identical  341ms
+     ✓ tail energy beyond loopSamples decays; fold is arithmetic-exact  925ms
+     ✓ stitched loop matches a true two-iteration render at the seam  397ms
+ ✓ |browser (chromium)| tests/browser/register-window-snap.test.tsx (1 test) 1948ms
+     ✓ 390/360/430: modeSize complete rows at boot/shifts/settled scroll; box === pin; SEMI+ from an unseated rest seats (probe-4); readout === aria; dead-below ~0  1948ms
+ ✓ |browser (chromium)| tests/browser/euclid-fill-trusted.test.tsx (1 test) 1361ms
+     ✓ the rail fits its controls: real clicks land on pulses/rotation/SET, SET commits, keyboard twin kept  1360ms
+ ✓ |browser (chromium)| tests/browser/register-controls.test.tsx (2 tests) 1281ms
+     ✓ equal default windows + manifest scroll + OCT keyboard/pointer/undo + E8/E9 texts  1078ms
+ ✓ |browser (chromium)| tests/browser/render-mix.test.ts (4 tests) 1243ms
+     ✓ mute = exact silence in the lane's exclusive window; others bit-identical to notes-removed  319ms
+     ✓ solo is exactly the complementary mute vector (bit-identical renders)  410ms
+     ✓ volume scales ONLY its own lane, linearly, deterministically  313ms
+3:24:50 PM [vite] (client) [console.warn] [persist] stored project failed validation; quarantining MigrationError: migrate v1→v2: patterns.bass[0]: notesFromRowCells: invalid pitched cell 3 at step 0 (degree 0) — not a v1 pattern
+    at http://localhost:63315/src/document/migrate.ts:64:11
+    at Array.map (<anonymous>)
+    at migrateV1ToV2 (http://localhost:63315/src/document/migrate.ts:51:39)
+    at migrateWith (http://localhost:63315/src/document/migrate.ts:143:13)
+    at migrate (http://localhost:63315/src/document/migrate.ts:153:9)
+    at decode (http://localhost:63315/src/document/codec.ts:174:19)
+    at initPersistence (http://localhost:63315/src/persist/boot.ts:194:17)
+    at async http://localhost:63315/@fs/C:/Users/arran/AppData/Local/Temp/daw-ci-repair-20260912/tests/browser/pointer-edge-states.test.tsx?import&browserv=1789248290138:641:19
+    at async http://localhost:63315/@fs/C:/Users/arran/Projects/DAW/node_modules/@vitest/runner/dist/chunk-artifact.js?v=4cc19a66:1903:20
+stderr | tests/browser/pointer-edge-states.test.tsx > IN-4 migration-fallback UX (SC-1 typed errors through the real paths) > unmigratable v1 INDEXEDDB ROW at boot: quarantined (bytes kept + RECOVER), fresh project loads, boot completes
+[persist] stored project failed validation; quarantining [MigrationError: migrate v1→v2: patterns.bass[0]: notesFromRowCells: invalid pitched cell 3 at step 0 (degree 0) — not a v1 pattern]
+ ✓ |browser (chromium)| tests/browser/pointer-edge-states.test.tsx (5 tests) 1153ms
+     ✓ the edge-state table: cancel/up-outside/cross-cell/multi-pointer/scroll/contextmenu/mode-flip/sync/rapid re-press  390ms
+     ✓ 4-bar max-density view-only render + scroll at 1440×900 and below; 128-step note; live playhead; honest note-edge geometry  580ms
+ ✓ |browser (chromium)| tests/browser/demoSong.test.ts (1 test) 1121ms
+     ✓ renders a clean, energetic, non-clipping 8-bar poly-loop cycle with onsets at the bar grid  1121ms
+ ✓ |browser (chromium)| tests/browser/mobile-transport.test.ts (2 tests) 1139ms
+     ✓ 390×844 + 360×800: play centered ±8px and visible at scroll-top AND scroll-bottom, hit ≥44×44, exactly one button  983ms
+ ✓ |browser (chromium)| tests/browser/drag-cue-trusted.test.tsx (1 test) 1058ms
+     ✓ trusted drag cues each touched lane once (real capture) · trusted single click · dblclick editor intact  1058ms
+ ✓ |browser (chromium)| tests/browser/viz-fingerprint.test.ts (2 tests) 822ms
+     ✓ renders reproducible and distinct library geometry  456ms
+     ✓ variation seeds change the geometry within the same effect  366ms
+ ✓ |browser (chromium)| tests/browser/quadrant-layout.test.ts (2 tests) 921ms
+     ✓ one page, no scrolling; selector announces; view-only quadrants are operable-not-traps  461ms
+     ✓ refinement-4: 1280×800 one page on BOTH axes; quadrants flex within the 100dvh budget; resize recovers  460ms
+ ✓ |browser (chromium)| tests/browser/drag-cue.test.tsx (1 test) 1008ms
+     ✓ sweep cues every touched lane at its last-touched tile · preview zero-writes · cancel · E5 parity with Shift+arrows + Enter  1007ms
+ ✓ |browser (chromium)| tests/browser/fx-console-trusted.test.tsx (1 test) 892ms
+     ✓ the five strip controls take real clicks under the open console; CLOSE + Escape close it; empty console visibly paints  892ms
+ ✓ |browser (chromium)| tests/browser/help-mode.test.tsx (5 tests) 870ms
+     ✓ off = zero help surface · button + `i` toggle with announcements · focus AND hover drive the region · no trap · Escape exits first · pass-through · mid-gesture safety · mode-obvious styling  687ms
+ ✓ |browser (chromium)| tests/browser/pointer-edge-states-trusted.test.tsx (1 test) 868ms
+     ✓ dblclick focuses the inline editor; 1-step-note center click removes; next-cell click places; rapid re-press activates each press once  867ms
+ ✓ |browser (chromium)| tests/browser/drag-notes-trusted.test.tsx (1 test) 846ms
+     ✓ gate-default place + ONE audition, anchor remove, mid-span trim, drums toggle + one audition, synthetic pointerup parity  846ms
+stderr | tests/browser/render-fingerprint.test.ts > HW-2 render fingerprint canary (soft — never blocks) > reference render passes tolerance checks; hash drift only warns
+[render-fingerprint] RENDER FINGERPRINT DRIFT on 'render/reference-loop-fp-v1': manifest e87ae0ab727cb10b8d20921f7aba8d3db4d106cd8502578d9d7fe0dca40667f9 (playwright env: playwright 1.62.1, chromium (MacOS/Google Chrome for Testing)) vs current b90aa6c1be58eb9fa89e0bb6b52f9468eedc235f4c4d283a043ad9482adc1db7. This is NOT a failure — the hash is environment-pinned (pinned Chromium via playwright; not comparable across engines/platforms). If the change is deliberate, regenerate: npm run goldens:update
+3:25:03 PM [vite] (client) [console.warn] [render-fingerprint] RENDER FINGERPRINT DRIFT on 'render/reference-loop-fp-v1': manifest e87ae0ab727cb10b8d20921f7aba8d3db4d106cd8502578d9d7fe0dca40667f9 (playwright env: playwright 1.62.1, chromium (MacOS/Google Chrome for Testing)) vs current b90aa6c1be58eb9fa89e0bb6b52f9468eedc235f4c4d283a043ad9482adc1db7. This is NOT a failure — the hash is environment-pinned (pinned Chromium via playwright; not comparable across engines/platforms). If the change is deliberate, regenerate: npm run goldens:update
+stderr | tests/browser/render-fingerprint.test.ts > HW-2 render fingerprint canary (soft — never blocks) > exported reference WAV byte fingerprint; drift only warns
+[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on 'wav/reference-export-fp-v1': manifest 3eff577190d4efb400f080f19973351caeb0fbfad4e6f7cdb6c98293eaf0f4e0 (env: playwright 1.62.1) vs current 77854dff97f487ef81bbd31b016abbdbfd10194695c15fd3b8479f2f0f2e0b1f. NOT a failure — environment-pinned like the render fp. If deliberate, regenerate: npm run goldens:update
+3:25:03 PM [vite] (client) [console.warn] [wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on 'wav/reference-export-fp-v1': manifest 3eff577190d4efb400f080f19973351caeb0fbfad4e6f7cdb6c98293eaf0f4e0 (env: playwright 1.62.1) vs current 77854dff97f487ef81bbd31b016abbdbfd10194695c15fd3b8479f2f0f2e0b1f. NOT a failure — environment-pinned like the render fp. If deliberate, regenerate: npm run goldens:update
+3:25:03 PM [vite] (client) [console.warn] [wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on 'wav/reference-export-mix-fp-v1': manifest 403361caf6e1049291b786a34f2300422d0a58a5ff81b7e4b2c4677301ca0fcd (env: playwright 1.62.1) vs current 0dc22a54ee2aaaf46bdfe0d3a8f426be455f18ba0b3b06a64aa5336869349b85. NOT a failure — environment-pinned like the render fp. If deliberate, regenerate: npm run goldens:update
+stderr | tests/browser/render-fingerprint.test.ts > HW-2 render fingerprint canary (soft — never blocks) > exported MIXED reference WAV byte fingerprint; drift only warns
+[wav-export-fingerprint] EXPORT FINGERPRINT DRIFT on 'wav/reference-export-mix-fp-v1': manifest 403361caf6e1049291b786a34f2300422d0a58a5ff81b7e4b2c4677301ca0fcd (env: playwright 1.62.1) vs current 0dc22a54ee2aaaf46bdfe0d3a8f426be455f18ba0b3b06a64aa5336869349b85. NOT a failure — environment-pinned like the render fp. If deliberate, regenerate: npm run goldens:update
+stdout | tests/browser/render-fingerprint.test.ts > HW-2 render fingerprint canary (soft — never blocks) > exported LCM-cycle WAV byte fingerprint; drift only warns
+[wav-export-fingerprint] 'wav/lcm-export-fp-v1' matches manifest (a000a8f838fe…)
+ ✓ |browser (chromium)| tests/browser/render-fingerprint.test.ts (4 tests) 779ms
+ ✓ |browser (chromium)| tests/browser/pattern-resize.test.ts (3 tests) 729ms
+     ✓ focus carry through the resize remount (same row, step clamped to the new extent); the windowed grid keeps a pattern-wide scroll extent  419ms
+ ✓ |browser (chromium)| tests/browser/register-pinch-zoom.test.tsx (1 test) 778ms
+     ✓ takeover law, clamp, double-tap reset, chip reset  778ms
+3:25:05 PM [vite] (client) [console.warn] [persist] stored project failed validation; quarantining ProjectValidationError: Invalid project document (1 issue)
+    at validateProject (http://localhost:63315/src/document/validate.ts:81:9)
+    at decode (http://localhost:63315/src/document/codec.ts:175:9)
+    at initPersistence (http://localhost:63315/src/persist/boot.ts:194:17)
+    at async http://localhost:63315/@fs/C:/Users/arran/AppData/Local/Temp/daw-ci-repair-20260912/tests/browser/hu2.test.ts?import&browserv=1789248305619:49:16
+    at async http://localhost:63315/@fs/C:/Users/arran/Projects/DAW/node_modules/@vitest/runner/dist/chunk-artifact.js?v=4cc19a66:1903:20
+stderr | tests/browser/hu2.test.ts > boot quarantine (real IndexedDB) > renames the bad row, boots a fresh default, and RECOVER exports original bytes
+[persist] stored project failed validation; quarantining [ProjectValidationError: Invalid project document (1 issue)]
+ ✓ |browser (chromium)| tests/browser/hu2.test.ts (2 tests) 736ms
+     ✓ reports steals when >8 voices are requested on one lane  726ms
+ ✓ |browser (chromium)| tests/browser/scheduler-budget.test.ts (8 tests) 568ms
+ ✓ |browser (chromium)| tests/browser/sample-voice.test.tsx (7 tests) 516ms
+ ✓ |browser (chromium)| tests/browser/mobile-register-window.test.tsx (2 tests) 430ms
+ ✓ |browser (chromium)| tests/browser/help-coverage.test.tsx (2 tests) 487ms
+     ✓ walks every surface state: no unregistered control, no placeholder text  400ms
+ ✓ |browser (chromium)| tests/browser/fx-graph.test.ts (6 tests) 509ms
+stdout | tests/browser/rail-density.test.ts > refinement-6 rail tools density (built app, 1440×900 + 1280×800) > one PAT trigger per lane · tiles breathe · every function reachable · one page
+[refinement-6 rail density] 1280×800: tools cluster px per lane [35, 35, 35, 35] · drums row 1087px wide, 15 tiles single-line
+stdout | tests/browser/rail-density.test.ts > refinement-6 rail tools density (built app, 1440×900 + 1280×800) > one PAT trigger per lane · tiles breathe · every function reachable · one page
+[refinement-6 rail density] the five tools in one line measure 247px — the per-lane row spend the distill removed (cluster now 35px)
+stdout | tests/browser/rail-density.test.ts > refinement-6 rail tools density (built app, 1440×900 + 1280×800) > one PAT trigger per lane · tiles breathe · every function reachable · one page
+[refinement-6 rail density] 1440×900: tools cluster px per lane [35, 35, 35, 35] · drums row 1204px wide, 15 tiles single-line
+ ✓ |browser (chromium)| tests/browser/rail-density.test.ts (1 test) 518ms
+     ✓ one PAT trigger per lane · tiles breathe · every function reachable · one page  518ms
+ ✓ |browser (chromium)| tests/browser/mobile-options-drawer.test.tsx (3 tests) 451ms
+ ✓ |browser (chromium)| tests/browser/pitch-direction.test.tsx (1 test) 423ms
+   ✓ higher notes render above lower notes; octave view and keyboard editing preserve pitch identity  423ms
+ ✓ |browser (chromium)| tests/browser/drag-notes.test.tsx (1 test) 247ms
+ ✓ |browser (chromium)| tests/browser/pattern-rail.test.ts (1 test) 210ms
+ ✓ |browser (chromium)| tests/browser/viz-phrasing.test.ts (3 tests) 202ms
+ ✓ |browser (chromium)| tests/browser/euclid-fill.test.tsx (3 tests) 210ms
+ ✓ |browser (chromium)| tests/browser/migration-fallback-v3.test.ts (2 tests) 204ms
+ ✓ |browser (chromium)| tests/browser/keyboard-journey.test.tsx (1 test) 197ms
+ ✓ |browser (chromium)| tests/browser/voice-load.test.ts (1 test) 165ms
+ ✓ |browser (chromium)| tests/browser/webmcp.test.tsx (11 tests) 165ms
+ ✓ |browser (chromium)| tests/browser/content-loader.test.ts (1 test) 107ms
+ ✓ |browser (chromium)| tests/browser/audio-context.test.ts (2 tests) 77ms
+ ✓ |browser (chromium)| tests/browser/persistence.test.ts (3 tests) 23ms
+ ✓ |browser (chromium)| tests/browser/exportMidi.test.ts (6 tests) 15ms
+ ✓ |browser (chromium)| tests/browser/song-slot-footer.test.tsx (1 test) 3ms
+
+ Test Files  79 passed (79)
+      Tests  229 passed (229)
+   Start at  15:13:28
+   Duration  705.94s (transform 0ms, setup 273ms, import 6.85s, tests 690.27s, environment 0ms)
+
+JSON report written to C:/Users/arran/AppData/Local/Temp/daw-ci-repair-20260912/repair-browser-complete.json

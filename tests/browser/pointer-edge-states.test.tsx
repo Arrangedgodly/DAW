@@ -1,3 +1,5 @@
+import { pitchDomain } from "../../src/document/pitchWindow";
+import { rowForDegree } from "./pitch-fixture";
 /**
  * IN-4 gate — the POINTER EDGE-STATE TABLE + migration-fallback UX +
  * view-only quadrant extremes, on the real app (iteration-2 AC #4).
@@ -144,7 +146,7 @@ function center(el: Element): { x: number; y: number } {
 
 function cellAt(lane: string, row: number, step: number): HTMLElement {
   const cell = document.querySelector(
-    `.lane-floor[data-lane="${lane}"] .cell[data-row="${row}"][data-step="${step}"]`,
+    `.lane-floor[data-lane="${lane}"] .cell[data-row="${rowForDegree(lane, row)}"][data-step="${step}"]`,
   );
   if (!cell) throw new Error(`missing ${lane} cell ${row}:${step}`);
   return cell as HTMLElement;
@@ -157,9 +159,9 @@ function bassNotes() {
 }
 
 const gridLabel = (lane: string) =>
-  document.querySelector(
-    `.lane-floor[data-lane="${lane}"] [role="grid"]`,
-  )?.getAttribute("aria-label");
+  document
+    .querySelector(`.lane-floor[data-lane="${lane}"] [role="grid"]`)
+    ?.getAttribute("aria-label");
 
 // RC-1 (journey delta, equal-window default): a WINDOWED pitched grid's
 // accessible name appends `· ROWS a–b OF n` (E9) — gate on the edit-state
@@ -264,8 +266,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         document.querySelectorAll(".note-run.is-drag-preview").length;
       const cellPreviews = () =>
         document.querySelectorAll(".cell[data-preview]").length;
-      const historyDepth = () =>
-        docStore.temporal.getState().pastStates.length;
+      const historyDepth = () => docStore.temporal.getState().pastStates.length;
 
       try {
         await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
@@ -344,7 +345,8 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         pe(edge, "pointerdown", ec.x, ec.y);
         const cells0 = cellAt("bass", 0, 0).parentElement as HTMLElement;
         const row0 = cells0.getBoundingClientRect();
-        const stepW = center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
+        const stepW =
+          center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
         pe(cells0, "pointermove", row0.left + 7.5 * stepW, ac.y);
         expect(run.getBoundingClientRect().width).toBeGreaterThan(runRect0); // live preview
         pe(cells0, "pointercancel", row0.left + 7.5 * stepW, ac.y);
@@ -575,7 +577,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         pe(tile(2), "pointerup", center(tile(2)).x, center(tile(2)).y, 7);
         expect(activePatterns().drums).toBe("drums-1"); // last-touched tile 2, not pointer 8's
         expect(
-          document.querySelectorAll('.rail-tile[data-cue-preview]'),
+          document.querySelectorAll(".rail-tile[data-cue-preview]"),
         ).toHaveLength(0); // no stuck sweep preview
       } finally {
         // View state is MODULE-LEVEL — never leak SONG into the next test
@@ -656,10 +658,15 @@ describe("IN-4 migration-fallback UX (SC-1 typed errors through the real paths)"
         const before = docStore.getState().doc;
         const rowsBefore = (await db.allRecords()).length;
 
-        const file = new File([unmigratableV1Json("old thing")], "old.bitbounce.json", {
-          type: "application/json",
-        });
-        const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+        const file = new File(
+          [unmigratableV1Json("old thing")],
+          "old.bitbounce.json",
+          {
+            type: "application/json",
+          },
+        );
+        const input =
+          host.querySelector<HTMLInputElement>('input[type="file"]')!;
         setInputFiles(input, file);
 
         const toast = await errorToast();
@@ -784,11 +791,32 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         const leadRuns = document.querySelectorAll(
           '.lane-floor[data-lane="lead"] .note-run',
         );
-        expect(leadRuns.length).toBe(1 + 13 * 64);
+        const domain = pitchDomain(docStore.getState().doc, "lead");
+        const visibleDegrees = new Set(
+          Array.from(
+            document.querySelectorAll<HTMLElement>(
+              '.lane-floor[data-lane="lead"] .grid-row:has(.cell)',
+            ),
+          ).map(
+            (row) =>
+              domain.degrees[
+                Number(row.querySelector<HTMLElement>(".cell")!.dataset.row)
+              ],
+          ),
+        );
+        const pattern = docStore.getState().doc.patterns.lead[0];
+        if (pattern?.kind !== "pitched")
+          throw new Error("expected pitched lead fixture");
+        expect(leadRuns.length).toBe(
+          pattern.notes.filter((note) => visibleDegrees.has(note.degree))
+            .length,
+        );
 
         // The 128-step (schema max) note renders its full width — overhang
         // past the pattern end is legal (loops wrap).
-        const longRun = leadRuns[0] as HTMLElement;
+        const longRun = document.querySelector<HTMLElement>(
+          '.lane-floor[data-lane="lead"] .note-run[data-length="128"]',
+        )!;
         const leadStepW =
           center(cellAt("lead", 0, 1)).x - center(cellAt("lead", 0, 0)).x;
         expect(longRun.getBoundingClientRect().width).toBeCloseTo(
@@ -885,10 +913,17 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         // The tap law at the note's CENTER removes it (pointerup activation;
         // dispatched on the CELL — the run layer is pointer-events:none, so
         // the real hit target is the cell beneath the bar).
-        const mid = { x: runR.left + runR.width / 2, y: runR.top + runR.height / 2 };
+        const mid = {
+          x: runR.left + runR.width / 2,
+          y: runR.top + runR.height / 2,
+        };
         pe(b2, "pointerdown", mid.x, mid.y);
         pe(b2, "pointerup", mid.x, mid.y);
-        await waitFor(() => bassNotes().length === 0, 2000, "center tap removes");
+        await waitFor(
+          () => bassNotes().length === 0,
+          2000,
+          "center tap removes",
+        );
 
         // The cell just RIGHT of a 1-step note is a plain cell again: a press
         // there PLACES, never a resize of the neighbor (the old overhang).
@@ -992,8 +1027,7 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         document.querySelectorAll(".note-run.is-drag-preview").length;
       const cellPreviews = () =>
         document.querySelectorAll(".cell[data-preview]").length;
-      const historyDepth = () =>
-        docStore.temporal.getState().pastStates.length;
+      const historyDepth = () => docStore.temporal.getState().pastStates.length;
 
       try {
         await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
@@ -1002,16 +1036,14 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         loadDocument(createFreshProjectDocument());
         await waitFor(
           () =>
-            document
-              .querySelector(".app")
-              ?.getAttribute("data-stage") === "phone",
+            document.querySelector(".app")?.getAttribute("data-stage") ===
+            "phone",
           5000,
           "phone stage",
         );
         selectLane("bass");
         await waitFor(
-          () =>
-            document.querySelector(".lane-floor")?.dataset.lane === "bass",
+          () => document.querySelector(".lane-floor")?.dataset.lane === "bass",
           3000,
           "bass stage",
         );
@@ -1056,7 +1088,8 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         te(edge, "pointerdown", ec.x, ec.y);
         const cells0 = cellAt("bass", 0, 0).parentElement as HTMLElement;
         const row0 = cells0.getBoundingClientRect();
-        const stepW = center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
+        const stepW =
+          center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
         te(cells0, "pointermove", row0.left + 5.5 * stepW, c2.y);
         expect(run.getBoundingClientRect().width).toBeGreaterThan(runRect0);
         te(cells0, "pointercancel", row0.left + 5.5 * stepW, c2.y);
@@ -1132,12 +1165,38 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         // Steps 12–14 are free (T7b's note spans 2–5, T5's spans 8–10).
         const before6 = bassNotes().length;
         te(s12, "pointerdown", center(s12).x, center(s12).y, 7, true); // touch
-        te(cellAt("bass", 0, 13), "pointermove", center(cellAt("bass", 0, 13)).x, center(cellAt("bass", 0, 13)).y, 7, true);
+        te(
+          cellAt("bass", 0, 13),
+          "pointermove",
+          center(cellAt("bass", 0, 13)).x,
+          center(cellAt("bass", 0, 13)).y,
+          7,
+          true,
+        );
         expect(previews()).toBe(1);
-        pe(cellAt("bass", 0, 14), "pointerdown", center(cellAt("bass", 0, 14)).x, center(cellAt("bass", 0, 14)).y, 3);
-        pe(cellAt("bass", 0, 14), "pointerup", center(cellAt("bass", 0, 14)).x, center(cellAt("bass", 0, 14)).y, 3);
+        pe(
+          cellAt("bass", 0, 14),
+          "pointerdown",
+          center(cellAt("bass", 0, 14)).x,
+          center(cellAt("bass", 0, 14)).y,
+          3,
+        );
+        pe(
+          cellAt("bass", 0, 14),
+          "pointerup",
+          center(cellAt("bass", 0, 14)).x,
+          center(cellAt("bass", 0, 14)).y,
+          3,
+        );
         expect(bassNotes().length).toBe(before6); // the mouse press was ignored
-        te(cellAt("bass", 0, 13), "pointerup", center(cellAt("bass", 0, 13)).x, center(cellAt("bass", 0, 13)).y, 7, true);
+        te(
+          cellAt("bass", 0, 13),
+          "pointerup",
+          center(cellAt("bass", 0, 13)).x,
+          center(cellAt("bass", 0, 13)).y,
+          7,
+          true,
+        );
         expect(bassNotes().length).toBe(before6 + 1); // the touch gesture commits
         expect(bassNotes().some((n) => n.start === 12)).toBe(true);
 
@@ -1153,8 +1212,7 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         // -- T3: pointercancel (touch) mid drums paint -----------------------
         selectLane("drums");
         await waitFor(
-          () =>
-            document.querySelector(".lane-floor")?.dataset.lane === "drums",
+          () => document.querySelector(".lane-floor")?.dataset.lane === "drums",
           3000,
           "drums stage",
         );
@@ -1188,8 +1246,9 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         showPhonePage("song");
         await waitFor(
           () =>
-            document.querySelector('.rail-row[data-lane="drums"] .rail-tile') !==
-            null,
+            document.querySelector(
+              '.rail-row[data-lane="drums"] .rail-tile',
+            ) !== null,
           2000,
           "SONG page rail mounted",
         );
@@ -1208,7 +1267,7 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         te(tile(2), "pointermove", center(tile(2)).x, center(tile(2)).y, 7);
         await waitFor(
           () =>
-            document.querySelectorAll('.rail-tile[data-cue-preview]').length >
+            document.querySelectorAll(".rail-tile[data-cue-preview]").length >
             0,
           2000,
           "T4: sweep preview armed",
@@ -1216,7 +1275,7 @@ describe("MB-4 touch edge states (synthetic touch pointers, phone stage)", () =>
         te(rail, "pointercancel", center(tile(2)).x, center(tile(2)).y, 7);
         expect(activePatterns().drums).toBe(selectionBefore); // no commit
         expect(
-          document.querySelectorAll('.rail-tile[data-cue-preview]'),
+          document.querySelectorAll(".rail-tile[data-cue-preview]"),
         ).toHaveLength(0); // no stuck sweep preview
         // A stray late move+up after the cancel stays dead.
         te(tile(3), "pointermove", center(tile(3)).x, center(tile(3)).y, 7);

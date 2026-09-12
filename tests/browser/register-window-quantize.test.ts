@@ -1,3 +1,4 @@
+import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * i3-2 browser gate — the WINDOW-EDGE ROW QUANTIZATION (iteration-3 critique
  * P2, the bisected-row sliver) on the REAL BUILT APP, demo state:
@@ -69,7 +70,10 @@ interface Ctx {
 async function boot(w: number, h: number): Promise<Ctx> {
   const bundleKey = Object.keys(bundleGlob)[0];
   const cssKey = Object.keys(cssGlob)[0];
-  expect(bundleKey, "built bundle missing (globalSetup build failed?)").toBeTruthy();
+  expect(
+    bundleKey,
+    "built bundle missing (globalSetup build failed?)",
+  ).toBeTruthy();
   expect(cssKey).toBeTruthy();
   let iframe: HTMLIFrameElement | null = null;
   const wipe = (): Promise<void> =>
@@ -112,8 +116,7 @@ async function boot(w: number, h: number): Promise<Ctx> {
       check();
     });
     if (ok) break;
-    if (attempt >= 3)
-      throw new Error(`demo boot never settled at ${w}×${h}`);
+    if (attempt >= 3) throw new Error(`demo boot never settled at ${w}×${h}`);
   }
   const frame = iframe;
   return {
@@ -158,7 +161,9 @@ function measurePane(pane: HTMLElement): PaneReport {
   const floor = pane.closest(".lane-floor")!;
   const lane = floor.getAttribute("data-lane") ?? "?";
   const box = pane.getBoundingClientRect();
-  const hsb = Math.max(0, pane.offsetHeight - pane.clientHeight);
+  const style = pane.ownerDocument.defaultView!.getComputedStyle(pane);
+  const borderY = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth);
+  const hsb = Math.max(0, pane.offsetHeight - pane.clientHeight - borderY);
   const bottom = box.bottom - hsb;
   const rows = Array.from(pane.querySelectorAll<HTMLElement>(".grid-row"));
   const partials: number[] = [];
@@ -222,7 +227,10 @@ function assertQuantized(idoc: Document, state: string): void {
         r.fullyVisible,
         `${state} · ${r.lane}: unwindowed pane shows its whole manifest`,
       ).toBe(r.manifestRows);
-      expect(r.windowRows, `${state} · ${r.lane}: no stale ROWS name`).toBeNull();
+      expect(
+        r.windowRows,
+        `${state} · ${r.lane}: no stale ROWS name`,
+      ).toBeNull();
     }
   }
 }
@@ -282,7 +290,16 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
             const floors = idoc.querySelector<HTMLElement>(".stage-floors");
             return (
               !!floors &&
-              Math.abs(floors.getBoundingClientRect().bottom - h) < 1.5
+              Math.abs(
+                floors.getBoundingClientRect().bottom -
+                  (h -
+                    Number.parseFloat(
+                      idoc.defaultView!.getComputedStyle(
+                        idoc.querySelector(".app")!,
+                      ).paddingBottom,
+                    ) -
+                    1),
+              ) < 1.5
             );
           },
           8_000,
@@ -319,9 +336,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         // INTERIOR row boundary (the strong clause; the boot seat is
         // bottom-clamped at the manifest tail).
         (
-          idoc().querySelector(
-            '.lane-floor[data-lane="lead"]',
-          ) as HTMLElement
+          idoc().querySelector('.lane-floor[data-lane="lead"]') as HTMLElement
         ).click();
         await poll(
           () =>
@@ -348,11 +363,18 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         // asserted MID-WALK — the critique's finding lived exactly here (the
         // ungated focus-follow path seated the pane off the row grid at the
         // clamp; the i3-2 gate only asserted the seat AFTER the walk-back).
-        for (let i = 0; i < 14; i++) key(idoc().activeElement!, "ArrowDown");
+        const lastRow =
+          idoc().querySelectorAll('.lane-floor[data-lane="lead"] .grid-row')
+            .length - 1;
+        for (let i = 0; i <= lastRow; i++)
+          key(idoc().activeElement!, "ArrowDown");
         await poll(
           () =>
-            (idoc().activeElement as HTMLElement)?.dataset.row === "14" &&
-            /ROWS \d+–14 OF 14$/.test(
+            (idoc().activeElement as HTMLElement)?.dataset.row ===
+              String(lastRow) &&
+            new RegExp(
+              "ROWS \\d+–" + lastRow + " OF " + lastRow + "$ ".trim(),
+            ).test(
               idoc()
                 .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
                 ?.getAttribute("aria-label") ?? "",
@@ -361,15 +383,13 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
           "arrows walk focus to the bottom clamp (window follows)",
         );
         await new Promise((r) => setTimeout(r, 250));
-        assertQuantized(
-          idoc(),
-          "arrow-walked bottom clamp 1280 (i3-3 seat)",
-        );
+        assertQuantized(idoc(), "arrow-walked bottom clamp 1280 (i3-3 seat)");
         assertScrollOnGrid(idoc(), "arrow-walked bottom clamp 1280");
 
         // And back UP to row 0 — the walk-back-up seat (the critique's
         // scrollTop=4 class: the top-edge write quantizes + min-clamps at 0).
-        for (let i = 0; i < 14; i++) key(idoc().activeElement!, "ArrowUp");
+        for (let i = 0; i <= lastRow; i++)
+          key(idoc().activeElement!, "ArrowUp");
         await poll(
           () =>
             (idoc().activeElement as HTMLElement)?.dataset.row === "0" &&
@@ -393,7 +413,10 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
             .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
             ?.getAttribute("aria-label") ?? "";
         const mm = /ROWS (\d+)–(\d+) OF (\d+)/.exec(nameNow);
-        expect(mm, `windowed lead name at the top seat (got ${nameNow})`).toBeTruthy();
+        expect(
+          mm,
+          `windowed lead name at the top seat (got ${nameNow})`,
+        ).toBeTruthy();
         for (let i = 0; i < Number(mm![2]); i++)
           key(idoc().activeElement!, "ArrowDown");
         key(idoc().activeElement!, "ArrowDown", { shiftKey: true });
@@ -413,18 +436,14 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         // B3 — the editing/view-only rhythm flip (row margins change; the
         // pin must re-apply with the LIVE pitch).
         (
-          idoc().querySelector(
-            '.lane-floor[data-lane="drums"]',
-          ) as HTMLElement
+          idoc().querySelector('.lane-floor[data-lane="drums"]') as HTMLElement
         ).click();
         await new Promise((r) => setTimeout(r, 500));
         assertQuantized(idoc(), "rhythm flip → view-only 1280");
 
         // B4 — and back to editing.
         (
-          idoc().querySelector(
-            '.lane-floor[data-lane="lead"]',
-          ) as HTMLElement
+          idoc().querySelector('.lane-floor[data-lane="lead"]') as HTMLElement
         ).click();
         await new Promise((r) => setTimeout(r, 500));
         assertQuantized(idoc(), "rhythm flip → editing 1280");
@@ -432,7 +451,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         // B5 — a pattern switch remounts the surface (fresh mount pin).
         // 2026-09-11: the chain is its own page — switch from there, then
         // come back to the grid for the quantization assertion.
-        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        idoc().querySelector<HTMLButtonElement>(WORKSPACE_TOGGLE)!.click();
         await new Promise((r) => setTimeout(r, 250));
         const tiles = Array.from(
           idoc().querySelectorAll<HTMLButtonElement>(
@@ -441,7 +460,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         );
         expect(tiles.length).toBeGreaterThanOrEqual(2);
         tiles[1]!.click();
-        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        idoc().querySelector<HTMLButtonElement>(WORKSPACE_TOGGLE)!.click();
         await new Promise((r) => setTimeout(r, 500));
         assertQuantized(idoc(), "pattern switch 1280");
 
@@ -473,9 +492,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         // The eager 2-bar pattern at the deficit width: the pane's own
         // horizontal scrollbar state (overlay platforms measure 0).
         (
-          idoc().querySelector(
-            '.lane-floor[data-lane="lead"]',
-          ) as HTMLElement
+          idoc().querySelector('.lane-floor[data-lane="lead"]') as HTMLElement
         ).click();
         await new Promise((r) => setTimeout(r, 500));
         key(idoc().body, "b");
@@ -491,10 +508,10 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
                 .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
                 ?.getAttribute("aria-label") ?? "";
             const m = /ROWS (\d+)–(\d+) OF (\d+)/.exec(name);
-            return m ? Number(m[2]) - Number(m[1]) + 1 > 7 : false;
+            return m ? Number(m[2]) - Number(m[1]) + 1 === 7 : false;
           },
           8_000,
-          "resize 1024→1280: the window re-grows past the octave default",
+          "resize 1024→1280: one octave remains fully visible",
         );
         await new Promise((r) => setTimeout(r, 300));
         assertQuantized(idoc(), "post-growth resize 1024→1280");

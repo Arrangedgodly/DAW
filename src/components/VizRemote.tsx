@@ -1,5 +1,7 @@
-import { For, Show, type JSX } from "solid-js";
-import { LANE_IDS, type DefaultLaneId as LaneId } from "../document/schema";
+import { docStore } from "../state/store";
+import { createLaneDisplayNames } from "../state/laneDisplayNames";
+import { For, Show, createSignal, onCleanup, type JSX } from "solid-js";
+import { type LaneId } from "../document/schema";
 import { composition, changeComposition } from "../viz/compositionState";
 import {
   editLayer,
@@ -64,6 +66,15 @@ interface Props {
   beforeEdit(): void;
 }
 export default function VizRemote(props: Props): JSX.Element {
+  const displayName = createLaneDisplayNames();
+  const [lanes, setLanes] = createSignal(
+    docStore.getState().doc.lanes.map((lane) => lane.id),
+  );
+  onCleanup(
+    docStore.subscribe((state) =>
+      setLanes(state.doc.lanes.map((lane) => lane.id)),
+    ),
+  );
   const layer = () => composition().lanes[props.selected];
   const effect = () => VISUAL_EFFECTS.find((e) => e.id === layer().effect)!;
   const update = (
@@ -84,7 +95,7 @@ export default function VizRemote(props: Props): JSX.Element {
         data-help="viz.select"
         aria-label="Select instrument"
       >
-        <For each={LANE_IDS}>
+        <For each={lanes()}>
           {(id) => (
             <button
               class="viz-btn"
@@ -96,13 +107,13 @@ export default function VizRemote(props: Props): JSX.Element {
                 class="viz-lane-dot"
                 style={{ background: `var(--color-lane-${id})` }}
               />
-              {id}
+              {displayName(id)}
             </button>
           )}
         </For>
       </nav>
       <div class="viz-inspector-body">
-        <h2>{props.selected}</h2>
+        <h2>{displayName(props.selected)}</h2>
         <label class="viz-field" data-help="viz.preset">
           Visual effect
           <select

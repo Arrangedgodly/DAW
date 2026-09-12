@@ -58,20 +58,6 @@ const LANE_CYCLE: Record<LaneId, number> = {
   chords: 64,
   lead: 16,
 };
-/** Rendered grid extents (the edited pattern's steps — LL-1 law). */
-const LANE_GRID: Record<LaneId, number> = {
-  drums: 64,
-  bass: 32,
-  chords: 64,
-  lead: 16,
-};
-/** Desktop quadrant geometry (LaneGrid QUADRANT_GEOMETRY: cell + gap px). */
-const LANE_STEP_W: Record<LaneId, number> = {
-  drums: 22,
-  bass: 17,
-  chords: 17,
-  lead: 17,
-};
 const BPM = 120;
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
@@ -234,9 +220,11 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
       const { host, cleanup } = mount();
       const session = getSession();
       try {
-        await waitFor(() =>
-          Boolean(host.querySelector(".booth-btn-play")),
-        10_000, "app boot");
+        await waitFor(
+          () => Boolean(host.querySelector(".booth-btn-play")),
+          10_000,
+          "app boot",
+        );
         loadDocument(mixedChainsProject());
         await waitFor(
           () => host.querySelectorAll(".grid-playhead").length >= 4,
@@ -256,9 +244,13 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
 
         await waitMs(600); // past the pre-roll, into the first cycle
         const phEl = (lane: LaneId): HTMLElement =>
-          host.querySelector(`.lane-floor[data-lane="${lane}"] .grid-playhead`)!;
+          host.querySelector(
+            `.lane-floor[data-lane="${lane}"] .grid-playhead`,
+          )!;
         const phX = (lane: LaneId): number => {
-          const m = /translateX\(([-\d.]+)px\)/.exec(phEl(lane).style.transform);
+          const m = /translateX\(([-\d.]+)px\)/.exec(
+            phEl(lane).style.transform,
+          );
           return m ? Number.parseFloat(m[1]!) : Number.NaN;
         };
 
@@ -295,6 +287,16 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
           const loopTime = session.transport.getLoopTime();
           const fractions: number[] = [];
           for (const lane of LANES) {
+            const row = host.querySelector(
+              `.lane-floor[data-lane="${lane}"] .grid-row:has(.cell)`,
+            )!;
+            const cells = Array.from(
+              row.querySelectorAll<HTMLElement>(".cell"),
+            );
+            const stepWidth =
+              cells[1]!.getBoundingClientRect().left -
+              cells[0]!.getBoundingClientRect().left;
+            const gridSteps = cells.length;
             const x = phX(lane);
             expect(Number.isFinite(x), `${lane} playhead has a transform`).toBe(
               true,
@@ -305,8 +307,8 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
             const expected = playheadX(
               loopTime,
               { steps: LANE_CYCLE[lane], bpm: BPM, swing: 0 },
-              LANE_STEP_W[lane],
-              LANE_GRID[lane],
+              stepWidth,
+              gridSteps,
             );
             const err = Math.abs(x - expected);
             maxErr = Math.max(maxErr, err);
@@ -317,17 +319,17 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
               err,
               `${lane} sweep at its own cycle position (x=${x.toFixed(1)}, expected=${expected.toFixed(1)})`,
             ).toBeLessThanOrEqual(14);
-            fractions.push(x / (LANE_GRID[lane] * LANE_STEP_W[lane]));
+            fractions.push(x / (gridSteps * stepWidth));
             // Wrap counting: a big drop = the sweep crossed its own top.
             const px = prevX[lane];
-            if (px >= 0 && x < px - 0.5 * LANE_GRID[lane] * LANE_STEP_W[lane])
-              wraps[lane]++;
+            if (px >= 0 && x < px - 0.5 * gridSteps * stepWidth) wraps[lane]++;
             prevX[lane] = x;
           }
           if (new Set(fractions.map((f) => f.toFixed(2))).size >= 3)
             distinctFrames++;
           const led = host.querySelector(".booth-led")!.textContent!.trim();
-          if (Number.parseInt(led.split(".")[0] ?? "1", 10) >= 2) sawBar2 = true;
+          if (Number.parseInt(led.split(".")[0] ?? "1", 10) >= 2)
+            sawBar2 = true;
           await waitMs(360);
         }
         // The poly-loop visual: short cycles wrapped (lead 2 s → ≥3 in the
@@ -368,9 +370,11 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
       const { host, cleanup } = mount();
       const session = getSession();
       try {
-        await waitFor(() =>
-          Boolean(host.querySelector(".booth-btn-play")),
-        10_000, "app boot");
+        await waitFor(
+          () => Boolean(host.querySelector(".booth-btn-play")),
+          10_000,
+          "app boot",
+        );
         loadDocument(unequalChainsProject());
         await waitFor(
           () => host.querySelectorAll(".grid-playhead").length >= 4,
@@ -439,9 +443,11 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
       const { host, cleanup } = mount();
       const session = getSession();
       try {
-        await waitFor(() =>
-          Boolean(host.querySelector(".booth-btn-play")),
-        10_000, "app boot");
+        await waitFor(
+          () => Boolean(host.querySelector(".booth-btn-play")),
+          10_000,
+          "app boot",
+        );
         loadDocument(unequalChainsProject());
         await waitFor(
           () => host.querySelectorAll(".grid-playhead").length >= 4,
@@ -503,9 +509,7 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
         tempo.focus();
         const before = stageStatus();
         key(tempo, "p");
-        expect(stageStatus(), "text-entry guard: no announcement").toBe(
-          before,
-        );
+        expect(stageStatus(), "text-entry guard: no announcement").toBe(before);
         key(document.body, "p", { ctrlKey: true });
         expect(stageStatus(), "AT-modifier guard: no announcement").toBe(
           before,
@@ -524,9 +528,11 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
       const { host, cleanup } = mount();
       const session = getSession();
       try {
-        await waitFor(() =>
-          Boolean(host.querySelector(".booth-btn-play")),
-        10_000, "app boot");
+        await waitFor(
+          () => Boolean(host.querySelector(".booth-btn-play")),
+          10_000,
+          "app boot",
+        );
         loadDocument(createFreshProjectDocument());
         await waitFor(
           () => host.querySelectorAll(".grid-playhead").length >= 4,
@@ -553,9 +559,9 @@ describe("LL-2 per-lane transport/render basis (real app)", () => {
         }
         // `p` omits the lane half at equal lengths.
         key(document.body, "p");
-        expect(
-          host.querySelector(".stage-status")!.textContent!.trim(),
-        ).toBe("POSITION BAR 1 OF 1");
+        expect(host.querySelector(".stage-status")!.textContent!.trim()).toBe(
+          "POSITION BAR 1 OF 1",
+        );
       } finally {
         session.transport.stop();
         cleanup();
