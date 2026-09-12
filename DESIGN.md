@@ -51,6 +51,8 @@ Preferences persist locally under `bitbounce.track-colors.v1`, outside project d
 
 ## Phone layout
 
+The grid navigation row sits above the notes. Back and Forward move by up to one bar, with overlap at narrow widths; a step range shows the current position. Draw and Scroll use pressed-button states and 44px minimum targets. Draw supports a 320ms hold before panning, with a static grid outline and "Drag to scroll" cue. Scroll pans immediately on touch. Keep vertical native scrolling and quick note drawing available. Show these controls on narrow layouts and devices with a coarse pointer.
+
 One selected instrument occupies the phone stage. The sticky top area holds the brand, Projects, theme, instrument tabs, Options, Play and page navigation. The track-color control sits beside the instrument title.
 
 Autosave has one fixed bottom-center status strip displaying the complete status text. The top transport does not contain a duplicate. The status retains its accessible label and saved timestamp. Reserve bottom space through `--mobile-bottom-reserve` and safe-area padding so the musical footer remains reachable. Hide this status while the dedicated VIZ page is open.

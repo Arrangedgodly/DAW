@@ -579,6 +579,64 @@ export class DomGridRenderer implements GridRenderer {
   private seatedStart = 0;
   /** IN-2 active pointer gesture; null = idle. */
   private gesture: Gesture | null = null;
+  private touchHold: {
+    pointerId: number;
+    x: number;
+    y: number;
+    timer: number;
+  } | null = null;
+  private touchPan: { pointerId: number; x: number; left: number } | null =
+    null;
+  private panMode = false;
+
+  /** Explicit view-only mode for touch users who prefer swiping immediately. */
+  setPanMode(enabled: boolean): void {
+    this.cancelGesture();
+    this.panMode = enabled;
+    this.opts.container.dataset.panMode = String(enabled);
+  }
+
+  horizontalView(): { left: number; max: number; first: number; last: number } {
+    const scroll = this.hScroll();
+    const left = scroll.scrollLeft;
+    const label = this.virtual ? 0 : this.playheadLeftPx;
+    const width = Math.max(this.stepWidthPx, scroll.clientWidth - label);
+    return {
+      left,
+      max: Math.max(0, scroll.scrollWidth - scroll.clientWidth),
+      first: Math.min(this.opts.steps, Math.floor(left / this.stepWidthPx) + 1),
+      last: Math.min(
+        this.opts.steps,
+        Math.ceil((left + width) / this.stepWidthPx),
+      ),
+    };
+  }
+
+  scrollHorizontally(direction: -1 | 1): void {
+    this.cancelGesture();
+    const scroll = this.hScroll();
+    // Keep one step of overlap, including at narrow widths and enlarged zoom.
+    const view = this.horizontalView();
+    const steps = Math.max(1, Math.min(16, view.last - view.first - 1));
+    scroll.scrollLeft += direction * steps * this.stepWidthPx;
+    this.onScroll();
+  }
+
+  private clearTouchHold(): void {
+    if (this.touchHold) window.clearTimeout(this.touchHold.timer);
+    this.touchHold = null;
+  }
+
+  private beginTouchPan(e: PointerEvent): void {
+    this.cancelGesture();
+    this.touchPan = {
+      pointerId: e.pointerId,
+      x: e.clientX,
+      left: this.hScroll().scrollLeft,
+    };
+    this.opts.container.dataset.panReady = "true";
+    this.capture(e);
+  }
   /** IN-2 preview bar for a create-drag (removed on end). */
   private previewRunEl: HTMLElement | null = null;
   /** IN-2: swallow the click that follows a committed/cancelled gesture. */
@@ -901,6 +959,7 @@ export class DomGridRenderer implements GridRenderer {
     container.addEventListener("pointermove", this.onPointerMove);
     container.addEventListener("pointerup", this.onPointerUp);
     container.addEventListener("pointercancel", this.onPointerCancel);
+    container.addEventListener("lostpointercapture", this.onLostPointerCapture);
     // IN-4: while a gesture owns the pointer, the grid owns the context menu
     // (an interrupting menu would strand the gesture — cancel is the only
     // clean mid-gesture exit, and it arrives as pointercancel).
@@ -1905,6 +1964,7 @@ export class DomGridRenderer implements GridRenderer {
 
   dispose(): void {
     this.disposed = true;
+    this.cancelGesture();
     cancelAnimationFrame(this.raf);
     this.clearSnapSettle();
     // i7 N-4: a mid-pinch teardown leaves no armed surface behind.
@@ -1924,6 +1984,10 @@ export class DomGridRenderer implements GridRenderer {
     container.removeEventListener("pointermove", this.onPointerMove);
     container.removeEventListener("pointerup", this.onPointerUp);
     container.removeEventListener("pointercancel", this.onPointerCancel);
+    container.removeEventListener(
+      "lostpointercapture",
+      this.onLostPointerCapture,
+    );
     container.removeEventListener("contextmenu", this.onContextMenu);
   }
 
@@ -2215,11 +2279,27 @@ export class DomGridRenderer implements GridRenderer {
     if (
       (!this.editable && !this.pointerEditable) ||
       this.gesture ||
+      this.touchPan ||
       !e.isPrimary
     )
       return;
     this.suppressClick = false; // a fresh press always re-arms normal clicks
     const target = e.target as HTMLElement;
+
+    if (e.pointerType === "touch" && target.closest(".cell, .note-edge")) {
+      if (this.panMode) {
+        this.beginTouchPan(e);
+        e.preventDefault();
+        return;
+      }
+      this.clearTouchHold();
+      this.touchHold = {
+        pointerId: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        timer: window.setTimeout(() => this.beginTouchPan(e), 320),
+      };
+    }
 
     // Edge hit zone → resize gesture (pitched only).
     const edge = target.closest<HTMLElement>(".note-edge");
@@ -2339,6 +2419,22 @@ export class DomGridRenderer implements GridRenderer {
       this.updatePinch();
       if (this.pinchLive) return;
     }
+    if (this.touchPan?.pointerId === e.pointerId) {
+      this.hScroll().scrollLeft =
+        this.touchPan.left + this.touchPan.x - e.clientX;
+      this.onScroll();
+      e.preventDefault();
+      return;
+    }
+    if (this.touchHold?.pointerId === e.pointerId) {
+      // Ignore finger jitter until intent is clear. A quick pull keeps editing.
+      if (
+        Math.hypot(e.clientX - this.touchHold.x, e.clientY - this.touchHold.y) <
+        8
+      )
+        return;
+      this.clearTouchHold();
+    }
     const g = this.gesture;
     if (!g || e.pointerId !== g.pointerId) return;
     if (g.kind === "tap") return; // no preview — activation decides on release
@@ -2374,6 +2470,13 @@ export class DomGridRenderer implements GridRenderer {
   };
 
   private onPointerUp = (e: PointerEvent): void => {
+    if (this.touchHold?.pointerId === e.pointerId) this.clearTouchHold();
+    if (this.touchPan?.pointerId === e.pointerId) {
+      this.pinchPointers.delete(e.pointerId);
+      this.cancelGesture();
+      this.armClickSuppression();
+      return;
+    }
     // i7 N-4: pinch bookkeeping first. A LIVE pinch ends here — COMMIT on
     // release: the factor stays exactly where the live re-fit left it (the
     // owner's trailing fit re-derives at this factor; it never stomps back).
@@ -2447,6 +2550,13 @@ export class DomGridRenderer implements GridRenderer {
   };
 
   private onPointerCancel = (e: PointerEvent): void => {
+    if (this.touchHold?.pointerId === e.pointerId) this.clearTouchHold();
+    if (this.touchPan?.pointerId === e.pointerId) {
+      this.pinchPointers.delete(e.pointerId);
+      this.cancelGesture();
+      this.armClickSuppression();
+      return;
+    }
     // i7 N-4: a cancelled pointer of a LIVE pinch ENDS it KEEPING the current
     // factor (the audit's law — the geometry stays at whatever the live
     // re-fit last applied; cancel never reverts, never resets).
@@ -2461,6 +2571,13 @@ export class DomGridRenderer implements GridRenderer {
     if (!g || e.pointerId !== g.pointerId) return;
     this.releaseCapture(g.pointerId);
     this.cancelGesture();
+  };
+
+  private onLostPointerCapture = (e: PointerEvent): void => {
+    // Switching a held edit to pan releases then reacquires capture. Only
+    // cancel if capture is actually gone, for example after a system gesture.
+    if (!this.opts.container.hasPointerCapture(e.pointerId))
+      this.onPointerCancel(e);
   };
 
   /**
@@ -2546,7 +2663,8 @@ export class DomGridRenderer implements GridRenderer {
   /** IN-4: the active gesture owns the pointer — no context menu mid-drag.
    * i7 N-4: a live pinch is an active gesture too (the menu would strand it). */
   private onContextMenu = (e: MouseEvent): void => {
-    if (this.gesture || this.pinchLive) e.preventDefault();
+    if (this.gesture || this.touchPan || this.touchHold || this.pinchLive)
+      e.preventDefault();
   };
 
   /**
@@ -2556,6 +2674,10 @@ export class DomGridRenderer implements GridRenderer {
    * pointerup, but explicit release keeps the container honest).
    */
   private cancelGesture(): void {
+    this.clearTouchHold();
+    if (this.touchPan) this.releaseCapture(this.touchPan.pointerId);
+    this.touchPan = null;
+    delete this.opts.container.dataset.panReady;
     const g = this.gesture;
     this.gesture = null;
     if (!g) return;

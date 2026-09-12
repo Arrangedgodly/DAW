@@ -1077,6 +1077,21 @@ function GridSurface(props: {
   zoomReset?: () => number;
 }) {
   let container: HTMLDivElement | undefined;
+  let navigationRenderer: DomGridRenderer | undefined;
+  const [panMode, setPanMode] = createSignal(false);
+  const [horizontal, setHorizontal] = createSignal({
+    left: 0,
+    max: 0,
+    first: 1,
+    last: 16,
+  });
+  const updateHorizontal = () => {
+    if (navigationRenderer) setHorizontal(navigationRenderer.horizontalView());
+  };
+  const navigate = (direction: -1 | 1) => {
+    navigationRenderer?.scrollHorizontally(direction);
+    updateHorizontal();
+  };
 
   onMount(() => {
     if (!container) return;
@@ -1440,6 +1455,17 @@ function GridSurface(props: {
     });
 
     rendererRef = renderer;
+    navigationRenderer = renderer;
+    container.addEventListener("scroll", updateHorizontal, true);
+    const navigationObserver = new ResizeObserver(updateHorizontal);
+    navigationObserver.observe(container);
+    const rowCells = container.querySelector(".row-cells");
+    if (rowCells) navigationObserver.observe(rowCells);
+    onCleanup(() => {
+      navigationObserver.disconnect();
+      container?.removeEventListener("scroll", updateHorizontal, true);
+      navigationRenderer = undefined;
+    });
     // i7 N-4: the chip reads the MOUNTED renderer's factor — a pattern/stage
     // remount starts at ×1 (geometry is mount-pinned in this codebase; the
     // factor persists across gestures, scrolls, and re-fits, never across a
@@ -1646,13 +1672,71 @@ function GridSurface(props: {
   });
 
   return (
-    <div
-      class="lane-grid-scroll"
-      data-help={`grid.${props.lane}`}
-      ref={(el) => {
-        container = el;
-      }}
-    />
+    <>
+      <div class="grid-navigation" role="group" aria-label="Grid navigation">
+        <div class="grid-navigation-controls">
+          <button
+            type="button"
+            aria-label="Scroll grid backward"
+            disabled={horizontal().left <= 1}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </button>
+          <output class="grid-position" aria-live="polite">
+            Steps {horizontal().first}–{horizontal().last} /{" "}
+            {props.pattern.bars * 16}
+          </output>
+          <button
+            type="button"
+            aria-label="Scroll grid forward"
+            disabled={horizontal().left >= horizontal().max - 1}
+            onClick={() => navigate(1)}
+          >
+            Forward
+          </button>
+        </div>
+        <div class="grid-touch-tools">
+          <div class="grid-touch-modes" role="group" aria-label="Touch tool">
+            <button
+              type="button"
+              aria-pressed={!panMode()}
+              onClick={() => {
+                setPanMode(false);
+                navigationRenderer?.setPanMode(false);
+              }}
+            >
+              Draw
+            </button>
+            <button
+              type="button"
+              aria-pressed={panMode()}
+              onClick={() => {
+                setPanMode(true);
+                navigationRenderer?.setPanMode(true);
+              }}
+            >
+              Scroll
+            </button>
+          </div>
+          <p class="grid-touch-hint">
+            {panMode()
+              ? "Swipe to move the grid."
+              : "Tap to place. Pull to lengthen. Hold to scroll."}
+          </p>
+          <p class="grid-pan-hint" role="status">
+            Drag to scroll
+          </p>
+        </div>
+      </div>
+      <div
+        class="lane-grid-scroll"
+        data-help={`grid.${props.lane}`}
+        ref={(el) => {
+          container = el;
+        }}
+      />
+    </>
   );
 }
 

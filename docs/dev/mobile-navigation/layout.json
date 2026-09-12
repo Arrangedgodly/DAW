@@ -1,0 +1,110 @@
+[
+  {
+    "width": 320,
+    "overflow": false,
+    "navigationVisible": true,
+    "controls": [
+      {
+        "text": "Back",
+        "width": 55.296875,
+        "height": 44
+      },
+      {
+        "text": "Forward",
+        "width": 74.765625,
+        "height": 44
+      },
+      {
+        "text": "Draw",
+        "width": 56.1875,
+        "height": 44
+      },
+      {
+        "text": "Scroll",
+        "width": 59.96875,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "overflow": false,
+    "navigationVisible": true,
+    "controls": [
+      {
+        "text": "Back",
+        "width": 55.296875,
+        "height": 44
+      },
+      {
+        "text": "Forward",
+        "width": 74.765625,
+        "height": 44
+      },
+      {
+        "text": "Draw",
+        "width": 56.1875,
+        "height": 44
+      },
+      {
+        "text": "Scroll",
+        "width": 59.96875,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 844,
+    "overflow": false,
+    "navigationVisible": true,
+    "controls": [
+      {
+        "text": "Back",
+        "width": 55.296875,
+        "height": 44
+      },
+      {
+        "text": "Forward",
+        "width": 74.765625,
+        "height": 44
+      },
+      {
+        "text": "Draw",
+        "width": 56.1875,
+        "height": 44
+      },
+      {
+        "text": "Scroll",
+        "width": 59.96875,
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "overflow": false,
+    "navigationVisible": false,
+    "controls": [
+      {
+        "text": "Back",
+        "width": 0,
+        "height": 0
+      },
+      {
+        "text": "Forward",
+        "width": 0,
+        "height": 0
+      },
+      {
+        "text": "Draw",
+        "width": 0,
+        "height": 0
+      },
+      {
+        "text": "Scroll",
+        "width": 0,
+        "height": 0
+      }
+    ]
+  }
+]

@@ -20,6 +20,88 @@
  * here holds only the v0 fallbacks.
  */
 
+.grid-navigation {
+  display: none;
+}
+
+@media (max-width: 1024px), (any-pointer: coarse) {
+  .grid-navigation {
+    display: grid;
+    gap: 8px;
+    padding: 8px 0;
+    color: var(--color-ink);
+  }
+  .grid-navigation-controls {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .grid-navigation button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid
+      color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
+    border-radius: 6px;
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 13px;
+    touch-action: manipulation;
+  }
+  .grid-navigation button:disabled {
+    opacity: 0.4;
+  }
+  .grid-navigation button:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  .grid-navigation button[aria-pressed="true"] {
+    background: var(--color-ink);
+    color: var(--color-ground);
+  }
+  .grid-position {
+    text-align: center;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .grid-touch-tools {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .grid-touch-modes {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .grid-touch-hint,
+  .grid-pan-hint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .grid-pan-hint {
+    display: none;
+  }
+  .lane-floor:has([data-pan-ready="true"]) .grid-touch-hint {
+    display: none;
+  }
+  .lane-floor:has([data-pan-ready="true"]) .grid-pan-hint {
+    display: block;
+  }
+}
+
+.lane-grid-scroll[data-pan-ready="true"] {
+  outline: 2px solid var(--lane-hue);
+  outline-offset: -2px;
+}
+.lane-grid-scroll[data-pan-ready="true"] .cell,
+.lane-grid-scroll[data-pan-mode="true"] .cell {
+  cursor: grab;
+}
+
 .lane-floor {
   --lane-hue: var(--color-ink);
   position: relative;
@@ -265,9 +347,9 @@
    * a cell may become a horizontal edit gesture (drag-create, drums paint)
    * — `pan-y` reserves the horizontal axis for the app while VERTICAL
    * panning stays the browser's (the page scrolls; the armed gesture gets
-   * pointercancel per IN-4 and cancels cleanly). Swipes that must scroll
-   * the strip horizontally start on the labels/gutters (touch-action
-   * auto). Mouse pointers are unaffected by touch-action (m4). */
+   * pointercancel per IN-4 and cancels cleanly). The renderer handles
+   * horizontal panning after a hold, or immediately in Scroll mode.
+   * Labels/gutters retain native panning. Mouse pointers are unaffected. */
   touch-action: pan-y;
   /* Long-press on a gesture surface must not raise text selection /
    * callouts — the gesture owns the pointer (IN-4 contextmenu law). */

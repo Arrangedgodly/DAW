@@ -1,5 +1,9 @@
 # Product
 
+## Mobile grid navigation
+
+Touch grids have Back and Forward controls with a visible step range. Draw mode keeps tap-to-place and quick drag-to-lengthen; holding for 320 milliseconds switches that touch to horizontal panning without editing notes. Scroll mode pans immediately and does not edit on touch. Vertical swipes retain native scrolling. Navigation changes only the view, and the controls support drum and pitched tracks, including optional instruments.
+
 ## Instrument library and optional tracks
 
 The preset name is a native dropdown with sound-family groups. Minus and plus remain available for stepping, and both paths preview the selected sound. All pitched tracks share 58 presets, including 16 new synthesized bell, brass, keys, plucked-string, pad and sound-effect sounds. The drum track retains its 14 kits.
