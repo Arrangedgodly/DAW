@@ -1,4 +1,8 @@
-import { LANE_IDS, type LaneId } from "../document/schema";
+import {
+  isDefaultLane,
+  LANE_IDS,
+  type DefaultLaneId as LaneId,
+} from "../document/schema";
 import type { VizNoteOn } from "../engine/session";
 import type { VizFrameInfo } from "./renderer";
 import {
@@ -105,7 +109,7 @@ export function createCompositionEngine(
         !Number.isFinite(hit.velocity) ||
         hit.velocity <= 0 ||
         !Number.isFinite(hit.pitch) ||
-        !LANE_IDS.includes(hit.lane) ||
+        !isDefaultLane(hit.lane) ||
         !audible[hit.lane]
       )
         return;

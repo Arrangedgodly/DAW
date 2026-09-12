@@ -57,16 +57,16 @@ function announceTransportPosition(): void {
   const pos = session.transport.getPosition();
   const cycleSteps = Math.max(1, session.transport.snapshot.cycleSteps);
   const laneStepsOf = (l: LaneId): number =>
-    session.getLaneCycleSteps(l) ??
-    laneCycleSteps(docStore.getState().doc, l);
+    session.getLaneCycleSteps(l) ?? laneCycleSteps(docStore.getState().doc, l);
   const cycles = LANE_IDS.map(laneStepsOf).filter((s) => s > 0);
-  const shared =
-    cycles.length > 0 && cycles.every((s) => s === cycles[0]);
+  const shared = cycles.length > 0 && cycles.every((s) => s === cycles[0]);
   const activeSteps = laneStepsOf(lane);
-  let laneHalf: ({ readonly name: string } & {
-    readonly bar: number;
-    readonly bars: number;
-  }) | null = null;
+  let laneHalf:
+    | ({ readonly name: string } & {
+        readonly bar: number;
+        readonly bars: number;
+      })
+    | null = null;
   if (!shared && activeSteps > 0) {
     const globalStep = pos.bar * 16 + pos.beat * 4 + pos.step;
     laneHalf = {
@@ -190,7 +190,10 @@ export default function KeyboardShortcuts(): JSX.Element {
         const last =
           lastStageFocus?.isConnected === true ? lastStageFocus : null;
         openViz(
-          focused ?? last ?? document.querySelector<HTMLElement>(".booth-btn-viz") ?? undefined,
+          focused ??
+            last ??
+            document.querySelector<HTMLElement>(".booth-btn-viz") ??
+            undefined,
         );
       }
       return;
@@ -207,7 +210,7 @@ export default function KeyboardShortcuts(): JSX.Element {
       // BC-1 deviation closure (LL-1): the naming rides the ONE authority
       // (patternRail.nextPatternLabel) — the rail `+` and the PAT tools
       // share it; the inline A..Z/P27+ copy is gone.
-      const n = docStore.getState().doc.patterns[lane].length;
+      const n = (docStore.getState().doc.patterns[lane] ?? []).length;
       const id = addPattern(lane, 1, nextPatternLabel(n));
       selectPattern(lane, id);
     } else if (e.key === "b" || e.key === "B") {

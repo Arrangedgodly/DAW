@@ -1,3 +1,4 @@
+import { ALL_LANE_IDS } from "../document/schema";
 /**
  * Pattern-rail logic (DES-6 + IN-3, pure — no DOM, no store import).
  *
@@ -47,8 +48,8 @@ export interface PoolEntry {
 export function railTiles(doc: ProjectDocument, lane: LaneId): RailTile[] {
   const cues = doc.chainCues?.[lane];
   const modes = doc.chainModes?.[lane];
-  return doc.songChain[lane].map((patternId, slot) => {
-    const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  return (doc.songChain[lane] ?? []).map((patternId, slot) => {
+    const pattern = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
     return {
       slot,
       patternId,
@@ -61,7 +62,7 @@ export function railTiles(doc: ProjectDocument, lane: LaneId): RailTile[] {
 }
 
 export function patternPool(doc: ProjectDocument, lane: LaneId): PoolEntry[] {
-  return doc.patterns[lane].map((p) => ({
+  return (doc.patterns[lane] ?? []).map((p) => ({
     patternId: p.id,
     name: p.name,
     bars: p.bars,
@@ -97,21 +98,16 @@ export function nextPatternLength(
     : null;
 }
 
-const barsText = (bars: number): string => `${bars} BAR${bars === 1 ? "" : "S"}`;
+const barsText = (bars: number): string =>
+  `${bars} BAR${bars === 1 ? "" : "S"}`;
 
 /** E10 success (grow or clean shrink), through the lane's rail status region. */
-export function resizeSuccessAnnouncement(
-  label: string,
-  bars: number,
-): string {
+export function resizeSuccessAnnouncement(label: string, bars: number): string {
   return `PATTERN ${label} · ${barsText(bars)}`;
 }
 
 /** E10 limit no-op (`PATTERN B · 128 BARS · AT LIMIT`, singular at 1). */
-export function resizeLimitAnnouncement(
-  label: string,
-  bars: number,
-): string {
+export function resizeLimitAnnouncement(label: string, bars: number): string {
   return `PATTERN ${label} · ${barsText(bars)} · AT LIMIT`;
 }
 
@@ -293,7 +289,7 @@ export function clampCue(text: string, maxChars: number): string {
 // ---------------------------------------------------------------------------
 
 /** The rail's lane rows in visual order, top→bottom. */
-export const RAIL_ROWS: readonly LaneId[] = ["drums", "bass", "chords", "lead"];
+export const RAIL_ROWS: readonly LaneId[] = ALL_LANE_IDS;
 
 /** One rail tile address: lane row + chain slot. */
 export interface RailCell {
@@ -307,11 +303,7 @@ export interface RailRange {
   readonly focus: RailCell;
 }
 
-export type RailRangeKey =
-  | "ArrowLeft"
-  | "ArrowRight"
-  | "ArrowUp"
-  | "ArrowDown";
+export type RailRangeKey = "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown";
 
 /** Clamp a slot into a row of `length` tiles (carry-clamp law; no wrap). */
 export function clampSlotTo(length: number, slot: number): number {
@@ -330,6 +322,7 @@ export function rangeExtend(
   key: RailRangeKey,
   rowLengths: Record<LaneId, number>,
 ): RailRange {
+  const RAIL_ROWS = ALL_LANE_IDS.filter((id) => rowLengths[id] > 0);
   const anchor = range?.anchor ?? focused;
   let lane = focused.lane;
   let slot = focused.slot;

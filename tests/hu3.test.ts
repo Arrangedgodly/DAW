@@ -194,7 +194,8 @@ describe("delete succession (i6 — anti-resurrection)", () => {
       },
     };
 
-    const booted = initPersistence({ db, now: () => T0 }); // demo row "default"
+    await saveProject(base, doomedId, docStore.getState().doc, { now: T0 });
+    const booted = initPersistence({ db, now: () => T0 }); // existing saved row
     await vi.advanceTimersByTimeAsync(20); // drive the delayed boot save
     await booted;
     expect(getActiveProjectId()).toBe(doomedId);
@@ -252,7 +253,8 @@ describe("delete succession (i6 — anti-resurrection)", () => {
 
   it("deleting the LAST remaining song lands on a fresh NEW successor (never zero rows)", async () => {
     const db = createMemoryProjectDb();
-    const booted = initPersistence({ db, now: () => T0 }); // only row: demo
+    await saveProject(db, "default", docStore.getState().doc, { now: T0 });
+    const booted = initPersistence({ db, now: () => T0 }); // one saved project
     await vi.advanceTimersByTimeAsync(20);
     await booted;
     const doomedId = getActiveProjectId()!;
@@ -314,7 +316,7 @@ describe("delete succession (i6 — anti-resurrection)", () => {
     await initPersistence({ db, now: () => T0 });
 
     expect(await deleteProjectSafe("ghost")).toBeNull();
-    expect(getActiveProjectId()).toBe("default");
-    expect((await db.allRecords()).map((r) => r.id)).toEqual(["default"]);
+    expect(getActiveProjectId()).toBeNull();
+    expect(await db.allRecords()).toEqual([]);
   });
 });

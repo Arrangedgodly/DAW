@@ -35,6 +35,7 @@
  */
 
 import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
+import AgentAccess from "./AgentAccess";
 import { docStore, loadDocument, setProjectName } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
 // TH-2 code-splitting: the export pipelines (offline render + WAV encoder,
@@ -50,6 +51,8 @@ import {
   switchToProject,
 } from "../persist/boot";
 import { createNewProject } from "../persist/newProject";
+import { BUILT_IN_DEMOS, type DemoId } from "../document/builtInDemos";
+import { openBuiltInDemo } from "../persist/boot";
 import {
   loadProject,
   renameProjectRecord,
@@ -60,7 +63,12 @@ import {
   PROJECT_NAME_MAX_CHARS,
   normalizeProjectName,
 } from "../state/projectName";
-import { showInfo, showError, showSuccess, dismissToast } from "../state/toasts";
+import {
+  showInfo,
+  showError,
+  showSuccess,
+  dismissToast,
+} from "../state/toasts";
 import { registerHelp } from "../help/registry";
 import { relativeTime } from "../lib/reltime";
 import "../styles/projects.css";
@@ -217,8 +225,10 @@ export default function Projects(): JSX.Element {
     // keeps the walk natural).
     return Array.from(
       panel.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([tabindex="-1"])',
+        'button:not([disabled]), input:not([tabindex="-1"]), summary',
       ),
+    ).filter(
+      (el) => el.tagName === "SUMMARY" || !el.closest("details:not([open])"),
     );
   }
 
@@ -311,6 +321,25 @@ export default function Projects(): JSX.Element {
     }
   };
 
+  const handleDemo = async (id: DemoId) => {
+    const db = getBootDb();
+    if (!db || busy()) return;
+    setBusy(true);
+    try {
+      await openBuiltInDemo(id);
+      showSuccess(`OPENED ${docStore.getState().doc.name}`, {
+        suggestion: "A local copy is saved when you edit the song.",
+      });
+      close();
+    } catch {
+      showError("Could not open the demo.", {
+        suggestion: "Try again from Projects.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleNew = async () => {
     const db = getBootDb();
     if (!db) return;
@@ -363,7 +392,9 @@ export default function Projects(): JSX.Element {
       const next = normalizeProjectName(value);
       if (next !== undefined && next !== meta.name) {
         setItems((list) =>
-          list.map((row) => (row.id === meta.id ? { ...row, name: next } : row)),
+          list.map((row) =>
+            row.id === meta.id ? { ...row, name: next } : row,
+          ),
         );
         window.setTimeout(() => void refresh(), 1200);
       }
@@ -481,9 +512,7 @@ export default function Projects(): JSX.Element {
       const { exportWav } = await import("../audio/exportWav");
       const result = await exportWav(docStore.getState().doc);
       if (result.ok) {
-        showSuccess(
-          `WAV EXPORTED · ${result.bars}-BAR CYCLE`,
-        );
+        showSuccess(`WAV EXPORTED · ${result.bars}-BAR CYCLE`);
       } else {
         showError(result.message, { suggestion: result.suggestion });
       }
@@ -659,6 +688,26 @@ export default function Projects(): JSX.Element {
               )}
             </For>
           </ul>
+          <AgentAccess />
+          <details class="projects-demos">
+            <summary>Built-in demos</summary>
+            <p>Try a demo. A local copy is saved only when you edit it.</p>
+            <For each={BUILT_IN_DEMOS}>
+              {(demo) => (
+                <button
+                  type="button"
+                  class="projects-item projects-demo"
+                  disabled={busy()}
+                  onClick={() => void handleDemo(demo.id)}
+                >
+                  <span class="projects-name">{demo.name}</span>
+                  <span class="projects-demo-description">
+                    {demo.description}
+                  </span>
+                </button>
+              )}
+            </For>
+          </details>
           <div class="projects-actions">
             <button
               type="button"

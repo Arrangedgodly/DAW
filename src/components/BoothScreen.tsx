@@ -23,7 +23,8 @@
  */
 
 import { For, createEffect, createSignal, onCleanup, onMount } from "solid-js";
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { type LaneId } from "../document/schema";
+import { docStore } from "../state/store";
 import { getSession } from "../engine/session";
 import { getHelp } from "../help/registry";
 import { registerMeter } from "../state/meterBus";
@@ -36,6 +37,10 @@ const LANE_SHORT: Record<LaneId, string> = {
   bass: "BASS",
   chords: "CHORDS",
   lead: "LEAD",
+  extra1: "TRACK 5",
+  extra2: "TRACK 6",
+  extra3: "TRACK 7",
+  extra4: "TRACK 8",
 };
 
 function clampText(text: string, max: number): string {
@@ -72,6 +77,15 @@ function readValue(target: Element, host: HTMLElement): string {
 }
 
 export default function BoothScreen() {
+  const [lanes, setLanes] = createSignal(
+    docStore.getState().doc.lanes.map((lane) => lane.id),
+  );
+  onCleanup(
+    docStore.subscribe((state, prev) => {
+      if (state.doc.lanes !== prev.doc.lanes)
+        setLanes(state.doc.lanes.map((lane) => lane.id));
+    }),
+  );
   const session = getSession();
   const [playing, setPlaying] = createSignal(
     session.transport.snapshot.playing,
@@ -82,7 +96,6 @@ export default function BoothScreen() {
   let main: HTMLDivElement | undefined;
   let labelHost: HTMLSpanElement | undefined;
   let valueHost: HTMLSpanElement | undefined;
-  const meterEls = new Map<LaneId, HTMLElement>();
 
   onMount(() => {
     const unsubscribe = session.subscribe((snap) => {
@@ -91,8 +104,6 @@ export default function BoothScreen() {
       setBpm(snap.bpm);
     });
     onCleanup(unsubscribe);
-
-    for (const [lane, el] of meterEls) onCleanup(registerMeter(lane, el, "x"));
 
     // Two long-lived text nodes: every echo is a characterData write.
     const label = document.createTextNode("LOCAL SESSION");
@@ -144,7 +155,11 @@ export default function BoothScreen() {
   });
 
   return (
-    <div class="booth-screen" aria-hidden="true">
+    <div
+      class="booth-screen"
+      classList={{ "has-extra-tracks": lanes().length > 4 }}
+      aria-hidden="true"
+    >
       <div class="screen-body">
         <div class="screen-annun">
           <span
@@ -165,15 +180,22 @@ export default function BoothScreen() {
           <span class="screen-label" ref={(el) => (labelHost = el)} />
           <span class="screen-value" ref={(el) => (valueHost = el)} />
         </div>
-        <div class="screen-meters">
-          <For each={LANE_IDS}>
+        <div
+          class="screen-meters"
+          classList={{ "has-extra-tracks": lanes().length > 4 }}
+        >
+          <For each={lanes()}>
             {(lane) => (
-              <span class="screen-meter-row" data-lane={lane}>
+              <span
+                class="screen-meter-row"
+                data-lane={lane}
+                style={{ "--lane-hue": `var(--color-lane-${lane})` }}
+              >
                 <span class="screen-meter-tag">{LANE_SHORT[lane]}</span>
                 <span class="screen-meter">
                   <span
                     class="screen-meter-lit"
-                    ref={(el) => meterEls.set(lane, el)}
+                    ref={(el) => onCleanup(registerMeter(lane, el, "x"))}
                   />
                 </span>
               </span>

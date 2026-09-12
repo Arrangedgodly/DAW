@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { ALL_LANE_IDS as LANE_IDS, type LaneId } from "../document/schema";
 import { theme } from "./theme";
 
 export const TRACK_COLORS_KEY = "bitbounce.track-colors.v1";
@@ -10,12 +10,20 @@ const defaults = {
     bass: "#c4d49e",
     chords: "#93cfc7",
     lead: "#aabbe7",
+    extra1: "#d6b4df",
+    extra2: "#e0c090",
+    extra3: "#a4cbd8",
+    extra4: "#c8cca0",
   },
   light: {
     drums: "#bb3055",
     bass: "#886000",
     chords: "#007967",
     lead: "#4f48bd",
+    extra1: "#864695",
+    extra2: "#876017",
+    extra3: "#246f87",
+    extra4: "#667326",
   },
 };
 export function parseTrackColors(raw: string | null): TrackColors {

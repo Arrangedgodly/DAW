@@ -42,9 +42,10 @@ import {
   stageStatus,
   viewMode,
   selectLane,
+  selectPattern,
   stageMode,
 } from "../state/selection";
-import { docStore } from "../state/store";
+import { addInstrumentLane, docStore } from "../state/store";
 import { densityBand } from "../state/ambientDensity";
 import { registerHelp } from "../help/registry";
 import LaneGrid from "./LaneGrid";
@@ -73,6 +74,23 @@ registerHelp([
  * select + move focus (automatic activation).
  */
 export function LaneSwitcher(): JSX.Element {
+  const [lanes, setLanes] = createSignal(
+    docStore.getState().doc.lanes.map((lane) => lane.id),
+  );
+  onCleanup(
+    docStore.subscribe((s) => {
+      const ids = s.doc.lanes.map((lane) => lane.id);
+      if (!ids.includes(activeLane())) selectLane("drums");
+      setLanes(ids);
+    }),
+  );
+  const add = () => {
+    const id = addInstrumentLane();
+    if (!id) return;
+    selectPattern(id, `${id}-1`, 0);
+    selectLane(id);
+    queueMicrotask(() => document.getElementById(`lane-tab-${id}`)?.focus());
+  };
   const select = (lane: LaneId) => {
     if (activeLane() === lane) return;
     selectLane(lane); // announces NOW EDITING <LANE> (E1)
@@ -82,15 +100,16 @@ export function LaneSwitcher(): JSX.Element {
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA"))
       return; // never in text entries
-    const current = LANES.indexOf(activeLane());
+    const current = lanes().indexOf(activeLane());
     let next: number;
-    if (e.key === "ArrowRight") next = Math.min(current + 1, LANES.length - 1);
+    if (e.key === "ArrowRight")
+      next = Math.min(current + 1, lanes().length - 1);
     else if (e.key === "ArrowLeft") next = Math.max(current - 1, 0);
     else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = LANES.length - 1;
+    else if (e.key === "End") next = lanes().length - 1;
     else return;
     e.preventDefault();
-    const lane = LANES[next]!;
+    const lane = lanes()[next]!;
     if (lane !== activeLane()) select(lane);
     // Tabs convention: focus follows the selection (the switcher is the
     // selector — the E1 focus-movement law's one sanctioned exception class,
@@ -104,30 +123,39 @@ export function LaneSwitcher(): JSX.Element {
     });
   };
   return (
-    <div
-      class="lane-switcher"
-      role="tablist"
-      aria-label="Lane switcher"
-      onKeyDown={onKeyDown}
-    >
-      <For each={LANES}>
-        {(lane) => (
-          <button
-            type="button"
-            role="tab"
-            class="lane-switch-tab"
-            data-lane={lane}
-            id={`lane-tab-${lane}`}
-            aria-controls="lane-stage"
-            aria-selected={activeLane() === lane}
-            tabindex={activeLane() === lane ? 0 : -1}
-            data-help="stage.switcher"
-            onClick={() => select(lane)}
-          >
-            {LANE_NAMES[lane]}
-          </button>
-        )}
-      </For>
+    <div class="phone-instrument-picker">
+      <div
+        class="lane-switcher"
+        role="tablist"
+        aria-label="Lane switcher"
+        onKeyDown={onKeyDown}
+      >
+        <For each={lanes()}>
+          {(lane) => (
+            <button
+              type="button"
+              role="tab"
+              class="lane-switch-tab"
+              data-lane={lane}
+              id={`lane-tab-${lane}`}
+              aria-controls="lane-stage"
+              aria-selected={activeLane() === lane}
+              tabindex={activeLane() === lane ? 0 : -1}
+              data-help="stage.switcher"
+              onClick={() => select(lane)}
+            >
+              {lane.startsWith("extra")
+                ? `Track ${Number(lane.slice(-1)) + 4}`
+                : LANE_NAMES[lane]}
+            </button>
+          )}
+        </For>
+      </div>
+      <Show when={lanes().length < 8}>
+        <button type="button" class="phone-add-instrument" onClick={add}>
+          <span aria-hidden="true">+</span> Add new instrument
+        </button>
+      </Show>
     </div>
   );
 }

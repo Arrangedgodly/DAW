@@ -35,6 +35,9 @@ export interface DocStoreLike {
 }
 
 export interface AutosaveOptions {
+  /** Unsaved built-in content: do not create a row until it is edited. */
+  readonly previewDocument?: ProjectDocument;
+  readonly onPreviewEdited?: () => void;
   readonly db: ProjectDb;
   readonly projectId: string;
   /** Trailing debounce after a change (default 800 ms). */
@@ -82,7 +85,8 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
   const store = opts.store ?? null;
 
   let status: AutosaveStatus = "idle";
-  let savedHash: string | null = null;
+  let savedHash: string | null = opts.previewDocument ? contentHash(opts.previewDocument) : null;
+  let preview = opts.previewDocument !== undefined;
   let lastSaved: LastSavedInfo | null = null;
   let pending = false; // committed-but-unflushed edits exist
   let dirtyMarked = false; // row currently carries dirty:true
@@ -190,6 +194,13 @@ export function startAutosave(opts: AutosaveOptions): AutosaveController {
       return;
     }
     pending = true;
+    if (preview) {
+      preview = false;
+      // The baseline was never saved. Even an immediate undo must persist
+      // the resulting document once this preview has become a local copy.
+      savedHash = null;
+      opts.onPreviewEdited?.();
+    }
     setStatus("dirty");
     markDirty();
     clearDebounce();

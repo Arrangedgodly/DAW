@@ -9,7 +9,7 @@ import { getSession } from "../engine/session";
 import {
   LANE_IDS,
   documentLaneMixGains,
-  type LaneId,
+  type DefaultLaneId as LaneId,
 } from "../document/schema";
 import { docStore } from "../state/store";
 import { helpOpen } from "../state/helpOverlay";
@@ -140,7 +140,8 @@ export default function VizPage(): JSX.Element {
       audioTime: clock,
       onDueHits: (hits, now) => {
         for (const hit of hits) {
-          if (!(mixGains[LANE_IDS.indexOf(hit.lane)]! > 0)) continue;
+          const index = LANE_IDS.findIndex((id) => id === hit.lane);
+          if (index < 0 || !(mixGains[index]! > 0)) continue;
           engine?.ignite(hit);
           if (reduced()) {
             const line = summary.note(hit, now);

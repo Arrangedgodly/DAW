@@ -573,7 +573,16 @@ function literalHelpIds(): Set<string> {
 /** Ids the generators mint (per-lane strips/grids, per-piece fills, devices). */
 function generatedHelpIds(): Set<string> {
   const ids = new Set<string>();
-  for (const lane of ["drums", "bass", "chords", "lead"]) {
+  for (const lane of [
+    "drums",
+    "bass",
+    "chords",
+    "lead",
+    "extra1",
+    "extra2",
+    "extra3",
+    "extra4",
+  ]) {
     for (const part of [
       "sound",
       "volume",

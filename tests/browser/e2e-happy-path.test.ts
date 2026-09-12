@@ -272,7 +272,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
+            $$(".head-sound-select option:checked").some((v) =>
               (v.textContent ?? "").includes("SOFT STEP"),
             ),
           T.ui,
@@ -416,7 +416,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         // (c) preset change on BASS (observable in the lane header value).
         const bassSound = $('[aria-label="BASS sound"]');
         const presetName = () =>
-          bassSound.querySelector(".head-ctl-value")!.textContent ?? "";
+          bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
+            .value;
         const presetBefore = presetName();
         bassSound
           .querySelector<HTMLButtonElement>(
@@ -468,6 +469,12 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "fx param readout change",
         );
+        expect(
+          $('.lane-floor[data-lane="bass"] .head-fx').getAttribute(
+            "aria-label",
+          ),
+          "FX after parameter edit",
+        ).toContain("3 devices");
 
         // --- 5. ARRANGE: quantized switch + duplicate + chain append ---------
         // Play again for the quantized switch (it is a PLAYING-transport law).
@@ -555,6 +562,12 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "appended tile is the NEW blank pattern (not the duplicate)",
         ).toBe("F");
         bassTilesAfter = tiles().length;
+        expect(
+          $('.lane-floor[data-lane="bass"] .head-fx').getAttribute(
+            "aria-label",
+          ),
+          "FX after arranging",
+        ).toContain("3 devices");
 
         await openEdit();
 
@@ -740,7 +753,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
+            $$(".head-sound-select option:checked").some((v) =>
               (v.textContent ?? "").includes("SOFT STEP"),
             ),
           T.ui,
@@ -750,8 +763,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         const bassSound2 = $('[aria-label="BASS sound"]');
         await poll(
           () =>
-            bassSound2.querySelector(".head-ctl-value")!.textContent ===
-            bassPresetAfter,
+            bassSound2.querySelector<HTMLSelectElement>(".head-sound-select")!
+              .value === bassPresetAfter,
           T.ui,
           "bass preset survived reload",
         );
@@ -761,13 +774,18 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         // the pointer way first (any click on a view-only floor selects it;
         // the lane label is side-effect-free).
         ($('.lane-floor[data-lane="bass"] .lane-name') as HTMLElement).click();
+        await poll(
+          () => $('.lane-floor[data-lane="bass"]').dataset.editing === "true",
+          T.ui,
+          "bass selected after reload",
+        );
         (
           $('.lane-floor[data-lane="bass"] .head-fx') as HTMLButtonElement
         ).click();
         await poll(
           () => $$('.fx-strip[data-lane="bass"] .fx-mod').length === 3,
           T.ui,
-          "fx chain survived reload",
+          `fx chain survived reload (${$('.lane-floor[data-lane="bass"] .head-fx').getAttribute("aria-label")})`,
         );
         await openSong(); // the reloaded app boots on the EDIT page
         const bassRow2 = $('.rail-row[data-lane="bass"]');

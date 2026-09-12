@@ -66,3 +66,11 @@ VIZ retains all 24 effects, lane-local MIDI phrasing, Fluid folds / Flowing trai
 ## Verification
 
 See `docs/dev/membrane-review/verification.md` for the completed checks and the older register tests with obsolete expectations. No deployment is implied by local verification.
+
+## Optional instrument workspace
+
+Desktop tabs are Instruments 1–4, Instruments 5–8, then Song arrangement. The second instrument page uses the same four-quadrant MIDI editor, with a fixed slot per quadrant and an Add instrument action in empty slots. All lane headers use two consistent rows: name and mute/solo, then sound and mix controls. The selected instrument title takes its lane color; redundant Edit/View labels are omitted. On phones, the sticky header shows default instrument tabs followed by up to four added track tabs and an Add new instrument button until all slots are occupied. One SONG/NOTES button switches views and preserves track selection. Phone Song sections have discreet centered titles and wrapping pattern tiles with content-sized spacing.
+
+Preset names are native grouped selects with the existing minus/plus steppers. Families organize the shared pitched library. Extra track colors follow the existing user swatches; defaults are lavender, warm sand, pale blue and yellow green. The default four-grid editor and four-layer visualizer retain their roles.
+
+During playback, note grids follow the sounding column horizontally, including longer virtualized patterns. Follow pauses while a note or pinch gesture is active and stops with transport. The desktop activity meter bank includes every existing lane and uses the selected track colors.

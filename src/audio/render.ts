@@ -74,7 +74,6 @@ import {
 import { getDrumKit, getPreset, type VoiceNoteOnEvent } from "./presets";
 import { effectiveScale } from "../document/scales";
 import {
-  LANE_IDS,
   type LaneId,
   type ProjectDocument,
   documentLaneMixGains,
@@ -139,9 +138,7 @@ export function lcm(a: number, b: number): number {
  * compat derivation that used to feed this slot retired with LL-2 (the
  * transport's cycle basis now derives from the SAME LCM — one law).
  */
-export function computeLoopSteps(
-  laneChainSteps: readonly number[],
-): number {
+export function computeLoopSteps(laneChainSteps: readonly number[]): number {
   let steps = 0;
   for (const s of laneChainSteps) {
     if (s > 0) steps = steps === 0 ? s : lcm(steps, s);
@@ -260,10 +257,9 @@ export async function renderProjectToBuffer(
 
   // 1. Compile every lane with the shared compiler (the only scheduling
   //    authority — the SAME output the live path consumes).
+  const LANE_IDS = doc.lanes.map((l) => l.id);
   const schedules = LANE_IDS.map((lane) => laneScheduleFor(doc, lane, groove));
-  const loopSteps = computeLoopSteps(
-    schedules.map((s) => s?.chainSteps ?? 0),
-  );
+  const loopSteps = computeLoopSteps(schedules.map((s) => s?.chainSteps ?? 0));
   const loopSamples = Math.round(
     loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,
   );

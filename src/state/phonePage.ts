@@ -1,3 +1,5 @@
+import { activeLane, selectLane, stageMode } from "./selection";
+import { isDefaultLane } from "../document/schema";
 /**
  * Stage page (2026-09-11, user call — the session/arrangement split): EDIT is
  * the note grid (one lane on the phone, the quadrants on desktop/tablet);
@@ -14,20 +16,31 @@
 
 import { createSignal } from "solid-js";
 
-export type PhonePage = "edit" | "song";
+export type PhonePage = "edit" | "song" | "instruments";
 
 const [phonePage, setPhonePage] = createSignal<PhonePage>("edit");
 
 export { phonePage };
 
 export function showPhonePage(page: PhonePage): void {
+  if (
+    page === "edit" &&
+    stageMode() !== "phone" &&
+    !isDefaultLane(activeLane())
+  )
+    selectLane("drums");
   setPhonePage(page);
   scrollPageTop();
 }
 
 /** Flip EDIT ⇄ SONG; returns the page now showing. */
 export function togglePhonePage(): PhonePage {
-  const next: PhonePage = phonePage() === "edit" ? "song" : "edit";
+  const next: PhonePage =
+    phonePage() !== "song"
+      ? "song"
+      : stageMode() !== "phone" && !isDefaultLane(activeLane())
+        ? "instruments"
+        : "edit";
   setPhonePage(next);
   scrollPageTop();
   return next;

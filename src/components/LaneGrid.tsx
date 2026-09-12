@@ -191,6 +191,10 @@ const QUADRANT_GEOMETRY: Record<
   bass: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
   chords: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  extra1: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  extra2: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  extra3: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
+  extra4: { cellPx: 16, gapPx: 1, labelPx: 64, fillRailPx: 0, minRowPx: 11 },
 };
 
 /* ---------------------------------------------------------------------------
@@ -245,6 +249,10 @@ const NARROW_GEOMETRY: Record<
   bass: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
   chords: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
   lead: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  extra1: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  extra2: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  extra3: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
+  extra4: { cellPx: 15, gapPx: 1, labelPx: 48, fillRailPx: 0, minRowPx: 11 },
 };
 const PHONE_ROW_PX = 44;
 /**
@@ -754,8 +762,8 @@ function fitQuadrantRows(): void {
   // down; tracks stay at the phone preset. (No phone surfaces register
   // either — this guard is defense in depth for mid-rotation transitions.)
   if (stageMode() === "phone") return;
-  const stage = document.querySelector<HTMLElement>("main.stage");
-  const floors = document.querySelector<HTMLElement>(".stage-floors");
+  const stage = document.querySelector<HTMLElement>("main.stage:not([hidden])");
+  const floors = stage?.querySelector<HTMLElement>(".stage-floors");
   if (!stage || !floors || liveSurfaces.size === 0) return;
   const stageH = stage.clientHeight;
   // 2026-09-11 (user call): the song chain moved to its own PAGE, so the
@@ -804,7 +812,7 @@ function fitQuadrantRows(): void {
   for (const surface of liveSurfaces) {
     const renderer = surface.renderer();
     const scroll = surface.scrollEl;
-    if (!renderer || !scroll.isConnected) continue;
+    if (!renderer || !scroll.isConnected || scroll.clientWidth === 0) continue;
     const floor = scroll.closest<HTMLElement>(".lane-floor");
     if (!floor) continue;
     // Everything above the scroll container (the strip, at its CURRENT
@@ -830,7 +838,10 @@ function fitQuadrantRows(): void {
 
     const width = Math.max(
       16,
-      Math.min(48, Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2),
+      Math.min(
+        48,
+        Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2,
+      ),
     );
 
     renderer.setCellWidth(width);
@@ -934,7 +945,7 @@ function ensureFitObservers(surfaces: Iterable<QuadrantSurface>): void {
   // Viewport/booth wrap (stage height) + rail growth (tile wraps). The rail
   // only rides the EDIT stage on stages that still carry it — since
   // 2026-09-11 the chain is its own page, so this is usually absent.
-  const stage = document.querySelector("main.stage");
+  const stage = document.querySelector("main.stage:not([hidden])");
   const rail = document.querySelector("main.stage > .rail");
   if (stage) fitObserver.observe(stage);
   if (rail) fitObserver.observe(rail);
@@ -958,7 +969,7 @@ function registerQuadrantSurface(surface: QuadrantSurface): void {
   // observing the same element twice is a no-op, and a fresh rotation's
   // remount therefore always lands observed.
   if (fitObserver) {
-    const stage = document.querySelector("main.stage");
+    const stage = document.querySelector("main.stage:not([hidden])");
     const rail = document.querySelector("main.stage > .rail");
     if (stage) fitObserver.observe(stage);
     if (rail) fitObserver.observe(rail);
@@ -1044,9 +1055,9 @@ function laneGateStepsNow(lane: LaneId): number {
  * a stale snapshot after the first edit — always read the live document).
  */
 function rowSpansNow(lane: LaneId, patternId: string, degree: number): Span[] {
-  const p = docStore
-    .getState()
-    .doc.patterns[lane].find((cand) => cand.id === patternId);
+  const p = (docStore.getState().doc.patterns[lane] ?? []).find(
+    (cand) => cand.id === patternId,
+  );
   if (p?.kind !== "pitched") return [];
   return p.notes
     .filter((n) => n.degree === degree)
@@ -1606,15 +1617,18 @@ function GridSurface(props: {
       // chain mutation) refresh the sweep-basis fallback for readFrame (the
       // engine's live schedule takes precedence once pushed).
       if (
-        state.doc.patterns[lane] !== prev.doc.patterns[lane] ||
-        state.doc.songChain[lane] !== prev.doc.songChain[lane]
+        (state.doc.patterns[lane] ?? []) !== (prev.doc.patterns[lane] ?? []) ||
+        (state.doc.songChain[lane] ?? []) !== (prev.doc.songChain[lane] ?? [])
       ) {
         docChainSteps = laneCycleSteps(state.doc, lane);
       }
       // Re-sync on pattern-content identity only: IN-2 renders notes
       // natively (no gate/BPM-derived view left to invalidate).
-      if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;
-      const next = state.doc.patterns[lane].find((p) => p.id === pattern.id);
+      if ((state.doc.patterns[lane] ?? []) === (prev.doc.patterns[lane] ?? []))
+        return;
+      const next = (state.doc.patterns[lane] ?? []).find(
+        (p) => p.id === pattern.id,
+      );
 
       if (next) renderer.sync(syncPatternFor(next, degrees));
     });

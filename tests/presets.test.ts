@@ -29,7 +29,9 @@ function validatePreset(p: VoicePreset): void {
     p.wave === "pulse" ||
       p.wave === "triangle" ||
       p.wave === "noise" ||
-      p.wave === "pluck",
+      p.wave === "pluck" ||
+      p.wave === "bell" ||
+      p.wave === "brass",
   ).toBe(true);
   expect(p.duty).toBeGreaterThan(0);
   expect(p.duty).toBeLessThanOrEqual(1);
@@ -115,7 +117,9 @@ describe("preset library", () => {
       // Palette breadth: every lane spans ≥3 wave families (pulse/triangle +
       // at least one of noise-texture or Karplus–Strong pluck).
       const waves = new Set(presets.map((p) => p.wave));
-      expect(waves.size, `${lane} palette too narrow`).toBeGreaterThanOrEqual(3);
+      expect(waves.size, `${lane} palette too narrow`).toBeGreaterThanOrEqual(
+        3,
+      );
     }
   });
 
@@ -213,9 +217,7 @@ describe("preset library", () => {
     );
     const snareMixes = new Set(kits.map((k) => k.pieces.snare.noiseMix));
     const hatDecays = new Set(kits.map((k) => k.pieces.hat.envelope.decay));
-    const kickDecays = new Set(
-      kits.map((k) => k.pieces.kick.envelope.decay),
-    );
+    const kickDecays = new Set(kits.map((k) => k.pieces.kick.envelope.decay));
     // 10 kits, each claiming a distinct groove — the axes must actually
     // separate them (≥8 distinct values per axis leaves honest headroom).
     expect(kickRatios.size).toBeGreaterThanOrEqual(8);
@@ -342,15 +344,22 @@ describe("noteParamsFor", () => {
   });
 
   it("synth presets never carry sample data; sample events are deterministic (no seed dependence)", () => {
-    expect(noteParamsFor(preset, { time: 1, midi: 40, holdSeconds: 0.1 }).sample).toBeUndefined();
+    expect(
+      noteParamsFor(preset, { time: 1, midi: 40, holdSeconds: 0.1 }).sample,
+    ).toBeUndefined();
     const samplePreset = getPreset("preset-lead-13")!;
-    const a = noteParamsFor(samplePreset, { time: 0.25, midi: 64, holdSeconds: 0.2 });
-    const b = noteParamsFor(samplePreset, { time: 0.25, midi: 64, holdSeconds: 0.2 });
+    const a = noteParamsFor(samplePreset, {
+      time: 0.25,
+      midi: 64,
+      holdSeconds: 0.2,
+    });
+    const b = noteParamsFor(samplePreset, {
+      time: 0.25,
+      midi: 64,
+      holdSeconds: 0.2,
+    });
     expect(a.sample).toEqual(b.sample);
-    expect(a.sample!.playbackRate).toBeCloseTo(
-      Math.pow(2, (64 - 60) / 12),
-      9,
-    );
+    expect(a.sample!.playbackRate).toBeCloseTo(Math.pow(2, (64 - 60) / 12), 9);
   });
 });
 
@@ -383,9 +392,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
   it("voice-type slot laws hold across the whole library (PS-4 extension: synth canonical-empty, sample well-formed)", () => {
     const all: VoicePreset[] = [
       ...Object.values(PRESET_LIBRARY),
-      ...Object.values(DRUM_KITS).flatMap((kit) =>
-        Object.values(kit.pieces),
-      ),
+      ...Object.values(DRUM_KITS).flatMap((kit) => Object.values(kit.pieces)),
     ];
     expect(all.length).toBeGreaterThan(60);
     let sampleVoices = 0;
@@ -397,13 +404,28 @@ describe("PS-3 voice-type slot (preset format)", () => {
         // pitched, and the ref must exist in the committed content manifest.
         expect(p.sampleRef, p.id).toBeDefined();
         const asset = CONTENT_ASSETS.find((a) => a.id === p.sampleRef);
-        expect(asset, `${p.id}: unknown sampleRef ${p.sampleRef}`).toBeDefined();
+        expect(
+          asset,
+          `${p.id}: unknown sampleRef ${p.sampleRef}`,
+        ).toBeDefined();
         if (p.baseFreq !== undefined) {
-          expect(p.rootMidi, `${p.id}: drum piece carries rootMidi`).toBeUndefined();
-          expect(p.pitchRange, `${p.id}: drum piece carries pitchRange`).toBeUndefined();
+          expect(
+            p.rootMidi,
+            `${p.id}: drum piece carries rootMidi`,
+          ).toBeUndefined();
+          expect(
+            p.pitchRange,
+            `${p.id}: drum piece carries pitchRange`,
+          ).toBeUndefined();
         } else {
-          expect(p.rootMidi, `${p.id}: pitched sample preset misses rootMidi`).toBeDefined();
-          expect(p.pitchRange?.octaveBase, `${p.id}: pitched sample preset misses pitchRange`).toBeDefined();
+          expect(
+            p.rootMidi,
+            `${p.id}: pitched sample preset misses rootMidi`,
+          ).toBeDefined();
+          expect(
+            p.pitchRange?.octaveBase,
+            `${p.id}: pitched sample preset misses pitchRange`,
+          ).toBeDefined();
           const voice = asset as (typeof CONTENT_ASSETS)[number] & {
             rootMidi?: number;
           };
@@ -516,10 +538,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
   });
 
   const REJECTS: ReadonlyArray<[string, VoicePreset]> = [
-    [
-      "sample voice without sampleRef",
-      samplePreset({ voiceType: "sample" }),
-    ],
+    ["sample voice without sampleRef", samplePreset({ voiceType: "sample" })],
     [
       "synth preset (field absent) carrying sampleRef",
       samplePreset({ sampleRef: "voice.bass.lowtone" }),
@@ -528,10 +547,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
       "explicit synth preset carrying sampleRef",
       samplePreset({ voiceType: "synth", sampleRef: "voice.bass.lowtone" }),
     ],
-    [
-      "synth preset carrying rootMidi",
-      samplePreset({ rootMidi: 60 }),
-    ],
+    ["synth preset carrying rootMidi", samplePreset({ rootMidi: 60 })],
     [
       "sampleRef as a URL (ids are stable, URLs are per-build)",
       samplePreset({
@@ -547,29 +563,47 @@ describe("PS-3 voice-type slot (preset format)", () => {
       "sampleRef without a dot separator",
       samplePreset({ voiceType: "sample", sampleRef: "voicebass" }),
     ],
-    [
-      "empty sampleRef",
-      samplePreset({ voiceType: "sample", sampleRef: "" }),
-    ],
+    ["empty sampleRef", samplePreset({ voiceType: "sample", sampleRef: "" })],
     [
       "rootMidi below the MIDI range",
-      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: -1 }),
+      samplePreset({
+        voiceType: "sample",
+        sampleRef: "voice.bass.lowtone",
+        rootMidi: -1,
+      }),
     ],
     [
       "rootMidi above the MIDI range",
-      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: 128 }),
+      samplePreset({
+        voiceType: "sample",
+        sampleRef: "voice.bass.lowtone",
+        rootMidi: 128,
+      }),
     ],
     [
       "rootMidi not an integer",
-      samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone", rootMidi: 60.5 }),
+      samplePreset({
+        voiceType: "sample",
+        sampleRef: "voice.bass.lowtone",
+        rootMidi: 60.5,
+      }),
     ],
     [
       "unknown voiceType discriminant",
-      samplePreset({ voiceType: "sampler", sampleRef: "voice.bass.lowtone" }) as VoicePreset,
+      samplePreset({
+        voiceType: "sampler",
+        sampleRef: "voice.bass.lowtone",
+      }) as VoicePreset,
     ],
     [
       "unknown preset field (strictObject still applies)",
-      { ...samplePreset({ voiceType: "sample", sampleRef: "voice.bass.lowtone" }), mystery: 1 } as unknown as VoicePreset,
+      {
+        ...samplePreset({
+          voiceType: "sample",
+          sampleRef: "voice.bass.lowtone",
+        }),
+        mystery: 1,
+      } as unknown as VoicePreset,
     ],
   ];
 
@@ -583,15 +617,19 @@ describe("PS-3 voice-type slot (preset format)", () => {
     expect(sampleVoiceFieldIssue({ voiceType: "sample" })).toBe(
       "voiceType 'sample' requires sampleRef",
     );
-    expect(
-      sampleVoiceFieldIssue({ sampleRef: "voice.bass.lowtone" }),
-    ).toMatch(/sampleRef requires voiceType 'sample'/);
+    expect(sampleVoiceFieldIssue({ sampleRef: "voice.bass.lowtone" })).toMatch(
+      /sampleRef requires voiceType 'sample'/,
+    );
     expect(sampleVoiceFieldIssue({ rootMidi: 60 })).toMatch(
       /rootMidi requires voiceType 'sample'/,
     );
     expect(sampleVoiceFieldIssue({})).toBeUndefined();
     expect(
-      sampleVoiceFieldIssue({ voiceType: "sample", sampleRef: "drums.808.kick", rootMidi: 36 }),
+      sampleVoiceFieldIssue({
+        voiceType: "sample",
+        sampleRef: "drums.808.kick",
+        rootMidi: 36,
+      }),
     ).toBeUndefined();
   });
 });
@@ -618,8 +656,8 @@ describe("PS-3 manifest ↔ schema provenance compatibility", () => {
         sourceUrl: asset.sourceUrl,
         author: asset.author,
       };
-      expect(() =>
-        v.parse(SampleProvenanceEntrySchema, entry),
+      expect(
+        () => v.parse(SampleProvenanceEntrySchema, entry),
         asset.id,
       ).not.toThrow();
     }

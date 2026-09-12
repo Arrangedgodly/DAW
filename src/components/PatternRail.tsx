@@ -234,9 +234,9 @@ const [toolsLane, setToolsLane] = createSignal<LaneId | null>(null);
  * document, emit nothing — their line stands until the next real announce
  * event replaces it.
  * ------------------------------------------------------------------------- */
-const [lengthLine, setLengthLine] = createSignal<Partial<Record<LaneId, string>>>(
-  {},
-);
+const [lengthLine, setLengthLine] = createSignal<
+  Partial<Record<LaneId, string>>
+>({});
 const pendingLengthFlush = new Map<LaneId, string>();
 
 export function stepPatternLength(lane: LaneId, delta: 1 | -1): void {
@@ -301,6 +301,10 @@ function rowLengths(): Record<LaneId, number> {
     bass: chain.bass.length,
     chords: chain.chords.length,
     lead: chain.lead.length,
+    extra1: chain.extra1?.length ?? 0,
+    extra2: chain.extra2?.length ?? 0,
+    extra3: chain.extra3?.length ?? 0,
+    extra4: chain.extra4?.length ?? 0,
   };
 }
 
@@ -319,7 +323,7 @@ function cueTiles(
   const playing = session.transport.snapshot.playing;
   let queued = 0;
   for (const target of targets) {
-    const patternId = chain[target.lane][target.slot];
+    const patternId = chain[target.lane]?.[target.slot];
     if (!patternId) continue;
     selectPattern(target.lane, patternId, target.slot);
     if (playing) {
@@ -512,14 +516,19 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   onMount(() => {
     const unsubDoc = docStore.subscribe((state, prev) => {
       if (
-        state.doc.songChain[props.lane] !== prev.doc.songChain[props.lane] ||
-        state.doc.patterns[props.lane] !== prev.doc.patterns[props.lane] ||
+        (state.doc.songChain[props.lane] ?? []) !==
+          (prev.doc.songChain[props.lane] ?? []) ||
+        (state.doc.patterns[props.lane] ?? []) !==
+          (prev.doc.patterns[props.lane] ?? []) ||
         state.doc.chainCues !== prev.doc.chainCues
       ) {
         setTiles(railTiles(state.doc, props.lane));
         setPool(patternPool(state.doc, props.lane));
         setFocusedSlot((f) =>
-          Math.min(f, Math.max(0, state.doc.songChain[props.lane].length - 1)),
+          Math.min(
+            f,
+            Math.max(0, (state.doc.songChain[props.lane] ?? []).length - 1),
+          ),
         );
       }
     });
@@ -539,8 +548,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   });
 
   const selectedId = () => activePatterns()[props.lane];
-  const selectedSlot = (): number | null =>
-    activeSlots()[props.lane] ?? null;
+  const selectedSlot = (): number | null => activeSlots()[props.lane] ?? null;
 
   /**
    * Refinement-7: the lane's sounding pattern (the follow), falling back to
@@ -714,11 +722,12 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     selectPattern(
       props.lane,
       id,
-      docStore.getState().doc.songChain[props.lane].length - 1,
+      (docStore.getState().doc.songChain[props.lane] ?? []).length - 1,
     );
     const bars =
-      docStore.getState().doc.patterns[props.lane].find((p) => p.id === id)
-        ?.bars ?? 1;
+      (docStore.getState().doc.patterns[props.lane] ?? []).find(
+        (p) => p.id === id,
+      )?.bars ?? 1;
     const text = patternCreatedAnnouncement(label, bars);
     pendingAnnounceOverride = text;
     setAnnounce(text); // immediate; the queued effect re-writes the same line
@@ -870,6 +879,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     ) {
       e.preventDefault();
       setRailRange(null);
+      const RAIL_ROWS = docStore.getState().doc.lanes.map((l) => l.id);
       const index = RAIL_ROWS.indexOf(props.lane);
       const next = e.key === "ArrowUp" ? index - 1 : index + 1;
       if (next >= 0 && next < RAIL_ROWS.length) {
@@ -935,7 +945,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       // The row rebuilds on chain edits — land focus on the NEW tile (the
       // DA-3 focus-after-edit law: the appended slot), never on <body>.
       focusSlotAfterEdit(
-        docStore.getState().doc.songChain[props.lane].length - 1,
+        (docStore.getState().doc.songChain[props.lane] ?? []).length - 1,
       );
     } else if (e.key === "Escape") {
       // IN-3 (cancel-first): an active range collapses BEFORE the region-head
@@ -968,7 +978,11 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
         railRowEl = el;
       }}
     >
-      <span class="rail-lane-name">{LANE_NAMES[props.lane]}</span>
+      <span class="rail-lane-name" title={LANE_NAMES[props.lane]}>
+        {props.lane.startsWith("extra")
+          ? `Track ${Number(props.lane.slice(-1)) + 4}`
+          : LANE_NAMES[props.lane]}
+      </span>
 
       {/*
         PX-4 (i3-4): the lane's CYCLE length speaks through the row's group
@@ -1220,6 +1234,10 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 }
 
 export default function PatternRail(): JSX.Element {
+  const [rows, setRows] = createSignal(
+    docStore.getState().doc.lanes.map((l) => l.id),
+  );
+  onCleanup(docStore.subscribe((s) => setRows(s.doc.lanes.map((l) => l.id))));
   onMount(() => {
     // Refinement-7: the sounding follow (transport-aligned, frozen while a
     // pointer gesture is armed — TH-4(b)); ref-counted, shared state module.
@@ -1285,9 +1303,7 @@ export default function PatternRail(): JSX.Element {
       */}
       {/* 2026-09-11: the phone rail now lives only on the SONG page, which
           shows every lane (the condensed one-row chrome rail retired). */}
-      <For each={RAIL_ROWS}>
-        {(lane) => <LaneRail lane={lane} />}
-      </For>
+      <For each={rows()}>{(lane) => <LaneRail lane={lane} />}</For>
     </section>
   );
 }

@@ -8,3 +8,4 @@ coverage/
 tests/browser/__screenshots__/
 .vitest-attachments/
 .wrangler/
+.claude/

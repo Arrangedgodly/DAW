@@ -2,7 +2,7 @@ import { getPreset } from "../audio/presets";
 import type { ProjectDocument } from "./schema";
 import { degreeToMidi, effectiveScale, modeSize } from "./scales";
 
-export type PitchedLane = "bass" | "chords" | "lead";
+export type PitchedLane = Exclude<import("./schema").LaneId, "drums">;
 export const MIN_EDIT_DEGREE = -128;
 export const MAX_EDIT_DEGREE = 128;
 

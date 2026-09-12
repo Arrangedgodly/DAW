@@ -27,11 +27,19 @@ import Toasts from "../../src/components/Toasts";
 import {
   getActiveProjectId,
   getAutosaveController,
-  initPersistence,
+  initPersistence as bootPersistence,
 } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { getProjectRecord, saveProject } from "../../src/persist/projectStore";
 import { createNewProject } from "../../src/persist/newProject";
+import { createDemoProject } from "../../src/document/demoSong";
+
+// These journeys exercise saved rows; untouched demos are now previews.
+async function initPersistence(opts: { db: ProjectDb }) {
+  if ((await opts.db.allRecords()).length === 0)
+    await saveProject(opts.db, "default", createDemoProject());
+  return bootPersistence(opts);
+}
 
 async function freshDb(name: string) {
   await new Promise<void>((resolve, reject) => {
@@ -162,7 +170,9 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
       // Open the popover and click B's item.
       const btn = ui.host.querySelector<HTMLButtonElement>(".projects-btn")!;
       btn.click();
-      await waitFor(() => ui.host.querySelector(".projects-item") !== null);
+      await waitFor(
+        () => ui.host.querySelector(`li[data-id="${b.record.id}"]`) !== null,
+      );
       const items = [
         ...ui.host.querySelectorAll<HTMLButtonElement>(".projects-item"),
       ];
@@ -198,7 +208,9 @@ describe("HU-3 autosave/recovery UX (real events + real IndexedDB)", () => {
 
 describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
   /** Wait for a queried element to exist, then return it (typed). */
-  async function waitForEl<T extends Element>(query: () => T | null): Promise<T> {
+  async function waitForEl<T extends Element>(
+    query: () => T | null,
+  ): Promise<T> {
     await waitFor(() => query() !== null);
     return query()!;
   }
@@ -214,7 +226,7 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
     const btn = ui.host.querySelector<HTMLButtonElement>(".projects-btn")!;
     btn.click();
     await waitFor(() => ui.host.querySelector(".projects-pop") !== null);
-    await waitFor(() => ui.host.querySelector(".projects-item") !== null);
+    await waitFor(() => ui.host.querySelector("li[data-id]") !== null);
     return btn;
   }
 
@@ -229,7 +241,8 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
     await waitFor(() => rowOf(ui, id).querySelector(".projects-edit") !== null);
     await waitFor(
       () =>
-        document.activeElement === rowOf(ui, id).querySelector(".projects-edit"),
+        document.activeElement ===
+        rowOf(ui, id).querySelector(".projects-edit"),
     );
     return rowOf(ui, id).querySelector<HTMLInputElement>(".projects-edit")!;
   }
@@ -281,7 +294,9 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       const empty = await startRename(ui, id);
       typeInto(empty, "   ");
       keyAt(empty, "Enter");
-      await waitFor(() => rowOf(ui, id).querySelector(".projects-edit") === null);
+      await waitFor(
+        () => rowOf(ui, id).querySelector(".projects-edit") === null,
+      );
       expect(docStore.getState().doc.name).toBe("renamed live");
       await new Promise((r) => setTimeout(r, 1100));
       expect((await getProjectRecord(db, id))!.name).toBe("renamed live");
@@ -291,9 +306,7 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       const long = await startRename(ui, id);
       typeInto(long, "a".repeat(60));
       keyAt(long, "Enter");
-      await waitFor(
-        () => docStore.getState().doc.name.length === 48,
-      );
+      await waitFor(() => docStore.getState().doc.name.length === 48);
       await new Promise((r) => setTimeout(r, 1100));
       expect((await getProjectRecord(db, id))!.name.length).toBe(48);
     } finally {
@@ -340,8 +353,7 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       typeInto(dup, "workshop A");
       keyAt(dup, "Enter");
       await waitFor(
-        () =>
-          rowOf(ui, b.record.id).querySelector(".projects-edit") === null,
+        () => rowOf(ui, b.record.id).querySelector(".projects-edit") === null,
       );
       await waitFor(async () => {
         const row = await getProjectRecord(db, b.record.id);
@@ -378,10 +390,13 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       await waitFor(() => document.activeElement === confirm);
       keyAt(confirm, "Escape");
       await waitFor(
-        () => rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
+        () =>
+          rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
       );
       expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
-      expect(rowOf(ui, b.record.id).querySelector(".projects-item")).not.toBeNull();
+      expect(
+        rowOf(ui, b.record.id).querySelector(".projects-item"),
+      ).not.toBeNull();
       await waitFor(
         () =>
           document.activeElement ===
@@ -400,27 +415,34 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
           }),
         );
       await waitFor(
-        () => rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
+        () =>
+          rowOf(ui, b.record.id).querySelector(".projects-confirm") === null,
       );
       expect(ui.host.querySelector(".projects-pop")).not.toBeNull();
 
       // The 5 s deliberateness window auto-reverts.
       await armConfirm(ui, b.record.id);
       await new Promise((r) => setTimeout(r, 5300));
-      expect(rowOf(ui, b.record.id).querySelector(".projects-confirm")).toBeNull();
-      expect(rowOf(ui, b.record.id).querySelector(".projects-item")).not.toBeNull();
+      expect(
+        rowOf(ui, b.record.id).querySelector(".projects-confirm"),
+      ).toBeNull();
+      expect(
+        rowOf(ui, b.record.id).querySelector(".projects-item"),
+      ).not.toBeNull();
 
       // Second press deletes the INACTIVE row: gone from list and db, the
       // working song untouched, the sticky DELETED toast raised.
       const go = await armConfirm(ui, b.record.id);
       go.click();
-      await waitFor(async () => (await getProjectRecord(db, b.record.id)) === undefined);
+      await waitFor(
+        async () => (await getProjectRecord(db, b.record.id)) === undefined,
+      );
       await waitFor(
         () => ui.host.querySelector(`li[data-id="${b.record.id}"]`) === null,
       );
-      expect(decode((await getProjectRecord(db, boot.projectId))!.json).name).toBe(
-        "workshop A",
-      );
+      expect(
+        decode((await getProjectRecord(db, boot.projectId))!.json).name,
+      ).toBe("workshop A");
       expect(docStore.getState().doc.name).toBe("workshop A");
       expect(ui.toastHost.textContent).toContain("DELETED");
       expect(ui.toastHost.textContent).toContain("UNDO");
@@ -500,9 +522,9 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
 
       // The one-shot UNDO (the toast's action button).
       const undo = await waitForEl(() =>
-        [...ui.toastHost.querySelectorAll<HTMLButtonElement>(".toast-action")].find(
-          (btn) => btn.textContent?.trim() === "UNDO",
-        ),
+        [
+          ...ui.toastHost.querySelectorAll<HTMLButtonElement>(".toast-action"),
+        ].find((btn) => btn.textContent?.trim() === "UNDO"),
       );
       undo.click();
       const restored = await waitForRecord(db, boot.projectId);
@@ -516,7 +538,9 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       expect(docStore.getState().doc.name).toBe("after song");
       // One-shot by vehicle: the DELETED toast dismissed after the run.
       await waitFor(() => !ui.toastHost.textContent?.includes("DELETED"));
-      expect(toastStack().some((t) => t.message.includes("DELETED"))).toBe(false);
+      expect(toastStack().some((t) => t.message.includes("DELETED"))).toBe(
+        false,
+      );
     } finally {
       ui.cleanup();
       await getAutosaveController()?.stop();
@@ -536,9 +560,7 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       go.click();
 
       await waitFor(() => docStore.getState().doc.name === "Untitled");
-      await waitFor(
-        () => ui.host.querySelectorAll(".projects-item").length === 1,
-      );
+      await waitFor(() => ui.host.querySelectorAll("li[data-id]").length === 1);
       expect(await getProjectRecord(db, boot.projectId)).toBeUndefined();
       expect(ui.toastHost.textContent).toContain("DELETED");
     } finally {
@@ -564,8 +586,8 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
 
       // The CURRENT row sits SECOND (most-recent-first: the just-saved other
       // row is on top), so the trap's focus order is
-      // [other-item, other-REN, other-DELETE, EDITOR, NEW, ...]. Tab FROM the
-      // editor must land on NEW — proving the input is enumerated at its DOM
+      // [other-item, other-REN, other-DELETE, EDITOR, demo summary, NEW, ...]. Tab FROM the
+      // editor must land on the demo summary — proving the input is enumerated at its DOM
       // position. An input the trap cannot see resolves activeElement to -1
       // and wraps to the FIRST row's item instead.
       const edit = await startRename(ui, id);
@@ -576,7 +598,7 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       await waitFor(() => ui.host.querySelector(".projects-edit") === null);
       expect(docStore.getState().doc.name).toBe("tab song");
       expect(document.activeElement).toBe(
-        ui.host.querySelector(".projects-action"),
+        ui.host.querySelector(".projects-pop summary"),
       );
       expect(panel.contains(document.activeElement)).toBe(true);
 
@@ -586,7 +608,9 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       for (let i = 0; i < count + 2; i++) {
         keyAt(focus, "Tab");
         const active = document.activeElement as Element;
-        expect(panel.contains(active), "Tab never escapes the popover").toBe(true);
+        expect(panel.contains(active), "Tab never escapes the popover").toBe(
+          true,
+        );
         focus = active;
       }
 
@@ -654,14 +678,17 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       await waitFor(
         async () => (await getProjectRecord(db, b.record.id)) === undefined,
       );
-      await waitFor(() => ui.toastHost.textContent?.includes("DELETED") === true);
+      await waitFor(
+        () => ui.toastHost.textContent?.includes("DELETED") === true,
+      );
 
       const deletedCard = () =>
         [...ui.toastHost.querySelectorAll(".toast")].find((t) =>
           (t.textContent ?? "").includes("DELETED"),
         ) ?? null;
       const undoBtn = () =>
-        deletedCard()?.querySelector<HTMLButtonElement>(".toast-action") ?? null;
+        deletedCard()?.querySelector<HTMLButtonElement>(".toast-action") ??
+        null;
       expect(undoBtn()?.textContent?.trim()).toBe("UNDO");
 
       // Arm the storage-full failure, then press UNDO: the re-put THROWS.
@@ -670,7 +697,9 @@ describe("i6 S-3 — rename + delete + undo in the Projects popover", () => {
       await waitFor(
         () => ui.toastHost.textContent?.includes("Could not restore") === true,
       );
-      await waitFor(async () => (await getProjectRecord(db, b.record.id)) === undefined);
+      await waitFor(
+        async () => (await getProjectRecord(db, b.record.id)) === undefined,
+      );
       // §4.6's law — the toast STAYS ARMED (run() resolved false; the
       // one-shot vehicle must not dismiss on a failed action), so the row
       // is still restorable from the in-memory hold after space is freed.

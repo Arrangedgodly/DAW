@@ -11,6 +11,7 @@
  */
 
 import { MAX_VOICE_FREQ, midiToFreq, noteSeed } from "./dsp";
+import { EXPANDED_PRESETS } from "./expandedPresets";
 import {
   type DrumPiece,
   DRUM_PIECES,
@@ -22,7 +23,8 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export type WaveKind = "pulse" | "triangle" | "noise" | "pluck";
+export type WaveKind =
+  "pulse" | "triangle" | "noise" | "pluck" | "bell" | "brass";
 export type NoiseMode = "long" | "short";
 
 export interface Envelope {
@@ -110,7 +112,14 @@ export interface DrumKit {
 // ---------------------------------------------------------------------------
 
 /** Wave discriminator as a small int (keeps the worklet monomorphic). */
-export const WAVE_CODE = { pulse: 0, triangle: 1, noise: 2, pluck: 3 } as const;
+export const WAVE_CODE = {
+  pulse: 0,
+  triangle: 1,
+  noise: 2,
+  pluck: 3,
+  bell: 4,
+  brass: 5,
+} as const;
 
 export interface VoiceNoteOnEvent {
   readonly type: "note-on";
@@ -299,7 +308,7 @@ export const VoicePresetSchema = v.pipe(
   v.strictObject({
     id: v.pipe(v.string(), v.minLength(1)),
     name: v.pipe(v.string(), v.minLength(1), v.maxLength(14)),
-    wave: v.picklist(["pulse", "triangle", "noise", "pluck"]),
+    wave: v.picklist(["pulse", "triangle", "noise", "pluck", "bell", "brass"]),
     duty: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
     envelope: EnvelopeSchema,
     noiseMix: UnitInterval,
@@ -339,6 +348,7 @@ function preset(p: VoicePreset): VoicePreset {
 }
 
 export const PRESET_LIBRARY: Readonly<Record<string, VoicePreset>> = {
+  ...Object.fromEntries(EXPANDED_PRESETS.map((p) => [p.id, preset(p)])),
   // --- BASS: deep, gluey, fast-decay staples (one sub-triangle) -------------
   "preset-bass-1": preset({
     id: "preset-bass-1",

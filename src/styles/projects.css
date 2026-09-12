@@ -13,6 +13,28 @@
   position: relative;
 }
 
+.agent-access {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid currentColor;
+  padding-block: 12px;
+}
+.agent-access p {
+  margin: 0;
+  max-width: 38ch;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.app.membrane[data-stage] .agent-access .booth-btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+
 .projects-btn {
   /* Inherits the .booth-btn machined key (T10: the old 0.9 dim read as a
    * "quiet nav link" at page distance — the key stands at full chassis
@@ -264,4 +286,33 @@
 .app[data-stage="phone"] .projects-confirm,
 .app[data-stage="phone"] .projects-edit {
   min-height: 44px;
+}
+
+.projects-demos {
+  border-top: 1px solid var(--theme-line);
+  padding-top: 8px;
+}
+.projects-demos summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-size: 13px;
+}
+.projects-demos p, .projects-demo-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--theme-muted);
+}
+.projects-demos p { margin: 0 0 8px; }
+.projects-demo {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px;
+  margin-bottom: 6px;
+  min-height: 44px;
+}
+.projects-pop {
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
 }

@@ -1,0 +1,56 @@
+[
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "browser": "151.0.7922.34",
+    "api": {
+      "available": true,
+      "methods": [
+        "ontoolchange",
+        "executeTool",
+        "getTools",
+        "registerTool",
+        "constructor"
+      ]
+    },
+    "execution": {
+      "toolCount": 13,
+      "beforeBpm": 112,
+      "edited": "{\"revision\":1,\"changed\":true,\"message\":\"Agent set tempo to 132 BPM. Undo is available.\"}"
+    },
+    "layout": {
+      "width": 1440,
+      "scrollWidth": 1440
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "browser": "151.0.7922.34",
+    "api": {
+      "available": true,
+      "methods": [
+        "ontoolchange",
+        "executeTool",
+        "getTools",
+        "registerTool",
+        "constructor"
+      ]
+    },
+    "execution": {
+      "toolCount": 13,
+      "beforeBpm": 112,
+      "edited": "{\"revision\":1,\"changed\":true,\"message\":\"Agent set tempo to 132 BPM. Undo is available.\"}"
+    },
+    "layout": {
+      "width": 390,
+      "scrollWidth": 390
+    },
+    "errors": []
+  }
+]

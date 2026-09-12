@@ -79,7 +79,11 @@
  * drives the real ones through VizPage.
  */
 
-import { LANE_IDS, type LaneId } from "../document/schema";
+import {
+  isDefaultLane,
+  LANE_IDS,
+  type DefaultLaneId as LaneId,
+} from "../document/schema";
 import type { VizNoteOn } from "../engine/session";
 import { normalizeNoteOn } from "./clamps";
 import { createOffsetQueue, type OffsetQueue } from "./offsetQueue";
@@ -363,7 +367,9 @@ export function createVizPipeline(opts: VizPipelineOptions): VizPipeline {
         ctx.globalAlpha = 1;
         return;
       }
-      for (const hit of due) ignite(hit.lane, hit.audibleAt, hit.velocity);
+      for (const hit of due)
+        if (isDefaultLane(hit.lane))
+          ignite(hit.lane, hit.audibleAt, hit.velocity);
       for (let i = 0; i < LANE_IDS.length; i++) {
         const hue = hues[LANE_IDS[i]!];
         if (!hue) continue; // no token → no draw, never an invented color

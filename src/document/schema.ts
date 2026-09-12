@@ -112,8 +112,16 @@ export const PitchClassSchema = v.pipe(
 
 /** Fixed lane order is part of the schema: drums, bass, chords, lead. */
 export const LANE_IDS = ["drums", "bass", "chords", "lead"] as const;
-export type LaneId = (typeof LANE_IDS)[number];
-export const LaneIdSchema = v.picklist(LANE_IDS);
+export type DefaultLaneId = (typeof LANE_IDS)[number];
+export const EXTRA_LANE_IDS = ["extra1", "extra2", "extra3", "extra4"] as const;
+export const ALL_LANE_IDS = [...LANE_IDS, ...EXTRA_LANE_IDS] as const;
+export type LaneId = (typeof ALL_LANE_IDS)[number];
+export type LaneMap<T> = Record<DefaultLaneId, T> &
+  Partial<Record<(typeof EXTRA_LANE_IDS)[number], T>>;
+export function isDefaultLane(id: LaneId): id is DefaultLaneId {
+  return (LANE_IDS as readonly string[]).includes(id);
+}
+export const LaneIdSchema = v.picklist(ALL_LANE_IDS);
 
 /** Drum pieces (minimum set; engine may add more via schemaVersion bump). */
 export const DRUM_PIECES = [
@@ -358,9 +366,7 @@ export function laneMixGain(mixes: readonly LaneMix[], index: number): number {
  * so pre-mix documents render through unity gains and stay byte-stable.
  */
 export function documentLaneMixGains(doc: ProjectDocument): number[] {
-  const mixes = LANE_IDS.map((lane) =>
-    effectiveLaneMix(doc.lanes.find((l) => l.id === lane)!),
-  );
+  const mixes = doc.lanes.map(effectiveLaneMix);
   return mixes.map((_, i) => laneMixGain(mixes, i));
 }
 
@@ -397,6 +403,14 @@ export const LaneOctaveSchema = v.pipe(
 );
 
 export const LaneSchema = v.variant("id", [
+  ...EXTRA_LANE_IDS.map((id) =>
+    v.strictObject({
+      id: v.literal(id),
+      presetId: v.string(),
+      octave: v.optional(LaneOctaveSchema),
+      ...LaneCommon,
+    }),
+  ),
   v.strictObject({ id: v.literal("drums"), kitId: v.string(), ...LaneCommon }),
   v.strictObject({
     id: v.literal("bass"),
@@ -712,10 +726,10 @@ export function togglePitchedNote(
 }
 
 /** Patterns per lane, keyed by lane id. */
-export type LanePatterns = Readonly<Record<LaneId, readonly Pattern[]>>;
+export type LanePatterns = Readonly<LaneMap<readonly Pattern[]>>;
 
 /** Per-lane linear chain of pattern ids (ids may repeat). */
-export type SongChain = Readonly<Record<LaneId, readonly string[]>>;
+export type SongChain = Readonly<LaneMap<readonly string[]>>;
 
 /**
  * DES-6 named cue states: per-lane text labels on chain POSITIONS (parallel to
@@ -725,7 +739,7 @@ export type SongChain = Readonly<Record<LaneId, readonly string[]>>;
  * the field is optional+nullable, so v1 docs written before DES-6 stay valid.
  */
 export const CUE_MAX_CHARS = 12;
-export type LaneCues = Readonly<Record<LaneId, readonly (string | null)[]>>;
+export type LaneCues = Readonly<LaneMap<readonly (string | null)[]>>;
 
 // Empty-after-trim strings pass the SCHEMA and are canonicalized to null by
 // validate.ts (keeps "clear label" writes single-path in the store).
@@ -737,6 +751,10 @@ const ChainCuesSchema = v.nullable(
     bass: v.array(v.nullable(CueLabel)),
     chords: v.array(v.nullable(CueLabel)),
     lead: v.array(v.nullable(CueLabel)),
+    extra1: v.optional(v.array(v.nullable(CueLabel))),
+    extra2: v.optional(v.array(v.nullable(CueLabel))),
+    extra3: v.optional(v.array(v.nullable(CueLabel))),
+    extra4: v.optional(v.array(v.nullable(CueLabel))),
   }),
 );
 
@@ -749,7 +767,7 @@ const ChainCuesSchema = v.nullable(
  * existing documents stay byte-identical.
  */
 export type ChainSlotMode = "loop" | "next";
-export type LaneChainModes = Readonly<Record<LaneId, readonly ChainSlotMode[]>>;
+export type LaneChainModes = Readonly<LaneMap<readonly ChainSlotMode[]>>;
 
 const ChainSlotModeSchema = v.picklist(["loop", "next"]);
 
@@ -759,6 +777,10 @@ const ChainModesSchema = v.nullable(
     bass: v.array(ChainSlotModeSchema),
     chords: v.array(ChainSlotModeSchema),
     lead: v.array(ChainSlotModeSchema),
+    extra1: v.optional(v.array(ChainSlotModeSchema)),
+    extra2: v.optional(v.array(ChainSlotModeSchema)),
+    extra3: v.optional(v.array(ChainSlotModeSchema)),
+    extra4: v.optional(v.array(ChainSlotModeSchema)),
   }),
 );
 
@@ -871,6 +893,10 @@ const PatternsSchema = v.strictObject({
   bass: v.array(PatternSchema),
   chords: v.array(PatternSchema),
   lead: v.array(PatternSchema),
+  extra1: v.optional(v.array(PatternSchema)),
+  extra2: v.optional(v.array(PatternSchema)),
+  extra3: v.optional(v.array(PatternSchema)),
+  extra4: v.optional(v.array(PatternSchema)),
 });
 
 const SongChainSchema = v.strictObject({
@@ -878,6 +904,10 @@ const SongChainSchema = v.strictObject({
   bass: v.array(v.string()),
   chords: v.array(v.string()),
   lead: v.array(v.string()),
+  extra1: v.optional(v.array(v.string())),
+  extra2: v.optional(v.array(v.string())),
+  extra3: v.optional(v.array(v.string())),
+  extra4: v.optional(v.array(v.string())),
 });
 
 // ---------------------------------------------------------------------------
@@ -920,9 +950,13 @@ export const ProjectDocumentSchema = v.pipe(
         bass: v.optional(v.nullable(ScaleConfigSchema)),
         chords: v.optional(v.nullable(ScaleConfigSchema)),
         lead: v.optional(v.nullable(ScaleConfigSchema)),
+        extra1: v.optional(v.optional(v.nullable(ScaleConfigSchema))),
+        extra2: v.optional(v.optional(v.nullable(ScaleConfigSchema))),
+        extra3: v.optional(v.optional(v.nullable(ScaleConfigSchema))),
+        extra4: v.optional(v.optional(v.nullable(ScaleConfigSchema))),
       }),
     ),
-    lanes: v.pipe(v.array(LaneSchema), v.length(4)),
+    lanes: v.pipe(v.array(LaneSchema), v.minLength(4), v.maxLength(8)),
     patterns: PatternsSchema,
     songChain: SongChainSchema,
     // Optional (backward compatible): pre-DES-6 docs omit it entirely.

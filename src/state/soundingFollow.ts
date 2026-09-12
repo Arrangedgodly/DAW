@@ -23,7 +23,16 @@ import { selectPattern } from "./selection";
 
 const [sounding, setSounding] = createSignal<{
   readonly [L in LaneId]: string | null;
-}>({ drums: null, bass: null, chords: null, lead: null });
+}>({
+  drums: null,
+  bass: null,
+  chords: null,
+  extra1: null,
+  extra2: null,
+  extra3: null,
+  extra4: null,
+  lead: null,
+});
 
 /**
  * 2026-09-11 (user call): the sounding SLOT per lane — the section identity
@@ -34,7 +43,16 @@ const [sounding, setSounding] = createSignal<{
  */
 const [soundingSlot, setSoundingSlot] = createSignal<{
   readonly [L in LaneId]: number | null;
-}>({ drums: null, bass: null, chords: null, lead: null });
+}>({
+  drums: null,
+  bass: null,
+  chords: null,
+  extra1: null,
+  extra2: null,
+  extra3: null,
+  extra4: null,
+  lead: null,
+});
 
 export { sounding, soundingSlot };
 
@@ -150,8 +168,26 @@ export function mountSoundingFollow(): () => void {
       unsubscribe();
       unwatch();
       cancelAnimationFrame(followFrame);
-      setSounding({ drums: null, bass: null, chords: null, lead: null });
-      setSoundingSlot({ drums: null, bass: null, chords: null, lead: null });
+      setSounding({
+        drums: null,
+        bass: null,
+        chords: null,
+        extra1: null,
+        extra2: null,
+        extra3: null,
+        extra4: null,
+        lead: null,
+      });
+      setSoundingSlot({
+        drums: null,
+        bass: null,
+        chords: null,
+        extra1: null,
+        extra2: null,
+        extra3: null,
+        extra4: null,
+        lead: null,
+      });
     };
   }
   let released = false;

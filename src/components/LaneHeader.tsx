@@ -27,12 +27,13 @@
 import {
   createEffect,
   createSignal,
+  For,
   onCleanup,
   onMount,
   Show,
   type JSX,
 } from "solid-js";
-import { type LaneId } from "../document/schema";
+import { ALL_LANE_IDS, type LaneId } from "../document/schema";
 import { getSession } from "../engine/session";
 import { gainToVolumePercent, volumePercentToGain } from "../engine/mappings";
 import {
@@ -41,11 +42,13 @@ import {
   setLaneMix,
   setLaneScaleOverride,
   setLaneSoundId,
+  removeInstrumentLane,
   setProjectScale,
 } from "../state/store";
 import { laneScaleChipLabel, announceScale } from "../state/scaleChip";
 import {
   announceStage,
+  selectLane,
   octaveStatus,
   octaveText,
   stepLaneOctave,
@@ -86,7 +89,7 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
     {
       id: `lane.${lane}.sound`,
       title: `${n} ${kind === "kit" ? "KIT" : "PRESET"}`,
-      text: `Cycles through the ${kind}s ${n} can wear. Every step plays one note, so you hear the new sound the moment you land on it.`,
+      text: `Choose a ${kind} by name, or use minus and plus to step through sounds. Each change previews one note. Pitched tracks share the full instrument library.`,
     },
     {
       id: `lane.${lane}.volume`,
@@ -146,7 +149,7 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
   ];
 }
 
-for (const lane of ["drums", "bass", "chords", "lead"] as const) {
+for (const lane of ALL_LANE_IDS) {
   registerHelp(laneHelpEntries(lane));
 }
 
@@ -213,6 +216,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
+      if (!state.doc.lanes.some((lane) => lane.id === props.lane)) return;
       if (
         state.doc.lanes === prev.doc.lanes &&
         state.doc.scale === prev.doc.scale &&
@@ -289,13 +293,11 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       0,
       options().findIndex((o) => o.id === soundId()),
     );
-  const soundName = () => options()[soundIndex()]?.name ?? soundId();
-
-  const stepSound = (delta: number) => {
+  const chooseSound = (id: string) => {
     const list = options();
-    if (list.length === 0) return;
-    const index = soundIndex();
-    const next = list[(index + delta + list.length) % list.length];
+    const index = list.findIndex((o) => o.id === id);
+    if (index < 0 || id === soundId()) return;
+    const next = list[index];
     setLaneSoundId(props.lane, next.id);
     setSoundId(next.id);
     // PS-4 decode-on-selection law: the chosen sound's sample assets (if
@@ -305,11 +307,17 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     // resolve to zero refs and prime nothing.
     primeSoundContent([
       next.id,
-      list[(index + delta + 1 + list.length) % list.length]?.id ?? next.id,
-      list[(index + delta - 1 + list.length) % list.length]?.id ?? next.id,
+      list[(index + 1) % list.length]?.id ?? next.id,
+      list[(index - 1 + list.length) % list.length]?.id ?? next.id,
     ]);
     // One audition of the new sound (spec: preview on change).
     void session.audition(props.lane, props.lane === "drums" ? "kick" : 0);
+  };
+
+  const stepSound = (delta: number) => {
+    const list = options();
+    if (list.length)
+      chooseSound(list[(soundIndex() + delta + list.length) % list.length].id);
   };
 
   const stepGate = (delta: number) => {
@@ -349,10 +357,9 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   // exact HEAD markup.
   const NameLabel = () => (
     <span class="lane-name">
-      {props.lane[0]!.toUpperCase() + props.lane.slice(1)}
-      <span class="lane-state" aria-hidden="true">
-        {editable() ? "· EDIT" : "· VIEW"}
-      </span>
+      {props.lane.startsWith("extra")
+        ? `Track ${Number(props.lane.slice(-1)) + 4}`
+        : props.lane[0]!.toUpperCase() + props.lane.slice(1)}
     </span>
   );
 
@@ -375,9 +382,22 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         >
           –
         </button>
-        <span class="head-ctl-value" aria-live="polite">
-          <RollValue value={soundName()}>{soundName()}</RollValue>
-        </span>
+        <select
+          class="head-ctl-value head-sound-select"
+          aria-label={`${LANE_NAMES[props.lane]} ${props.lane === "drums" ? "kit" : "instrument preset"}`}
+          value={soundId()}
+          onChange={(e) => chooseSound(e.currentTarget.value)}
+        >
+          <For each={[...new Set(options().map((o) => o.family))]}>
+            {(family) => (
+              <optgroup label={family}>
+                <For each={options().filter((o) => o.family === family)}>
+                  {(option) => <option value={option.id}>{option.name}</option>}
+                </For>
+              </optgroup>
+            )}
+          </For>
+        </select>
         <button
           type="button"
           class="head-step-btn"
@@ -516,10 +536,14 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           when={stageMode() === "phone"}
           fallback={
             <>
-              <NameLabel />
-              <SoundGroup />
-              <Show when={props.lane !== "drums" && stageMode() !== "phone"}>
-                {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper —
+              <div class="lane-strip-row lane-strip-row-id">
+                <NameLabel />
+                <MixKeys />
+              </div>
+              <div class="lane-strip-row lane-strip-row-mix">
+                <SoundGroup />
+                <Show when={props.lane !== "drums" && stageMode() !== "phone"}>
+                  {/* RC-1 (v3, E8): the register readout + OCT −/+ stepper —
                     the preset/kit + gate stepper pattern, always operable
                     from every quadrant (KL-1's COMPACT-row placement).
                     SOUND-changing: the help entry fences it from VIEW-only
@@ -530,42 +554,42 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
                     card carries ONE octave control next to ONE semitone
                     control (the register VIEW row), so the two same-labeled
                     OCT controls never share a card. */}
-                <div
-                  class="head-ctl"
-                  role="group"
-                  aria-label={`${LANE_NAMES[props.lane]} octave`}
-                  data-help={`lane.${props.lane}.oct`}
-                >
-                  <span class="head-ctl-label" aria-hidden="true">
-                    OCT
-                  </span>
-                  <div class="head-stepper">
-                    <button
-                      type="button"
-                      class="head-step-btn"
-                      aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
-                      onClick={() => stepOctave(-1)}
-                    >
-                      –
-                    </button>
-                    <span class="head-ctl-value head-oct-value">
-                      <RollValue value={octave()}>
-                        {octaveText(octave())}
-                      </RollValue>
+                  <div
+                    class="head-ctl"
+                    role="group"
+                    aria-label={`${LANE_NAMES[props.lane]} octave`}
+                    data-help={`lane.${props.lane}.oct`}
+                  >
+                    <span class="head-ctl-label" aria-hidden="true">
+                      OCT
                     </span>
-                    <button
-                      type="button"
-                      class="head-step-btn"
-                      aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
-                      onClick={() => stepOctave(1)}
-                    >
-                      +
-                    </button>
+                    <div class="head-stepper">
+                      <button
+                        type="button"
+                        class="head-step-btn"
+                        aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
+                        onClick={() => stepOctave(-1)}
+                      >
+                        –
+                      </button>
+                      <span class="head-ctl-value head-oct-value">
+                        <RollValue value={octave()}>
+                          {octaveText(octave())}
+                        </RollValue>
+                      </span>
+                      <button
+                        type="button"
+                        class="head-step-btn"
+                        aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
+                        onClick={() => stepOctave(1)}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </Show>
-              <VolGroup />
-              <MixKeys />
+                </Show>
+                <VolGroup />
+              </div>
             </>
           }
         >
@@ -683,6 +707,29 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             </span>
           </Show>
         </button>
+
+        <Show when={props.lane.startsWith("extra")}>
+          <button
+            type="button"
+            class="head-fx"
+            aria-label={`Remove ${LANE_NAMES[props.lane].toLowerCase()}`}
+            title="Remove track and its notes. Undo restores them."
+            onClick={() => {
+              const lane = props.lane;
+              if (stageMode() === "phone") selectLane("drums");
+              queueMicrotask(() => removeInstrumentLane(lane));
+              queueMicrotask(() =>
+                document
+                  .querySelector<HTMLButtonElement>(
+                    `.phone-add-instrument, .instrument-empty[data-lane="${props.lane}"] button`,
+                  )
+                  ?.focus(),
+              );
+            }}
+          >
+            Remove track
+          </button>
+        </Show>
 
         {/* MB-2 (mobile slice): the FILL reveal — drums lane, NARROW stages
             only (phone + tablet render the fill rails as the MB-1 overlay;

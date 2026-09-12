@@ -8,6 +8,15 @@ principle, not a feature. No telemetry — not "off by default", _absent_.
 This document is the CA-1 record of how the guarantee is enforced, how it is
 tested, and what the app deliberately cannot do.
 
+## Optional WebMCP access
+
+WebMCP is off until the user enables it in Projects. It lets a connected agent read
+and edit the open project and request local exports. Bitbounce adds no remote
+request and keeps its CSP, but tool results cross into the agent's context. Its
+provider may process those results remotely. The site's CSP does not govern the
+agent's network use. The app-origin guarantees below do not promise that an
+enabled external agent keeps data on-device. See [WebMCP recovery and limits](webmcp.md).
+
 ## The guarantee
 
 After the page's own module/asset loads, Bitbounce makes **zero** network

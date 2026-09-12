@@ -1,5 +1,5 @@
 import { For, Show, type JSX } from "solid-js";
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { LANE_IDS, type DefaultLaneId as LaneId } from "../document/schema";
 import { composition, changeComposition } from "../viz/compositionState";
 import {
   editLayer,

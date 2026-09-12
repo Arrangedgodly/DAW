@@ -8,9 +8,11 @@
  */
 
 import { createSignal } from "solid-js";
+import { disableAgentAccess } from "../webmcp/access";
 import { decode } from "../document/codec";
 import type { ProjectDocument } from "../document/schema";
 import { createDemoProject } from "../document/demoSong";
+import { createBuiltInDemo, type DemoId } from "../document/builtInDemos";
 import { docStore, loadDocument } from "../state/store";
 import { armFirstRunNudge } from "../state/firstRun";
 import { showInfo, showError } from "../state/toasts";
@@ -26,7 +28,6 @@ import {
   listProjects,
   loadProject,
   mostRecentProject,
-  saveProject,
   type ProjectMeta,
 } from "./projectStore";
 import { createNewProject } from "./newProject";
@@ -37,6 +38,8 @@ import {
 } from "./quarantine";
 
 const [status, setStatus] = createSignal<AutosaveStatus>("idle");
+const [builtInDemo, setBuiltInDemo] = createSignal(false);
+export { builtInDemo };
 // HU-3: mtime of the last persisted row (seeded from the restored record on
 // boot, advanced on every successful flush) — drives "SAVED 12s AGO".
 const [lastSavedAt, setLastSavedAt] = createSignal<number | null>(null);
@@ -75,16 +78,24 @@ export function getBootDb(): ProjectDb | null {
   return activeDb;
 }
 
-function startController(projectId: string): void {
+function startController(projectId: string, previewDocument?: ProjectDocument): void {
   if (!activeDb) throw new Error("startController: persistence not booted");
-  activeProjectId = projectId;
+  activeProjectId = previewDocument ? null : projectId;
+  setBuiltInDemo(!!previewDocument);
+  setStatus("idle");
+  if (previewDocument) setLastSavedAt(null);
   controller = startAutosave({
     db: activeDb,
     projectId,
+    previewDocument,
+    onPreviewEdited: () => {
+      activeProjectId = projectId;
+      setBuiltInDemo(false);
+    },
     store: docStore,
     windowImpl: typeof window !== "undefined" ? window : undefined,
     onStatus: (next) => {
-      if (next === "saved") {
+      if (next === "saved" && !builtInDemo()) {
         // The controller exists by the time any transition fires (transitions
         // are async; startAutosave assigns synchronously below) — prefer its
         // stamped flush time over wall-clock.
@@ -98,7 +109,7 @@ function startController(projectId: string): void {
   void activeDb
     .getRecord(projectId)
     .then((row) => {
-      if (row && controller !== null) setLastSavedAt(row.updatedAt);
+      if (row && activeProjectId === projectId && !builtInDemo()) setLastSavedAt(row.updatedAt);
     })
     .catch(() => undefined);
 }
@@ -109,10 +120,30 @@ function startController(projectId: string): void {
  * target project. The document itself is loaded by the caller — AFTER this
  * call, so the old row can never receive the new bytes.
  */
-export async function switchToProject(projectId: string): Promise<void> {
+export async function switchToProject(projectId: string, options: { requireSaved?: boolean } = {}): Promise<void> {
   if (!activeDb) throw new Error("switchToProject: persistence not booted");
+  disableAgentAccess();
   await controller?.stop();
+  if (options.requireSaved && controller && (controller.getStatus() === "error" || controller.isPending())) {
+    // A failed final flush must keep the old project and its autosave active.
+    if (activeProjectId) startController(activeProjectId);
+    throw new Error("Current work could not be saved. The current project is still open.");
+  }
   startController(projectId);
+}
+
+/** Preview built-in content; first document edit promotes it to an autosaved copy. */
+export async function openBuiltInDemo(id: DemoId): Promise<void> {
+  if (!activeDb) throw new Error("Persistence is not ready");
+  disableAgentAccess();
+  await controller?.stop();
+  if (controller && (controller.getStatus() === "error" || controller.isPending())) {
+    if (activeProjectId) startController(activeProjectId);
+    throw new Error("Current work could not be saved");
+  }
+  const doc = createBuiltInDemo(id);
+  loadDocument(doc);
+  startController(crypto.randomUUID(), doc);
 }
 
 /** What a completed delete hands the UI (i6 §3): the held row is the UNDO payload. */
@@ -208,6 +239,7 @@ export async function initPersistence(
   const recent = await mostRecentProject(db);
   let projectId = BOOT_PROJECT_ID;
   let restored = false;
+  let previewDocument: ProjectDocument | undefined;
   let quarantined: QuarantineResult | undefined;
   if (recent) {
     try {
@@ -265,17 +297,14 @@ export async function initPersistence(
     }
   } else {
     // First boot (PX-1): the WELCOME SONG demo — a real, fully editable
-    // project (autosaves, exports) that teaches by example. NEW still creates
-    // the empty default (newProject.ts). Persist immediately so the row
-    // exists and the saved indicator starts from a truthful "saved".
+    // project that teaches by example. It remains a preview until edited;
+    // NEW still creates the empty saved default (newProject.ts).
     const demo = createDemoProject();
     loadDocument(demo);
-    const now = opts.now?.() ?? Date.now();
-    await saveProject(db, projectId, demo, { now });
-    setLastSavedAt(now);
+    previewDocument = demo;
     armFirstRunNudge();
   }
-  startController(projectId);
+  startController(projectId, previewDocument);
   // Narrow for the result type (startController always assigns synchronously).
   const started = controller as AutosaveController;
   return {

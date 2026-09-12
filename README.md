@@ -148,13 +148,28 @@ escape hatch.
 | WAV    | 16-bit stereo 44.1 kHz — renders exactly one full cycle of your arrangement (the least-common multiple of the lane lengths), sample-exact, effect tails folded into the loop start, per-lane mix applied. Drop it straight into a game engine. |
 | MIDI   | Type-1 SMF — tempo track plus one track per lane, drums on GM channel 10, instrument program hints; spans that same cycle, each lane's patterns repeating at their own length inside it. Every note exports, mute and solo notwithstanding. |
 
+## Experimental agent control with WebMCP
+
+In a compatible browser, open **Projects → Allow agent access** to let a connected
+agent edit notes, instruments, effects, scales and the arrangement, control playback
+and export files. First choose **Edit this project** or **Save and start a new project**.
+Agents must request a fresh destination choice when a later request is ambiguous.
+Edits are blocked while that choice is pending. Each musical edit supports Undo. **Restore before agent** returns
+to the project before the agent's first change and turns access off. That restore
+also removes later manual edits.
+
+Access and recovery last until reload or a project switch. WebMCP does not supply
+an AI model or chat interface. The connected agent's provider may process the
+project information it reads. See [setup, tools and recovery](docs/dev/webmcp.md).
+
 ## Privacy: local-first, forever
 
 Bitbounce never calls a third party while you use it — the
 Content-Security-Policy forbids it (`connect-src 'self'`: the only network is
 fetching Bitbounce's own bundled sound files, and even that is optional and
 lazy). No accounts, no analytics, no cloud. Projects live in your browser's
-IndexedDB and leave only as files you explicitly export. The full stance:
+IndexedDB. Files leave through explicit exports; enabling WebMCP also shares tool
+results with the connected agent, whose provider may process them remotely. The full stance:
 [docs/dev/privacy.md](docs/dev/privacy.md).
 
 **Browsers:** desktop Chromium (Chrome, Edge) is the target; Firefox is

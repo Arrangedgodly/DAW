@@ -23,6 +23,7 @@ import App from "../../src/App";
 import { currentPatternFor } from "../../src/state/selection";
 import { docStore } from "../../src/state/store";
 import { pitchedCellAt, resolveGateSteps } from "../../src/document/schema";
+import { pitchDomain } from "../../src/document/pitchWindow";
 
 function activePatternOf(lane: "drums" | "lead") {
   const p = currentPatternFor(lane);
@@ -189,8 +190,8 @@ describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
       const leadPattern = activePatternOf("lead");
       if (leadPattern.kind !== "pitched")
         throw new Error("expected pitched lead pattern");
-      // SC-1 v2: observe the toggle through the v1 cell view (row index maps
-      // to the pattern's rowDegrees manifest, exactly like the rendered grid).
+      // The grid's row index addresses the full MIDI pitch domain, not the
+      // persisted pattern row manifest, which may contain only occupied rows.
       const doc = docStore.getState().doc;
       const gateSteps = resolveGateSteps(
         doc.lanes.find((l) => l.id === "lead")!.gate,
@@ -198,7 +199,7 @@ describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
       );
       const cellBefore = (p: typeof leadPattern): boolean => {
         if (p.kind !== "pitched") throw new Error("expected pitched");
-        const degree = p.rowDegrees[leadRow]!;
+        const degree = pitchDomain(doc, "lead").degrees[leadRow]!;
         return pitchedCellAt(p, gateSteps, degree, leadStep) !== 0;
       };
       const leadBefore = cellBefore(leadPattern);

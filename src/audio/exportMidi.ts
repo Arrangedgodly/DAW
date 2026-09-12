@@ -65,7 +65,6 @@
 import { writeMidi, type MidiData, type MidiEvent } from "midi-file";
 import {
   DRUM_PIECES,
-  LANE_IDS,
   type DrumPiece,
   type LaneGate,
   type LaneId,
@@ -117,6 +116,10 @@ export const LANE_CHANNELS: Readonly<Record<Exclude<LaneId, "drums">, number>> =
     bass: 0,
     chords: 1,
     lead: 2,
+    extra1: 3,
+    extra2: 4,
+    extra3: 5,
+    extra4: 6,
   } as const;
 
 /** Fallback octave of scale degree 0 when a preset carries no pitch range. */
@@ -126,6 +129,10 @@ export const LANE_OCTAVE_FALLBACK: Readonly<
   bass: 2,
   chords: 3,
   lead: 4,
+  extra1: 4,
+  extra2: 4,
+  extra3: 4,
+  extra4: 4,
 } as const;
 
 /**
@@ -136,6 +143,22 @@ export const LANE_OCTAVE_FALLBACK: Readonly<
 export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
   // GM 0-based: 16 Drawbar Organ, 34 Electric Bass (pick), 35 Fretless,
   // 38 Synth Bass 1, 39 Synth Bass 2
+  "preset-bells-crystal": 14,
+  "preset-bells-musicbox": 10,
+  "preset-bells-church": 14,
+  "preset-bells-vibes": 11,
+  "preset-brass-trumpet": 56,
+  "preset-brass-horn": 60,
+  "preset-brass-section": 61,
+  "preset-brass-staccato": 62,
+  "preset-fx-riser": 103,
+  "preset-fx-wind": 122,
+  "preset-fx-laser": 103,
+  "preset-fx-shimmer": 98,
+  "preset-keys-reed": 20,
+  "preset-strings-dulcimer": 15,
+  "preset-strings-zither": 107,
+  "preset-pads-air": 89,
   "preset-bass-1": 38, // THICK PULSE → Synth Bass 1
   "preset-bass-2": 39, // SUB TRI → Synth Bass 2
   "preset-bass-3": 38, // GLUE P25 → Synth Bass 1
@@ -197,6 +220,10 @@ export const TRACK_NAMES = {
   bass: "BASS",
   chords: "CHORDS",
   lead: "LEAD",
+  extra1: "INSTRUMENT 5",
+  extra2: "INSTRUMENT 6",
+  extra3: "INSTRUMENT 7",
+  extra4: "INSTRUMENT 8",
 } as const;
 
 export const TRACK_COUNT = 5; // track 0 (tempo/cues) + 4 lanes
@@ -251,7 +278,9 @@ function gateDurationTicks(gate: LaneGate, bpm: number): number {
  * a degenerate all-empty document falls back to the constant 16.
  */
 export function exportCycleSteps(doc: ProjectDocument): number {
-  return computeLoopSteps(LANE_IDS.map((lane) => laneCycleSteps(doc, lane)));
+  return computeLoopSteps(
+    doc.lanes.map((l) => l.id).map((lane) => laneCycleSteps(doc, lane)),
+  );
 }
 
 /**
@@ -393,7 +422,7 @@ export function buildCueMarkers(
   const seen = new Set<string>();
   const out: { tick: number; text: string }[] = [];
   // Fixed lane order (LANE_IDS, not Object.keys — canonical key-sorting).
-  for (const lane of LANE_IDS) {
+  for (const { id: lane } of doc.lanes) {
     const labels = cues[lane];
     if (!labels) continue;
     const chain = resolveChainPatterns(doc, lane);

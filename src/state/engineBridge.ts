@@ -14,12 +14,16 @@
  * two-tier split).
  */
 
-import { compileLaneSchedule, laneCycleSteps, resolveChainSlots } from "../audio/song";
+import {
+  compileLaneSchedule,
+  laneCycleSteps,
+  resolveChainSlots,
+} from "../audio/song";
 import { computeLoopSteps } from "../audio/render";
 import { getDrumKit, getPreset, sampleRefsForSound } from "../audio/presets";
 import {
   type LaneId,
-  LANE_IDS,
+  ALL_LANE_IDS,
   effectiveLaneMix,
   type ProjectDocument,
 } from "../document/schema";
@@ -27,8 +31,6 @@ import { effectiveScale } from "../document/scales";
 import { getSession, type Session } from "../engine/session";
 import { showError } from "./toasts";
 import { docStore } from "./store";
-
-const PITCHED_LANES = ["bass", "chords", "lead"] as const;
 
 function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
   const slots = resolveChainSlots(doc, lane);
@@ -58,8 +60,7 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
           stackChord: lane === "chords",
           // RC-1 (v3): the lane's register offset rides the one compiler —
           // the OCT control's live recompile (audible) lands here.
-          octaveOffset:
-            (laneConf as { octave?: number }).octave ?? 0,
+          octaveOffset: (laneConf as { octave?: number }).octave ?? 0,
         }),
   });
 }
@@ -85,7 +86,7 @@ export function requestPatternSwitch(
   session: Session = getSession(),
 ): void {
   const doc = docStore.getState().doc;
-  const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  const pattern = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
   if (!pattern) return;
   const schedule = laneScheduleFor(
     { ...doc, songChain: { ...doc.songChain, [lane]: [patternId] } },
@@ -136,6 +137,13 @@ export function primeSoundContent(soundIds: readonly string[]): void {
 /** Push the document's effective scales + lane sound ids + FX chains + mix. */
 function syncLaneConfig(doc: ProjectDocument, session: Session): void {
   const soundIds: string[] = [];
+  for (const id of ALL_LANE_IDS) {
+    if (
+      !doc.lanes.some((l) => l.id === id) &&
+      session.getLaneCycleSteps?.(id) != null
+    )
+      session.clearLane(id);
+  }
   for (const laneConf of doc.lanes) {
     const soundId =
       laneConf.id === "drums" ? laneConf.kitId : laneConf.presetId;
@@ -155,8 +163,8 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
   // PS-4: keep the current sounds' sample assets decoded (warm after the
   // first selection; a no-op for synth-only projects).
   primeSoundContent(soundIds);
-  for (const lane of PITCHED_LANES) {
-    session.setLaneScale(lane, effectiveScale(doc, lane));
+  for (const { id: lane } of doc.lanes) {
+    if (lane !== "drums") session.setLaneScale(lane, effectiveScale(doc, lane));
   }
 }
 
@@ -172,7 +180,7 @@ function syncLaneConfig(doc: ProjectDocument, session: Session): void {
  * longest lane (I3-d); the SV-1 compat derivation retired with this swap.
  */
 function docCycleSteps(doc: ProjectDocument): number {
-  return computeLoopSteps(LANE_IDS.map((lane) => laneCycleSteps(doc, lane)));
+  return computeLoopSteps(doc.lanes.map(({ id }) => laneCycleSteps(doc, id)));
 }
 
 /**
@@ -254,10 +262,10 @@ export function connectStoreToEngine(
         confChanged(
           doc.lanes.find((l) => l.id === lane),
           prev.doc.lanes.find((l) => l.id === lane),
-        ) || doc.songChain[lane] !== prev.doc.songChain[lane];
+        ) || (doc.songChain[lane] ?? []) !== (prev.doc.songChain[lane] ?? []);
       const pitchedScaleChanged = scaleChanged && lane !== "drums";
       if (
-        doc.patterns[lane] !== prev.doc.patterns[lane] ||
+        (doc.patterns[lane] ?? []) !== (prev.doc.patterns[lane] ?? []) ||
         laneConfChanged ||
         pitchedScaleChanged ||
         grooveChanged

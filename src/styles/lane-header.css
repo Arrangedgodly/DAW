@@ -43,6 +43,14 @@
   white-space: nowrap;
 }
 
+/* Named selects need more room than the old readout, especially for Chords. */
+.app.membrane:not([data-stage="phone"]) .lane-strip-compact {
+  flex-wrap: wrap;
+}
+.app.membrane:not([data-stage="phone"]) .lane-strip-compact .lane-name {
+  flex-shrink: 0;
+}
+
 /* ---------------------------------------------------------------------------
  * T6 — the LANE LED ACCENT (route.md playback-reactivity #5 → #6 tie).
  * A chrome-ringed LED before the lane name, carrying the lane hue as an
@@ -128,8 +136,7 @@
   line-height: 1;
   color: var(--color-ink);
   background: var(--metal-raised);
-  border: 1px solid
-    color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 38%, var(--metal-raised));
   /* 3px, not the booth key's 4: the euclid overlay's corner-reachability
    * law probes 1px inside every box corner — at 4px radius the corner probe
    * falls outside the rounded hit shape (tests/browser/target-size MB-3). */
@@ -156,6 +163,43 @@
 .head-vol-value {
   min-width: 4ch;
   text-align: right;
+}
+
+.head-sound-select {
+  width: 132px;
+  min-width: 0;
+  height: 28px;
+  padding: 2px 4px;
+  border: 1px solid var(--theme-line);
+  border-radius: 4px;
+  background: var(--metal-panel);
+  color: var(--color-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Native popup rows need their own opaque colors, not just the select's ink. */
+.head-sound-select option,
+.head-sound-select optgroup {
+  background-color: var(--metal-panel);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.head-sound-select optgroup {
+  font-weight: 700;
+}
+
+.head-sound-select option {
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .head-sound-select {
+    height: 44px;
+    width: 128px;
+  }
 }
 
 /* RC-1 (v3): the OCT register readout — signed one/two-char value; the
@@ -189,7 +233,9 @@
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
-  box-shadow: var(--micro-recess); /* 2026-09-05 polish: the milled-slot walls (see booth.css) */
+  box-shadow: var(
+    --micro-recess
+  ); /* 2026-09-05 polish: the milled-slot walls (see booth.css) */
 }
 
 .head-range::-moz-range-track {
@@ -369,8 +415,7 @@
   gap: var(--space-4);
   background-color: var(--metal-panel);
   background-image: var(--metal-brush);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
   box-shadow: var(--elev-3);
 }

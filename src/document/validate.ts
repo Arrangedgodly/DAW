@@ -19,6 +19,7 @@ import { isValiError } from "valibot";
 import * as v from "valibot";
 import {
   DRUM_PIECES,
+  ALL_LANE_IDS,
   LANE_IDS,
   NOTE_LENGTH_GRANULARITY,
   ProjectDocumentSchema,
@@ -144,15 +145,34 @@ function semanticIssues(doc: ProjectDocument): string[] {
 
   // Lanes: fixed order, exact set.
   doc.lanes.forEach((lane, i) => {
-    if (lane.id !== LANE_IDS[i])
+    if (
+      (i < 4 && lane.id !== LANE_IDS[i]) ||
+      (i >= 4 &&
+        ALL_LANE_IDS.indexOf(lane.id) <=
+          ALL_LANE_IDS.indexOf(doc.lanes[i - 1].id))
+    )
       issues.push(`lanes.${i}.id: expected '${LANE_IDS[i]}', got '${lane.id}'`);
   });
 
+  for (const id of ALL_LANE_IDS) {
+    const present = doc.lanes.some((l) => l.id === id);
+    if (present && (!doc.patterns[id] || !doc.songChain[id]))
+      issues.push("Missing patterns or chain for " + id);
+    if (
+      !present &&
+      (doc.patterns[id] !== undefined ||
+        doc.songChain[id] !== undefined ||
+        doc.chainCues?.[id] !== undefined ||
+        doc.chainModes?.[id] !== undefined ||
+        doc.laneOverrides?.[id] != null)
+    )
+      issues.push("Orphan lane data for " + id);
+  }
   // Scale + overrides name known modes.
   if (!isModeName(doc.scale.mode))
     issues.push(`scale.mode: unknown mode '${doc.scale.mode}'`);
   if (doc.laneOverrides) {
-    for (const laneId of LANE_IDS) {
+    for (const { id: laneId } of doc.lanes) {
       const o = doc.laneOverrides[laneId];
       if (o && !isModeName(o.mode))
         issues.push(`laneOverrides.${laneId}.mode: unknown mode '${o.mode}'`);
@@ -160,8 +180,8 @@ function semanticIssues(doc: ProjectDocument): string[] {
   }
 
   // Patterns per lane: kind matches lane, ids unique within a lane.
-  for (const laneId of LANE_IDS) {
-    const patterns = doc.patterns[laneId];
+  for (const { id: laneId } of doc.lanes) {
+    const patterns = doc.patterns[laneId] ?? [];
     const expectedKind = laneId === "drums" ? "drums" : "pitched";
     const seen = new Set<string>();
     patterns.forEach((p, i) => {
@@ -178,7 +198,7 @@ function semanticIssues(doc: ProjectDocument): string[] {
     });
 
     // Song chain references must exist in that lane's patterns.
-    doc.songChain[laneId].forEach((id, i) => {
+    (doc.songChain[laneId] ?? []).forEach((id, i) => {
       if (!seen.has(id))
         issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
     });
@@ -204,17 +224,17 @@ function semanticIssues(doc: ProjectDocument): string[] {
 
     // DES-6 cue labels are positional: one entry per chain slot (parallel array).
     const cues = doc.chainCues?.[laneId];
-    if (cues && cues.length !== doc.songChain[laneId].length) {
+    if (cues && cues.length !== (doc.songChain[laneId] ?? []).length) {
       issues.push(
-        `chainCues.${laneId}: expected ${doc.songChain[laneId].length} cue slots (one per chain position), got ${cues.length}`,
+        `chainCues.${laneId}: expected ${(doc.songChain[laneId] ?? []).length} cue slots (one per chain position), got ${cues.length}`,
       );
     }
 
     // ⟲/→ slot follow modes are positional too (parallel array).
     const modes = doc.chainModes?.[laneId];
-    if (modes && modes.length !== doc.songChain[laneId].length) {
+    if (modes && modes.length !== (doc.songChain[laneId] ?? []).length) {
       issues.push(
-        `chainModes.${laneId}: expected ${doc.songChain[laneId].length} mode slots (one per chain position), got ${modes.length}`,
+        `chainModes.${laneId}: expected ${(doc.songChain[laneId] ?? []).length} mode slots (one per chain position), got ${modes.length}`,
       );
     }
   }
@@ -265,8 +285,8 @@ function normalizePattern(p: Pattern): Pattern {
 export function normalizeProject(doc: ProjectDocument): ProjectDocument {
   const patterns = {} as Record<LaneId, Pattern[]>;
   let changed = false;
-  for (const laneId of LANE_IDS) {
-    const source = doc.patterns[laneId];
+  for (const { id: laneId } of doc.lanes) {
+    const source = doc.patterns[laneId] ?? [];
     const normalized = source.map(normalizePattern);
     // Keep array identity per lane when every pattern survived unchanged.
     patterns[laneId] = normalized.some((p, i) => p !== source[i])
@@ -288,7 +308,7 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
   let anyLabel = false;
   let changed = false;
   const next = {} as Record<LaneId, (string | null)[]>;
-  for (const lane of LANE_IDS) {
+  for (const { id: lane } of doc.lanes) {
     const slots = doc.chainCues[lane] ?? [];
     next[lane] = slots.map((label) => {
       const trimmed = (label ?? "").trim();
@@ -316,7 +336,7 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
 export function canonicalizeModes(doc: ProjectDocument): ProjectDocument {
   if (doc.chainModes === undefined) return doc;
   const modes = doc.chainModes;
-  if (modes && LANE_IDS.some((lane) => modes[lane].includes("loop")))
+  if (modes && doc.lanes.some(({ id }) => modes[id]?.includes("loop")))
     return doc;
   const next = { ...doc };
   delete next.chainModes;
@@ -330,9 +350,7 @@ export function canonicalizeModes(doc: ProjectDocument): ProjectDocument {
  * byte-stable whatever path authored them). Identity-preserving when
  * nothing changes; drums never carry the field (strict schema).
  */
-export function canonicalizeLaneOctaves(
-  doc: ProjectDocument,
-): ProjectDocument {
+export function canonicalizeLaneOctaves(doc: ProjectDocument): ProjectDocument {
   let changed = false;
   const lanes = doc.lanes.map((lane) => {
     if (lane.id === "drums" || lane.octave === undefined || lane.octave !== 0)

@@ -1,4 +1,4 @@
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { LANE_IDS, type DefaultLaneId as LaneId } from "../document/schema";
 
 export const COMPOSITION_KEY = "bitbounce.viz.composition.v2";
 export const VISUAL_EFFECTS = [

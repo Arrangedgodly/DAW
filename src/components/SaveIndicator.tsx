@@ -10,7 +10,7 @@
  */
 
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { autosaveStatus, getLastSavedAt } from "../persist/boot";
+import { autosaveStatus, getLastSavedAt, builtInDemo } from "../persist/boot";
 import { fullTimestamp } from "../lib/reltime";
 import { indicatorLabel } from "../lib/saveIndicator";
 import { registerHelp } from "../help/registry";
@@ -37,7 +37,10 @@ export default function SaveIndicator() {
     onCleanup(() => clearInterval(id));
   });
 
-  const label = () => indicatorLabel(autosaveStatus(), getLastSavedAt(), now());
+  const label = () =>
+    builtInDemo()
+      ? "BUILT-IN DEMO"
+      : indicatorLabel(autosaveStatus(), getLastSavedAt(), now());
   const aria = () => {
     const savedAt = getLastSavedAt();
     return savedAt === null

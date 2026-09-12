@@ -2,9 +2,10 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "coverage", "docs", ".impeccable"] },
+  { ignores: ["dist", "coverage", "docs", ".impeccable", ".claude"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  { languageOptions: { parserOptions: { tsconfigRootDir: import.meta.dirname } } },
   {
     files: ["**/*.{ts,tsx}"],
   },
@@ -20,6 +21,10 @@ export default tseslint.config(
   },
   // AudioWorklet globals: the worklet file is plain JS evaluated inside the
   // AudioWorkletGlobalScope (registerProcessor, sampleRate, currentTime, ...).
+  {
+    files: ["scripts/verify-song-layout.mjs"],
+    languageOptions: { globals: { document: "readonly", innerWidth: "readonly" } },
+  },
   {
     files: ["src/audio/worklets/*.js"],
     languageOptions: {

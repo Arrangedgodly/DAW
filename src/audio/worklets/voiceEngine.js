@@ -108,6 +108,8 @@ function karplusStep(line, pos, len, damp) {
 
 var WAVE_TRIANGLE = 1;
 var WAVE_PLUCK = 3;
+var WAVE_BELL = 4;
+var WAVE_BRASS = 5;
 
 /**
  * Karplus–Strong delay-line budget (PS-1): covers pitches down to
@@ -235,6 +237,25 @@ function voiceSample(v, invSampleRate) {
       osc = karplusStep(v.pluckLine, v.pluckPos, v.pluckLen, v.pluckDamp);
       v.pluckPos += 1;
       if (v.pluckPos >= v.pluckLen) v.pluckPos = 0;
+    } else if (v.wave === WAVE_BELL || v.wave === WAVE_BRASS) {
+      // Additive partials stay below Nyquist, including high grid registers.
+      // Bell phase remains unwrapped to preserve inharmonic partial continuity.
+      var angle = v.phase * 2 * Math.PI;
+      osc = Math.sin(angle) * 0.55;
+      if (v.wave === WAVE_BELL) {
+        var ratio = 2 + v.duty * 2;
+        if (v.freq * ratio < 0.48 / invSampleRate)
+          osc += 0.3 * Math.sin(angle * ratio) * Math.exp(-v.t * 3);
+        if (v.freq * 5.43 < 0.48 / invSampleRate)
+          osc += 0.15 * Math.sin(angle * 5.43) * Math.exp(-v.t * 7);
+      } else {
+        var brightness = v.duty * (0.6 + 0.4 * Math.min(1, v.t / 0.06));
+        for (var harmonic = 2; harmonic <= 6; harmonic++) {
+          if (v.freq * harmonic < 0.48 / invSampleRate)
+            osc += (Math.sin(angle * harmonic) * brightness * 0.28) / harmonic;
+        }
+      }
+      v.phase += v.freq * invSampleRate;
     } else if (v.wave === WAVE_TRIANGLE) {
       osc = triangleValue(v.phase);
       v.phase += v.freq * invSampleRate;

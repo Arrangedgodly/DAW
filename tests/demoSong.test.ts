@@ -27,7 +27,7 @@ import { expectGolden } from "./golden/golden";
 import { createMemoryProjectDb } from "../src/persist/db";
 import { initPersistence } from "../src/persist/boot";
 import { createNewProject } from "../src/persist/newProject";
-import { docStore } from "../src/state/store";
+import { docStore, setProjectName } from "../src/state/store";
 import {
   armFirstRunNudge,
   dismissFirstRunNudge,
@@ -241,23 +241,23 @@ describe("PX-1 boot contract", () => {
     expect(result.restored).toBe(false);
     expect(docStore.getState().doc.name).toBe("WELCOME SONG");
     expect(firstRunNudge()).toBe(true);
-    // The demo is a REAL saved project row.
+    // Untouched demos are not saved projects.
     const row = await db.getRecord(result.projectId);
-    expect(row!.name).toBe("WELCOME SONG");
-    expect(() => validateProject(JSON.parse(row!.json))).not.toThrow();
+    expect(row).toBeUndefined();
     await result.controller.stop();
     dismissFirstRunNudge();
   });
 
-  it("second boot restores the demo row (no nudge)", async () => {
+  it("second boot restores an edited demo copy (no nudge)", async () => {
     const db = createMemoryProjectDb();
     const first = await initPersistence({ db, now: () => 1000 });
+    setProjectName("My welcome variation");
     await first.controller.stop();
     dismissFirstRunNudge();
     const second = await initPersistence({ db, now: () => 2000 });
     expect(second.restored).toBe(true);
     expect(second.projectId).toBe(first.projectId);
-    expect(docStore.getState().doc.name).toBe("WELCOME SONG");
+    expect(docStore.getState().doc.name).toBe("My welcome variation");
     expect(firstRunNudge()).toBe(false); // not a first run anymore
     await second.controller.stop();
   });

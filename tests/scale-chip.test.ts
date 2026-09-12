@@ -195,7 +195,7 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
 });
 
 describe("sound options", () => {
-  it("drums cycle kits; pitched lanes cycle their own presets only", () => {
+  it("drums cycle kits; pitched lanes share the full instrument library", () => {
     // PS-1: the libraries now carry 10 kits / 12 presets per lane — assert
     // against the libraries themselves (stepper order = insertion order)
     // plus the lane-scoping law, instead of pinning every id by hand.
@@ -203,14 +203,21 @@ describe("sound options", () => {
     expect(kitIds.length).toBeGreaterThanOrEqual(10);
     expect(soundOptionsFor("drums").map((o) => o.id)).toEqual(kitIds);
     for (const lane of ["bass", "chords", "lead"] as const) {
-      const expected = Object.keys(PRESET_LIBRARY).filter((id) =>
-        id.startsWith(`preset-${lane}-`),
-      );
+      const expected = Object.values(PRESET_LIBRARY)
+        .filter((p) => p.pitchRange)
+        .map((p) => p.id)
+        .sort();
       expect(expected.length).toBeGreaterThanOrEqual(12);
-      expect(soundOptionsFor(lane).map((o) => o.id)).toEqual(expected);
+      expect(
+        soundOptionsFor(lane)
+          .map((o) => o.id)
+          .sort(),
+      ).toEqual(expected);
       // every lane option is that lane's (no cross-lane leakage, no kits).
       expect(
-        soundOptionsFor(lane).every((o) => o.id.startsWith(`preset-${lane}-`)),
+        soundOptionsFor(lane).every(
+          (o) => PRESET_LIBRARY[o.id]?.pitchRange !== undefined,
+        ),
       ).toBe(true);
     }
   });

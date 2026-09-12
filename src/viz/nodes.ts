@@ -1,3 +1,4 @@
+import { isDefaultLane } from "../document/schema";
 /**
  * VizNodeEngine (VZ-IM-5) — the node rendering engine: arrangement nodes
  * become canvas light. Per-kind draw paths for the six vocabulary kinds
@@ -102,7 +103,7 @@
  * are onFrame ARGUMENTS — the caller's injected clock, read fresh per frame.
  */
 
-import { LANE_IDS, type LaneId } from "../document/schema";
+import { LANE_IDS, type DefaultLaneId as LaneId } from "../document/schema";
 import type { VizNoteOn } from "../engine/session";
 import {
   generateArrangement,
@@ -441,7 +442,9 @@ export function oneShotEnvelope(
  * non-finite pitch reads the neutral center 0.5 (the visual never breaks on
  * degenerate engine data).
  */
-export const VIZ_LANE_PITCH_WINDOWS: Readonly<Record<LaneId, readonly [number, number]>> = {
+export const VIZ_LANE_PITCH_WINDOWS: Readonly<
+  Record<LaneId, readonly [number, number]>
+> = {
   drums: [45, 120],
   bass: [36, 60],
   chords: [48, 72],
@@ -540,7 +543,10 @@ export function stageOf(width: number, height: number): VizStage {
 }
 
 /** The node's anchor in CSS px (placement fractions of width/height). */
-export function anchorOf(node: VizNode, stage: VizStage): {
+export function anchorOf(
+  node: VizNode,
+  stage: VizStage,
+): {
   readonly x: number;
   readonly y: number;
 } {
@@ -599,14 +605,8 @@ export function rippleGeometry(
   u: number,
 ): { readonly radius: number; readonly thickness: number } {
   const r0min = numField(node.params, node.kind, "r0min");
-  const r0max = Math.max(
-    r0min,
-    numField(node.params, node.kind, "r0max"),
-  );
-  const rEnd = Math.max(
-    r0max,
-    numField(node.params, node.kind, "rEnd"),
-  );
+  const r0max = Math.max(r0min, numField(node.params, node.kind, "r0max"));
+  const rEnd = Math.max(r0max, numField(node.params, node.kind, "rEnd"));
   const thickness = numField(node.params, node.kind, "thickness");
   const uu = clamp01(u);
   const r0 = r0min + clamp01(p) * (r0max - r0min);
@@ -640,7 +640,7 @@ export function streakSpan(
   });
   const half = (length / 2) * stage.unit;
   return {
-    start: along(((clamp01(p) - 0.5) * length) * stage.unit),
+    start: along((clamp01(p) - 0.5) * length * stage.unit),
     end: along(half),
   };
 }
@@ -699,7 +699,7 @@ export function riverPitchPoint(
   const angle = numField(node.params, node.kind, "angle");
   const length = numField(node.params, node.kind, "length");
   const dir = degToUnitVector(angle);
-  const d = ((clamp01(p) - 0.5) * length) * stage.unit;
+  const d = (clamp01(p) - 0.5) * length * stage.unit;
   return { x: anchor.x + dir.x * d, y: anchor.y + dir.y * d };
 }
 
@@ -759,8 +759,10 @@ export function enumerateIgnition(
   hit: VizNoteOn,
 ): readonly VizIgnitionSeed[] {
   if (!arrangement || !Number.isFinite(hit.audibleAt)) return [];
+  const lane = hit.lane;
+  if (!isDefaultLane(lane)) return [];
   const amplitude = visualAmplitudeOf(hit.velocity);
-  const p = canonicalPitch(hit.lane, hit.pitch);
+  const p = canonicalPitch(lane, hit.pitch);
   const seeds: VizIgnitionSeed[] = [];
   arrangement.nodes.forEach((node, nodeIndex) => {
     if (seeds.length >= VIZ_MAX_HIT_OBJECTS_PER_LANE) return;
@@ -772,7 +774,7 @@ export function enumerateIgnition(
     const base = {
       nodeIndex,
       kind: node.kind,
-      lane: hit.lane,
+      lane,
       birth: hit.audibleAt,
       decay,
       amplitude,
@@ -925,10 +927,7 @@ function readLaneHuesFromTokens(): Record<LaneId, string> {
 }
 
 function readRestHueFromTokens(): string {
-  if (
-    typeof document === "undefined" ||
-    typeof getComputedStyle !== "function"
-  )
+  if (typeof document === "undefined" || typeof getComputedStyle !== "function")
     return "";
   return getComputedStyle(document.documentElement)
     .getPropertyValue(REST_HUE_TOKEN)
@@ -953,7 +952,9 @@ function bakeGlowSprite(
   if (typeof document === "undefined" || !hue) return null;
   const size = Math.max(
     16,
-    Math.round(SPRITE_LOGICAL_SIZE * (Number.isFinite(dpr) && dpr > 0 ? dpr : 1)),
+    Math.round(
+      SPRITE_LOGICAL_SIZE * (Number.isFinite(dpr) && dpr > 0 ? dpr : 1),
+    ),
   );
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -1031,9 +1032,7 @@ const REST_DASH: number[] = [4, 6];
  * with their audio-clock births — the age VZ-HU-3's oldest-first policy
  * reads; the cap evicts at SPAWN (ignite), never mid-draw.
  */
-export function createVizNodeEngine(
-  opts: VizNodeEngineOptions,
-): VizNodeEngine {
+export function createVizNodeEngine(opts: VizNodeEngineOptions): VizNodeEngine {
   const hues = opts.hues ?? readLaneHuesFromTokens();
   const laneEq = laneLuminanceEqualizer(hues);
   const restHue = opts.restHue ?? readRestHueFromTokens();
@@ -1062,9 +1061,7 @@ export function createVizNodeEngine(
   // VZ-DD-3 state: the draw mode + the flash-ceiling ledger (one trailing
   // admission window PER NODE — a node is one screen region).
   let reducedMotion = false;
-  let flashWindows: number[][] = (opts.arrangement?.nodes ?? []).map(
-    () => [],
-  );
+  let flashWindows: number[][] = (opts.arrangement?.nodes ?? []).map(() => []);
   const held = new Map<number, VizHeldMark>();
   let flashAdmits = 0;
   let flashMerges = 0;
@@ -1270,8 +1267,15 @@ export function createVizNodeEngine(
       switch (node.kind) {
         case "bloom":
           // "A faint dot at the anchor."
-          blit(ctx, hue, numField(node.params, node.kind, "halo"), alpha,
-            anchor.x, anchor.y, REST_DOT_DIAMETER_STAGE_UNITS * stage.unit);
+          blit(
+            ctx,
+            hue,
+            numField(node.params, node.kind, "halo"),
+            alpha,
+            anchor.x,
+            anchor.y,
+            REST_DOT_DIAMETER_STAGE_UNITS * stage.unit,
+          );
           break;
         case "spark": {
           // "A faint asterisk at the anchor (the charge point)."
@@ -1280,9 +1284,16 @@ export function createVizNodeEngine(
           const arm = reach * REST_SPARK_ARM_FRACTION * stage.unit;
           for (const offset of [0, 60, 120]) {
             const dir = degToUnitVector(aim + offset);
-            strokeSegment(ctx, hue, alpha, REST_STROKE_PX,
-              anchor.x - dir.x * arm, anchor.y - dir.y * arm,
-              anchor.x + dir.x * arm, anchor.y + dir.y * arm);
+            strokeSegment(
+              ctx,
+              hue,
+              alpha,
+              REST_STROKE_PX,
+              anchor.x - dir.x * arm,
+              anchor.y - dir.y * arm,
+              anchor.x + dir.x * arm,
+              anchor.y + dir.y * arm,
+            );
           }
           break;
         }
@@ -1292,8 +1303,15 @@ export function createVizNodeEngine(
           const r0max = numField(node.params, node.kind, "r0max");
           const rEnd = numField(node.params, node.kind, "rEnd");
           const mid = ((r0min + r0max) / 2 + rEnd) / 2;
-          strokeCircle(ctx, hue, alpha, REST_STROKE_PX,
-            anchor.x, anchor.y, mid * stage.unit);
+          strokeCircle(
+            ctx,
+            hue,
+            alpha,
+            REST_STROKE_PX,
+            anchor.x,
+            anchor.y,
+            mid * stage.unit,
+          );
           break;
         }
         case "streak": {
@@ -1303,9 +1321,16 @@ export function createVizNodeEngine(
           const dir = degToUnitVector(angle);
           const half = (length / 2) * stage.unit;
           ctx.setLineDash(REST_DASH);
-          strokeSegment(ctx, hue, alpha, REST_STROKE_PX,
-            anchor.x - dir.x * half, anchor.y - dir.y * half,
-            anchor.x + dir.x * half, anchor.y + dir.y * half);
+          strokeSegment(
+            ctx,
+            hue,
+            alpha,
+            REST_STROKE_PX,
+            anchor.x - dir.x * half,
+            anchor.y - dir.y * half,
+            anchor.x + dir.x * half,
+            anchor.y + dir.y * half,
+          );
           ctx.setLineDash(EMPTY_DASH);
           break;
         }
@@ -1313,13 +1338,27 @@ export function createVizNodeEngine(
           // "A faint full-circle path ring with faint dots at the bodies"
           // (phase-only positions — static by construction).
           const radius = numField(node.params, node.kind, "radius");
-          strokeCircle(ctx, hue, alpha, REST_STROKE_PX,
-            anchor.x, anchor.y, radius * stage.unit);
+          strokeCircle(
+            ctx,
+            hue,
+            alpha,
+            REST_STROKE_PX,
+            anchor.x,
+            anchor.y,
+            radius * stage.unit,
+          );
           const bodies = bodyCountOf(node);
           for (let k = 0; k < bodies; k++) {
             const point = orbitBodyPoint(node, k, 0, stage);
-            blit(ctx, hue, ORBIT_HALO, alpha, point.x, point.y,
-              REST_DOT_DIAMETER_STAGE_UNITS * stage.unit);
+            blit(
+              ctx,
+              hue,
+              ORBIT_HALO,
+              alpha,
+              point.x,
+              point.y,
+              REST_DOT_DIAMETER_STAGE_UNITS * stage.unit,
+            );
           }
           break;
         }
@@ -1329,10 +1368,19 @@ export function createVizNodeEngine(
           const width = numField(node.params, node.kind, "width");
           const dir = riverDirection(node);
           const half = (length / 2) * stage.unit;
-          strokeSegment(ctx, hue, alpha,
-            Math.max(REST_STROKE_PX, width * REST_RIVER_WIDTH_FRACTION * stage.unit),
-            anchor.x - dir.x * half, anchor.y - dir.y * half,
-            anchor.x + dir.x * half, anchor.y + dir.y * half);
+          strokeSegment(
+            ctx,
+            hue,
+            alpha,
+            Math.max(
+              REST_STROKE_PX,
+              width * REST_RIVER_WIDTH_FRACTION * stage.unit,
+            ),
+            anchor.x - dir.x * half,
+            anchor.y - dir.y * half,
+            anchor.x + dir.x * half,
+            anchor.y + dir.y * half,
+          );
           break;
         }
         default:
@@ -1365,8 +1413,7 @@ export function createVizNodeEngine(
     const gain =
       clamp01(liveGain) *
       (mark.level <= VIZ_FLASH_MERGE_ALPHA ? 1 : VIZ_LIVE_BRIGHTNESS_GAIN);
-    const eq =
-      mark.level <= VIZ_FLASH_MERGE_ALPHA ? 1 : laneEq[mark.lane];
+    const eq = mark.level <= VIZ_FLASH_MERGE_ALPHA ? 1 : laneEq[mark.lane];
     const alpha = clamp01(mark.level * gain * eq);
     if (alpha <= ENV_DEAD_EPSILON) return;
     const anchor = anchorOf(node, stage);
@@ -1375,8 +1422,15 @@ export function createVizNodeEngine(
         // Static wash at the pitch-displaced ignition point, at peak size.
         const radius = numField(node.params, node.kind, "radius");
         const point = bloomIgnitionPoint(node, mark.p, stage);
-        blit(ctx, hue, numField(node.params, node.kind, "halo"), alpha,
-          point.x, point.y, 2 * radius * stage.unit);
+        blit(
+          ctx,
+          hue,
+          numField(node.params, node.kind, "halo"),
+          alpha,
+          point.x,
+          point.y,
+          2 * radius * stage.unit,
+        );
         break;
       }
       case "spark": {
@@ -1385,45 +1439,82 @@ export function createVizNodeEngine(
         const arm = reach * 0.5 * stage.unit;
         for (const angle of sparkFanAngles(node, mark.p)) {
           const dir = degToUnitVector(angle);
-          strokeSegment(ctx, hue, alpha,
+          strokeSegment(
+            ctx,
+            hue,
+            alpha,
             Math.max(REST_STROKE_PX, SHARD_WIDTH_STAGE_UNITS * stage.unit),
-            anchor.x, anchor.y,
-            anchor.x + dir.x * arm, anchor.y + dir.y * arm);
+            anchor.x,
+            anchor.y,
+            anchor.x + dir.x * arm,
+            anchor.y + dir.y * arm,
+          );
         }
         break;
       }
       case "ripple": {
         // The ring at its pitch-selected ignition radius, full thickness.
         const ring = rippleGeometry(node, mark.p, 0);
-        strokeCircle(ctx, hue, alpha,
+        strokeCircle(
+          ctx,
+          hue,
+          alpha,
           Math.max(REST_STROKE_PX, ring.thickness * stage.unit),
-          anchor.x, anchor.y, ring.radius * stage.unit);
+          anchor.x,
+          anchor.y,
+          ring.radius * stage.unit,
+        );
         break;
       }
       case "streak": {
         // The run's full path, lit end to end.
         const span = streakSpan(node, mark.p, stage);
         const width = numField(node.params, node.kind, "width");
-        strokeSegment(ctx, hue, alpha,
+        strokeSegment(
+          ctx,
+          hue,
+          alpha,
           Math.max(REST_STROKE_PX, width * stage.unit),
-          span.start.x, span.start.y, span.end.x, span.end.y);
+          span.start.x,
+          span.start.y,
+          span.end.x,
+          span.end.y,
+        );
         break;
       }
       case "orbit": {
         // The pitch-selected body at its phase-frozen position (beats 0).
         const size = numField(node.params, node.kind, "size");
         const point = orbitBodyPoint(
-          node, orbitBodyForPitch(node, mark.p), 0, stage);
-        blit(ctx, hue, ORBIT_HALO, alpha, point.x, point.y,
-          2 * size * stage.unit);
+          node,
+          orbitBodyForPitch(node, mark.p),
+          0,
+          stage,
+        );
+        blit(
+          ctx,
+          hue,
+          ORBIT_HALO,
+          alpha,
+          point.x,
+          point.y,
+          2 * size * stage.unit,
+        );
         break;
       }
       case "river": {
         // The local glow at the pitch position on the band (no slide).
         const width = numField(node.params, node.kind, "width");
         const point = riverPitchPoint(node, mark.p, stage);
-        blit(ctx, hue, RIVER_HALO, alpha, point.x, point.y,
-          width * 2 * stage.unit);
+        blit(
+          ctx,
+          hue,
+          RIVER_HALO,
+          alpha,
+          point.x,
+          point.y,
+          width * 2 * stage.unit,
+        );
         break;
       }
       default:
@@ -1464,9 +1555,7 @@ export function createVizNodeEngine(
       return oneShotEnvelope(now - pin.until, obj.seed.decay, 0, pin.level);
     }
     const rise =
-      node?.kind === "bloom"
-        ? numField(node.params, node.kind, "rise")
-        : 0;
+      node?.kind === "bloom" ? numField(node.params, node.kind, "rise") : 0;
     return oneShotEnvelope(
       now - obj.seed.birth,
       obj.seed.decay,
@@ -1493,13 +1582,9 @@ export function createVizNodeEngine(
       // Pinned objects: geometry frozen at the pin pose (the module doc's
       // merge law); luminance = levelOf above. Unpinned: the one-shot.
       const pin = obj.pin;
-      const elapsed = pin
-        ? pin.setAt - obj.seed.birth
-        : now - obj.seed.birth;
+      const elapsed = pin ? pin.setAt - obj.seed.birth : now - obj.seed.birth;
       const rise =
-        node?.kind === "bloom"
-          ? numField(node.params, node.kind, "rise")
-          : 0;
+        node?.kind === "bloom" ? numField(node.params, node.kind, "rise") : 0;
       // The bolder brightness calibration: admitted live light draws at
       // shaped(level) × liveGain × VIZ_LIVE_BRIGHTNESS_GAIN (≤ 1), where
       // shaped = level ** VIZ_ENVELOPE_SHAPE_GAMMA (the concave lift);
@@ -1531,9 +1616,7 @@ export function createVizNodeEngine(
             );
       const u = clamp01(elapsed / obj.seed.decay);
       const shape = oneShotEnvelope(elapsed, obj.seed.decay, rise, 1);
-      const expired = pin
-        ? now >= pin.until + obj.seed.decay
-        : u >= 1;
+      const expired = pin ? now >= pin.until + obj.seed.decay : u >= 1;
       // Compact survivors in place; expired objects drop here.
       if (!expired && node && hue && brightness > ENV_DEAD_EPSILON) {
         live[write++] = obj;
@@ -1545,20 +1628,28 @@ export function createVizNodeEngine(
             const radius = numField(node.params, node.kind, "radius");
             const halo = numField(node.params, node.kind, "halo");
             const point = bloomIgnitionPoint(node, obj.seed.p, stage);
-            washBlit(ctx, hue, halo, brightness, point.x, point.y,
-              2 * radius * stage.unit *
+            washBlit(
+              ctx,
+              hue,
+              halo,
+              brightness,
+              point.x,
+              point.y,
+              2 *
+                radius *
+                stage.unit *
                 (BLOOM_MIN_SIZE_FRACTION +
                   (1 - BLOOM_MIN_SIZE_FRACTION) * shape),
-              !!obj.sub);
+              !!obj.sub,
+            );
             break;
           }
           case "spark": {
             // Shard streaks fly their reach linearly while the fan fades.
             const angles = sparkFanAngles(node, obj.seed.p);
             const reach = numField(node.params, node.kind, "reach");
-            const angle = angles[
-              Math.min(angles.length - 1, obj.seed.shardIndex)
-            ]!;
+            const angle =
+              angles[Math.min(angles.length - 1, obj.seed.shardIndex)]!;
             const dir = degToUnitVector(angle);
             const anchor = anchorOf(node, stage);
             const headDist = reach * u * stage.unit;
@@ -1566,21 +1657,31 @@ export function createVizNodeEngine(
               0,
               headDist - reach * SHARD_TAIL_FRACTION * stage.unit,
             );
-            strokeSegment(ctx, hue, brightness,
+            strokeSegment(
+              ctx,
+              hue,
+              brightness,
               Math.max(REST_STROKE_PX, SHARD_WIDTH_STAGE_UNITS * stage.unit),
               anchor.x + dir.x * tailDist,
               anchor.y + dir.y * tailDist,
               anchor.x + dir.x * headDist,
-              anchor.y + dir.y * headDist);
+              anchor.y + dir.y * headDist,
+            );
             break;
           }
           case "ripple": {
             // The ring expands and thins to nothing.
             const ring = rippleGeometry(node, obj.seed.p, u);
             const anchor = anchorOf(node, stage);
-            strokeCircle(ctx, hue, brightness,
+            strokeCircle(
+              ctx,
+              hue,
+              brightness,
               Math.max(REST_STROKE_PX, ring.thickness * stage.unit),
-              anchor.x, anchor.y, ring.radius * stage.unit);
+              anchor.x,
+              anchor.y,
+              ring.radius * stage.unit,
+            );
             break;
           }
           case "streak": {
@@ -1593,9 +1694,16 @@ export function createVizNodeEngine(
               y: span.start.y + dy * u,
             };
             const width = numField(node.params, node.kind, "width");
-            strokeSegment(ctx, hue, brightness,
+            strokeSegment(
+              ctx,
+              hue,
+              brightness,
               Math.max(REST_STROKE_PX, width * stage.unit),
-              span.start.x, span.start.y, head.x, head.y);
+              span.start.x,
+              span.start.y,
+              head.x,
+              head.y,
+            );
             break;
           }
           case "orbit": {
@@ -1604,8 +1712,16 @@ export function createVizNodeEngine(
             const size = numField(node.params, node.kind, "size");
             const bodyIndex = orbitBodyForPitch(node, obj.seed.p);
             const point = orbitBodyPoint(node, bodyIndex, beats, stage);
-            washBlit(ctx, hue, ORBIT_HALO, brightness, point.x, point.y,
-              2 * size * stage.unit, !!obj.sub);
+            washBlit(
+              ctx,
+              hue,
+              ORBIT_HALO,
+              brightness,
+              point.x,
+              point.y,
+              2 * size * stage.unit,
+              !!obj.sub,
+            );
             break;
           }
           case "river": {
@@ -1619,9 +1735,16 @@ export function createVizNodeEngine(
               stage,
             );
             const point = riverPitchPoint(node, obj.seed.p, stage);
-            washBlit(ctx, hue, RIVER_HALO, brightness,
-              point.x + dir.x * flow, point.y + dir.y * flow,
-              width * 2 * stage.unit, !!obj.sub);
+            washBlit(
+              ctx,
+              hue,
+              RIVER_HALO,
+              brightness,
+              point.x + dir.x * flow,
+              point.y + dir.y * flow,
+              width * 2 * stage.unit,
+              !!obj.sub,
+            );
             break;
           }
           default:
@@ -1725,11 +1848,7 @@ export function createVizNodeEngine(
     // the per-hit reaction.
     for (const obj of live) {
       if (obj.seed.nodeIndex !== nodeIndex || obj.sub) continue;
-      const current = levelOf(
-        obj,
-        arrangement.nodes[obj.seed.nodeIndex],
-        t,
-      );
+      const current = levelOf(obj, arrangement.nodes[obj.seed.nodeIndex], t);
       if (current <= ENV_DEAD_EPSILON) continue;
       obj.pin = {
         level: Math.max(current, obj.pin?.level ?? 0, first.amplitude),

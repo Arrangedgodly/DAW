@@ -54,7 +54,7 @@ import {
 import {
   DEFAULT_LANE_MIX,
   DRUM_PIECES,
-  LANE_IDS,
+  ALL_LANE_IDS as LANE_IDS,
   type DrumPiece,
   type LaneId,
   type LaneMix,
@@ -284,6 +284,10 @@ export class Session {
     bass: "preset-bass-1",
     chords: "preset-chords-1",
     lead: "preset-lead-1",
+    extra1: "preset-lead-1",
+    extra2: "preset-lead-1",
+    extra3: "preset-lead-1",
+    extra4: "preset-lead-1",
   };
   /**
    * Effective scale per pitched lane (IM-6): the engineBridge pushes
@@ -361,6 +365,7 @@ export class Session {
       // of the next play; a stale high-water step defers stopped switch
       // requests past slot 0). Same law as the while-stopped schedule push.
       for (const pb of this.lanePlayback) {
+        if (!pb) continue;
         pb.anchorStep = 0;
         pb.lastStep = -1;
         // A slot cue left pending by the previous pass waits for play: it
@@ -372,7 +377,7 @@ export class Session {
       // Refinement-7: the sounding ledger is per-play too — a fresh play's
       // follow starts at the chain's slot 0 (imminent entry), never parked on
       // the previous play's last-sounded slot.
-      for (const ledger of this.soundingLedger) ledger.length = 0;
+      for (const ledger of this.soundingLedger) if (ledger) ledger.length = 0;
       if (this.lanePlayback.length > 0) void this.ensureVoiceEngine();
       this.transport.play();
     }
@@ -533,7 +538,7 @@ export class Session {
    * deliverLaneEvents whenever the lane's delivery crosses into a different
    * chain segment; pruned to one audible-past anchor + the audible future.
    */
-  private soundingLedger: SoundingEntry[][] = [];
+  private soundingLedger: SoundingEntry[][] = LANE_IDS.map(() => []);
 
   getPendingSwitch(lane: LaneId): PendingSwitchSnapshot | null {
     const pb = this.lanePlayback[LANE_IDS.indexOf(lane)];
@@ -674,6 +679,14 @@ export class Session {
    * event map immediately (next un-emitted step, DES-4) and replay same-shape
    * substitutions.
    */
+  clearLane(laneId: LaneId): void {
+    const index = LANE_IDS.indexOf(laneId);
+    delete this.lanePlayback[index];
+    this.soundingLedger[index] = [];
+    this.setLaneMix(laneId, { volume: 0, mute: true, solo: false });
+    this.setLaneChain(laneId, []);
+  }
+
   setLaneSchedule(laneId: LaneId, schedule: LaneSchedule): void {
     const index = LANE_IDS.indexOf(laneId);
     const current = this.lanePlayback[index];
@@ -1232,6 +1245,10 @@ export class Session {
       bass: "preset-bass-1",
       chords: "preset-chords-1",
       lead: "preset-lead-1",
+      extra1: "preset-lead-1",
+      extra2: "preset-lead-1",
+      extra3: "preset-lead-1",
+      extra4: "preset-lead-1",
     };
     return getPreset(this.laneSounds[laneId]) ?? getPreset(fallback[laneId])!;
   }

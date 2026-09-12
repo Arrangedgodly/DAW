@@ -27,7 +27,15 @@ export function DesktopPageNavigation(): JSX.Element {
         aria-pressed={phonePage() === "edit"}
         onClick={() => showPhonePage("edit")}
       >
-        Edit notes
+        Instruments 1–4
+      </button>
+      <button
+        type="button"
+        data-page="instruments"
+        aria-pressed={phonePage() === "instruments"}
+        onClick={() => showPhonePage("instruments")}
+      >
+        Instruments 5–8
       </button>
       <button
         type="button"
@@ -65,5 +73,15 @@ export function SongPageButton(props: { class: string }): JSX.Element {
 }
 
 export default function PhonePageToggle(): JSX.Element {
-  return <SongPageButton class="phone-page-toggle" />;
+  return (
+    <button
+      type="button"
+      class="phone-page-toggle"
+      aria-label={phonePage() === "song" ? "Edit notes" : "Song arrangement"}
+      data-help="phone.page"
+      onClick={() => togglePhonePage()}
+    >
+      {phonePage() === "song" ? "NOTES" : "SONG"}
+    </button>
+  );
 }

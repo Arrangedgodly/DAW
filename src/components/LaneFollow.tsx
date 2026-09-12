@@ -56,7 +56,7 @@ export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
   });
 
   const slot = createMemo(() => {
-    const chain = doc().songChain[props.lane];
+    const chain = doc().songChain[props.lane] ?? [];
     const addressedSlot = playing()
       ? soundingSlot()[props.lane]
       : getActiveSlot(props.lane);
@@ -72,8 +72,8 @@ export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
   const mode = () => doc().chainModes?.[props.lane]?.[slot()] ?? "next";
   const name = () => {
     const d = doc();
-    const id = d.songChain[props.lane][slot()];
-    return d.patterns[props.lane].find((p) => p.id === id)?.name ?? "?";
+    const id = (d.songChain[props.lane] ?? [])[slot()];
+    return (d.patterns[props.lane] ?? []).find((p) => p.id === id)?.name ?? "?";
   };
 
   return (

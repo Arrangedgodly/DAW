@@ -26,11 +26,14 @@ import { createStore } from "zustand/vanilla";
 import { temporal } from "zundo";
 import {
   DEFAULT_LANE_MIX,
+  ALL_LANE_IDS,
+  EXTRA_LANE_IDS,
   DRUM_PIECES,
   type DrumPiece,
   type FxDevice,
   type LaneGate,
   type LaneId,
+  type ChainSlotMode,
   type LaneMix,
   MAX_FX_PER_LANE,
   MAX_NOTE_LENGTH,
@@ -52,7 +55,7 @@ import {
 } from "../document/schema";
 import { validateProject } from "../document/validate";
 import { euclid } from "../audio/euclid";
-import { sampleRefsForSound } from "../audio/presets";
+import { getPreset, sampleRefsForSound } from "../audio/presets";
 import { type ModeName, modeSize } from "../document/scales";
 import { type FxDeviceType, defaultFxDevice, reorderChain } from "./fxStrip";
 import { normalizeProjectName } from "./projectName";
@@ -84,7 +87,7 @@ function expandDefaultGrids(doc: ProjectDocument): ProjectDocument {
   const size = modeSize(doc.scale.mode);
   const degrees = (count: number) => Array.from({ length: count }, (_, i) => i);
   const expand = (lane: Exclude<LaneId, "drums">, count: number) => {
-    const patterns = doc.patterns[lane].map((p) => {
+    const patterns = (doc.patterns[lane] ?? []).map((p) => {
       const pitched = p as PitchedPattern;
       if (pitched.kind !== "pitched") return p;
       // v2 (SC-1): the row manifest replaces wholesale exactly as the v0 row
@@ -176,6 +179,18 @@ function commit(next: ProjectDocument, coalesceKey?: string): ProjectDocument {
   return next;
 }
 
+/** One validated, undoable edit against the exact document the caller read. */
+export function commitDocumentEdit(
+  expected: ProjectDocument,
+  next: ProjectDocument,
+): void {
+  if (docStore.getState().doc !== expected) {
+    throw new Error("Project changed. Read the project again before editing.");
+  }
+  if (JSON.stringify(expected) === JSON.stringify(next)) return;
+  commit(next);
+}
+
 /** Deep clone through JSON — documents are JSON-safe by construction (MF-1). */
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -221,7 +236,7 @@ function withPitchedCellToggled(
   step: number,
 ): ProjectDocument {
   const gateSteps = laneGateSteps(doc, lane);
-  const patterns = doc.patterns[lane].map((p) => {
+  const patterns = (doc.patterns[lane] ?? []).map((p) => {
     if (p.kind !== "pitched") return p;
     if (!p.rowDegrees.includes(degree)) return p;
     return togglePitchedNote(p, gateSteps, degree, step).pattern;
@@ -253,7 +268,7 @@ export function togglePitchedCell(
   const doc = docStore.getState().doc;
   const gateSteps = laneGateSteps(doc, lane);
   // v0 read: the cell of the FIRST pattern whose manifest carries the degree.
-  const firstWithDegree = doc.patterns[lane]
+  const firstWithDegree = (doc.patterns[lane] ?? [])
     .filter((p): p is PitchedPattern => p.kind === "pitched")
     .find((p) => p.rowDegrees.includes(degree));
   const current = firstWithDegree
@@ -288,7 +303,7 @@ function withPitchedPattern(
   patch: (pattern: PitchedPattern) => PitchedPattern,
 ): ProjectDocument | null {
   let changed = false;
-  const patterns = doc.patterns[lane].map((p) => {
+  const patterns = (doc.patterns[lane] ?? []).map((p) => {
     if (p.kind !== "pitched" || p.id !== patternId) return p;
     const next = patch(p);
     if (next !== p) changed = true;
@@ -454,6 +469,75 @@ export function setLaneSoundId(lane: LaneId, presetOrKitId: string): void {
   );
 }
 
+/** Add one independent pitched instrument, using the first available slot. */
+export function addInstrumentLane(
+  presetId = "preset-bells-crystal",
+  slot?: (typeof EXTRA_LANE_IDS)[number],
+): LaneId | null {
+  const doc = docStore.getState().doc;
+  const id =
+    slot ?? EXTRA_LANE_IDS.find((id) => !doc.lanes.some((l) => l.id === id));
+  if (
+    id &&
+    (!EXTRA_LANE_IDS.includes(id) || doc.lanes.some((l) => l.id === id))
+  )
+    return null;
+  if (!id || !getPreset(presetId)?.pitchRange) return null;
+  const patternId = `${id}-1`;
+  commit({
+    ...doc,
+    lanes: [
+      ...doc.lanes,
+      { id, presetId, gate: { unit: "steps" as const, value: 2 }, fxChain: [] },
+    ].sort((a, b) => ALL_LANE_IDS.indexOf(a.id) - ALL_LANE_IDS.indexOf(b.id)),
+    patterns: {
+      ...doc.patterns,
+      [id]: [
+        {
+          kind: "pitched",
+          id: patternId,
+          name: "A",
+          bars: 1,
+          rowDegrees: [0, 1, 2, 3, 4, 5, 6],
+          notes: [],
+        },
+      ],
+    },
+    songChain: { ...doc.songChain, [id]: [patternId] },
+    ...(doc.chainCues ? { chainCues: { ...doc.chainCues, [id]: [null] } } : {}),
+    ...(doc.chainModes
+      ? { chainModes: { ...doc.chainModes, [id]: ["next"] } }
+      : {}),
+  });
+  return id;
+}
+
+/** Removing an extra track is one undoable edit, including its patterns. */
+export function removeInstrumentLane(id: LaneId): void {
+  if (!EXTRA_LANE_IDS.some((extra) => extra === id)) return;
+  const doc = docStore.getState().doc;
+  if (!doc.lanes.some((lane) => lane.id === id)) return;
+  const patterns = { ...doc.patterns };
+  const songChain = { ...doc.songChain };
+  const laneOverrides = doc.laneOverrides ? { ...doc.laneOverrides } : null;
+  const chainCues = doc.chainCues ? { ...doc.chainCues } : doc.chainCues;
+  const chainModes = doc.chainModes ? { ...doc.chainModes } : doc.chainModes;
+  delete patterns[id];
+  delete songChain[id];
+  if (laneOverrides) delete laneOverrides[id];
+  if (chainCues) delete chainCues[id];
+  if (chainModes) delete chainModes[id];
+  commit({
+    ...doc,
+    lanes: doc.lanes.filter((lane) => lane.id !== id),
+    patterns,
+    songChain,
+    laneOverrides,
+    ...(chainCues !== undefined ? { chainCues } : {}),
+    ...(chainModes !== undefined ? { chainModes } : {}),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // RC-1 (v3, i3-2): per-lane register transpose — writes the v3 `octave` field
 // (schema PitchedLane.octave, −3..+3). Canonical-empty at 0 (the lane-mix
@@ -562,6 +646,9 @@ function maintainSampleProvenance(): void {
         const refs = sampleRefsOfDoc(doc);
         if (provenanceInSync(doc, refs)) return;
         const { CONTENT_ASSETS } = await import("../assets/content/loader");
+        // The manifest can finish after another edit or a project switch.
+        // Re-read instead of replacing newer musical work with this snapshot.
+        if (docStore.getState().doc !== doc) continue;
         const echo: Record<string, SampleProvenanceEntry> = {};
         for (const ref of refs) {
           const asset = CONTENT_ASSETS.find((a) => a.id === ref);
@@ -782,7 +869,9 @@ function effectiveMode(doc: ProjectDocument, lane: LaneId): ModeName {
 }
 
 function newPatternId(lane: LaneId): string {
-  const existing = docStore.getState().doc.patterns[lane].map((p) => p.id);
+  const existing = (docStore.getState().doc.patterns[lane] ?? []).map(
+    (p) => p.id,
+  );
   let n = existing.length + 1;
   while (existing.includes(`${lane}-${n}`)) n++;
   return `${lane}-${n}`;
@@ -830,7 +919,10 @@ export function addPattern(
   const pattern = blankPattern(lane, doc, id, name, bars);
   commit({
     ...doc,
-    patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
+    patterns: {
+      ...doc.patterns,
+      [lane]: [...(doc.patterns[lane] ?? []), pattern],
+    },
   });
   return id;
 }
@@ -838,7 +930,7 @@ export function addPattern(
 /** Deep-copy a pattern under a fresh id. Returns the new pattern id. */
 export function duplicatePattern(lane: LaneId, patternId: string): string {
   const doc = docStore.getState().doc;
-  const source = doc.patterns[lane].find((p) => p.id === patternId);
+  const source = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
   if (!source)
     throw new Error(
       `duplicatePattern: no pattern '${patternId}' in lane '${lane}'`,
@@ -847,7 +939,10 @@ export function duplicatePattern(lane: LaneId, patternId: string): string {
   const copy = { ...deepClone(source), id, name: `${source.name}+` };
   commit({
     ...doc,
-    patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], copy] },
+    patterns: {
+      ...doc.patterns,
+      [lane]: [...(doc.patterns[lane] ?? []), copy],
+    },
   });
   return id;
 }
@@ -859,7 +954,7 @@ export function renamePattern(
   name: string,
 ): void {
   const doc = docStore.getState().doc;
-  const patterns = doc.patterns[lane].map((p) =>
+  const patterns = (doc.patterns[lane] ?? []).map((p) =>
     p.id === patternId ? { ...p, name } : p,
   );
   commit({ ...doc, patterns: { ...doc.patterns, [lane]: patterns } });
@@ -927,14 +1022,14 @@ function withChain(
 ): ProjectDocument {
   const oldModes = padModes(
     doc.chainModes?.[lane] ?? [],
-    doc.songChain[lane].length,
+    (doc.songChain[lane] ?? []).length,
   );
-  const mergedModes: Record<LaneId, SlotMode[]> = {
-    drums: padModes(doc.chainModes?.drums ?? [], doc.songChain.drums.length),
-    bass: padModes(doc.chainModes?.bass ?? [], doc.songChain.bass.length),
-    chords: padModes(doc.chainModes?.chords ?? [], doc.songChain.chords.length),
-    lead: padModes(doc.chainModes?.lead ?? [], doc.songChain.lead.length),
-  };
+  const mergedModes = Object.fromEntries(
+    doc.lanes.map(({ id }) => [
+      id,
+      padModes(doc.chainModes?.[id] ?? [], (doc.songChain[id] ?? []).length),
+    ]),
+  ) as Record<LaneId, SlotMode[]>;
   mergedModes[lane] = padModes(modes(oldModes), chain.length);
   const anyLoop = (Object.keys(mergedModes) as LaneId[]).some((l) =>
     mergedModes[l].includes("loop"),
@@ -945,15 +1040,18 @@ function withChain(
     : { ...doc };
   if (!anyLoop) delete (base as { chainModes?: unknown }).chainModes;
   doc = base;
-  const old = padCues(doc.chainCues?.[lane] ?? [], doc.songChain[lane].length);
+  const old = padCues(
+    doc.chainCues?.[lane] ?? [],
+    (doc.songChain[lane] ?? []).length,
+  );
   const nextCues = padCues(cues(old), chain.length);
   // Full four-lane object (schema requires every lane key, parallel lengths).
-  const merged: Record<LaneId, (string | null)[]> = {
-    drums: padCues(doc.chainCues?.drums ?? [], doc.songChain.drums.length),
-    bass: padCues(doc.chainCues?.bass ?? [], doc.songChain.bass.length),
-    chords: padCues(doc.chainCues?.chords ?? [], doc.songChain.chords.length),
-    lead: padCues(doc.chainCues?.lead ?? [], doc.songChain.lead.length),
-  };
+  const merged = Object.fromEntries(
+    doc.lanes.map(({ id }) => [
+      id,
+      padCues(doc.chainCues?.[id] ?? [], (doc.songChain[id] ?? []).length),
+    ]),
+  ) as Record<LaneId, (string | null)[]>;
   merged[lane] = nextCues;
   const anyLabel = (Object.keys(merged) as LaneId[]).some((l) =>
     merged[l].some((c) => c != null && c.trim() !== ""),
@@ -973,7 +1071,7 @@ function padCues(
   return Array.from({ length }, (_, i) => slots[i] ?? null);
 }
 
-type SlotMode = NonNullable<ProjectDocument["chainModes"]>[LaneId][number];
+type SlotMode = ChainSlotMode;
 
 function padModes(slots: readonly SlotMode[], length: number): SlotMode[] {
   return Array.from({ length }, (_, i) => slots[i] ?? "next");
@@ -991,13 +1089,13 @@ export function setChainSlotMode(
   mode: SlotMode,
 ): void {
   const doc = docStore.getState().doc;
-  if (index < 0 || index >= doc.songChain[lane].length) return;
+  if (index < 0 || index >= (doc.songChain[lane] ?? []).length) return;
   if ((doc.chainModes?.[lane]?.[index] ?? "next") === mode) return;
   commit(
     withChain(
       doc,
       lane,
-      [...doc.songChain[lane]],
+      [...(doc.songChain[lane] ?? [])],
       (old) => [...old],
       (old) => old.map((m, i) => (i === index ? mode : m)),
     ),
@@ -1021,13 +1119,15 @@ export function toggleChainSlotMode(lane: LaneId, index: number): SlotMode {
  */
 export function removePattern(lane: LaneId, patternId: string): boolean {
   const doc = docStore.getState().doc;
-  if (doc.patterns[lane].length <= 1) return false;
-  if (!doc.patterns[lane].some((p) => p.id === patternId)) return false;
-  const nextPatterns = doc.patterns[lane].filter((p) => p.id !== patternId);
+  if ((doc.patterns[lane] ?? []).length <= 1) return false;
+  if (!(doc.patterns[lane] ?? []).some((p) => p.id === patternId)) return false;
+  const nextPatterns = (doc.patterns[lane] ?? []).filter(
+    (p) => p.id !== patternId,
+  );
   const base = { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } };
   const cues = doc.chainCues?.[lane] ?? [];
   const modes = doc.chainModes?.[lane] ?? [];
-  const kept = doc.songChain[lane]
+  const kept = (doc.songChain[lane] ?? [])
     .map((id, i) => ({
       id,
       cue: cues[i] ?? null,
@@ -1046,7 +1146,7 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
     );
     return true;
   }
-  if (kept.length === doc.songChain[lane].length) {
+  if (kept.length === (doc.songChain[lane] ?? []).length) {
     commit(base); // pattern existed but was never chained
     return true;
   }
@@ -1089,10 +1189,13 @@ export function appendBlankPattern(
     withChain(
       {
         ...doc,
-        patterns: { ...doc.patterns, [lane]: [...doc.patterns[lane], pattern] },
+        patterns: {
+          ...doc.patterns,
+          [lane]: [...(doc.patterns[lane] ?? []), pattern],
+        },
       },
       lane,
-      [...doc.songChain[lane], id],
+      [...(doc.songChain[lane] ?? []), id],
       (old) => [...old],
     ),
   );
@@ -1102,11 +1205,11 @@ export function appendBlankPattern(
 /** Append one chain slot playing `patternId` (unlabeled). */
 export function appendChainSlot(lane: LaneId, patternId: string): void {
   const doc = docStore.getState().doc;
-  if (!doc.patterns[lane].some((p) => p.id === patternId)) return;
+  if (!(doc.patterns[lane] ?? []).some((p) => p.id === patternId)) return;
   // The callback returns the OLD slots as-is; withChain pads the trailing
   // null for the appended slot.
   commit(
-    withChain(doc, lane, [...doc.songChain[lane], patternId], (old) => [
+    withChain(doc, lane, [...(doc.songChain[lane] ?? []), patternId], (old) => [
       ...old,
     ]),
   );
@@ -1159,7 +1262,7 @@ export function resizePattern(
   bars: PatternBars,
 ): ResizePatternResult {
   const doc = docStore.getState().doc;
-  const pattern = doc.patterns[lane].find((p) => p.id === patternId);
+  const pattern = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
   if (!pattern) return { ok: false, reason: "not-found" };
   if (pattern.bars === bars) return { ok: false, reason: "no-op" };
   const newSteps = bars * 16;
@@ -1207,7 +1310,7 @@ export function resizePattern(
       }
     }
   }
-  const nextPatterns = doc.patterns[lane].map((p) => {
+  const nextPatterns = (doc.patterns[lane] ?? []).map((p) => {
     if (p.id !== patternId) return p;
     if (p.kind === "drums") {
       const steps = {} as Record<DrumPiece, boolean[]>;
@@ -1232,7 +1335,7 @@ export function resizePattern(
 /** Remove chain slot `index`; refuses (returns false) on the last slot. */
 export function removeChainSlot(lane: LaneId, index: number): boolean {
   const doc = docStore.getState().doc;
-  const chain = doc.songChain[lane];
+  const chain = doc.songChain[lane] ?? [];
   if (chain.length <= 1 || index < 0 || index >= chain.length) return false;
   commit(
     withChain(
@@ -1261,7 +1364,7 @@ export function setChainCue(
   const trimmed = (label ?? "").trim();
   const value = trimmed === "" ? null : trimmed;
   commit(
-    withChain(doc, lane, [...doc.songChain[lane]], (old) =>
+    withChain(doc, lane, [...(doc.songChain[lane] ?? [])], (old) =>
       old.map((l, i) => (i === index ? value : l)),
     ),
     `cue:${lane}:${index}`,

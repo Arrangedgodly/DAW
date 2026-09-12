@@ -38,7 +38,7 @@ export function arrangementContent(doc: ProjectDocument): number {
     }
   }
   for (const lane of ["bass", "chords", "lead"] as const) {
-    for (const pattern of doc.patterns[lane]) {
+    for (const pattern of doc.patterns[lane] ?? []) {
       if (pattern.kind !== "pitched") continue;
       count += pattern.notes.length;
     }

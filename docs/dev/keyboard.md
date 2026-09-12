@@ -1,5 +1,20 @@
 # Keyboard Interaction Spec (v3 — KL-1)
 
+## WebMCP access controls, 2026-09-12
+
+Projects includes Allow agent access / Turn agent access off, Edit this project,
+Save and start a new project, and Restore before agent. They use native buttons: Tab/Shift+Tab traverse them within the existing
+popover, Enter/Space activate, and Escape closes Projects using its existing
+focus-return behavior. No global shortcut changes. Agent musical edits use normal
+Undo/Redo. Restore also rolls back intervening manual edits, turns agent access
+off and stops playback. The restore itself is a normal undoable project edit.
+The access button announces on/off with aria-pressed; status and errors are live.
+The existing journeys are unchanged; webmcp.test.tsx adds coverage.
+
+Verification correction: the lead-note assertion in keyboard-journey.test.tsx
+now resolves its row through pitchDomain, matching the current full-range grid.
+The key sequence and expected musical behavior are unchanged.
+
 The complete keyboard map for Bitbounce. Contract sources: ARIA APG grid
 pattern (res-1 — roving tabindex, arrow navigation, grid roles) and the
 a11y rules of res-9/D9 (focus-visible styles, never color/glow alone).

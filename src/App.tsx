@@ -1,3 +1,4 @@
+import InstrumentsPage from "./components/InstrumentsPage";
 /**
  * App shell — Hybrid Performance Console: the booth (transport) is fixed at
  * the top of the stage; below it the four lane floors render their pad grids.
@@ -10,7 +11,7 @@
  * off; TH-4 c asserts it on every frame-budget run).
  */
 
-import { Show } from "solid-js";
+import { createEffect, on, Show } from "solid-js";
 import Booth, { PlayStopButton } from "./components/Booth";
 import {
   OptionsBackdrop,
@@ -21,7 +22,7 @@ import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
 import PhonePageToggle from "./components/PhonePageToggle";
-import { phonePage } from "./state/phonePage";
+import { phonePage, showPhonePage } from "./state/phonePage";
 import StageFloor, { LaneSwitcher } from "./components/StageFloor";
 import Toasts from "./components/Toasts";
 import AudioStatus from "./components/AudioStatus";
@@ -30,7 +31,8 @@ import VizPage from "./components/VizPage";
 import { helpMode } from "./state/helpMode";
 import { vizMode } from "./state/vizMode";
 import { optionsOpen } from "./state/optionsDrawer";
-import { stageMode } from "./state/selection";
+import { activeLane, stageMode } from "./state/selection";
+import { isDefaultLane } from "./document/schema";
 import { initPersistence } from "./persist/boot";
 import "./styles/app.css";
 import "./styles/chassis.css";
@@ -63,6 +65,16 @@ void initPersistence().catch((error) => {
 });
 
 export default function App() {
+  createEffect(
+    on(stageMode, (mode) => {
+      if (phonePage() === "song") return;
+      showPhonePage(
+        mode === "phone" || isDefaultLane(activeLane())
+          ? "edit"
+          : "instruments",
+      );
+    }),
+  );
   return (
     <div
       class="app membrane"
@@ -100,7 +112,7 @@ export default function App() {
             <main
               class="stage"
               aria-label="Stage floor"
-              hidden={phonePage() === "song"}
+              hidden={phonePage() !== "edit"}
               inert={vizMode() ? true : undefined}
             >
               <StageFloor />
@@ -170,7 +182,7 @@ export default function App() {
         <main
           class="stage"
           aria-label="Stage floor"
-          hidden={phonePage() === "song"}
+          hidden={phonePage() !== "edit"}
           inert={vizMode() ? true : undefined}
         >
           <StageFloor />
@@ -184,6 +196,13 @@ export default function App() {
             <PatternRail />
           </main>
         </Show>
+      </Show>
+      <Show
+        when={
+          stageMode() !== "phone" && phonePage() === "instruments" && !vizMode()
+        }
+      >
+        <InstrumentsPage />
       </Show>
       <AudioStatus />
       <Show when={stageMode() === "phone" && !vizMode()}>

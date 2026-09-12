@@ -107,12 +107,13 @@ export function resolveChainSlots(
   doc: ProjectDocument,
   lane: LaneId,
 ): readonly ResolvedChainSlot[] {
-  const patterns = doc.patterns[lane];
+  const patterns = doc.patterns[lane] ?? [];
   const modes = doc.chainModes?.[lane];
   const resolved: ResolvedChainSlot[] = [];
-  doc.songChain[lane].forEach((id, slot) => {
+  (doc.songChain[lane] ?? []).forEach((id, slot) => {
     const pattern = patterns.find((p) => p.id === id);
-    if (pattern) resolved.push({ pattern, slot, loop: modes?.[slot] === "loop" });
+    if (pattern)
+      resolved.push({ pattern, slot, loop: modes?.[slot] === "loop" });
   });
   return resolved.length > 0
     ? resolved
@@ -193,7 +194,7 @@ export function compileSong(
   const out = {} as Record<LaneId, LaneSchedule>;
   for (const laneConf of doc.lanes) {
     const lane = laneConf.id;
-    if (doc.patterns[lane].length === 0) continue;
+    if ((doc.patterns[lane] ?? []).length === 0) continue;
     const chain = resolveChainPatterns(doc, lane);
     out[lane] =
       lane === "drums"

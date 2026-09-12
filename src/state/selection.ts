@@ -36,12 +36,16 @@ export interface FocusedCell {
 function defaultActivePatterns(): Record<LaneId, string> {
   const doc = docStore.getState().doc;
   const first = (lane: LaneId) =>
-    doc.songChain[lane][0] ?? doc.patterns[lane][0]!.id;
+    (doc.songChain[lane] ?? [])[0] ?? (doc.patterns[lane] ?? [])[0]?.id ?? "";
   return {
     drums: first("drums"),
     bass: first("bass"),
     chords: first("chords"),
     lead: first("lead"),
+    extra1: first("extra1"),
+    extra2: first("extra2"),
+    extra3: first("extra3"),
+    extra4: first("extra4"),
   };
 }
 
@@ -54,7 +58,7 @@ function defaultActivePatterns(): Record<LaneId, string> {
  */
 function defaultActiveSlots(): Partial<Record<LaneId, number | null>> {
   const doc = docStore.getState().doc;
-  const slot = (lane: LaneId) => (doc.songChain[lane][0] ? 0 : null);
+  const slot = (lane: LaneId) => ((doc.songChain[lane] ?? [])[0] ? 0 : null);
   return {
     drums: slot("drums"),
     bass: slot("bass"),
@@ -211,11 +215,14 @@ export function currentPatternFor(lane: LaneId): Pattern | undefined {
   const doc = docStore.getState().doc;
   const selected = activePatterns()[lane];
   if (selected) {
-    const byId = doc.patterns[lane].find((p) => p.id === selected);
+    const byId = (doc.patterns[lane] ?? []).find((p) => p.id === selected);
     if (byId) return byId;
   }
-  const id = doc.songChain[lane][0];
-  return doc.patterns[lane].find((p) => p.id === id) ?? doc.patterns[lane][0];
+  const id = (doc.songChain[lane] ?? [])[0];
+  return (
+    (doc.patterns[lane] ?? []).find((p) => p.id === id) ??
+    (doc.patterns[lane] ?? [])[0]
+  );
 }
 
 /** Focus a cell (keyboard navigation / pointer hover per DES-5). */
@@ -283,7 +290,7 @@ export function defaultRegisterWindowStart(
   const doc = docStore.getState().doc;
   const noted = new Set<number>();
   const domain = pitchDomain(doc, lane);
-  for (const p of doc.patterns[lane]) {
+  for (const p of doc.patterns[lane] ?? []) {
     if (p.kind !== "pitched") continue;
     for (const note of p.notes)
       if (p.rowDegrees.includes(note.degree)) noted.add(note.degree);

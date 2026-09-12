@@ -23,13 +23,22 @@
 
 import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
-import { createDefaultProject, type ProjectDocument } from "../../src/document/schema";
-import { renderProjectToBuffer, EXPORT_SAMPLE_RATE } from "../../src/audio/render";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../../src/document/schema";
+import {
+  renderProjectToBuffer,
+  EXPORT_SAMPLE_RATE,
+} from "../../src/audio/render";
 import { SAMPLE_KIT_IDS, getDrumKit, getPreset } from "../../src/audio/presets";
 import { timeAtStep } from "../../src/audio/time";
 import { docStore, setLaneSoundId } from "../../src/state/store";
 import { clearToasts } from "../../src/state/toasts";
-import { connectStoreToEngine, primeSoundContent } from "../../src/state/engineBridge";
+import {
+  connectStoreToEngine,
+  primeSoundContent,
+} from "../../src/state/engineBridge";
 import LaneHeader from "../../src/components/LaneHeader";
 import Toasts from "../../src/components/Toasts";
 import { assertCleanAudio, detectOnsets } from "./helpers";
@@ -110,14 +119,19 @@ describe("PS-4 sample voices — offline render parity + determinism", () => {
       const doc = sampleLeadProject(4);
       const lead = doc.lanes.find((l) => l.id === "lead")!;
       lead.fxChain = [
-        { type: "delay", bypassed: false, params: { timeSteps: 2, feedback: 0.35, mix: 0.3 } },
+        {
+          type: "delay",
+          bypassed: false,
+          params: { timeSteps: 2, feedback: 0.35, mix: 0.3 },
+        },
       ];
       const a = await renderProjectToBuffer(doc);
       const b = await renderProjectToBuffer(doc);
       const ma = monoOf(a);
       const mb = monoOf(b);
       for (let i = 0; i < ma.length; i++) {
-        if (ma[i] !== mb[i]) expect.fail(`fx sample ${i}: ${ma[i]} !== ${mb[i]}`);
+        if (ma[i] !== mb[i])
+          expect.fail(`fx sample ${i}: ${ma[i]} !== ${mb[i]}`);
       }
       // The delay tail exists beyond the loop (sample + FX ride the chain).
       expect(a.tailSamples).toBeGreaterThan(0);
@@ -183,9 +197,9 @@ describe("PS-4 sample voices — offline render parity + determinism", () => {
           ).toBe(true);
         }
         // The long recorded tails ring INTO the loop (folded at the seam).
-        expect(rms(m, Math.round(0.9 * SR), Math.round(1.0 * SR))).toBeGreaterThan(
-          1e-4,
-        );
+        expect(
+          rms(m, Math.round(0.9 * SR), Math.round(1.0 * SR)),
+        ).toBeGreaterThan(1e-4);
       }
     },
   );
@@ -203,7 +217,10 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
   function mountJourney(): Journey {
     const oggUrls: string[] = [];
     const origFetch = globalThis.fetch;
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
       const url = typeof input === "string" ? input : input.toString();
       if (/\.ogg(?:$|\?)/i.test(url)) oggUrls.push(url);
       return origFetch(input, init);
@@ -254,7 +271,8 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
 
   function kitLabel(host: HTMLElement): string {
     return (
-      host.querySelector<HTMLSpanElement>(".head-ctl-value")?.textContent ?? ""
+      host.querySelector<HTMLSelectElement>(".head-sound-select")
+        ?.selectedOptions[0]?.textContent ?? ""
     );
   }
 
@@ -305,9 +323,10 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
         // Stepping BACK to a synth kit prunes provenance and adds no fetch.
         const fetchCount = j.oggFetches().length;
         setLaneSoundId("drums", "kit-default");
-        await waitFor(() =>
-          Object.keys(docStore.getState().doc.sampleProvenance ?? {}).length ===
-          0,
+        await waitFor(
+          () =>
+            Object.keys(docStore.getState().doc.sampleProvenance ?? {})
+              .length === 0,
         );
         expect(j.oggFetches().length).toBe(fetchCount);
       } finally {
@@ -323,7 +342,10 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
       const j = mountJourney();
       try {
         const origFetch = globalThis.fetch;
-        globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        globalThis.fetch = (async (
+          input: RequestInfo | URL,
+          init?: RequestInit,
+        ) => {
           const url = typeof input === "string" ? input : input.toString();
           if (/drums-dusty-kick.*\.ogg/.test(url)) {
             return new Response("", { status: 500 });
@@ -333,9 +355,9 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
         // Direct prime of one broken ref through the REAL public seam.
         primeSoundContent(["kit-dusty"]);
         await waitFor(() => {
-          const toasts = [
-            ...j.toastHost.querySelectorAll("[role=alert]"),
-          ].map((el) => el.textContent ?? "");
+          const toasts = [...j.toastHost.querySelectorAll("[role=alert]")].map(
+            (el) => el.textContent ?? "",
+          );
           return toasts.some((t) => /could not load/i.test(t));
         });
         // The store/doc/engine are unaffected — a synth selection works.

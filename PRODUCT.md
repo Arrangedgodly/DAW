@@ -1,5 +1,13 @@
 # Product
 
+## Instrument library and optional tracks
+
+The preset name is a native dropdown with sound-family groups. Minus and plus remain available for stepping, and both paths preview the selected sound. All pitched tracks share 58 presets, including 16 new synthesized bell, brass, keys, plucked-string, pad and sound-effect sounds. The drum track retains its 14 kits.
+
+Desktop opens with Instruments 1–4 and Instruments 5–8 tabs, followed by Song arrangement. Users can add up to four independent pitched tracks, for eight tracks total. Each extra track has its own notes, preset, octave, scale override, mix and effects. The Instruments page is a second four-quadrant editor, using the same grid component and sizing as Edit notes. Each empty quadrant adds its own fixed track slot when clicked; populated quadrants select and edit in place. Phones edit one track at a time, selected from the default row and a second row of added instrument tabs in the header. Add new instrument fills up to four extra lanes. A single SONG/NOTES button switches between editing and arrangement while retaining the selected track. Song arrangement includes every active track. Adding and removing tracks is undoable, and optional lane data persists in project files and autosaves. WAV and MIDI exports include all active tracks. Existing four-track projects remain valid without adding empty slots to their files.
+
+The visualizer continues to represent the four default tracks. Extra tracks contribute to audio playback and exports but do not yet have visualizer layers. Bell and brass voices are synthesized approximations rather than acoustic recordings. These capabilities supersede the original fixed-four-lane scope below.
+
 ## Track appearance preferences
 
 Each instrument has 30 predefined color swatches: light, middle and dark shades of red, orange, yellow, green, cyan, blue, purple, pink, brown and gray. The same color control appears in the DAW's selected-track controls and visualizer inspector. A selection updates the track and its visualizer geometry live without restarting playback. Use theme default clears the individual override.
@@ -211,3 +219,5 @@ Closeout verification, 2026-09-12: finish review returned ship with no material 
 ## Membrane implementation and mobile autosave
 
 Membrane is implemented in the full DAW. Track swatches carry to VIZ live. On phones, autosave status is displayed once in a fixed bottom-center strip, with full readable text and reserved layout space. Projects and theme remain in the top transport. The phone color control sits beside the instrument title. VIZ hides the phone autosave strip. Styling, layout fitting and appearance preferences do not change song data or audio scheduling. Current verification is recorded in docs/dev/membrane-review/verification.md.
+
+Built-in demos are available under Projects. Welcome Song remains the unchanged first-run song. Glass Arcade and After Hours are eight-bar, eight-lane arrangements that demonstrate named presets, independent extra tracks, section cues and per-lane effects. Each demo opens as a temporary preview, including the first-run Welcome Song. Playback, navigation and appearance changes do not create a saved project. The first document edit creates a local copy and enables normal autosave; switching away from an untouched demo leaves no copy. The indicator reads Built-in demo until editing begins. Existing saved projects are preserved.

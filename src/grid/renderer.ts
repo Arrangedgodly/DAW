@@ -1757,6 +1757,35 @@ export class DomGridRenderer implements GridRenderer {
     this.rewindow(false);
   }
 
+  /** Keep the sounding column visible, paging ahead before it leaves the bed.
+   * Uses the renderer's scroll owner for both eager and virtual grids. Never
+   * moves keyboard focus or the vertical register window. */
+  private followPlayback(step: number): void {
+    if (this.gesture || this.pinchPointers.size > 0) return;
+    const scroll = this.hScroll();
+    const width = scroll.clientWidth;
+    if (width <= 0 || scroll.scrollWidth <= width) return;
+    const column = step * this.stepWidthPx;
+    const usable = width - this.playheadLeftPx;
+    if (usable <= this.stepWidthPx) return;
+    const margin = Math.min(2 * this.stepWidthPx, usable / 4);
+    if (
+      column < scroll.scrollLeft ||
+      column + this.stepWidthPx > scroll.scrollLeft + usable - margin
+    ) {
+      const target = Math.min(
+        scroll.scrollWidth - width,
+        Math.max(0, column - margin),
+      );
+      if (Math.abs(target - scroll.scrollLeft) < 1) return;
+      scroll.scrollLeft = target;
+      if (this.virtual) {
+        this.lastScrollLeft = scroll.scrollLeft;
+        this.rewindowIfNeeded();
+      }
+    }
+  }
+
   triggerGlow(step: number): void {
     for (const row of this.cells) {
       const cell = this.cellInRow(row, step);
@@ -2718,6 +2747,7 @@ export class DomGridRenderer implements GridRenderer {
         );
       }
       const q = quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
+      this.followPlayback(q);
       // LL-1/LL-2 (seam G5): BOTH the glow wrap modulus AND the sweep wrap
       // are the renderer's OWN step count (the pattern width), while the
       // frame's basis is the LANE's chain-cycle total (LaneGrid's readFrame)

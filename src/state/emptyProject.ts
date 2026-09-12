@@ -17,7 +17,7 @@ export function isProjectEmpty(doc: ProjectDocument): boolean {
     if (step.some(Boolean)) return false;
   }
   for (const lane of ["bass", "chords", "lead"] as const) {
-    for (const pattern of doc.patterns[lane]) {
+    for (const pattern of doc.patterns[lane] ?? []) {
       if (pattern.kind !== "pitched") continue;
       // v2 (SC-1): emptiness = no notes anywhere (an empty pattern may still
       // carry its row-degree manifest — that is grid shape, not content).

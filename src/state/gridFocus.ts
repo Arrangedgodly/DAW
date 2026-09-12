@@ -1,3 +1,5 @@
+import { docStore } from "./store";
+import { isDefaultLane } from "../document/schema";
 /**
  * Cross-quadrant grid focus coordination (DA-1 → LY-1 quadrant law): grids
  * are per-lane renderers with no knowledge of their siblings, so the
@@ -18,8 +20,8 @@
 
 import { createSignal } from "solid-js";
 import type { LaneId } from "../document/schema";
-import { LANE_ORDER, laneMoveIndex } from "../grid/keynav";
-import { activeLane, selectLane } from "./selection";
+import { laneMoveIndex } from "../grid/keynav";
+import { activeLane, selectLane, stageMode } from "./selection";
 
 export interface GridFocusRequest {
   readonly lane: LaneId;
@@ -55,7 +57,14 @@ export function requestLaneFocus(
   row: number,
   step: number,
 ): void {
-  const i = LANE_ORDER.indexOf(from as (typeof LANE_ORDER)[number]);
+  const LANE_ORDER = docStore
+    .getState()
+    .doc.lanes.map((l) => l.id)
+    .filter(
+      (id) =>
+        stageMode() === "phone" || isDefaultLane(id) === isDefaultLane(from),
+    );
+  const i = LANE_ORDER.indexOf(from);
   if (i < 0) return;
   const next = laneMoveIndex(i, LANE_ORDER.length, dir);
   const lane = LANE_ORDER[next];
@@ -77,7 +86,14 @@ export function focusLaneRoving(lane: LaneId): void {
 
 /** Adjacent quadrant id in reading order (clamped; null at the edges). */
 export function adjacentQuadrant(from: LaneId, dir: -1 | 1): LaneId | null {
-  const i = LANE_ORDER.indexOf(from as (typeof LANE_ORDER)[number]);
+  const LANE_ORDER = docStore
+    .getState()
+    .doc.lanes.map((l) => l.id)
+    .filter(
+      (id) =>
+        stageMode() === "phone" || isDefaultLane(id) === isDefaultLane(from),
+    );
+  const i = LANE_ORDER.indexOf(from);
   if (i < 0) return null;
   const next = laneMoveIndex(i, LANE_ORDER.length, dir);
   return next === i ? null : LANE_ORDER[next];
