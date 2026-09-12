@@ -440,12 +440,17 @@
   gap: var(--space-2);
 }
 
+/*
+ * i7-crit1 A2: the E9 fence is PROSE, not a chassis silkscreen — 98 chars
+ * of instructional copy set in the label voice (10px UPPERCASE 500 Plex,
+ * 0.8px tracking, 60% ink) violated the world's own type law (UI/Body:
+ * 400 13px/1.5 IBM Plex Mono, always warm white — help-mode prose, toasts,
+ * banners). The wording is gate-pinned (register-controls E9 assertions);
+ * only the VOICE moves: the UI/body token, sentence case, warm white.
+ */
 .phone-oct-fence {
-  font: var(--text-panel-label-sm);
-  line-height: 1.5;
-  letter-spacing: var(--track-panel-label);
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 60%, var(--metal-panel));
+  font: var(--text-ui);
+  color: var(--color-ink);
 }
 
 /*

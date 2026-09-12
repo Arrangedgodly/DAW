@@ -213,6 +213,22 @@
     color-mix(in srgb, var(--color-ink) 50%, transparent);
 }
 
+/*
+ * i7-crit1 A1: the drawer toggle's open lamp. The generic .booth-btn.is-on
+ * alone renders ink-on-fill glyphs + a transparent border — fine for every
+ * button that carries its own lit fill (play/loop/metro/info/viz), but
+ * .phone-options-btn never had one, so the OPEN drawer rendered "OPTIONS"
+ * near-black on the unlit 12%-ink chassis fill (1.2:1, measured). The
+ * drawer is a stage-global surface (nobody's lane): the INFO/VIZ
+ * warm-white lamp family — ink fill + ink-on-fill glyphs (17.49:1).
+ */
+.phone-options-btn.is-on {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-ink) 50%, transparent);
+}
+
 /* Keyboard focus: always visible, never glow-dependent. --focus-on-metal
  * (T1): 2px ink at 2px offset — grow-only law, legible over every texture
  * in this sheet (same computed values the booth always had). */

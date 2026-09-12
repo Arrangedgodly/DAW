@@ -618,6 +618,62 @@ describe("RC-1 register controls (real app, demo document)", () => {
         const drawer = host.querySelector<HTMLElement>(
           ".phone-options-drawer",
         )!;
+        // i7-crit1 refinements A1 + A2 (durable teeth on the drawer's
+        // presentation — the mechanics above are unchanged):
+        // A1 — the OPTIONS toggle's OPEN lamp: the generic .booth-btn.is-on
+        // alone rendered ink-on-fill glyphs on the unlit chassis fill
+        // (1.2:1); the toggle now carries the INFO/VIZ warm-white lamp, so
+        // the is-on glyph/bg pair must clear AA (4.5:1) with a real border.
+        {
+          const btn = optionsToggle;
+          const cs = getComputedStyle(btn);
+          const lum = (c: string): number => {
+            const m = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/.exec(c);
+            if (!m) return -1;
+            if (m[4] !== undefined && Number(m[4]) === 0) return -1;
+            const srgb = [1, 2, 3].map((i) => {
+              const v = Number(m[i]) / 255;
+              return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+            });
+            return (
+              0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2]
+            );
+          };
+          const l1 = lum(cs.color);
+          const l2 = lum(cs.backgroundColor);
+          expect(l1, "the open lamp paints a real glyph color").toBeGreaterThanOrEqual(0);
+          expect(l2, "the open lamp paints a real fill").toBeGreaterThanOrEqual(0);
+          const ratio =
+            (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+          expect(
+            ratio,
+            `OPTIONS is-on glyph/bg contrast ≥ 4.5:1 (was 1.2:1, ${cs.color} on ${cs.backgroundColor})`,
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(cs.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+        }
+        // A2 — the E9 fence speaks PROSE: the UI/body voice (13px sentence
+        // case warm white), never the silkscreen label voice (10px
+        // UPPERCASE + tracking); the WORDING itself is byte-pinned.
+        {
+          const fence = drawer.querySelector<HTMLElement>(
+            ".phone-oct-fence",
+          )!;
+          expect(fence).toBeTruthy();
+          const cs = getComputedStyle(fence);
+          expect(
+            cs.fontSize,
+            "the fence renders at the UI/body size (13px), not the 10px label voice",
+          ).toBe("13px");
+          expect(
+            cs.textTransform,
+            "instructional prose is never uppercased",
+          ).toBe("none");
+          expect(cs.fontFamily).toContain("IBM Plex Mono");
+          expect(cs.color).toBe("rgb(245, 242, 233)"); // warm white — the prose law
+          expect(fence.textContent).toBe(
+            "Changes what you HEAR, not what you SEE — clamped at −3 and +3. The OCT/SEMI row scrolls the view.",
+          );
+        }
         const drawerOctReadout = (): string =>
           drawer
             .querySelector(`[data-help="lane.lead.oct"] .head-oct-value`)
