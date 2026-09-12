@@ -15,8 +15,8 @@
   --color-lane-chords: #70ded0;
   --color-lane-lead: #ba9aff;
   --metal-deck: #0c0c10;
-  --metal-panel: #15151d;
-  --metal-raised: #25252f;
+  --metal-panel: #25252b;
+  --metal-raised: #383940;
   --metal-recess: #0d0d13;
   --theme-line: #393944;
   --theme-muted: #b8b8c9;
@@ -749,4 +749,48 @@ body,
     :is(.head-step-btn, .head-mix-btn, .head-fx, .booth-btn, .theme-selector) {
     transition: none;
   }
+}
+
+/* Physical finish over the current console layout, shared by both themes. */
+:root {
+  --panel-light: linear-gradient(180deg, #ffffff14, transparent 40%, #00000018);
+  --keycap: inset 0 1px 0 #ffffff45, inset 1px 0 0 #ffffff12,
+    inset 0 -3px 1px #00000055, 0 3px 5px -2px #00000099;
+  --keycap-down: inset 0 2px 4px #00000066, inset 0 -1px 0 #ffffff20;
+  --led-window: inset 0 3px 7px #00000055, inset 0 -1px 0 #ffffff20;
+}
+.app .booth,
+.app .lane-floor,
+.app .lane-floor[data-editing],
+.app .rail,
+.app .phone-chrome,
+.app .phone-options-drawer,
+.app .fx-strip,
+.app .lane-fx-wrap {
+  background-image: var(--panel-light);
+  box-shadow: inset 0 1px 0 #ffffff30, inset 0 -3px 2px #00000030,
+    0 3px 5px #00000035, 0 12px 18px -12px #00000080;
+}
+.app button:not(.cell):not(.row-label),
+.app select {
+  box-shadow: var(--keycap);
+  font-family: var(--font-display);
+  letter-spacing: 0.025em;
+}
+.app button:not(.cell):not(.row-label):active:not(:disabled) {
+  box-shadow: var(--keycap-down);
+}
+.app .head-ctl-value,
+.app .head-vol-value {
+  font-family: "Departure Mono", "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+}
+.app .booth-led,
+.app .booth-led-input,
+.app .register-window-readout {
+  box-shadow: var(--led-window);
+}
+.app .lane-name {
+  text-shadow: none;
 }
