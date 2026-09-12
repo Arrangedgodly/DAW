@@ -1237,7 +1237,7 @@ export interface ResizeBlockingNote {
 
 export type ResizePatternResult =
   | { readonly ok: true; readonly bars: PatternBars }
-  | { readonly ok: false; readonly reason: "not-found" | "no-op" }
+  | { readonly ok: false; readonly reason: "not-found" | "no-op" | "invalid-length" }
   | {
       readonly ok: false;
       readonly reason: "blocked";
@@ -1261,6 +1261,8 @@ export function resizePattern(
   patternId: string,
   bars: PatternBars,
 ): ResizePatternResult {
+  if (!Number.isInteger(bars) || bars < 1 || bars > 128)
+    return { ok: false, reason: "invalid-length" };
   const doc = docStore.getState().doc;
   const pattern = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
   if (!pattern) return { ok: false, reason: "not-found" };

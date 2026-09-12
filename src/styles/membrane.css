@@ -587,12 +587,22 @@
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  width: calc(100% - 24px);
-  margin: 0 12px;
+  min-width: 44px;
+  width: 44px;
+  margin: 0;
   background: transparent;
   border: 0;
   color: var(--theme-muted);
   font-size: 12px;
+}
+.app.membrane[data-stage="phone"] .phone-instrument-picker {
+  display: flex;
+  align-items: flex-start;
+  padding-right: 8px;
+}
+.app.membrane[data-stage="phone"] .phone-instrument-picker .lane-switcher {
+  flex: 1;
+  min-width: 0;
 }
 .app.membrane .phone-add-instrument span {
   font-size: 20px;
@@ -846,6 +856,9 @@
 .app.membrane[data-stage="phone"] .register-shift {
   padding-block: 0;
 }
+.app.membrane[data-stage="phone"] .lane-strip-edit {
+  column-gap: 4px;
+}
 
 /* Expanded fill controls scroll inside the drum pane on compact desktops. */
 .app.membrane:not([data-stage="phone"]) .lane-grid-scroll.fill-rails-open {
@@ -867,5 +880,28 @@
   .app.membrane:not([data-stage="phone"]) .lane-floor {
     padding-top: 12px;
     padding-bottom: 10px;
+  }
+}
+
+/* Navigation owns one row on tablets and touch desktops. Recover its space
+   from panel chrome, while leaving the complete pitch window intact. */
+@media (max-width: 1024px), (any-pointer: coarse) {
+  .app.membrane:not([data-stage="phone"]) .lane-floor {
+    padding: 3px 12px;
+  }
+  .app.membrane:not([data-stage="phone"]) .lane-head-strip {
+    margin-bottom: 0;
+    gap: 0;
+  }
+  .app.membrane:not([data-stage="phone"]) .lane-strip-compact {
+    row-gap: 0;
+  }
+  .app.membrane:not([data-stage="phone"]) .register-shift {
+    padding-block: 0;
+    min-height: 40px;
+    gap: 4px;
+  }
+  .app.membrane:not([data-stage="phone"]) .register-stepper {
+    gap: 4px;
   }
 }

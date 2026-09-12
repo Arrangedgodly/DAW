@@ -1,0 +1,119 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vite.followup.config.ts:1:20). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+4:21:00 PM [vite] (client) Forced re-optimization of dependencies
+4:21:01 PM [vite] (client) [optimizer] scanning dependencies...
+(!) Failed to run dependency scan. Skipping dependency pre-bundling. Error:   Failed to scan for dependencies from entries:
+  C:/Users/arran/Projects/DAW/tests/browser/audio-context.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/audio-determinism.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/axe-a11y.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/background-tab.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/content-loader.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/demoSong.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/diagnostics.ts
+C:/Users/arran/Projects/DAW/tests/browser/drag-cue-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/drag-cue.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/drag-notes-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/drag-notes.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/e2e-happy-path.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/e2e-iteration2.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/e2e-iteration3.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/euclid-fill-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/euclid-fill.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/export-busy-guard.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/exportMidi.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/exportWav.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/fileIO.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/frame-budget.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/fx-console-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/fx-graph.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/grid-navigation.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/help-coverage.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/help-mode.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/help-touch.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/hu2.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/hu3.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/keyboard-journey-full.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/keyboard-journey.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/lane-rim-pulse.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/long-render-failure.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/lp1-perf-spike.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/migration-fallback-v3.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/mobile-options-drawer.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/mobile-register-feedback.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/mobile-register-window.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/mobile-resilience.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/mobile-touch-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/mobile-transport.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/mobile-viewport.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/pattern-rail.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/pattern-resize-edges.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/pattern-resize.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/per-lane-sweep.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/persistence.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/phone-header.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/pitch-direction.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/pointer-edge-states-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/pointer-edge-states.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/preset-library.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/projects-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/quadrant-layout.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/rail-active-follow.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/rail-density.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/register-controls.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/register-pinch-zoom-trusted.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/register-pinch-zoom.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/register-pitch-anchor.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/register-window-quantize.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/register-window-snap.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/render-fingerprint.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/render-mix.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/render-parity.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/sample-voice.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/scheduler-budget.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/song-slot-footer.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/target-size.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/touch-gestures.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/transport-loop-reenable.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/vertical-fill.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/viewport-utilization.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/viz-composition-journeys.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/viz-composition.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/viz-fingerprint.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/viz-phrasing.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/voice-load.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/webmcp.test.tsx
+C:/Users/arran/Projects/DAW/tests/browser/zero-network.test.ts
+C:/Users/arran/Projects/DAW/tests/browser/zz-shots.test.tsx
+
+  Build failed with 1 error:
+
+[PARSE_ERROR] Unexpected JSX expression
+    ╭─[ tests/browser/help-mode.test.tsx:89:31 ]
+    │
+ 89 │     const dispose = render(() => <App />, host);
+    │                                  ┬  
+    │                                  ╰── 
+    │ 
+    │ Help: JSX syntax is disabled and should be enabled via the parser options
+────╯
+
+    at aggregateBindingErrorsIntoJsError (file:///C:/Users/arran/Projects/DAW/node_modules/rolldown/dist/shared/error-HDibX49O.mjs:48:18)
+    at unwrapBindingResult (file:///C:/Users/arran/Projects/DAW/node_modules/rolldown/dist/shared/error-HDibX49O.mjs:18:128)
+    at scan (file:///C:/Users/arran/Projects/DAW/node_modules/rolldown/dist/experimental-index.mjs:237:3)
+    at Object.build (file:///C:/Users/arran/Projects/DAW/node_modules/vite/dist/node/chunks/node.js:31493:3)
+    at scan (file:///C:/Users/arran/Projects/DAW/node_modules/vite/dist/node/chunks/node.js:31432:4)
+    at file:///C:/Users/arran/Projects/DAW/node_modules/vite/dist/node/chunks/node.js:34462:15
+4:21:03 PM [vite] (client) dependencies optimized: idb, zundo, zustand/vanilla
+4:21:03 PM [vite] (client) dependency optimized: valibot
+ ✓ |browser (chromium)| tests/browser/help-mode.test.tsx (5 tests) 1295ms
+     ✓ off = zero help surface · button + `i` toggle with announcements · focus AND hover drive the region · no trap · Escape exits first · pass-through · mid-gesture safety · mode-obvious styling  1047ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  16:20:58
+   Duration  5.64s (transform 0ms, setup 10ms, import 1.49s, tests 1.29s, environment 0ms)
+

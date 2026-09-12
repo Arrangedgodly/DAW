@@ -1,0 +1,18 @@
+
+ RUN  v4.1.11 C:/Users/arran/AppData/Local/Temp/daw-browser-combined-20260912
+
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (a″) windowed census @dense-128] 2,151 cells in DOM (vs 38,208 eager) | per-grid windows: 324/441/441/945
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (a″) windowed frames @dense-128, 4 s pure rendering] 242 frames, median 16.6 ms, p95 17.8 ms, max 23.1 ms, 100.0% < 33.4 ms | playhead moves/s: 61/61/61/61
+stdout | tests/browser/lp1-perf-spike.test.tsx > LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law) > four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep
+[LP-1 (b) windowed scroll sweep @2048 cols] 119 frames, median 20.7 ms, p95 30.5 ms, max 34.6 ms, 99.2% < 33.4 ms | rewindows 63, last rebuild 2.2 ms
+ ✓ |browser (chromium)| tests/browser/lp1-perf-spike.test.tsx (5 tests | 4 skipped) 31763ms
+     ✓ four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep  31761ms
+ ✓ |browser (chromium)| tests/browser/help-mode.test.tsx (5 tests | 4 skipped) 7ms
+
+ Test Files  2 passed (2)
+      Tests  2 passed | 8 skipped (10)
+   Start at  17:04:06
+   Duration  35.73s (transform 0ms, setup 15ms, import 1.42s, tests 31.77s, environment 0ms)
+

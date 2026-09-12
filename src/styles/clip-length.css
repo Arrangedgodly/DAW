@@ -1,0 +1,101 @@
+.clip-length-wrap {
+  position: relative;
+  flex: none;
+}
+.clip-length-wrap:not([open]) > .clip-length-panel {
+  display: none;
+}
+.clip-length-wrap > summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  list-style: none;
+  cursor: pointer;
+  min-height: 30px;
+  min-width: 60px;
+  padding: 0 4px;
+  font: 500 11px/1 var(--font-ui);
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+}
+.clip-length-wrap > summary::-webkit-details-marker {
+  display: none;
+}
+.clip-length-wrap > summary:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+.clip-length-wrap[open] > summary {
+  background: var(--metal-raised);
+}
+.clip-length-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  background: var(--color-ground);
+}
+.clip-length {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.clip-length-label {
+  font: inherit;
+  margin-right: 3px;
+}
+.clip-length button,
+.clip-length input {
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  height: 28px;
+  font: inherit;
+}
+.clip-length button {
+  width: 28px;
+  cursor: pointer;
+}
+.clip-length input {
+  width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+.clip-length input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.clip-length button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.clip-length button:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.clip-length :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.clip-length-error:not(:empty) {
+  display: block;
+  max-width: 240px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .clip-length-wrap > summary {
+    min-height: 44px;
+  }
+  .clip-length button,
+  .clip-length input {
+    min-width: 44px;
+    height: 44px;
+  }
+}

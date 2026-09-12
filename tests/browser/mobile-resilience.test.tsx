@@ -1225,7 +1225,14 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           { x: 5 * swT4 + 7, y: 12 },
           0,
         )[0]!;
-        await app.touchHoldAt(lpPt, 600); // the long-press dwell
+        const beforeHoldDoc = docStore.getState().doc;
+        const beforeHoldHistory = historyDepth();
+        await app.touchHoldAt(lpPt, 600); // crosses the 320ms hold-to-pan threshold
+        expect(
+          document
+            .querySelector(".lane-grid-scroll")
+            ?.getAttribute("data-pan-ready"),
+        ).toBe("true");
         // The browser's long-press menu, arriving mid-gesture: suppressed.
         const menuDuring = new MouseEvent("contextmenu", {
           bubbles: true,
@@ -1238,16 +1245,18 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
           menuDuring.defaultPrevented,
           "T4: long-press contextmenu suppressed mid-gesture",
         ).toBe(true);
-        // The gesture then COMPLETES (drag out + release).
+        // The hold now pans the view, preserving notes and undo history.
         await app.sendTouch("touchMove", [lpEnd]);
         await sleep(40);
         await app.sendTouch("touchEnd", []);
         await sleep(150);
-        await waitFor(
-          () => bassNotes().some((n) => n.start === 2),
-          3000,
-          "T4: the long-pressed gesture completed after the suppressed menu",
-        );
+        expect(docStore.getState().doc).toBe(beforeHoldDoc);
+        expect(historyDepth()).toBe(beforeHoldHistory);
+        expect(
+          document
+            .querySelector(".lane-grid-scroll")
+            ?.hasAttribute("data-pan-ready"),
+        ).toBe(false);
         // Idle (no gesture): the native menu stays free.
         const menuIdle = new MouseEvent("contextmenu", {
           bubbles: true,

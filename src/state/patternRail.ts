@@ -89,12 +89,12 @@ export function nextPatternLength(
   bars: PatternBars,
   dir: 1 | -1,
 ): PatternBars | null {
-  const index = PATTERN_LENGTH_LADDER.indexOf(bars);
-  if (index < 0) return null;
-  const next = index + dir;
-  return next >= 0 && next < PATTERN_LENGTH_LADDER.length
-    ? PATTERN_LENGTH_LADDER[next]!
-    : null;
+  return (
+    (dir === 1
+      ? PATTERN_LENGTH_LADDER.find((value) => value > bars)
+      : [...PATTERN_LENGTH_LADDER].reverse().find((value) => value < bars)) ??
+    null
+  );
 }
 
 const barsText = (bars: number): string =>

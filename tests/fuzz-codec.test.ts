@@ -241,8 +241,8 @@ describe("SV-2 depth pre-scan + prototype pollution re-proven at v3 shapes", () 
         /Invalid project document/,
       );
 
-    // bars off the powers-of-two vocabulary.
-    for (const bars of [3, 127, 129]) {
+    // Bar counts outside the supported whole-number range.
+    for (const bars of [0, 1.5, 129]) {
       const doc = clone();
       bassPattern(doc).bars = bars;
       reject(doc, `bars ${bars}`);

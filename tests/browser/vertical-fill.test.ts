@@ -28,6 +28,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { cdp } from "vitest/browser";
 
 const bundleGlob = import.meta.glob("/dist/assets/index-*.js");
 const cssGlob = import.meta.glob("/dist/assets/index-*.css");
@@ -189,10 +190,14 @@ async function settleFill(ctx: Ctx, w: number, h: number): Promise<void> {
 }
 
 describe("vertical fill with the full MIDI editor", () => {
-  it(
-    "fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets",
+  it.each([false, true])(
+    "fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: %s)",
     { timeout: 240_000 },
-    async () => {
+    async (touch) => {
+      await cdp().send("Emulation.setTouchEmulationEnabled", {
+        enabled: touch,
+        maxTouchPoints: 5,
+      });
       const ctx = await boot(1280, 800);
       try {
         const doc = ctx.iframe.contentDocument!;

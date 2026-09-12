@@ -1,0 +1,39 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ✓ |browser (chromium)| tests/browser/mobile-viewport.test.ts (6 tests) 5642ms
+     ✓ phone 390×844: lane switcher IS selection; sticky chrome; scrolling-grid law  1044ms
+     ✓ phone 360×800: same laws at the tight viewport + the usable-grid budget  486ms
+     ✓ rotation re-budgets live: 390×844 → 844×390 phone-law → 768×1024 tablet → 1280×800 desktop  528ms
+     ✓ bootIframe wipe integrity: a blocked wipe waits out transient blockers, then fails LOUD (DA-3 precedent)  3078ms
+4:48:23 PM [vite] (client) [console.error] [failure detail] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true): expected 816 to be less than or equal to 800
+stderr | tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true)
+[failure detail] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true): expected 816 to be less than or equal to 800
+stdout | tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true)
+[failure screenshot] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true): __screenshots__/failures/383070069_0_1.png
+ ❯ |browser (chromium)| tests/browser/vertical-fill.test.ts (2 tests | 1 failed) 3577ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: false)  2907ms
+     × fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true) 670ms
+ ✓ |browser (chromium)| tests/browser/pitch-direction.test.tsx (1 test) 519ms
+   ✓ higher notes render above lower notes; octave view and keyboard editing preserve pitch identity  519ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |browser (chromium)| tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true)
+AssertionError: expected 816 to be less than or equal to 800
+ ❯ tests/browser/vertical-fill.test.ts:218:51
+    216|           await new Promise((r) => setTimeout(r, 300));
+    217|           expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(…
+    218|           expect(doc.documentElement.scrollHeight).toBeLessThanOrEqual…
+       |                                                   ^
+    219|           const floors = Array.from(
+    220|             doc.querySelectorAll<HTMLElement>(".lane-floor"),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 8 passed (9)
+   Start at  16:48:11
+   Duration  13.58s (transform 0ms, setup 16ms, import 1.46s, tests 9.74s, environment 0ms)
+

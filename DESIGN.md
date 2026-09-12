@@ -51,7 +51,7 @@ Preferences persist locally under `bitbounce.track-colors.v1`, outside project d
 
 ## Phone layout
 
-The grid navigation row sits above the notes. Back and Forward move by up to one bar, with overlap at narrow widths; a step range shows the current position. Draw and Scroll use pressed-button states and 44px minimum targets. Draw supports a 320ms hold before panning, with a static grid outline and "Drag to scroll" cue. Scroll pans immediately on touch. Keep vertical native scrolling and quick note drawing available. Show these controls on narrow layouts and devices with a coarse pointer.
+The grid navigation occupies one 44px row above the notes. Labeled chevrons move backward and forward by up to one bar, with overlap at narrow widths; a step range shows the current position. Draw and Scroll use pressed-button states and 44px minimum targets. Draw supports a 320ms hold before panning, with a static grid outline and "Drag to scroll" cue. Scroll pans immediately on touch. Keep vertical native scrolling and quick note drawing available. Show these controls on narrow layouts and devices with a coarse pointer. On those tablet and desktop layouts, reduce panel padding and register spacing to preserve the complete pitch window. Contextual help explains all navigation controls.
 
 One selected instrument occupies the phone stage. The sticky top area holds the brand, Projects, theme, instrument tabs, Options, Play and page navigation. The track-color control sits beside the instrument title.
 
@@ -70,6 +70,8 @@ VIZ retains all 24 effects, lane-local MIDI phrasing, Fluid folds / Flowing trai
 See `docs/dev/membrane-review/verification.md` for the completed checks and the older register tests with obsolete expectations. No deployment is implied by local verification.
 
 ## Optional instrument workspace
+
+Bars is a compact disclosure in the selected instrument's tools row. Its field and minus/plus buttons open over the grid without growing the page or navigating away. On phones and coarse-pointer devices, the trigger and editing targets are at least 44px tall. Escape returns focus to the trigger; outside pointer presses dismiss the panel. Keep the panel out of layout and focus navigation while closed. The phone Add instrument action sits beside the instrument tabs as a labeled plus button.
 
 Desktop tabs are Instruments 1–4, Instruments 5–8, then Song arrangement. The second instrument page uses the same four-quadrant MIDI editor, with a fixed slot per quadrant and an Add instrument action in empty slots. All lane headers use two consistent rows: name and mute/solo, then sound and mix controls. The selected instrument title takes its lane color; redundant Edit/View labels are omitted. On phones, the sticky header shows default instrument tabs followed by up to four added track tabs and an Add new instrument button until all slots are occupied. One SONG/NOTES button switches views and preserves track selection. Phone Song sections have discreet centered titles and wrapping pattern tiles with content-sized spacing.
 

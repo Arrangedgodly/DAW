@@ -97,6 +97,24 @@ import { LANE_NAMES } from "./laneMeta";
 
 const session = getSession();
 
+registerHelp([
+  {
+    id: "grid.navigation",
+    title: "GRID NAVIGATION",
+    text: "Back and Forward move the visible steps by up to one bar. The step range shows your place in the pattern. Navigation changes the view without editing notes.",
+  },
+  {
+    id: "grid.draw",
+    title: "DRAW NOTES",
+    text: "Tap to place a note or drum hit. Pull quickly to draw a longer note. Hold still briefly, then drag to scroll without editing notes.",
+  },
+  {
+    id: "grid.scroll",
+    title: "SCROLL GRID",
+    text: "Swipe horizontally to move through the pattern without editing notes. Choose Draw to place notes again. Vertical swipes still scroll the page.",
+  },
+]);
+
 /**
  * HP-2 help content — one entry per quadrant's grid (Professor X voice on
  * HP-1's registry; I2-6 colocated law). The entry covers every cell/row
@@ -1678,10 +1696,19 @@ function GridSurface(props: {
           <button
             type="button"
             aria-label="Scroll grid backward"
+            data-help="grid.navigation"
+            title="Scroll grid backward"
             disabled={horizontal().left <= 1}
             onClick={() => navigate(-1)}
           >
-            Back
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="m10 3-5 5 5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
           </button>
           <output class="grid-position" aria-live="polite">
             Steps {horizontal().first}–{horizontal().last} /{" "}
@@ -1690,10 +1717,19 @@ function GridSurface(props: {
           <button
             type="button"
             aria-label="Scroll grid forward"
+            data-help="grid.navigation"
+            title="Scroll grid forward"
             disabled={horizontal().left >= horizontal().max - 1}
             onClick={() => navigate(1)}
           >
-            Forward
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="m6 3 5 5-5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
           </button>
         </div>
         <div class="grid-touch-tools">
@@ -1701,6 +1737,8 @@ function GridSurface(props: {
             <button
               type="button"
               aria-pressed={!panMode()}
+              data-help="grid.draw"
+              title="Tap to place. Pull to lengthen. Hold to scroll."
               onClick={() => {
                 setPanMode(false);
                 navigationRenderer?.setPanMode(false);
@@ -1711,6 +1749,7 @@ function GridSurface(props: {
             <button
               type="button"
               aria-pressed={panMode()}
+              data-help="grid.scroll"
               onClick={() => {
                 setPanMode(true);
                 navigationRenderer?.setPanMode(true);

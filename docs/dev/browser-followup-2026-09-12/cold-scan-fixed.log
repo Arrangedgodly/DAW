@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+4:21:58 PM [vite] (client) Forced re-optimization of dependencies
+ ✓ |browser (chromium)| tests/browser/help-mode.test.tsx (5 tests) 1120ms
+     ✓ off = zero help surface · button + `i` toggle with announcements · focus AND hover drive the region · no trap · Escape exits first · pass-through · mid-gesture safety · mode-obvious styling  889ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  16:21:56
+   Duration  5.24s (transform 0ms, setup 8ms, import 1.35s, tests 1.12s, environment 0ms)
+

@@ -159,10 +159,13 @@ export function LaneSwitcher(): JSX.Element {
         <button
           type="button"
           class="phone-add-instrument"
+          aria-label="Add new instrument"
+          title="Add new instrument"
           data-help="stage.addInstrument"
           onClick={add}
         >
-          <span aria-hidden="true">+</span> Add new instrument
+          <span aria-hidden="true">+</span>
+          <span class="head-sr">Add new instrument</span>
         </button>
       </Show>
     </div>

@@ -1,0 +1,216 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 chrome budget · 390×844 steady] chrome 190.0 px (22.5% of viewport)
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @390×844] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 390×844]
+  PASS   painted     75×44  hit     76×45  booth PLAY
+  PASS   painted     45×44  hit     46×45  booth LOOP
+  PASS   painted     75×44  hit     76×45  booth METRONOME
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #0
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #1
+  PASS   painted     51×44  hit     52×45  booth scale chip (strap)
+  PASS   painted     64×44  hit     65×45  booth slider #0
+  PASS   painted     64×44  hit     65×45  booth slider #1
+  PASS   painted     83×44  hit     84×45  switcher tab #0
+  PASS   painted     83×44  hit     84×45  switcher tab #1
+  PASS   painted     83×44  hit     84×45  switcher tab #2
+  PASS   painted     83×44  hit     84×45  switcher tab #3
+  PASS   painted     64×44  hit     65×45  SONG page key
+  PASS   painted     67×84  hit     68×91  rail tile #0
+  PASS   painted     67×84  hit     68×91  rail tile #1
+  PASS   painted     67×84  hit     68×91  rail tile #2
+  PASS   painted     67×44  hit     68×44  rail append +
+  PASS   painted     44×44  hit     45×45  rail PAT trigger
+  PASS   painted     44×44  hit     45×45  strip preset − #0
+  PASS   painted     44×44  hit     45×45  strip preset + #0
+  PASS   painted     93×44  hit     94×45  strip VOLUME slider
+  PASS   painted     45×44  hit     46×45  strip MUTE
+  PASS   painted     45×44  hit     46×45  strip SOLO
+  PASS   painted    118×44  hit    120×45  strip scale chip
+  PASS   painted     44×44  hit     45×45  strip gate −
+  PASS   painted     44×44  hit     45×45  strip gate +
+  PASS   painted     44×44  hit     45×45  strip FX
+  PASS   painted     45×44  hit     46×45  strip FILL toggle
+  EXEMPT painted     17×55  hit         —  grid cell (DATA TARGET — gesture laws)
+  EXEMPT painted     58×40  hit         —  tempo input (EXEMPT: equivalent steppers ≥44)
+  EXEMPT painted    122×24  hit         —  save indicator (EXEMPT: non-operable status)
+  PASS   painted     44×44  hit     45×45  euclid stepper #0
+  PASS   painted     44×44  hit     45×45  euclid stepper #1
+  PASS   painted     44×44  hit     45×45  euclid stepper #2
+  PASS   painted     44×44  hit     45×45  euclid stepper #3
+  PASS   painted     44×44  hit     45×45  euclid stepper #4
+  PASS   painted     44×44  hit     45×45  euclid stepper #5
+  PASS   painted     44×44  hit     45×45  euclid stepper #6
+  PASS   painted     44×44  hit     45×45  euclid stepper #7
+  PASS   painted     44×44  hit     45×45  euclid stepper #8
+  PASS   painted     44×44  hit     45×45  euclid stepper #9
+  PASS   painted     44×44  hit     45×45  euclid stepper #10
+  PASS   painted     44×44  hit     45×45  euclid stepper #11
+  PASS   painted     44×44  hit     45×45  euclid stepper #12
+  PASS   painted     44×44  hit     45×45  euclid stepper #13
+  PASS   painted     44×44  hit     45×45  euclid stepper #14
+  PASS   painted     44×44  hit     45×45  euclid stepper #15
+  PASS   painted     44×44  hit     45×45  euclid stepper #16
+  PASS   painted     44×44  hit     45×45  euclid stepper #17
+  PASS   painted     44×44  hit     45×45  euclid stepper #18
+  PASS   painted     44×44  hit     45×45  euclid stepper #19
+  PASS   painted     44×44  hit     45×45  euclid stepper #20
+  PASS   painted     44×44  hit     45×45  euclid stepper #21
+  PASS   painted     44×44  hit     45×45  euclid stepper #22
+  PASS   painted     44×44  hit     45×45  euclid stepper #23
+  PASS   painted     44×44  hit     45×45  euclid SET
+  PASS   painted     44×44  hit     45×45  PAT menu item #0
+  PASS   painted     65×44  hit     66×45  PAT menu item #1
+  PASS   painted     65×44  hit     66×45  PAT menu item #2
+  PASS   painted     44×44  hit     45×45  PAT menu item #3
+  PASS   painted     44×44  hit     45×45  PAT menu item #4
+  PASS   painted     52×44  hit     52×45  scale root #0
+  PASS   painted     52×44  hit     52×45  scale root #1
+  PASS   painted    320×44  hit    321×45  scale mode
+  PASS   painted    320×44  hit    321×45  scale commit
+  PASS   painted    320×44  hit    321×45  scale detach
+  PASS   painted     52×44  hit     52×45  booth scale root
+  PASS   painted     44×44  hit     45×45  register shift #0
+  PASS   painted     44×44  hit     45×45  register shift #1
+  PASS   painted     44×44  hit     45×45  register shift #2
+  PASS   painted     44×44  hit     45×45  register shift #3
+  EXEMPT painted    104×56  hit         —  register readout (EXEMPT: aria-live status, non-operable)
+  PASS   painted     49×44  hit     50×45  fx CLOSE
+  PASS   painted     44×44  hit     45×45  fx module button #0
+  PASS   painted     44×44  hit     45×45  fx module button #1
+  PASS   painted     44×44  hit     45×45  fx module button #2
+  PASS   painted     44×44  hit     45×45  fx module button #3
+  PASS   painted     44×44  hit     45×45  fx module button #4
+  PASS   painted     44×44  hit     45×45  fx module button #5
+  PASS   painted     44×44  hit     45×45  fx module button #6
+  PASS   painted     44×44  hit     45×45  fx module button #7
+  PASS   painted    145×44  hit    146×45  fx param slider #0
+  PASS   painted    145×44  hit    146×45  fx param slider #1
+  PASS   painted     71×44  hit     72×45  fx + ADD FX
+  PASS   painted     55×44  hit     56×45  fx add item #0
+  PASS   painted     49×44  hit     50×45  fx add item #1
+  PASS   painted     49×44  hit     50×45  fx add item #2
+  PASS   painted     49×44  hit     50×45  fx add item #3
+  PASS   painted     55×44  hit     56×45  fx add item #4
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+  PASS   painted     59×44  hit     60×45  toast action
+  PASS   painted     44×44  hit     45×45  toast dismiss
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 chrome budget · 360×800] chrome 190.0 px (23.8% of viewport) · usable 610.0 px (76.3%)
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 360×800 fill]
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #0
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #1
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #2
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #3
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #4
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #5
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #6
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #7
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #8
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #9
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #10
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #11
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #12
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #13
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #14
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #15
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #16
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #17
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #18
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #19
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #20
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #21
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #22
+  PASS   painted     44×44  hit     45×45  euclid stepper (360) #23
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #0
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #1
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #2
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #3
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #4
+  PASS   painted    246×44  hit    247×45  euclid SET (360) #5
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @360×800] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 360×800]
+  PASS   painted     75×44  hit     76×45  booth PLAY
+  PASS   painted     45×44  hit     46×45  booth LOOP
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #0
+  PASS   painted     44×44  hit     45×45  booth tempo stepper #1
+  PASS   painted     64×44  hit     65×45  booth slider #0
+  PASS   painted     64×44  hit     65×45  booth slider #1
+  PASS   painted     76×44  hit     76×45  switcher tab #0
+  PASS   painted     76×44  hit     76×45  switcher tab #1
+  PASS   painted     76×44  hit     76×45  switcher tab #2
+  PASS   painted     76×44  hit     76×45  switcher tab #3
+  PASS   painted     64×44  hit     65×45  SONG page key (360)
+  PASS   painted     82×84  hit     82×85  rail tile #0
+  PASS   painted     82×84  hit     82×85  rail tile #1
+  PASS   painted     44×44  hit     45×45  PAT trigger
+  PASS   painted     44×44  hit     45×45  strip preset + #0
+  PASS   painted     45×44  hit     46×45  strip MUTE
+  PASS   painted     44×44  hit     45×45  strip FX
+  PASS   painted     45×44  hit     46×45  strip FILL
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · normal @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · confirm @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[S-4 popover fit · editor @430×932] 338.0×424.5 x[12.0,350.0] y[45.0,469.5]
+stdout | tests/browser/followup-focus-probe.test.tsx > MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation) > 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence
+[MB-3 target audit · 430×932 projects]
+  PASS   painted    206×44  hit    208×45  projects row #0
+  PASS   painted     55×44  hit     56×45  projects row key #0
+  PASS   painted     55×44  hit     56×45  projects row key #1
+  PASS   painted    320×44  hit    321×45  projects CONFIRM DELETE
+  PASS   painted    320×44  hit    321×45  projects rename editor
+  PASS   painted     61×38  hit     62×52  projects action #0
+  PASS   painted     61×38  hit     62×52  projects action #1
+  PASS   painted     61×38  hit     62×52  projects action #2
+  PASS   painted     61×38  hit     62×52  projects action #3
+  PASS   painted     61×38  hit     62×52  projects action #4
+ ✓ |browser (chromium)| tests/browser/followup-focus-probe.test.tsx (1 test) 6498ms
+     ✓ 390×844 + 360×800 (+430×932 projects spot-check): every primary control's hit box ≥44×44, no neighbor overlap; chrome budget; focus order; rotation coherence  6497ms
+ ✓ |browser (chromium)| tests/browser/followup-hold-probe.test.tsx (5 tests) 16979ms
+     ✓ 1 · first-touch unlock: suspended context resumes from the FIRST trusted touch (cell audition, PLAY, preset stepper) + the TAP-TO-RESUME affordance  1546ms
+     ✓ 2 · rotation mid-playback: audio + playhead continuous; mid-gesture rotation cancels (same stage) or remounts (crossing) cleanly; focus never strands  2816ms
+     ✓ 3 · visibility at phone: audio continues + playhead resyncs; hidden + pagehide flush autosave; the recovery affordance re-offers  1433ms
+     ✓ 4 · one-shot LOOP re-enable law at phone (R-3): auto-stop parks, LOOP+PLAY restarts, tail re-enable keeps playing  6316ms
+     ✓ 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence  4867ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  16:12:04
+   Duration  26.86s (transform 0ms, setup 12ms, import 1.28s, tests 23.48s, environment 0ms)
+

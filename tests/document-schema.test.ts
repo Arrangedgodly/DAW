@@ -135,24 +135,24 @@ const TRANSFORMS: ReadonlyArray<
     },
   ],
   [
-    "v3 bars: 3 is not in the powers-of-two vocabulary",
+    "bars: 0 is outside the whole-bar range",
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
-      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 3;
+      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 0;
     },
   ],
   [
-    "v3 bars: 5 is not in the powers-of-two vocabulary",
+    "bars: 2.5 is outside the whole-bar range",
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
-      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 5;
+      (patterns["bass"] as Record<string, unknown>[])[0]!["bars"] = 2.5;
     },
   ],
   [
-    "v3 bars: 96 is not in the powers-of-two vocabulary",
+    "bars: 129 is outside the whole-bar range",
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
-      (patterns["drums"] as Record<string, unknown>[])[0]!["bars"] = 96;
+      (patterns["drums"] as Record<string, unknown>[])[0]!["bars"] = 129;
     },
   ],
   [
@@ -473,8 +473,8 @@ describe("validateProject (strict)", () => {
 // ---------------------------------------------------------------------------
 
 describe("validateProject schema v3 (SV-1)", () => {
-  it("accepts every pattern-bars vocabulary member (powers of two to 128)", () => {
-    for (const bars of [1, 2, 4, 8, 16, 32, 64, 128]) {
+  it("accepts every whole bar count from 1 to 128", () => {
+    for (const bars of PATTERN_BAR_VOCABULARY) {
       const doc = clone(createDefaultProject());
       (doc["patterns"] as Record<string, unknown>)["bass"] = [
         {
@@ -491,8 +491,10 @@ describe("validateProject schema v3 (SV-1)", () => {
     }
   });
 
-  it("the picklist IS the exported vocabulary constant", () => {
-    expect([1, 2, 4, 8, 16, 32, 64, 128]).toEqual([...PATTERN_BAR_VOCABULARY]);
+  it("the exported vocabulary includes every supported whole bar", () => {
+    expect(PATTERN_BAR_VOCABULARY).toEqual(
+      Array.from({ length: 128 }, (_, i) => i + 1),
+    );
   });
 
   it("note bounds: start 2047 + length 2048 valid on a 128-bar pattern; 2048 start rejected", () => {

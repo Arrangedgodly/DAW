@@ -102,8 +102,17 @@ it("lost capture cancels a hold and releases pan feedback", async () => {
   pointer(target, "pointerdown", r.x + 5, r.y + 5);
   await wait(400);
   expect(pane.dataset.panReady).toBe("true");
+  const hint = pane
+    .closest(".lane-floor")!
+    .querySelector<HTMLElement>(".grid-pan-hint")!;
+  expect(hint.textContent).toBe("Drag to scroll");
+  expect(getComputedStyle(hint).clipPath).toBe("none");
+  expect(hint.getBoundingClientRect().height).toBeGreaterThan(1);
+  const navigation = hint.closest(".grid-navigation")!;
+  expect(navigation.getBoundingClientRect().height).toBe(44);
   pointer(pane, "lostpointercapture", r.x + 5, r.y + 5);
   expect(pane.dataset.panReady).toBeUndefined();
+  expect(getComputedStyle(hint).display).toBe("none");
   pointer(pane, "pointerup", r.x + 5, r.y + 5);
   expect(notes()).toHaveLength(0);
 });

@@ -71,6 +71,7 @@ import { LANE_NAMES, laneDisplayName, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
 import FxStrip from "./FxStrip";
 import TrackColorControl from "./TrackColorControl";
+import ClipLengthControl from "./ClipLengthControl";
 
 const session = getSession();
 
@@ -616,6 +617,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         <Show when={stageMode() !== "phone"}>
           <TrackColorControl lane={props.lane} />
         </Show>
+        <ClipLengthControl lane={props.lane} />
         <span class="head-scale-wrap">
           <button
             type="button"

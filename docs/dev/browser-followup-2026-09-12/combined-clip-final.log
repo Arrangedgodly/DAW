@@ -1,0 +1,15 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ✓ |browser (chromium)| tests/browser/vertical-fill.test.ts (2 tests) 5968ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: false)  3062ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true)  2905ms
+ ✓ |browser (chromium)| tests/browser/clip-length.test.tsx (3 tests) 1000ms
+   ✓ edits the selected clip at 1440 pixels, protects notes and follows undo  472ms
+   ✓ edits the selected clip at 390 pixels, protects notes and follows undo  366ms
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  16:49:04
+   Duration  9.88s (transform 0ms, setup 13ms, import 580ms, tests 6.97s, environment 0ms)
+

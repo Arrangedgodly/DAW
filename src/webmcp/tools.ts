@@ -435,7 +435,7 @@ export function createAgentTools(
             controls: FX_DEVICE_SPECS[type],
           })),
           editing:
-            "Keep version and all unrelated fields. Required lanes: drums, bass, chords, lead. Optional pitched lanes: extra1 through extra4. Lane IDs must match pattern and songChain keys. Each lane needs at least one pattern and a nonempty chain of existing pattern IDs. Pattern bars: 1,2,4,8,16,32,64,128. Drum rows have exactly bars*16 booleans. Pitched notes are {degree,start,length}; include each degree in rowDegrees. FX chains have at most 3 devices. chainModes entries are next or loop; chainCues are per-slot labels. Use list_sounds for valid sound IDs. Octave offsets are integers -3 to 3. Scale roots are pitch classes 0=C through 11=B. Swing is 0 to 1. Do not edit sampleProvenance; it is maintained automatically.",
+            "Keep version and all unrelated fields. Required lanes: drums, bass, chords, lead. Optional pitched lanes: extra1 through extra4. Lane IDs must match pattern and songChain keys. Each lane needs at least one pattern and a nonempty chain of existing pattern IDs. Pattern bars: any whole number from 1 to 128. Drum rows have exactly bars*16 booleans. Pitched notes are {degree,start,length}; include each degree in rowDegrees. FX chains have at most 3 devices. chainModes entries are next or loop; chainCues are per-slot labels. Use list_sounds for valid sound IDs. Octave offsets are integers -3 to 3. Scale roots are pitch classes 0=C through 11=B. Swing is 0 to 1. Do not edit sampleProvenance; it is maintained automatically.",
         };
       },
     ),

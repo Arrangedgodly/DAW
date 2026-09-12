@@ -1,0 +1,18 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ✓ |browser (chromium)| tests/browser/mobile-viewport.test.ts (6 tests) 5486ms
+     ✓ phone 390×844: lane switcher IS selection; sticky chrome; scrolling-grid law  862ms
+     ✓ phone 360×800: same laws at the tight viewport + the usable-grid budget  486ms
+     ✓ desktop boundary ≥1024 (1024×768 + 1280×800): the desktop law, unchanged (m4)  315ms
+     ✓ rotation re-budgets live: 390×844 → 844×390 phone-law → 768×1024 tablet → 1280×800 desktop  517ms
+     ✓ bootIframe wipe integrity: a blocked wipe waits out transient blockers, then fails LOUD (DA-3 precedent)  3072ms
+ ✓ |browser (chromium)| tests/browser/quadrant-layout.test.ts (2 tests) 1001ms
+     ✓ one page, no scrolling; selector announces; view-only quadrants are operable-not-traps  518ms
+     ✓ refinement-4: 1280×800 one page on BOTH axes; quadrants flex within the 100dvh budget; resize recovers  483ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  16:19:39
+   Duration  8.98s (transform 0ms, setup 13ms, import 67ms, tests 6.49s, environment 0ms)
+

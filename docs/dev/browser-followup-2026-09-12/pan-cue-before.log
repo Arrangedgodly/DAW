@@ -1,0 +1,36 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+4:36:26 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+4:36:29 PM [vite] (client) [console.error] [failure detail] lost capture cancels a hold and releases pan feedback: expected 'inset(50%)' to be 'none' // Object.is equality
+stderr | tests/browser/grid-navigation.test.tsx > lost capture cancels a hold and releases pan feedback
+stdout | tests/browser/grid-navigation.test.tsx > lost capture cancels a hold and releases pan feedback
+[failure detail] lost capture cancels a hold and releases pan feedback: expected 'inset(50%)' to be 'none' // Object.is equality
+[failure screenshot] lost capture cancels a hold and releases pan feedback: __screenshots__/failures/-494852568_3.png
+ ❯ |browser (chromium)| tests/browser/grid-navigation.test.tsx (8 tests | 1 failed | 7 skipped) 792ms
+   × lost capture cancels a hold and releases pan feedback 790ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |browser (chromium)| tests/browser/grid-navigation.test.tsx > lost capture cancels a hold and releases pan feedback
+AssertionError: expected 'inset(50%)' to be 'none' // Object.is equality
+
+Expected: "none"
+Received: "inset(50%)"
+
+ ❯ toBe tests/browser/grid-navigation.test.tsx:107:42
+    105|   const hint = pane.closest(".lane-floor")!.querySelector<HTMLElement>…
+    106|   expect(hint.textContent).toBe("Drag to scroll");
+    107|   expect(getComputedStyle(hint).clipPath).toBe("none");
+       |                                          ^
+    108|   expect(hint.getBoundingClientRect().height).toBeGreaterThan(1);
+    109|   const navigation = hint.closest(".grid-navigation")!;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 skipped (8)
+   Start at  16:36:25
+   Duration  4.31s (transform 0ms, setup 11ms, import 600ms, tests 792ms, environment 0ms)
+

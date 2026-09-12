@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ✓ |browser (chromium)| tests/browser/vertical-fill.test.ts (2 tests) 5821ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: false)  2928ms
+     ✓ fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets (touch: true)  2892ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  16:20:21
+   Duration  8.05s (transform 0ms, setup 9ms, import 25ms, tests 5.82s, environment 0ms)
+

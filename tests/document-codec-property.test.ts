@@ -20,7 +20,6 @@ import {
 import {
   DRUM_PIECES,
   LANE_IDS,
-  PATTERN_BAR_VOCABULARY,
   type FxDevice,
   type Note,
   type SampleProvenanceEntry,
@@ -258,13 +257,13 @@ describe("generator sanity", () => {
     }
   });
 
-  it("SV-1: the full v3 bars vocabulary and both octave states occur across seeds", () => {
+  it("the legacy length presets and both octave states occur across seeds", () => {
     const barsSeen = new Set<number>();
     for (const doc of CASES)
       for (const lane of LANE_IDS)
         for (const p of doc.patterns[lane]) barsSeen.add(p.bars);
     expect([...barsSeen].sort((a, b) => a - b)).toEqual([
-      ...PATTERN_BAR_VOCABULARY,
+      1, 2, 4, 8, 16, 32, 64, 128,
     ]);
     const withOctave = CASES.filter((doc) =>
       doc.lanes.some((l) => l.octave !== undefined),

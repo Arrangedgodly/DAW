@@ -1,5 +1,9 @@
 # Product
 
+## Clip length
+
+The selected instrument's Bars control opens a small editor on the current page. Type any whole number from 1 to 128, or use minus and plus to change one bar at a time. Shortening refuses to cut off notes and explains which note blocks the change. Length changes support undo and persist in project files. Escape closes the editor and returns focus to Bars.
+
 ## Mobile grid navigation
 
 Touch grids have Back and Forward controls with a visible step range. Draw mode keeps tap-to-place and quick drag-to-lengthen; holding for 320 milliseconds switches that touch to horizontal panning without editing notes. Scroll mode pans immediately and does not edit on touch. Vertical swipes retain native scrolling. Navigation changes only the view, and the controls support drum and pitched tracks, including optional instruments.

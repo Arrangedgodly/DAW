@@ -505,13 +505,21 @@ export const NoteSchema = v.strictObject({
 });
 
 /**
- * v3 (SV-1, I3-d): pattern length vocabulary — powers of two, 1..128 bars
+ * Pattern lengths accept every whole bar count from 1 through 128.
  * (STEPS_PER_BAR = 16 ⇒ up to 2048 steps per pattern). Purely additive over
- * v2's [1,2,4]; the picklist IS the type (a resize may only walk this list).
+ * v2's [1,2,4]. Runtime validation also guards calls to resizePattern.
  */
-export const PATTERN_BAR_VOCABULARY = [1, 2, 4, 8, 16, 32, 64, 128] as const;
-export type PatternBars = (typeof PATTERN_BAR_VOCABULARY)[number];
-const PatternBarsSchema = v.picklist(PATTERN_BAR_VOCABULARY);
+export const PATTERN_BAR_VOCABULARY = Array.from(
+  { length: 128 },
+  (_, i) => i + 1,
+);
+export type PatternBars = number;
+const PatternBarsSchema = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(1),
+  v.maxValue(128),
+);
 
 export interface DrumPattern {
   readonly kind: "drums";

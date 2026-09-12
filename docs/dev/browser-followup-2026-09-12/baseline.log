@@ -1,0 +1,128 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+4:09:03 PM [vite] (client) [console.error] [failure detail] 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence: T4: the long-pressed gesture completed after the suppressed menu never met within budget
+stderr | tests/browser/mobile-resilience.test.tsx > MB-4 mobile resilience (phone stage, trusted CDP touch) > 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence
+[failure detail] 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence: T4: the long-pressed gesture completed after the suppressed menu never met within budget
+stdout | tests/browser/mobile-resilience.test.tsx > MB-4 mobile resilience (phone stage, trusted CDP touch) > 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence
+[failure screenshot] 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence: __screenshots__/failures/1538416231_0_4.png
+ ❯ |browser (chromium)| tests/browser/mobile-resilience.test.tsx (5 tests | 1 failed) 17852ms
+     ✓ 1 · first-touch unlock: suspended context resumes from the FIRST trusted touch (cell audition, PLAY, preset stepper) + the TAP-TO-RESUME affordance  1667ms
+     ✓ 2 · rotation mid-playback: audio + playhead continuous; mid-gesture rotation cancels (same stage) or remounts (crossing) cleanly; focus never strands  2699ms
+     ✓ 3 · visibility at phone: audio continues + playhead resyncs; hidden + pagehide flush autosave; the recovery affordance re-offers  1484ms
+     ✓ 4 · one-shot LOOP re-enable law at phone (R-3): auto-stop parks, LOOP+PLAY restarts, tail re-enable keeps playing  6348ms
+     × 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence 5652ms
+4:09:04 PM [vite] (client) [console.error] [failure detail] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets: expected 1014 to be less than or equal to 800
+stderr | tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets
+[failure detail] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets: expected 1014 to be less than or equal to 800
+stdout | tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets
+[failure screenshot] fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets: __screenshots__/failures/383070069_0_0.png
+ ❯ |browser (chromium)| tests/browser/vertical-fill.test.ts (1 test | 1 failed) 705ms
+     × fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets 705ms
+4:09:05 PM [vite] (client) [console.error] [failure detail] walks every surface state: no unregistered control, no placeholder text: base chrome must be fully covered: expected [ …(16) ] to deeply equal []
+stderr | tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > walks every surface state: no unregistered control, no placeholder text
+[failure detail] walks every surface state: no unregistered control, no placeholder text: base chrome must be fully covered: expected [ …(16) ] to deeply equal []
+stdout | tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > walks every surface state: no unregistered control, no placeholder text
+[failure screenshot] walks every surface state: no unregistered control, no placeholder text: __screenshots__/failures/-408884273_0_0.png
+4:09:05 PM [vite] (client) [console.error] [failure detail] phone-width pass: the single-lane stage's surfaces stay fully covered: phone base chrome must be fully covered: expected [ …(4) ] to deeply equal []
+stderr | tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > phone-width pass: the single-lane stage's surfaces stay fully covered
+[failure detail] phone-width pass: the single-lane stage's surfaces stay fully covered: phone base chrome must be fully covered: expected [ …(4) ] to deeply equal []
+stdout | tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > phone-width pass: the single-lane stage's surfaces stay fully covered
+[failure screenshot] phone-width pass: the single-lane stage's surfaces stay fully covered: __screenshots__/failures/-408884273_0_1.png
+ ❯ |browser (chromium)| tests/browser/help-coverage.test.tsx (2 tests | 2 failed) 428ms
+     × walks every surface state: no unregistered control, no placeholder text 245ms
+     × phone-width pass: the single-lane stage's surfaces stay fully covered 183ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |browser (chromium)| tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > walks every surface state: no unregistered control, no placeholder text
+AssertionError: base chrome must be fully covered: expected [ …(16) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "base chrome: \"Scroll grid backward\"",
++   "base chrome: \"Scroll grid forward\"",
++   "base chrome: \"Draw\"",
++   "base chrome: \"Scroll\"",
++   "base chrome: \"Scroll grid backward\"",
++   "base chrome: \"Scroll grid forward\"",
++   "base chrome: \"Draw\"",
++   "base chrome: \"Scroll\"",
++   "base chrome: \"Scroll grid backward\"",
++   "base chrome: \"Scroll grid forward\"",
++   "base chrome: \"Draw\"",
++   "base chrome: \"Scroll\"",
++   "base chrome: \"Scroll grid backward\"",
++   "base chrome: \"Scroll grid forward\"",
++   "base chrome: \"Draw\"",
++   "base chrome: \"Scroll\"",
++ ]
+
+ ❯ toEqual tests/browser/help-coverage.test.tsx:216:10
+    214|           findings.map((f) => `${f.scope}: "${f.describe}"`),
+    215|           "base chrome must be fully covered",
+    216|         ).toEqual([]);
+       |          ^
+    217|
+    218|         // --- STATE 2: FX strip with devices mounted ----------------…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |browser (chromium)| tests/browser/help-coverage.test.tsx > HP-2 help coverage — every interactive surface explains itself > phone-width pass: the single-lane stage's surfaces stay fully covered
+AssertionError: phone base chrome must be fully covered: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "phone base chrome: \"Scroll grid backward\"",
++   "phone base chrome: \"Scroll grid forward\"",
++   "phone base chrome: \"Draw\"",
++   "phone base chrome: \"Scroll\"",
++ ]
+
+ ❯ toEqual tests/browser/help-coverage.test.tsx:601:10
+    599|           findings.map((f) => `${f.scope}: "${f.describe}"`),
+    600|           "phone base chrome must be fully covered",
+    601|         ).toEqual([]);
+       |          ^
+    602|
+    603|         // --- PHONE STATE 1b: the M-4 options drawer open -----------…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  |browser (chromium)| tests/browser/mobile-resilience.test.tsx > MB-4 mobile resilience (phone stage, trusted CDP touch) > 5 · trusted touch-cancel edge table: touchCancel rows (create-drag, rail sweep), second finger, long-press contextmenu, scroll-cancel + undo coherence
+Error: T4: the long-pressed gesture completed after the suppressed menu never met within budget
+ ❯ waitFor tests/browser/mobile-resilience.test.tsx:117:8
+
+    115|     await new Promise((r) => setTimeout(r, 15));
+    116|   }
+    117|   throw new Error(`${what} never met within budget`);
+       |        ^
+    118| }
+    119|
+ Test Files  3 failed (3)
+      Tests  4 failed | 4 passed (8)
+   Start at  16:08:43
+   Duration  22.26s (transform 0ms, setup 16ms, import 1.22s, tests 18.99s, environment 0ms)
+
+ ❯ tests/browser/mobile-resilience.test.tsx:1246:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |browser (chromium)| tests/browser/vertical-fill.test.ts > vertical fill with the full MIDI editor > fits desktop quadrants, preserves seven complete pitched rows, recovers after resize, and keeps phone targets
+AssertionError: expected 1014 to be less than or equal to 800
+ ❯ tests/browser/vertical-fill.test.ts:213:51
+    211|           await new Promise((r) => setTimeout(r, 300));
+    212|           expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(…
+    213|           expect(doc.documentElement.scrollHeight).toBeLessThanOrEqual…
+       |                                                   ^
+    214|           const floors = Array.from(
+    215|             doc.querySelectorAll<HTMLElement>(".lane-floor"),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+

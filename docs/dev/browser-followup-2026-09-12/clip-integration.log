@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+ ✓ |browser (chromium)| tests/browser/clip-length.test.tsx (3 tests) 903ms
+   ✓ edits the selected clip at 1440 pixels, protects notes and follows undo  447ms
+   ✓ edits the selected clip at 390 pixels, protects notes and follows undo  330ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  16:46:24
+   Duration  3.87s (transform 0ms, setup 9ms, import 756ms, tests 903ms, environment 0ms)
+

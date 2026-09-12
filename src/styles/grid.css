@@ -27,20 +27,21 @@
 @media (max-width: 1024px), (any-pointer: coarse) {
   .grid-navigation {
     display: grid;
-    gap: 8px;
-    padding: 8px 0;
+    grid-template-columns: 44px minmax(0, 1fr) 44px auto auto;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
     color: var(--color-ink);
   }
-  .grid-navigation-controls {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
+  .grid-navigation-controls,
+  .grid-touch-tools,
+  .grid-touch-modes {
+    display: contents;
   }
   .grid-navigation button {
     min-width: 44px;
     min-height: 44px;
-    padding: 8px 12px;
+    padding: 4px 6px;
     border: 1px solid
       color-mix(in srgb, var(--color-ink) 30%, var(--color-ground));
     border-radius: 6px;
@@ -62,25 +63,20 @@
     color: var(--color-ground);
   }
   .grid-position {
+    grid-area: 1 / 2;
     text-align: center;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
   }
-  .grid-touch-tools {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-  .grid-touch-modes {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-  }
   .grid-touch-hint,
   .grid-pan-hint {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.5;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
   .grid-pan-hint {
     display: none;
@@ -90,6 +86,18 @@
   }
   .lane-floor:has([data-pan-ready="true"]) .grid-pan-hint {
     display: block;
+    grid-area: 1 / 2;
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip-path: none;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .lane-floor:has([data-pan-ready="true"]) .grid-position {
+    visibility: hidden;
   }
 }
 

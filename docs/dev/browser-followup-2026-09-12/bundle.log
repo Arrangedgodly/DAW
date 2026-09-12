@@ -1,0 +1,20 @@
+check-bundle: SKIP_BUILD=1 — measuring existing dist/
+
+Bundle breakdown (TH-2 gate):
+  initial-load JS (entry + eager chunks, gz):
+    assets/index-CI_kdpGY.js            99.99 KB
+    ---------------------------------- ---------
+    TOTAL                               99.99 KB
+  lazy chunks (dynamic import, on demand, gz):
+    assets/content-C0y8tQN6.js           2.67 KB
+    assets/exportMidi-CVH5z4a6.js        5.07 KB
+    assets/exportWav-MkYUAm4G.js         1.05 KB
+    assets/preload-helper-BpwuklPe.js    7.37 KB
+    assets/projectName-BHMqE4_6.js       6.23 KB
+    assets/sessionTools-dRtKXDOH.js      2.08 KB
+    assets/tools-U7HyXUBl.js             3.75 KB
+    assets/voiceEngine-iShTu660.js       5.91 KB  (worklet: fetched at first play)
+  fonts (woff2, raw): 5 files, 37.02 KB — budget ≤ 50 KB ok
+  css (info, not gated): index-BnUXcMIp.css 29.85 KB gz
+
+Gate: initial JS 99.99 KB gz ≤ 300 KB gz → PASS

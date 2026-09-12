@@ -543,12 +543,19 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
 // Registry anti-rot invariants (HP-2 extends this into full coverage)
 // ---------------------------------------------------------------------------
 
-const newHelpSources = import.meta.glob(
-  "../../src/components/{PhonePageToggle,ThemeSelector,TrackColorControl,AgentAccess}.tsx",
-  { eager: true, query: "?raw", import: "default" },
-);
+// Explicit raw imports keep the TSX file out of Vite's glob scanner rewrite,
+// which can mark preserved JSX as plain JavaScript during a cold scan.
+import phonePageToggleSrc from "../../src/components/PhonePageToggle.tsx?raw";
+import themeSelectorSrc from "../../src/components/ThemeSelector.tsx?raw";
+import trackColorControlSrc from "../../src/components/TrackColorControl.tsx?raw";
+import agentAccessSrc from "../../src/components/AgentAccess.tsx?raw";
+import clipLengthSrc from "../../src/components/ClipLengthControl.tsx?raw";
 const SOURCES = [
-  ...(Object.values(newHelpSources) as string[]),
+  phonePageToggleSrc,
+  themeSelectorSrc,
+  trackColorControlSrc,
+  agentAccessSrc,
+  clipLengthSrc,
   boothSrc,
   phoneOptionsSrc,
   stageFloorSrc,

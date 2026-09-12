@@ -106,6 +106,9 @@ export default defineConfig({
         // built bundle in an iframe under the full production CSP this way.
         // Serve-only: `vite build` keeps the (empty) default publicDir.
         publicDir: "dist",
+        // Test-only parsers/auditor must be ready before long browser journeys.
+        // Discovering them mid-run reloads the shared Vitest browser page.
+        optimizeDeps: { include: ["@tonejs/midi", "midi-file", "axe-core"] },
         test: {
           // vite-plugin-solid's config hook defaults mode==='test' projects to
           // a jsdom environment when none is set; pin node (browser mode
