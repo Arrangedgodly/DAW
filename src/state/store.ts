@@ -920,7 +920,30 @@ function withChain(
   lane: LaneId,
   chain: string[],
   cues: (old: readonly (string | null)[]) => (string | null)[],
+  // ⟲/→ slot modes ride the rewrite the same way (positional by default —
+  // slot i keeps its mode; new slots start "next").
+  modes: (old: readonly SlotMode[]) => SlotMode[] = (old) => [...old],
 ): ProjectDocument {
+  const oldModes = padModes(
+    doc.chainModes?.[lane] ?? [],
+    doc.songChain[lane].length,
+  );
+  const mergedModes: Record<LaneId, SlotMode[]> = {
+    drums: padModes(doc.chainModes?.drums ?? [], doc.songChain.drums.length),
+    bass: padModes(doc.chainModes?.bass ?? [], doc.songChain.bass.length),
+    chords: padModes(doc.chainModes?.chords ?? [], doc.songChain.chords.length),
+    lead: padModes(doc.chainModes?.lead ?? [], doc.songChain.lead.length),
+  };
+  mergedModes[lane] = padModes(modes(oldModes), chain.length);
+  const anyLoop = (Object.keys(mergedModes) as LaneId[]).some((l) =>
+    mergedModes[l].includes("loop"),
+  );
+  // Canonical empty form: the key ABSENT when no slot anywhere loops.
+  const base: ProjectDocument = anyLoop
+    ? { ...doc, chainModes: mergedModes }
+    : { ...doc };
+  if (!anyLoop) delete (base as { chainModes?: unknown }).chainModes;
+  doc = base;
   const old = padCues(doc.chainCues?.[lane] ?? [], doc.songChain[lane].length);
   const nextCues = padCues(cues(old), chain.length);
   // Full four-lane object (schema requires every lane key, parallel lengths).
@@ -949,6 +972,46 @@ function padCues(
   return Array.from({ length }, (_, i) => slots[i] ?? null);
 }
 
+type SlotMode = NonNullable<ProjectDocument["chainModes"]>[LaneId][number];
+
+function padModes(slots: readonly SlotMode[], length: number): SlotMode[] {
+  return Array.from({ length }, (_, i) => slots[i] ?? "next");
+}
+
+/**
+ * Set one chain slot's follow mode (2026-09-11): "loop" (⟲) replays the
+ * slot's pattern until another slot is cued; "next" (→) plays it once and
+ * moves on. One flip = one undo step. The engine applies it at the slot's
+ * next end (a same-structure schedule push — never deferred).
+ */
+export function setChainSlotMode(
+  lane: LaneId,
+  index: number,
+  mode: SlotMode,
+): void {
+  const doc = docStore.getState().doc;
+  if (index < 0 || index >= doc.songChain[lane].length) return;
+  if ((doc.chainModes?.[lane]?.[index] ?? "next") === mode) return;
+  commit(
+    withChain(
+      doc,
+      lane,
+      [...doc.songChain[lane]],
+      (old) => [...old],
+      (old) => old.map((m, i) => (i === index ? mode : m)),
+    ),
+  );
+}
+
+/** Flip one chain slot between ⟲ LOOP and → NEXT; returns the new mode. */
+export function toggleChainSlotMode(lane: LaneId, index: number): SlotMode {
+  const current =
+    docStore.getState().doc.chainModes?.[lane]?.[index] ?? "next";
+  const next: SlotMode = current === "loop" ? "next" : "loop";
+  setChainSlotMode(lane, index, next);
+  return next;
+}
+
 /**
  * Remove a pattern from a lane. Refuses (returns false) when it is the lane's
  * last pattern — a lane always keeps one. All chain occurrences go with it;
@@ -963,11 +1026,24 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
   const nextPatterns = doc.patterns[lane].filter((p) => p.id !== patternId);
   const base = { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } };
   const cues = doc.chainCues?.[lane] ?? [];
+  const modes = doc.chainModes?.[lane] ?? [];
   const kept = doc.songChain[lane]
-    .map((id, i) => ({ id, cue: cues[i] ?? null }))
+    .map((id, i) => ({
+      id,
+      cue: cues[i] ?? null,
+      mode: modes[i] ?? ("next" as SlotMode),
+    }))
     .filter((slot) => slot.id !== patternId);
   if (kept.length === 0) {
-    commit(withChain(base, lane, [nextPatterns[0]!.id], () => [null]));
+    commit(
+      withChain(
+        base,
+        lane,
+        [nextPatterns[0]!.id],
+        () => [null],
+        () => ["next"],
+      ),
+    );
     return true;
   }
   if (kept.length === doc.songChain[lane].length) {
@@ -980,6 +1056,7 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
       lane,
       kept.map((s) => s.id),
       () => kept.map((s) => s.cue),
+      () => kept.map((s) => s.mode),
     ),
   );
   return true;
@@ -1158,6 +1235,7 @@ export function removeChainSlot(lane: LaneId, index: number): boolean {
       doc,
       lane,
       chain.filter((_, i) => i !== index),
+      (old) => old.filter((_, i) => i !== index),
       (old) => old.filter((_, i) => i !== index),
     ),
   );

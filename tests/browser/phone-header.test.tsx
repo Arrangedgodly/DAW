@@ -124,8 +124,17 @@ async function bootIframe(w: number, h: number) {
   const $$ = <T extends Element>(sel: string): T[] =>
     Array.from(idoc().querySelectorAll<T>(sel));
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
+  // 2026-09-11 merge: the phone chain rail lives on the SONG page now — the
+  // phone boot signal is the preset readout. The fork keys on the app's own
+  // stage (lane-switch tabs = phone, the rotated 844-wide phone included),
+  // never on the raw width.
   await poll(
-    () => idoc().querySelectorAll(".rail-tile").length >= 2,
+    () =>
+      idoc().querySelector(".lane-switch-tab") !== null
+        ? Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
+            (v.textContent ?? "").includes("SOFT STEP"),
+          )
+        : idoc().querySelectorAll(".rail-tile").length >= 2,
     5_000,
     "demo chain tiles",
   );

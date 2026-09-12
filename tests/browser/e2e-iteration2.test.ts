@@ -308,8 +308,9 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           T.ui,
           "NOW EDITING CHORDS (keyboard path)",
         );
-        // Select BASS for the note stages.
-        floor("bass").querySelector<HTMLElement>(".cell")!.click();
+        // Select BASS for the note stages (THE FULL UNIT: pads are live on
+        // every quadrant, so select through the side-effect-free label).
+        floor("bass").querySelector<HTMLElement>(".lane-name")!.click();
         await poll(
           () =>
             floor("bass")

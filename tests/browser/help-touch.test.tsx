@@ -45,6 +45,7 @@ import {
   loadDocument,
 } from "../../src/state/store";
 import { activePatterns } from "../../src/state/selection";
+import { showPhonePage } from "../../src/state/phonePage";
 import {
   INFO_MODE_OFF_ANNOUNCEMENT,
   INFO_MODE_ON_ANNOUNCEMENT,
@@ -258,7 +259,22 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         //     MB-2 honesty note: the observer's exclusive real-device path
         //     is browsers that do NOT focus on tap, e.g. iOS Safari, which
         //     no headless harness can express).
+        // 2026-09-11: the chain rail lives on the phone SONG page.
+        showPhonePage("song");
+        await waitFor(
+          () =>
+            document.querySelector(".rail-row[data-lane='bass'] .rail-tile") !==
+            null,
+          2000,
+          "SONG page rail",
+        );
         const tile = el(".rail-row[data-lane='bass'] .rail-tile");
+        // The SONG page scrolls (four lane rows) — bring the tile into the
+        // viewport so the trusted tap's mapped point lands on it.
+        tile.scrollIntoView({ block: "center" });
+        await new Promise((r) =>
+          requestAnimationFrame(() => setTimeout(r, 0)),
+        );
         const tilePattern = activePatterns().bass;
         const cueSpan = tile.querySelector(".rail-tile-cue") as HTMLElement;
         expect(cueSpan.closest("[data-help]")?.getAttribute("data-help")).toBe(
@@ -305,6 +321,12 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
           () => title() === "CHAIN TILE",
           2000,
           "entry re-established after the drawer toggle",
+        );
+        showPhonePage("edit"); // the strip + grid probes below live there
+        await waitFor(
+          () => document.querySelector(".lane-head-strip") !== null,
+          2000,
+          "back on the EDIT page",
         );
 
         // --- 4. PERSISTENCE on unregistered ground ------------------------

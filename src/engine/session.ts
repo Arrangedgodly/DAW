@@ -96,8 +96,13 @@ interface PendingSwitch {
   /** Exact global step where the switch lands (null = once playing). */
   readonly appliesAtStep: number | null;
   readonly segmentIndex: number;
-  /** "boundary" = in-place slot swap; "iteration" = rebuild at chain wrap. */
-  readonly mode: "boundary" | "iteration";
+  /**
+   * "boundary" = in-place slot swap; "iteration" = rebuild at chain wrap;
+   * "jump" = slot cue (cueSlot) — the lane continues at chain slot `toSlot`.
+   */
+  readonly mode: "boundary" | "iteration" | "jump";
+  /** Jump target: the document chain index (mode "jump" only). */
+  readonly toSlot?: number;
 }
 
 export interface PendingSwitchSnapshot {
@@ -105,7 +110,9 @@ export interface PendingSwitchSnapshot {
   readonly fromPatternId: string;
   readonly toPatternId: string;
   readonly appliesAtStep: number | null;
-  readonly mode: "boundary" | "iteration";
+  readonly mode: "boundary" | "iteration" | "jump";
+  /** Jump target chain slot (mode "jump" only). */
+  readonly toSlot?: number;
 }
 
 function snapshotSwitch(
@@ -119,6 +126,7 @@ function snapshotSwitch(
     toPatternId: pending.toPatternId,
     appliesAtStep: pending.appliesAtStep,
     mode: pending.mode,
+    ...(pending.toSlot !== undefined ? { toSlot: pending.toSlot } : {}),
   };
 }
 
@@ -340,7 +348,14 @@ export class Session {
       // current chain length, mis-placing or silencing the first iteration
       // of the next play; a stale high-water step defers stopped switch
       // requests past slot 0). Same law as the while-stopped schedule push.
-      for (const pb of this.lanePlayback) pb.anchorStep = 0;
+      for (const pb of this.lanePlayback) {
+        pb.anchorStep = 0;
+        pb.lastStep = -1;
+        // A slot cue left pending by the previous pass waits for play: it
+        // lands at the first boundary of this one (the lane starts there).
+        if (pb.pendingSwitch?.mode === "jump")
+          pb.pendingSwitch = { ...pb.pendingSwitch, appliesAtStep: null };
+      }
       this.lastDeliveredStep = -1;
       // Refinement-7: the sounding ledger is per-play too — a fresh play's
       // follow starts at the chain's slot 0 (imminent entry), never parked on
@@ -485,6 +500,11 @@ export class Session {
     pendingSchedule: LaneSchedule | null;
     /** Pattern id a pending switch/last switch targeted (UI state source). */
     activePatternId: string;
+    /**
+     * Last global step delivered for this lane (-1 = none this play) — the
+     * ⟲ hold only fires on a boundary the lane actually crossed.
+     */
+    lastStep: number;
   }[] = [];
 
   /** Engine-side pending switch (observable for the DES-6 pending indicator). */
@@ -633,6 +653,7 @@ export class Session {
         pendingSwitch: null,
         pendingSchedule: null,
         activePatternId: schedule.segments[0]?.patternId ?? "",
+        lastStep: -1,
       };
       this.emitSwitch(laneId);
       return;
@@ -707,6 +728,118 @@ export class Session {
   }
 
   /**
+   * SLOT CUE (⟲/→ follow, 2026-09-11): the rail's tile tap. The lane JUMPS to
+   * document chain slot `slot` at the end of the segment it is playing now —
+   * quantized, the exact step observable via getPendingSwitch (mode "jump")
+   * — then follows that slot's mode. Cueing the ⟲ slot the lane is already
+   * holding cancels any pending cue (it simply keeps looping). While stopped
+   * the cue waits for play (the lane starts at the cued slot).
+   */
+  cueSlot(laneId: LaneId, slot: number): void {
+    const pb = this.lanePlayback[LANE_IDS.indexOf(laneId)];
+    if (!pb) return;
+    const { chainSteps, segments } = pb.schedule;
+    const target = segments.find((s) => s.slot === slot);
+    if (!target) return;
+    let appliesAtStep: number | null = null;
+    let segmentIndex = segments.indexOf(target);
+    if (
+      this.transport.snapshot.playing &&
+      this.lastDeliveredStep >= 0 &&
+      chainSteps > 0
+    ) {
+      const from = this.lastDeliveredStep;
+      const local =
+        (((from - pb.anchorStep) % chainSteps) + chainSteps) % chainSteps;
+      segmentIndex = Math.max(
+        0,
+        segments.findIndex(
+          (s) => local >= s.startStep && local < s.startStep + s.steps,
+        ),
+      );
+      const current = segments[segmentIndex]!;
+      if (current === target && current.loop === true) {
+        pb.pendingSwitch = null;
+        this.emitSwitch(laneId);
+        return;
+      }
+      appliesAtStep = from - local + current.startStep + current.steps;
+    }
+    pb.pendingSwitch = {
+      laneId,
+      toPatternId: target.patternId,
+      schedule: pb.schedule,
+      appliesAtStep,
+      segmentIndex,
+      mode: "jump",
+      toSlot: slot,
+    };
+    this.emitSwitch(laneId);
+  }
+
+  /**
+   * Slot follow (⟲ LOOP / → NEXT): runs at the top of every delivered step,
+   * before the iteration/switch laws. Two moves, both pure re-anchors (no
+   * schedule rebuild), both only ON a segment start:
+   * - a due slot cue (cueSlot) lands: the lane continues at the cued slot's
+   *   first step;
+   * - otherwise, when the segment that just ENDED is a ⟲ slot, the lane
+   *   replays it instead of advancing. A chain-structure edit queued while
+   *   holding lands here, mapped onto the held slot — a holding lane may
+   *   never reach the iteration wrap that normally lands it.
+   */
+  private applyChainFollow(
+    pb: (typeof this.lanePlayback)[number],
+    step: number,
+    laneIndex: number,
+  ): void {
+    const { chainSteps, segments } = pb.schedule;
+    if (chainSteps <= 0 || segments.length === 0) return;
+    const local =
+      (((step - pb.anchorStep) % chainSteps) + chainSteps) % chainSteps;
+    if (!segments.some((s) => s.startStep === local)) return;
+    const lane = LANE_IDS[laneIndex];
+    const pending = pb.pendingSwitch;
+    if (
+      pending?.mode === "jump" &&
+      (pending.appliesAtStep === null || step >= pending.appliesAtStep)
+    ) {
+      pb.pendingSwitch = null;
+      const target = segments.find((s) => s.slot === pending.toSlot);
+      if (target) {
+        pb.anchorStep = step - target.startStep;
+        pb.activePatternId = target.patternId;
+      }
+      this.emitSwitch(lane);
+      return;
+    }
+    // Only a boundary the lane actually crossed: at play start (lastStep -1)
+    // nothing has ended yet, so a ⟲ on the LAST slot must not pull step 0.
+    if (pb.lastStep < 0 || pb.lastStep !== step - 1) return;
+    const endedIndex =
+      local === 0
+        ? segments.length - 1
+        : segments.findIndex((s) => s.startStep + s.steps === local);
+    const ended = segments[endedIndex];
+    if (!ended?.loop) return;
+    const queued = pb.pendingSchedule;
+    if (queued && queued.segments.length > 0) {
+      pb.schedule = queued;
+      pb.pendingSchedule = null;
+      const mapped =
+        queued.segments.find((s) => s.slot === ended.slot) ??
+        queued.segments[Math.min(endedIndex, queued.segments.length - 1)]!;
+      const resume = mapped.loop
+        ? mapped.startStep
+        : (mapped.startStep + mapped.steps) % queued.chainSteps;
+      pb.anchorStep = step - resume;
+      this.emitSwitch(lane);
+      return;
+    }
+    pb.anchorStep = step - ended.startStep;
+  }
+
+  /**
    * First boundary of lane `index` strictly after `fromStep`. A pattern of
    * `candidateSteps` steps fits at the first upcoming slot only when the bar
    * count matches; otherwise the boundary is the next iteration wrap.
@@ -755,7 +888,8 @@ export class Session {
     step: number,
   ): void {
     const pending = pb.pendingSwitch;
-    if (!pending) return;
+    // Slot cues land in applyChainFollow (a re-anchor, never a rebuild).
+    if (!pending || pending.mode === "jump") return;
     // Must land exactly ON a segment boundary of the current schedule.
     const { chainSteps, segments } = pb.schedule;
     const local =
@@ -875,6 +1009,7 @@ export class Session {
       for (let i = 0; i < laneCount; i++) {
         const pb = this.lanePlayback[i];
         if (!pb) continue;
+        this.applyChainFollow(pb, step, i); // ⟲ hold / slot-cue jump
         let local = step - pb.anchorStep;
         // A deferred structure swap lands exactly on an iteration boundary.
         if (
@@ -929,6 +1064,7 @@ export class Session {
           if (this.noteOnListeners.size > 0)
             this.emitNoteOns(LANE_IDS[i], events, when);
         }
+        pb.lastStep = step;
       }
     });
   }

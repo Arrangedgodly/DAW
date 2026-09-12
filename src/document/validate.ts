@@ -129,7 +129,9 @@ export function validateProject(input: unknown): ProjectDocument {
     );
   }
   return canonicalizeSampleProvenance(
-    canonicalizeLaneOctaves(canonicalizeCues(normalizeProject(doc))),
+    canonicalizeLaneOctaves(
+      canonicalizeModes(canonicalizeCues(normalizeProject(doc))),
+    ),
   );
 }
 
@@ -205,6 +207,14 @@ function semanticIssues(doc: ProjectDocument): string[] {
     if (cues && cues.length !== doc.songChain[laneId].length) {
       issues.push(
         `chainCues.${laneId}: expected ${doc.songChain[laneId].length} cue slots (one per chain position), got ${cues.length}`,
+      );
+    }
+
+    // ⟲/→ slot follow modes are positional too (parallel array).
+    const modes = doc.chainModes?.[laneId];
+    if (modes && modes.length !== doc.songChain[laneId].length) {
+      issues.push(
+        `chainModes.${laneId}: expected ${doc.songChain[laneId].length} mode slots (one per chain position), got ${modes.length}`,
       );
     }
   }
@@ -295,6 +305,22 @@ export function canonicalizeCues(doc: ProjectDocument): ProjectDocument {
       ? { ...doc, chainCues: null }
       : doc;
   return changed ? { ...doc, chainCues: next } : doc;
+}
+
+/**
+ * Canonicalize ⟲/→ slot modes: the field is dropped (key ABSENT — the
+ * canonical empty form) when it is null or no slot anywhere is "loop", so
+ * every-slot-"next" documents stay byte-identical to the pre-mode format.
+ * Identity-preserving when nothing changes.
+ */
+export function canonicalizeModes(doc: ProjectDocument): ProjectDocument {
+  if (doc.chainModes === undefined) return doc;
+  const modes = doc.chainModes;
+  if (modes && LANE_IDS.some((lane) => modes[lane].includes("loop")))
+    return doc;
+  const next = { ...doc };
+  delete next.chainModes;
+  return next;
 }
 
 /**

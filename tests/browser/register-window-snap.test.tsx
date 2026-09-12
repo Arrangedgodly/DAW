@@ -103,7 +103,16 @@ async function bootIframe(
   const $$ = <T extends Element>(sel: string): T[] =>
     Array.from(idoc().querySelectorAll<T>(sel));
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-  await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+  // 2026-09-11 merge: phone boot signal = the preset readout (the chain rail
+  // lives on the SONG page now — the forked-helper convention).
+  await poll(
+    () =>
+      $$(".lane-switch-tab").length === 4
+        ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP"))
+        : $$(".rail-tile").length >= 2,
+    5_000,
+    "demo chain tiles",
+  );
   await poll(
     () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
     5_000,

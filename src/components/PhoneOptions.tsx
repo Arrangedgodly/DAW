@@ -35,6 +35,7 @@ import {
 } from "../state/selection";
 import { docStore } from "../state/store";
 import { LANE_NAMES } from "./laneMeta";
+import RollValue from "./RollValue";
 import { registerHelp } from "../help/registry";
 
 // HP-2 help content (same registry): the drawer's own affordance.
@@ -159,7 +160,7 @@ function LaneOctaveGroup() {
               –
             </button>
             <span class="head-ctl-value head-oct-value" aria-live="polite">
-              {octaveText(octave())}
+              <RollValue value={octave()}>{octaveText(octave())}</RollValue>
             </span>
             <button
               type="button"

@@ -37,8 +37,17 @@ async function bootIframe(w: number, h: number) {
     });
   const idoc = () => iframe.contentDocument!;
   await poll(() => !!idoc().querySelector(".booth"), 15000, "boot");
+  // 2026-09-11 merge: the phone chain rail lives on the SONG page now — the
+  // phone boot signal is the preset readout (the forked-helper convention).
   await poll(
-    () => idoc().querySelectorAll(".rail-tile").length >= 2,
+    () => {
+      const doc = idoc();
+      return doc.querySelector(".lane-switch-tab") !== null
+        ? Array.from(doc.querySelectorAll(".head-ctl-value")).some((v) =>
+            (v.textContent ?? "").includes("SOFT STEP"),
+          )
+        : doc.querySelectorAll(".rail-tile").length >= 2;
+    },
     8000,
     "demo tiles",
   );

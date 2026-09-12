@@ -77,13 +77,16 @@ describe("IN-3 multi-clip cueing under TRUSTED pointers (app)", () => {
       let snapshotRows: Awaited<ReturnType<ProjectDb["allRecords"]>> = [];
 
       const session = getSession();
-      // Request spy at the funnel's engine seam: one setActivePattern per
-      // cued lane per gesture — the double-activation detector.
-      const origSetActive = session.setActivePattern.bind(session);
+      // Request spy at the funnel's engine seam: one cue per cued lane per
+      // gesture — the double-activation detector. (2026-09-11 merge: tile
+      // drags now cue the SLOT through session.cueSlot — mode "jump" — and
+      // the jump lands via applyChainFollow at the pattern boundary, so
+      // setActivePattern is no longer the cue-time funnel seam.)
+      const origCueSlot = session.cueSlot.bind(session);
       const requests: string[] = [];
-      session.setActivePattern = (lane, patternId, schedule) => {
+      session.cueSlot = (lane, slot) => {
         requests.push(lane);
-        return origSetActive(lane, patternId, schedule);
+        return origCueSlot(lane, slot);
       };
       const laneRequests = (lane: string) =>
         requests.filter((l) => l === lane).length;
@@ -205,7 +208,7 @@ describe("IN-3 multi-clip cueing under TRUSTED pointers (app)", () => {
           "Escape closes inline rename",
         );
       } finally {
-        session.setActivePattern = origSetActive;
+        session.cueSlot = origCueSlot;
         void import("../../src/engine/session")
           .then(({ getSession: g }) => g().transport.stop?.())
           .catch(() => {});

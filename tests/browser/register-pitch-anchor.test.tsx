@@ -112,7 +112,16 @@ async function bootIframe(
   const $$ = <T extends Element>(sel: string): T[] =>
     Array.from(idoc().querySelectorAll<T>(sel));
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-  await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+  // 2026-09-11 merge: phone boot signal = the preset readout (the chain rail
+  // lives on the SONG page now — the forked-helper convention).
+  await poll(
+    () =>
+      $$(".lane-switch-tab").length === 4
+        ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP"))
+        : $$(".rail-tile").length >= 2,
+    5_000,
+    "demo chain tiles",
+  );
   await poll(
     () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
     5_000,
@@ -552,11 +561,22 @@ describe("N-3 pitch-anchored notes — every shift path keeps each run on its ro
         ).toBeLessThanOrEqual(0.6);
 
         // --- 6. PATTERN SWITCH away/back (fresh projection) ----------------
+        // The chain tiles live on the phone SONG page (the 2026-09-11
+        // split) — hop there for the switch, back to EDIT for the asserts.
         {
-          const tiles = $$(".rail-tile");
-          (tiles[1] as HTMLButtonElement).click(); // lead-2: pattern B
+          const pageToggle = () =>
+            $(".phone-page-toggle") as unknown as HTMLButtonElement;
+          pageToggle().click(); // to SONG
+          await poll(
+            () => $$(".rail-tile").length >= 2,
+            5_000,
+            "SONG page chain tiles",
+          );
+          const tiles = () => $$(".rail-tile");
+          (tiles()[1] as HTMLButtonElement).click(); // lead-2: pattern B
           await new Promise((r) => setTimeout(r, 500)); // remount + projection
-          (tiles[0] as HTMLButtonElement).click(); // back to lead-1
+          (tiles()[0] as HTMLButtonElement).click(); // back to lead-1
+          pageToggle().click(); // to EDIT
           await poll(
             () => !!runIn(9) && !!runIn(7),
             5_000,

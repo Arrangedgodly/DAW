@@ -77,6 +77,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { showPhonePage } from "../../src/state/phonePage";
 import { cdp, page } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
@@ -1022,14 +1023,15 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         expect(auditions.length, "T1: no auditions").toBe(aud0);
 
         // -- T2: touchCancel mid rail sweep --------------------------------
-        // (switch to drums FIRST: at phone the rail renders only the ACTIVE
-        // lane's row — the drums tiles exist only on the drums stage.)
+        // (switch to drums FIRST — the sweep asserts against the drums
+        // chain; 2026-09-11 the chain itself lives on the SONG page.)
         await app.tapEl(app.el('.lane-switch-tab[data-lane="drums"]'));
         await waitFor(
           () => app.el(".lane-floor").dataset.lane === "drums",
           3000,
           "drums stage (sweep)",
         );
+        showPhonePage("song"); // the chain rail lives there at phone width
         const patternB = addPattern("drums", 1, "P2");
         appendChainSlot("drums", patternB);
         appendChainSlot("drums", patternB);
@@ -1072,6 +1074,12 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         ).toBe(selectionBefore);
 
         // -- T3: second finger mid-gesture is ignored entirely -------------
+        showPhonePage("edit"); // the grid probes below live on the EDIT page
+        await waitFor(
+          () => document.querySelector(".lane-switch-tab") !== null,
+          2000,
+          "back on the EDIT page",
+        );
         await app.tapEl(app.el('.lane-switch-tab[data-lane="bass"]'));
         await waitFor(
           () => app.el(".lane-floor").dataset.lane === "bass",

@@ -81,10 +81,13 @@ import {
 import { CUE_MAX_CHARS, type LaneId } from "../document/schema";
 import { LANE_NAMES } from "./laneMeta";
 import { getSession } from "../engine/session";
-import { requestPatternSwitch } from "../state/engineBridge";
+import { requestSlotCue } from "../state/engineBridge";
+import { mountSoundingFollow, sounding } from "../state/soundingFollow";
+import ModeIcon from "./ModeIcon";
 import {
   appendBlankPattern,
   docStore,
+  toggleChainSlotMode,
   duplicatePattern,
   removeChainSlot,
   removePattern,
@@ -130,11 +133,9 @@ import {
   type TapRecord,
 } from "../interaction/drag";
 import {
-  activeLane,
   activePatterns,
   currentPatternFor,
   selectPattern,
-  stageMode,
   toggleViewMode,
   viewMode,
 } from "../state/selection";
@@ -151,7 +152,7 @@ registerHelp([
   {
     id: "rail.tile",
     title: "CHAIN TILE",
-    text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. The tile's number is its pattern's BARS; the tiles added together are the lane's CYCLE — how long it plays before coming round again, and lanes with different cycles weave against each other. Click — or Enter — to switch the lane to this pattern; the switch waits (PENDING) and lands on the next bar line. Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
+    text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. The tile's number is its pattern's BARS; the tiles added together are the lane's CYCLE — how long it plays before coming round again, and lanes with different cycles weave against each other. Click — or Enter — while playing to jump the lane to this tile; the jump waits (PENDING) and lands when the pattern playing now ends. The arrow in the corner says what the tile does when it ends: ⟲ loops it until you pick another tile, → plays it once and moves to the next (click the arrow, or press M, to flip it). Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
   },
   {
     id: "rail.append",
@@ -266,84 +267,9 @@ export function stepPatternLength(lane: LaneId, delta: 1 | -1): void {
   // "no-op"/"not-found" cannot occur through the ladder — silent.
 }
 
-/**
- * Refinement-7 (critique P2-3 / deferred #14 — the HW-5 observation): the
- * SOUNDING follow. The rail's active tile tracks each lane's chain position
- * during playback by AUDIBLE time (session.getSoundingPattern — a per-lane
- * ledger stamped with the absolute audio-clock time each slot starts
- * sounding), so NATURAL chain advance lights the slot that is actually
- * sounding; getActivePattern keeps its IM-7 switch/schedule-build semantics
- * as the fallback (before anything has sounded). ONE rAF loop for the whole
- * rail, started/stopped on transport transitions, writing only when a lane's
- * pattern actually CHANGES — never a 60 Hz re-render (the playhead law);
- * stopped parks on the last-sounded slot (one final read).
- */
-const [sounding, setSounding] = createSignal<{
-  readonly [L in LaneId]: string | null;
-}>({ drums: null, bass: null, chords: null, lead: null });
-let followFrame = 0;
-/**
- * TH-4(b) zero-mid-gesture-mutations law: while a pointer gesture is ARMED
- * (button held — a strict superset of every drag window, rail or grid), the
- * follow commits NOTHING to the DOM; its tile/aria writes would be
- * non-preview mid-gesture mutations (the exact class the frame-budget storm
- * gate polices). The rAF loop keeps ticking as a no-op and the follow
- * converges on the FIRST FRAME after release — a freeze of one gesture's
- * length, never a dropped state.
- */
-let heldPointers = 0;
-
-function pollSounding(): void {
-  const prev = sounding();
-  const next = { ...prev };
-  let changed = false;
-  for (const lane of RAIL_ROWS) {
-    const id = session.getSoundingPattern(lane);
-    if (id !== prev[lane]) {
-      next[lane] = id;
-      changed = true;
-    }
-  }
-  if (changed) setSounding(next);
-}
-
-/** (Re)align the follow loop with the transport: rAF while playing, one
- *  parked read while stopped. Idempotent — safe on every transport emit. */
-function syncSoundingFollow(): void {
-  cancelAnimationFrame(followFrame);
-  if (session.transport.snapshot.playing) {
-    const tick = () => {
-      if (heldPointers === 0) pollSounding();
-      followFrame = requestAnimationFrame(tick);
-    };
-    tick();
-  } else {
-    pollSounding();
-  }
-}
-
-/**
- * Count pressed primary pointers at the WINDOW capture level (sees every
- * gesture surface, including renderer-captured grid drags). Returns the
- * uninstall function (mount-scoped — test hygiene).
- */
-function watchHeldPointers(): () => void {
-  const down = (e: PointerEvent): void => {
-    if (e.button === 0) heldPointers++;
-  };
-  const up = (e: PointerEvent): void => {
-    if (e.button === 0 && heldPointers > 0) heldPointers--;
-  };
-  window.addEventListener("pointerdown", down, true);
-  window.addEventListener("pointerup", up, true);
-  window.addEventListener("pointercancel", up, true);
-  return () => {
-    window.removeEventListener("pointerdown", down, true);
-    window.removeEventListener("pointerup", up, true);
-    window.removeEventListener("pointercancel", up, true);
-    heldPointers = 0;
-  };
-}
+// Refinement-7's SOUNDING follow (the active tile tracks what is audible,
+// frozen mid-gesture per TH-4(b)) lives in state/soundingFollow.ts — shared
+// with the lane ⟲/→ footers since 2026-09-11.
 
 let railEl: HTMLElement | undefined;
 let sweepPointerId = -1;
@@ -376,9 +302,9 @@ function rowLengths(): Record<LaneId, number> {
 /**
  * THE multi-clip commit funnel (pointer sweep + keyboard CUE ALL share it —
  * E5 parity by construction): per target lane, top→bottom, the exact
- * individual-click law — selectPattern always, requestPatternSwitch while
- * playing. One queued switch per touched lane; the summary counts the lanes
- * whose switch was requested.
+ * individual-click law — selectPattern always, a SLOT CUE (requestSlotCue)
+ * while playing. One queued cue per touched lane; the summary counts the
+ * lanes whose cue was requested.
  */
 function cueTiles(
   targets: readonly RailCell[],
@@ -392,7 +318,7 @@ function cueTiles(
     if (!patternId) continue;
     selectPattern(target.lane, patternId);
     if (playing) {
-      requestPatternSwitch(target.lane, patternId);
+      requestSlotCue(target.lane, target.slot);
       queued++;
     }
   }
@@ -706,7 +632,17 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 
   const triggerTile = (tile: RailTile) => {
     selectPattern(props.lane, tile.patternId);
-    if (playing()) requestPatternSwitch(props.lane, tile.patternId);
+    // ⟲/→ follow: a tap while playing cues THIS chain slot (the lane jumps
+    // there at the end of the segment it is playing, then follows its mode).
+    if (playing()) requestSlotCue(props.lane, tile.slot);
+  };
+
+  /** Flip a slot between ⟲ LOOP and → NEXT (tile glyph click / M key). */
+  const flipMode = (tile: RailTile) => {
+    const mode = toggleChainSlotMode(props.lane, tile.slot);
+    setAnnounce(
+      `SLOT ${tile.slot + 1} · ${tile.name} · ${mode === "loop" ? "LOOPS" : "PLAYS ONCE, THEN NEXT"}`,
+    );
   };
 
   /**
@@ -933,6 +869,17 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     } else if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       setEditing({ kind: "cue", slot: tile.slot });
+    } else if (
+      !inTextEntry &&
+      (e.key === "m" || e.key === "M") &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      // ⟲/→ slot follow: the keyboard twin of the tile glyph (E5 parity).
+      e.preventDefault();
+      e.stopPropagation();
+      flipMode(tile);
     } else if (e.key === "+" || e.key === "=") {
       // BC-1 (I3-a): "+" creates a NEW blank next-letter pattern, appended
       // + selected — the keyboard twin of the rail's + button. DUP (the
@@ -1001,7 +948,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               data-in-range={inRange(tile) ? "true" : undefined}
               data-help="rail.tile"
               tabindex={tile.slot === focusedSlot() ? 0 : -1}
-              aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" || isSounding(tile) ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
+              aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.mode === "loop" ? ", loops" : ""}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" || isSounding(tile) ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
               onFocus={() => setFocusedSlot(tile.slot)}
               onPointerUp={(e) => onTileTapUp(e, tile)}
               onClick={() => {
@@ -1039,6 +986,27 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               </span>
               <span class="rail-tile-name">{tile.name}</span>
               <span class="rail-tile-bars">{tile.bars}B</span>
+              {/* ⟲/→ slot follow: a click here flips the slot's mode and
+                  never reaches the tile's cue/select/sweep/rename paths. */}
+              <span
+                class="rail-tile-mode"
+                data-mode={tile.mode}
+                title={
+                  tile.mode === "loop"
+                    ? "⟲ Loops until you pick another tile — click for → next"
+                    : "→ Plays once, then the next tile — click for ⟲ loop"
+                }
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onDblClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  flipMode(tile);
+                }}
+              >
+                <ModeIcon mode={tile.mode} />
+              </span>
               <Show when={stateFor(tile) === "pending"}>
                 <span class="rail-tile-flag" aria-hidden="true">
                   ◆
@@ -1207,21 +1175,15 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 
 export default function PatternRail(): JSX.Element {
   onMount(() => {
-    // Refinement-7: keep the sounding follow aligned with the transport
-    // (every coarse snapshot emit — start/stop are the load-bearing ones),
-    // and freeze its commits while a pointer gesture is armed (TH-4(b)).
-    const unsubFollow = session.subscribe(() => syncSoundingFollow());
-    const unwatchPointers = watchHeldPointers();
-    syncSoundingFollow();
+    // Refinement-7: the sounding follow (transport-aligned, frozen while a
+    // pointer gesture is armed — TH-4(b)); ref-counted, shared state module.
+    const releaseFollow = mountSoundingFollow();
     // Ephemeral gesture state must never leak across mounts (test hygiene).
     onCleanup(() => {
-      unsubFollow();
-      unwatchPointers();
-      cancelAnimationFrame(followFrame);
+      releaseFollow();
       setCueSweep(null);
       setRailRange(null);
       setToolsLane(null);
-      setSounding({ drums: null, bass: null, chords: null, lead: null });
       sweepPointerId = -1;
       sweepCaptured = false;
     });
@@ -1275,7 +1237,9 @@ export default function PatternRail(): JSX.Element {
         rename — is per-lane state and works unchanged on the visible row.
         Tablet and desktop render the full four-row rail (m4 byte-identity).
       */}
-      <For each={stageMode() === "phone" ? [activeLane()] : RAIL_ROWS}>
+      {/* 2026-09-11: the phone rail now lives only on the SONG page, which
+          shows every lane (the condensed one-row chrome rail retired). */}
+      <For each={RAIL_ROWS}>
         {(lane) => <LaneRail lane={lane} />}
       </For>
     </section>

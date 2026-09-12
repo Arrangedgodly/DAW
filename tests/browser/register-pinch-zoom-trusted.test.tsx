@@ -99,7 +99,16 @@ async function bootIframe(
   const $$ = <T extends Element>(sel: string): T[] =>
     Array.from(idoc().querySelectorAll<T>(sel));
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-  await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+  // 2026-09-11 merge: phone boot signal = the preset readout (the chain rail
+  // lives on the SONG page now — the forked-helper convention).
+  await poll(
+    () =>
+      $$(".lane-switch-tab").length === 4
+        ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP"))
+        : $$(".rail-tile").length >= 2,
+    5_000,
+    "demo chain tiles",
+  );
   await poll(
     () => !!idoc().querySelector(".phone-transport .booth-btn-play"),
     5_000,
@@ -214,7 +223,9 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           let last = -1;
           for (let i = 0; i < 24; i++) {
             const p = pitch();
-            if (p >= 44 && p <= 64 && p === last) return p;
+            // The [44,64] clamp is the TRACK law; pitch = track + the 4px
+            // row-margin rhythm (the N-4 measurement basis) → [48,68].
+            if (p >= 48 && p <= 68 && p === last) return p;
             last = p;
             await new Promise<void>((r) => requestAnimationFrame(() => r()));
           }

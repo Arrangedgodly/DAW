@@ -847,8 +847,13 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // hold inside the clamp, and the page still fits.
         iframe.style.width = `${MIN_W}px`;
         iframe.style.height = `${MIN_H}px`;
+        // 2026-09-11 (⟲/→ lane footer): the quadrant bed gives 14px per
+        // floor to the follow footer, so the lead's 1280 split re-quantizes
+        // to a 12-row window at 17px tracks (was 16px). The LAWS are
+        // unchanged and still gated here: bass at the 24px clamp, the lead
+        // window never below the one-octave default, the page fits.
         await poll(
-          () => trackOf("bass") === 24 && trackOf("lead") === 16,
+          () => trackOf("bass") === 24 && trackOf("lead") === 17,
           5_000,
           "the fill re-quantizes back down at 1280×800",
         );

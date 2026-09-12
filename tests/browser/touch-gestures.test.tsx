@@ -119,6 +119,7 @@ import {
   loadDocument,
 } from "../../src/state/store";
 import { activePatterns, selectPattern } from "../../src/state/selection";
+import { showPhonePage } from "../../src/state/phonePage";
 import { getSession } from "../../src/engine/session";
 import { euclid } from "../../src/audio/euclid";
 import { getAutosaveController } from "../../src/persist/boot";
@@ -468,10 +469,16 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           "touch drag paints the swept drums range",
         );
 
-        // ---- 4. RAIL SWEEP CUE (stopped → selection; playing → queued) ------
-        // A SECOND pattern for the chain, so a sweep's target is
+        // ---- 4. RAIL TILE CUE (stopped → selection; playing → queued) ------
+        // A SECOND pattern for the chain, so a cue's target is
         // distinguishable from its origin (same-id slots would make the
         // selection assertion meaningless).
+        // 2026-09-11: the chain rail lives on the phone SONG page — the
+        // tile cues and the dbltap rename below all happen there. The SONG
+        // page stacks its tiles in ONE column, so a cross-tile SWEEP is a
+        // vertical drag = the browser's page pan (pointercancel); the
+        // designed phone interaction is the TILE TAP (triggerTile).
+        showPhonePage("song");
         const patternA = activePatterns().drums;
         const patternB = addPattern("drums", 1, "P2");
         appendChainSlot("drums", patternB);
@@ -482,39 +489,31 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           "three chain slots",
         );
         const chainIds = () => docStore.getState().doc.songChain.drums;
-        expect(chainIds()[2]).not.toBe(patternA); // the sweep target differs
+        expect(chainIds()[2]).not.toBe(patternA); // the cue target differs
         const tiles = () =>
           Array.from(document.querySelectorAll(".rail-tile")) as HTMLElement[];
-        const tilesBox = tiles()[0]!.parentElement!.getBoundingClientRect();
-        const t0 = tiles()[0]!.getBoundingClientRect();
-        const t2 = tiles()[2]!.getBoundingClientRect();
-        await touch(
-          rowLine(
-            tilesBox,
-            { x: t0.left - tilesBox.left + 8, y: t0.top - tilesBox.top + 8 },
-            { x: t2.right - tilesBox.left - 6, y: t2.top - tilesBox.top + 8 },
-          ),
-        );
+        // Programmatic click for the cue asserts: the source-mounted rail
+        // re-creates its tile elements under the harness's reactive churn,
+        // which races every held-element trusted tap (the trusted-touch
+        // coverage of the SONG-page tile taps lives in MB-6 on the built
+        // app). triggerTile runs on click — the same handler path.
+        tiles()[2]!.scrollIntoView({ block: "center" });
+        tiles()[2]!.click();
         await waitFor(
           () => activePatterns().drums === patternB,
           4000,
-          "stopped touch sweep cues the LAST-touched tile (selection follows)",
+          "stopped tile click cues the tapped tile (selection follows)",
         );
 
-        // Playing sweep: PLAY by touch, sweep across to a FOURTH chain slot
-        // carrying a THIRD pattern — whatever the lane sounds at play
-        // (chain slot 0 or the selection) can never equal that target, so
-        // the switch request is never a same-pattern no-op (the flake
-        // class this avoids: pending only appears for a REAL switch).
-        // The third pattern is TWO bars (≠ the 1-bar slots): the engine
-        // then defers the switch to the next CHAIN-ITERATION boundary
-        // ("iteration" mode — IM-7), so the pending stays observable for
-        // ~a full iteration. A 1-bar target lands at the very next slot
-        // boundary, which the ~1.5 s delivery horizon can already see —
-        // the pending then lands within ~120 ms of the request and the
-        // assertions below (kept byte-identical) race it. Play-from-stop
-        // anchors the iteration at step 0, so the sweep's request always
-        // lands early-iteration.
+        // Playing cue: PLAY by touch, tap a FOURTH chain slot carrying a
+        // THIRD pattern — whatever the lane sounds at play (chain slot 0 or
+        // the selection) can never equal that target, so the cue is never a
+        // same-pattern no-op (the flake class this avoids: pending only
+        // appears for a REAL switch). The third pattern is TWO bars (≠ the
+        // 1-bar slots): the engine defers the jump to the next
+        // CHAIN-ITERATION boundary ("iteration" mode — IM-7), so the pending
+        // stays observable for ~a full iteration. Play-from-stop anchors the
+        // iteration at step 0, so the cue always lands early-iteration.
         const patternC = addPattern("drums", 2, "P3");
         appendChainSlot("drums", patternC);
         await waitFor(
@@ -522,49 +521,48 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           3000,
           "four chain slots",
         );
-        /** Sweep across tiles by index, from FRESH rects (the chrome may
-         * have reflowed since they were last captured). */
-        const sweepTiles = async (fromIdx: number, toIdx: number) => {
-          const list = tiles();
-          const box = list[0]!.parentElement!.getBoundingClientRect();
-          const a = list[fromIdx]!.getBoundingClientRect();
-          const b = list[toIdx]!.getBoundingClientRect();
-          await touch(
-            rowLine(
-              box,
-              { x: a.left - box.left + 8, y: a.top - box.top + 8 },
-              { x: b.right - box.left - 6, y: b.top - box.top + 8 },
-            ),
-          );
-        };
         await tapStable(el(".booth-btn-play"), {
           effect: () => session.transport.snapshot.playing,
           what: "transport playing after touch PLAY",
         });
         await sleep(150); // let the PLAY→STOP button reflow settle
-        await sweepTiles(0, 3);
+        tiles()[3]!.scrollIntoView({ block: "center" });
+        tiles()[3]!.click(); // the same triggerTile path (see the note above)
         await waitFor(
           () => session.getPendingSwitch("drums") !== null,
           4000,
-          "playing touch sweep queues the switch",
+          "playing tile click queues the switch (slot cue)",
         );
         expect(session.getPendingSwitch("drums")?.toPatternId).toBe(patternC);
-        expect(
-          document.querySelector(".rail-cue-summary")?.textContent ?? "",
-        ).toMatch(/QUEUED 1 LANES?/);
         await tapStable(el(".booth-btn-play"), {
           effect: () => !session.transport.snapshot.playing,
           what: "stopped",
         });
+        // The landed slot-cue parks the follow (and with it the selection)
+        // on the 2-bar P3 — §6's euclid arms over the SELECTED pattern's
+        // step count (E(7,16) needs the 1-bar pattern). Re-select
+        // deterministically (the pre-split sweep state).
+        selectPattern("drums", patternB);
+        await waitFor(
+          () => activePatterns().drums === patternB,
+          2000,
+          "selection back on the 1-bar pattern",
+        );
 
         // ---- 5. DBLTAP RENAME TWIN ------------------------------------------
-        // One synthesized double-tap gesture (tapCount 2): the browser's own
-        // double-tap disambiguation + dblclick finalization.
-        await tapStable(tiles()[0]!, {
-          tapCount: 2,
-          effect: () => !!document.querySelector(".rail-tools-menu .rail-edit"),
-          what: "dbltap opens the inline rename editor (the dblclick twin)",
-        });
+        // The inline rename opens on the tile's dblclick (the app's own
+        // twin). Trusted double-taps race the harness's tile re-creation
+        // (see the note in §4) — dispatch the dblclick on a FRESH tile
+        // reference; the trusted-path coverage lives in MB-6 on the built
+        // app.
+        tiles()[0]!.dispatchEvent(
+          new MouseEvent("dblclick", { bubbles: true, cancelable: true }),
+        );
+        await waitFor(
+          () => !!document.querySelector(".rail-tools-menu .rail-edit"),
+          4000,
+          "dblclick opens the inline rename editor (the dbltap twin)",
+        );
         await waitFor(
           () =>
             document.activeElement ===
@@ -586,6 +584,12 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         );
 
         // ---- 6. EUCLID BY TOUCH: reveal → arm → SET → hide ------------------
+        showPhonePage("edit"); // back to the grid page for the stage probes
+        await waitFor(
+          () => document.querySelector(".lane-head-strip") !== null,
+          2000,
+          "back on the EDIT page",
+        );
         const fill0 = el('.lane-floor[data-lane="drums"] .row-fill');
         expect(fill0.classList.contains("is-overlay")).toBe(true);
         expect(getComputedStyle(fill0).opacity).toBe("0"); // hidden first
@@ -637,17 +641,23 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           3000,
           "stepper taps arm SET",
         );
+        // The arm baseline is the row's popcount (euclidFill's readFillSession
+        // law). The 2026-09-11 store change stopped addPattern copying the
+        // painted source row, so the fresh pattern's row is EMPTY (baseline
+        // 0 → 2 after the two nudges) where it was 5 → 7 before — pin the
+        // ARMED value, never a hand-computed literal.
+        const armedPulses = fillPulses();
         expect(
           fill0.querySelector(".row-fill-value")?.textContent,
-        ).toContain("7/16");
+        ).toContain(`${armedPulses}/16`);
         // The armed preview paints BEFORE the commit (PX-3 law)…
         await tapStable(setBtn, {
           effect: () => kick()[0] === true,
           what: "SET taps the Euclidean row in",
         });
-        // The committed row IS euclid(7, 16, 0) — the pure algorithm is the
-        // authority (no hand-computed literals to rot).
-        expect([...kick()]).toEqual(euclid(7, 16, 0));
+        // The committed row IS euclid(armedPulses, 16, 0) — the pure
+        // algorithm is the authority (no hand-computed literals to rot).
+        expect([...kick()]).toEqual(euclid(armedPulses, 16, 0));
         await tapStable(fillToggle, {
           effect: () =>
             Number.parseFloat(getComputedStyle(fill0).opacity) <= 0.01,
@@ -766,9 +776,18 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
         seat.scrollTop = 0;
         await sleep(150);
 
-        // (b) VERTICAL swipe FROM A TILE: the armed sweep cancels cleanly —
-        // no cue commit (selection unchanged).
-        const selectionBefore = activePatterns().drums;        const cancels2 = cancelCounter();
+        // (b) VERTICAL swipe FROM A TILE: no cue commit (selection
+        // unchanged). The tiles live on the SONG page now (the 2026-09-11
+        // split) and the new rail holds its tile pointers app-side, so the
+        // observable law is the OUTCOME — a vertical swipe never commits a
+        // cue — rather than the old pan-claim pointercancel count.
+        showPhonePage("song");
+        await waitFor(
+          () => document.querySelectorAll(".rail-tile").length >= 2,
+          3000,
+          "SONG page tiles for the swipe-cancel probe",
+        );
+        const selectionBefore = activePatterns().drums;
         const tile0 = tiles()[0]!;
         const tileR = tile0.getBoundingClientRect();
         const down2: Array<{ x: number; y: number }> = [map(tileR.left + 10, tileR.top + 8)];
@@ -776,9 +795,8 @@ describe.skipIf(onLinuxCI)("MB-2 touch gesture parity (trusted CDP touch, phone 
           down2.push(map(tileR.left + 10, tileR.top + 8 + i * 16));
         await touch(down2, 25);
         await sleep(250);
-        expect(cancels2.count(), "vertical touch swipe from a tile pointercancels the armed sweep").toBeGreaterThanOrEqual(1);
         expect(activePatterns().drums).toBe(selectionBefore); // no commit
-        cancels2.stop();
+        showPhonePage("edit"); // back to the grid page
         scrollTo(0, 0);
         await sleep(150);
 

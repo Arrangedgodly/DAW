@@ -45,6 +45,17 @@ export interface LaneSegment {
   readonly startStep: number;
   /** Steps in this segment (bars × 16). */
   readonly steps: number;
+  /** Document chain index this segment plays (the slot-cue target key). */
+  readonly slot?: number;
+  /** ⟲ LOOP slot: the lane replays it instead of advancing (session). */
+  readonly loop?: boolean;
+}
+
+/** One resolved chain slot: its pattern, document index, and follow mode. */
+export interface ResolvedChainSlot {
+  readonly pattern: Pattern;
+  readonly slot: number;
+  readonly loop: boolean;
 }
 
 /** A lane's compiled playback schedule for one chain iteration. */
@@ -69,6 +80,11 @@ export interface LaneScheduleInput {
   readonly stackChord?: boolean;
   /** RC-1 (v3): per-lane register offset in octaves (see compile.ts). */
   readonly octaveOffset?: number;
+  /**
+   * Per-chain-entry slot identity + ⟲/→ mode (index-aligned with `chain`).
+   * Absent → segments carry neither (legacy callers, standalone switches).
+   */
+  readonly slots?: readonly { readonly slot: number; readonly loop: boolean }[];
 }
 
 /**
@@ -80,11 +96,27 @@ export function resolveChainPatterns(
   doc: ProjectDocument,
   lane: LaneId,
 ): readonly Pattern[] {
+  return resolveChainSlots(doc, lane).map((s) => s.pattern);
+}
+
+/**
+ * resolveChainPatterns with each entry's document slot index and ⟲/→ mode
+ * (same fallback: empty/all-unknown chain → the first pattern as slot 0).
+ */
+export function resolveChainSlots(
+  doc: ProjectDocument,
+  lane: LaneId,
+): readonly ResolvedChainSlot[] {
   const patterns = doc.patterns[lane];
-  const resolved = doc.songChain[lane]
-    .map((id) => patterns.find((p) => p.id === id))
-    .filter((p): p is Pattern => p !== undefined);
-  return resolved.length > 0 ? resolved : [patterns[0]];
+  const modes = doc.chainModes?.[lane];
+  const resolved: ResolvedChainSlot[] = [];
+  doc.songChain[lane].forEach((id, slot) => {
+    const pattern = patterns.find((p) => p.id === id);
+    if (pattern) resolved.push({ pattern, slot, loop: modes?.[slot] === "loop" });
+  });
+  return resolved.length > 0
+    ? resolved
+    : [{ pattern: patterns[0], slot: 0, loop: false }];
 }
 
 /**
@@ -109,9 +141,14 @@ export function compileLaneSchedule(input: LaneScheduleInput): LaneSchedule {
   const segments: LaneSegment[] = [];
   const byStep = new Map<number, VoiceNoteOnEvent[]>();
   let cursor = 0;
-  for (const pattern of input.chain) {
+  for (const [entry, pattern] of input.chain.entries()) {
     const steps = pattern.bars * 16;
-    segments.push({ patternId: pattern.id, startStep: cursor, steps });
+    const meta = input.slots?.[entry];
+    segments.push(
+      meta
+        ? { patternId: pattern.id, startStep: cursor, steps, ...meta }
+        : { patternId: pattern.id, startStep: cursor, steps },
+    );
     const events = compileLaneEvents({
       pattern,
       preset: input.preset,

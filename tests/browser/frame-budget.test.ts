@@ -864,7 +864,10 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
         };
 
         const selectLane = async (lane: string): Promise<void> => {
-          (floor(lane).querySelector(".cell") as HTMLElement).click();
+          // THE FULL UNIT (2026-09-11): every quadrant's pads are live under
+          // the pointer, so a pad click is an EDIT — select through the
+          // side-effect-free lane label (the e2e-happy-path precedent).
+          (floor(lane).querySelector(".lane-name") as HTMLElement).click();
           await poll(
             () => floor(lane).dataset.editing === "true",
             2000,
@@ -1054,10 +1057,9 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           "drums 4-bar grid displayed again after the pool strip",
         );
         // Deterministic click semantics: the pool-wide read now sees ONE
-        // pattern — the fresh 4-bar, empty except kick step 0 (the
-        // quadrant-select click above toggled it OFF against the demo's
-        // every-pattern kick[0] ON). Every one of the 48 clicks below
-        // therefore turns a cell ON.
+        // pattern — the fresh, empty 4-bar (selection now goes through the
+        // side-effect-free lane label, so no select click touches a pad).
+        // Every one of the 48 clicks below therefore turns a cell ON.
         clickCells("drums", [0, 1, 2, 3, 4, 5], [0, 8, 16, 24, 32, 40, 48, 56]);
         // The setup's own integrity tooth: 6 rows × 8 steps = 48 painted
         // hits on the only (empty, 64-step) pattern — the intended density,
@@ -1270,7 +1272,9 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         expect(doc().querySelector(".info-view")).toBeNull();
 
         // --- setup: two long bass notes (resize targets), some drums hits ---
-        (floor("bass").querySelector(".cell") as HTMLElement).click();
+        // THE FULL UNIT (2026-09-11): pads are live on every quadrant, so a
+        // pad click is an EDIT — select through the side-effect-free label.
+        (floor("bass").querySelector(".lane-name") as HTMLElement).click();
         await poll(
           () => floor("bass").dataset.editing === "true",
           2000,
@@ -1412,7 +1416,9 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         // Storm 3 — drums paint (select the drums quadrant first; selection
         // happens OUTSIDE any observed move window).
         {
-          (floor("drums").querySelector(".cell") as HTMLElement).click();
+          // THE FULL UNIT (2026-09-11): pads are live on every quadrant, so a
+          // pad click is an EDIT — select through the side-effect-free label.
+          (floor("drums").querySelector(".lane-name") as HTMLElement).click();
           await poll(
             () => floor("drums").dataset.editing === "true",
             2000,
@@ -1705,7 +1711,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone at 390×844",
         );
         await poll(
-          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -1771,6 +1777,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         const add4Bar = async (lane: string): Promise<void> => {
           // PX-4 re-base: one MORE tile than the demo chain holds (the
           // poly-loop demo's chains are per-lane — drums 8 tiles, others 4).
+          // 2026-09-11: at phone width the chain lives on the SONG page —
+          // hop there for the rail `+`, then back to the grid page.
+          const pageKey = () =>
+            doc().querySelector<HTMLElement>(".phone-page-toggle");
+          pageKey()?.click();
           const tilesBefore = doc().querySelectorAll(
             `.rail-row[data-lane="${lane}"] .rail-tile`,
           ).length;
@@ -1786,6 +1797,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             2_000,
             `${lane} blank appended`,
           );
+          pageKey()?.click(); // back to EDIT (the grid work below)
           await switchLane(lane); // the ladder acts on the ACTIVE lane
           for (const k of ["b", "b"]) {
             doc().body.dispatchEvent(
@@ -1817,6 +1829,9 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
          */
         const removeDemoPatterns = async (lane: string): Promise<void> => {
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
+          // 2026-09-11: the chain rail + its PAT menu live on the phone SONG
+          // page — the whole pool strip runs there, then back to the grid.
+          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
           // PX-4 re-base: strip every tile except the appended blank (the
           // demo pool is per-lane now — drums carry 8 patterns, others 4).
           const start = doc().querySelectorAll(
@@ -1836,16 +1851,27 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
               2_000,
               `${lane} demo pattern ${i} selected (chain untouched yet)`,
             );
-            $(".rail-tools-trigger").click();
+            // 2026-09-11: the SONG page shows ALL four rows — every rail
+            // selector must be scoped to THIS lane (bare ones hit drums).
+            $(`.rail-row[data-lane="${lane}"] .rail-tools-trigger`).click();
             await poll(
               () =>
-                doc().querySelector(`button[aria-label="${rmLabel}"]`) !== null,
+                doc().querySelector(
+                  `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+                ) !== null,
               2_000,
               `${lane} PAT menu (pool remove)`,
             );
-            ($(`button[aria-label="${rmLabel}"]`) as HTMLElement).click();
+            (
+              $(
+                `.rail-row[data-lane="${lane}"] button[aria-label="${rmLabel}"]`,
+              ) as HTMLElement
+            ).click();
             await poll(
-              () => !doc().querySelector(".rail-tools-menu"),
+              () =>
+                !doc().querySelector(
+                  `.rail-row[data-lane="${lane}"] .rail-tools-menu`,
+                ),
               2_000,
               `${lane} PAT menu closes after pool remove`,
             );
@@ -1858,6 +1884,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             2_000,
             `${lane} pool = the dense 4-bar alone (chain followed it)`,
           );
+          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
         };
 
         /** Sustained voices covering step 4 (chords stack 3 voices/note). */
@@ -2310,7 +2337,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone",
         );
         await poll(
-          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
           5_000,
           "demo chain tiles",
         );
@@ -2321,6 +2348,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // LL-1 journey delta: +4B retired with the LENGTH stepper — the
         // rail `+` blank (1 bar) then the global `b` ladder ×2.
         await switchLane("bass");
+        // 2026-09-11: the chain rail lives on the phone SONG page.
+        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
         ($('.rail-row[data-lane="bass"] .rail-append') as HTMLElement).click();
         await poll(
           () =>
@@ -2329,6 +2358,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           2_000,
           "bass blank appended",
         );
+        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
         for (const k of ["b", "b"]) {
           doc().body.dispatchEvent(
             new KeyboardEvent("keydown", {
@@ -2518,6 +2548,9 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         // chrome; aim at tiles visible in the strip so the hit-test resolves
         // a real tile, never a gap).
         {
+          // 2026-09-11: the chain rail lives on the phone SONG page — sweep
+          // it there, then return to the grid page for the budgets below.
+          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
           const row = $('.rail-row[data-lane="drums"]');
           const strip = row.parentElement as HTMLElement;
           const visibleTiles = (): HTMLElement[] => {
@@ -2560,6 +2593,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             4_000,
             "phone pending switch after sweep commit (quantized)",
           );
+          doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
         }
 
         // --- Budgets (the TH-4 (b) laws, unchanged at phone width) ----------
@@ -2677,7 +2711,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone",
         );
         await poll(
-          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
           5_000,
           "demo chain tiles",
         );
@@ -3139,7 +3173,7 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
           "data-stage=phone at 390×844",
         );
         await poll(
-          () => doc().querySelectorAll(".rail-tile").length >= 2,
+          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -3155,13 +3189,21 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
           encode(denseLead128Doc()),
           "th5-dense-long-loop.bitbounce.json",
         );
+        // 2026-09-11: the chain badge lives on the SONG page at phone width —
+        // read it there, then return to the grid page for the census.
+        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
+        await poll(
+          () => railBadge(doc, "lead") === "128B",
+          10_000,
+          "imported dense long-loop doc (lead 128B on the SONG page)",
+        );
+        doc().querySelector<HTMLElement>(".phone-page-toggle")?.click();
         await poll(
           () =>
             doc().querySelectorAll(".lane-grid").length === 1 &&
-            railBadge(doc, "lead") === "128B" &&
             floor("lead").querySelector(".cell") !== null,
           10_000,
-          "imported dense long-loop doc on the phone stage (lead 128B)",
+          "the phone lead grid paints the imported doc",
         );
 
         // Census: the phone's single 2048-step lead grid rides the same

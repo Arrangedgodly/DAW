@@ -14,7 +14,7 @@
  * two-tier split).
  */
 
-import { compileLaneSchedule, laneCycleSteps, resolveChainPatterns } from "../audio/song";
+import { compileLaneSchedule, laneCycleSteps, resolveChainSlots } from "../audio/song";
 import { computeLoopSteps } from "../audio/render";
 import { getDrumKit, getPreset, sampleRefsForSound } from "../audio/presets";
 import {
@@ -31,7 +31,8 @@ import { docStore } from "./store";
 const PITCHED_LANES = ["bass", "chords", "lead"] as const;
 
 function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
-  const chain = resolveChainPatterns(doc, lane);
+  const slots = resolveChainSlots(doc, lane);
+  const chain = slots.map((s) => s.pattern);
   if (chain.length === 0) return null;
   const laneConf = doc.lanes.find((l) => l.id === lane)!;
   const groove = {
@@ -40,6 +41,8 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
   };
   return compileLaneSchedule({
     chain,
+    // ⟲/→ follow: segments carry their document slot + mode (session holds).
+    slots: slots.map(({ slot, loop }) => ({ slot, loop })),
     preset:
       lane === "drums"
         ? (getDrumKit((laneConf as { kitId: string }).kitId) ??
@@ -90,6 +93,20 @@ export function requestPatternSwitch(
     session,
   );
   if (schedule) session.setActivePattern(lane, patternId, schedule);
+}
+
+/**
+ * SLOT CUE (⟲/→ follow, 2026-09-11): the rail's tile tap while playing —
+ * the lane jumps to chain slot `slot` at the end of the segment it is
+ * playing, then follows that slot's mode (session.cueSlot). Engine state
+ * only; the document chain is untouched.
+ */
+export function requestSlotCue(
+  lane: LaneId,
+  slot: number,
+  session: Session = getSession(),
+): void {
+  session.cueSlot(lane, slot);
 }
 
 /**

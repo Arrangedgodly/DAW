@@ -580,6 +580,11 @@ function generatedHelpIds(): Set<string> {
     // i7 N-4: the phone zoom chip (same template-literal stamping).
     ids.add(`lane.${lane}.zoom`);
   }
+  // 2026-09-11 merge: the slot-follow footer + the phone page toggle are
+  // stamped through template-literal/registry indirection the literal scan
+  // can't see (the regshift precedent).
+  ids.add("lane.follow");
+  ids.add("phone.page");
   for (const piece of ["kick", "snare", "hat", "openhat", "clap", "tom"]) {
     ids.add(`euclid.${piece}.fill`);
   }

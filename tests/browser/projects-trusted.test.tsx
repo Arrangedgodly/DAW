@@ -190,7 +190,7 @@ async function bootPhone(
       Array.from(idoc().querySelectorAll<T>(sel));
 
     await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-    await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+    await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
     await poll(
       () => idoc().querySelector(".app")?.getAttribute("data-stage") === "phone",
       5_000,

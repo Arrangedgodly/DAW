@@ -740,6 +740,28 @@ const ChainCuesSchema = v.nullable(
   }),
 );
 
+/**
+ * Slot follow modes (2026-09-11, user call): what a chain POSITION does when
+ * its pattern ends — "loop" (⟲) replays it until another slot is cued,
+ * "next" (→) plays it once and moves to the next slot (the last slot wraps to
+ * the first). Parallel to songChain like chainCues. Canonical empty form =
+ * the key ABSENT (every slot "next" — the pre-2026-09-11 behavior), so
+ * existing documents stay byte-identical.
+ */
+export type ChainSlotMode = "loop" | "next";
+export type LaneChainModes = Readonly<Record<LaneId, readonly ChainSlotMode[]>>;
+
+const ChainSlotModeSchema = v.picklist(["loop", "next"]);
+
+const ChainModesSchema = v.nullable(
+  v.strictObject({
+    drums: v.array(ChainSlotModeSchema),
+    bass: v.array(ChainSlotModeSchema),
+    chords: v.array(ChainSlotModeSchema),
+    lead: v.array(ChainSlotModeSchema),
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // Sample-voice provenance (PS-3, RES-10 committed fields)
 // ---------------------------------------------------------------------------
@@ -875,6 +897,8 @@ export interface ProjectDocument {
   readonly songChain: SongChain;
   /** Optional per-slot section labels (DES-6); absent/null = no cues. */
   readonly chainCues?: LaneCues | null;
+  /** Optional per-slot ⟲/→ follow modes; absent = every slot "next". */
+  readonly chainModes?: LaneChainModes | null;
   /**
    * PS-3 sample-voice provenance; absent (canonical-empty) when no lane uses
    * a sample-backed voice — synth-only projects, including every v2 document
@@ -903,6 +927,8 @@ export const ProjectDocumentSchema = v.pipe(
     songChain: SongChainSchema,
     // Optional (backward compatible): pre-DES-6 docs omit it entirely.
     chainCues: v.optional(ChainCuesSchema),
+    // Optional (backward compatible): docs without ⟲ slots omit it entirely.
+    chainModes: v.optional(ChainModesSchema),
     // Optional (backward compatible): pre-PS-3 docs omit it entirely.
     sampleProvenance: v.optional(SampleProvenanceSchema),
   }),

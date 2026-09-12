@@ -568,20 +568,23 @@
     /* the vent grille: one strip, top edge, right side (heat rises; the
      * PSU-side exhaust) — clear of the top-right screw (right ≥ 32px) */
     var(--furniture-vent),
-    /* the vertical brush grain (T2's faceplate material, base layer) */
+    /* THE FULL UNIT: the studio key light on the faceplate (over the grain) */
+    var(--panel-light),
+    /* the bead-blasted grain (T2's faceplate material, base layer) */
     var(--metal-brush-v);
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat,
-    repeat;
+    no-repeat, repeat;
   background-size:
     var(--furniture-screw-size) var(--furniture-screw-size),
     var(--furniture-screw-size) var(--furniture-screw-size),
     var(--furniture-screw-size) var(--furniture-screw-size),
     var(--furniture-screw-size) var(--furniture-screw-size),
     168px 5px,
+    100% 100%,
     auto;
   background-position:
     left 5px top 3px, right 5px top 3px, left 5px bottom 3px, right 5px
-    bottom 3px, right 32px top 4px, 0 0;
+    bottom 3px, right 32px top 4px, 0 0, 0 0;
 }
 
 /*

@@ -38,6 +38,7 @@ import {
   createFreshProjectDocument,
   docStore,
   loadDocument,
+  setLaneGate,
   undo,
 } from "../../src/state/store";
 import { selectLane } from "../../src/state/selection";
@@ -283,11 +284,14 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         // --- 5. KEYBOARD NOTE LAW (place / trim / remove) ------------------
         const emptyCell = cellAt("bass", 0, 9);
         emptyCell.focus();
-        key(emptyCell, "Enter"); // place → gate default (bass gate = 2 steps)
-        expect(bassNotes()).toContainEqual({ degree: 0, start: 9, length: 2 });
+        // NOTE-LENGTH MEMORY: a press places at the last DRAG-CREATED length
+        // (4, from step 1) — not the gate default (2), and not the lengths the
+        // resizes above produced.
+        key(emptyCell, "Enter");
+        expect(bassNotes()).toContainEqual({ degree: 0, start: 9, length: 4 });
         key(emptyCell, "+");
-        key(emptyCell, "+"); // length 4 → covers steps 9..12
-        expect(bassNotes().find((n) => n.start === 9)!.length).toBe(4);
+        key(emptyCell, "+"); // length 6 → covers steps 9..14
+        expect(bassNotes().find((n) => n.start === 9)!.length).toBe(6);
         const midSpan = cellAt("bass", 0, 11);
         midSpan.focus();
         key(midSpan, "Enter"); // TRIM to end at step 11 → length 3
@@ -298,6 +302,21 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         expect(bassNotes().find((n) => n.start === 9)).toBeTruthy();
         key(emptyCell, "Backspace"); // … then Delete removes the focused note
         expect(bassNotes().find((n) => n.start === 9)).toBeUndefined();
+        // A single POINTER press copies the remembered length too.
+        const pressCell = cellAt("bass", 1, 9);
+        const pc = center(pressCell);
+        pe(pressCell, "pointerdown", pc.x, pc.y);
+        pe(pressCell, "pointerup", pc.x, pc.y);
+        const pressed = bassNotes().find((n) => n.degree !== 0);
+        expect(pressed).toMatchObject({ start: 9, length: 4 });
+        undo();
+        // A gate edit is an explicit new default: it clears the memory.
+        setLaneGate("bass", { unit: "steps", value: 3 });
+        key(emptyCell, "Enter");
+        expect(bassNotes().find((n) => n.start === 9)!.length).toBe(3);
+        key(emptyCell, "Backspace");
+        expect(bassNotes().find((n) => n.start === 9)).toBeUndefined();
+        setLaneGate("bass", { unit: "steps", value: 2 }); // the default back
 
         // --- 6. DRUMS PAINT + undo + single click --------------------------
         selectLane("drums");
@@ -415,8 +434,9 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         ).toHaveLength(0);
         expect(freeCell.dataset.preview).toBeUndefined();
 
-        // View-only quadrants ignore pointer gestures (E2 pointer law): the
-        // lead grid is view-only while bass is selected.
+        // THE FULL UNIT (2026-09-11, user call): every quadrant's pads are
+        // live under the pointer — a press on the NON-selected lead grid
+        // edits it directly (the E2 keyboard half is unchanged: no tab stop).
         const leadCell = cellAt("lead", 0, 2);
         const l = center(leadCell);
         pe(leadCell, "pointerdown", l.x, l.y);
@@ -424,7 +444,7 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         pe(leadCell, "pointerup", l.x, l.y);
         const leadPattern = docStore.getState().doc.patterns.lead[0];
         if (leadPattern?.kind !== "pitched") throw new Error("expected lead");
-        expect(leadPattern.notes).toHaveLength(0); // nothing created
+        expect(leadPattern.notes).toHaveLength(1); // the press landed
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

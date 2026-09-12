@@ -1,22 +1,22 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-11T23:40:00Z",
+  "generatedAt": "2026-09-11T13:20:00Z",
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
       "ground": {
         "role": "neutral",
-        "displayName": "Stage Ground Near-Black",
-        "canonical": "#0d0b10",
+        "displayName": "Anodized Graphite Deck",
+        "canonical": "#111014",
         "tonalRamp": [
-          "#070609",
-          "#0d0b10",
-          "#15121a",
-          "#1e1a25",
-          "#282331",
-          "#332d3e",
-          "#3f384c",
-          "#4c445a"
+          "#050406",
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#34313b",
+          "#4a4653",
+          "#66616f"
         ]
       },
       "ink": {
@@ -49,9 +49,54 @@
           "#4c445a"
         ]
       },
+      "metal-panel": {
+        "role": "neutral",
+        "displayName": "Panel Graphite",
+        "canonical": "#1a191d",
+        "tonalRamp": [
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3d3a44",
+          "#524e5a",
+          "#6d6875"
+        ]
+      },
+      "metal-raised": {
+        "role": "neutral",
+        "displayName": "Raised Key Graphite",
+        "canonical": "#232128",
+        "tonalRamp": [
+          "#0f0e12",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3a3741",
+          "#4a4652",
+          "#5f5a68",
+          "#7a7483"
+        ]
+      },
+      "metal-recess": {
+        "role": "neutral",
+        "displayName": "Recess Black",
+        "canonical": "#0a090c",
+        "tonalRamp": [
+          "#030304",
+          "#0a090c",
+          "#111014",
+          "#1a191d",
+          "#232128",
+          "#2e2c34",
+          "#3d3a44",
+          "#524e5a"
+        ]
+      },
       "lane-drums": {
         "role": "secondary",
-        "displayName": "Drums Neon Red",
+        "displayName": "Drums Signal Red",
         "canonical": "#f23d4c",
         "tonalRamp": [
           "#2c070b",
@@ -61,7 +106,7 @@
           "#df2f3e",
           "#f23d4c",
           "#f66a75",
-          "#fa97a0"
+          "#fbb4ba"
         ]
       },
       "lane-bass": {
@@ -69,14 +114,14 @@
         "displayName": "Bass Console Amber",
         "canonical": "#ffb300",
         "tonalRamp": [
-          "#33210a",
-          "#664314",
-          "#99641e",
-          "#cc8629",
-          "#e69b17",
+          "#2e2000",
+          "#5c4000",
+          "#8a6000",
+          "#b88000",
+          "#e6a000",
           "#ffb300",
-          "#ffc23e",
-          "#ffd475"
+          "#ffc94d",
+          "#ffe6a6"
         ]
       },
       "lane-chords": {
@@ -84,14 +129,14 @@
         "displayName": "Chords Pad Green",
         "canonical": "#35d07f",
         "tonalRamp": [
-          "#072a17",
-          "#0e552e",
-          "#158046",
-          "#1cab5d",
-          "#28c571",
+          "#08261a",
+          "#0f4a31",
+          "#177048",
+          "#1f9660",
+          "#2abc72",
           "#35d07f",
-          "#5dda9a",
-          "#87e5b8"
+          "#6fdda3",
+          "#b4eed0"
         ]
       },
       "lane-lead": {
@@ -99,260 +144,332 @@
         "displayName": "Lead Signal Blue",
         "canonical": "#4da6ff",
         "tonalRamp": [
-          "#0a1c33",
-          "#143866",
-          "#1e5599",
-          "#2872cc",
-          "#3d8de8",
+          "#0a1f33",
+          "#133d66",
+          "#1d5c99",
+          "#267acc",
+          "#3a92f0",
           "#4da6ff",
-          "#79bcff",
-          "#a5d1ff"
+          "#80c0ff",
+          "#bfdfff"
         ]
       }
     },
     "typographyMeta": {
-      "label": {
-        "displayName": "Silkscreen Label",
-        "purpose": "Chassis silkscreens: lane names, booth groups, button text. 10px = weight 700 only."
+      "panel-label": {
+        "displayName": "Panel Label",
+        "purpose": "Every control and group name — printed uppercase legends on machined keys and plates."
+      },
+      "panel-label-lg": {
+        "displayName": "Panel Label Large",
+        "purpose": "Stepper glyphs, phone lane tabs, register shift keys."
+      },
+      "legend": {
+        "displayName": "Engraved Legend",
+        "purpose": "Silkscreen accents ≤10px — SONG CHAIN, cue names, screen annunciators."
       },
       "value": {
-        "displayName": "Departure Mono Value",
-        "purpose": "Live readouts (BPM, counts, FX params); monospaced = tabular."
+        "displayName": "Value Readout",
+        "purpose": "Live values (bars, FX params, percentages); monospaced = tabular."
       },
-      "ui": {
-        "displayName": "Plex Mono UI",
-        "purpose": "Help prose, toasts, banners; always warm white."
+      "body": {
+        "displayName": "Service-Manual Body",
+        "purpose": "Help text, toasts, banners — always warm white."
       },
       "numeric-field": {
-        "displayName": "Plex Mono Numeric",
-        "purpose": "Off-grid numeric inputs; tabular-nums."
+        "displayName": "Numeric Field",
+        "purpose": "Off-grid numeric inputs with tabular numerals."
       },
       "led": {
-        "displayName": "VT323 LED",
-        "purpose": "Big LED readouts 20-24px only (position, tempo, help title)."
-      },
-      "display": {
-        "displayName": "Press Start 2P Display",
-        "purpose": "Reserved; 16px+ multiples of 8 only. Loaded, not currently applied by shipped CSS."
+        "displayName": "LED Numerals",
+        "purpose": "VT323 20–24px behind glass: BAR.BEAT.STEP, TEMPO, the status screen."
       }
     },
     "shadows": [
       {
-        "name": "booth-drop",
-        "value": "0 2px 8px rgb(0 0 0 / 60%)",
-        "purpose": "The transport chassis floats above the stage; the only ambient shadow at rest."
+        "name": "chamfer",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 2px 0 rgb(255 255 255 / 4%), inset 1px 0 0 rgb(255 255 255 / 5%), inset -1px 0 0 rgb(0 0 0 / 30%), inset 0 -1px 0 rgb(0 0 0 / 68%), inset 0 -2px 0 rgb(0 0 0 / 22%)",
+        "purpose": "The two-facet machined plate edge; composed into every panel elevation."
       },
       {
-        "name": "chassis-cast",
-        "value": "4px 4px 12px rgba(0,0,0,0.55)",
-        "purpose": "Floating chassis: popovers and the FX console overlay; arcade-cabinet cast, one layer."
+        "name": "plate-cast",
+        "value": "var(--chamfer), 0 1px 1px rgb(0 0 0 / 55%), 0 12px 24px -10px rgb(0 0 0 / 72%)",
+        "purpose": "Booth, rail, lane plates, phone chrome (--elev-2)."
       },
       {
-        "name": "module-lift",
-        "value": "0 2px 4px rgba(0,0,0,0.45)",
-        "purpose": "FX modules inside a chassis."
+        "name": "floating-cast",
+        "value": "var(--chamfer), 0 2px 3px rgb(0 0 0 / 50%), 0 20px 42px -14px rgb(0 0 0 / 80%)",
+        "purpose": "Popovers, FX console, euclid overlay (--elev-3)."
       },
       {
-        "name": "glow-trigger",
-        "value": "0 0 3px color-mix(in srgb, var(--lane-hue) 45-60%, transparent)",
-        "purpose": "Decoration-only trigger halo; <=180ms one-shot decay, never a state signal."
+        "name": "keycap",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 20%), inset 1px 0 0 rgb(255 255 255 / 6%), inset -1px 0 0 rgb(0 0 0 / 32%), inset 0 -2px 0 rgb(0 0 0 / 40%), inset 0 9px 10px -8px rgb(255 255 255 / 9%), 0 1px 0 rgb(0 0 0 / 70%), 0 3px 6px -2px rgb(0 0 0 / 55%)",
+        "purpose": "Every raised key; inset-only face so it layers over any fill."
+      },
+      {
+        "name": "keycap-lit",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 45%), inset 0 -2px 0 rgb(0 0 0 / 26%), inset 0 9px 10px -8px rgb(255 255 255 / 28%), 0 1px 0 rgb(0 0 0 / 70%)",
+        "purpose": "Backlit cap on lane-hue and warm-white fills."
+      },
+      {
+        "name": "keycap-down",
+        "value": "inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 0 10px rgb(255 255 255 / 16%), inset 0 1px 3px rgb(0 0 0 / 60%)",
+        "purpose": "The seated, lit cap — swapped in instantly on :active."
+      },
+      {
+        "name": "readout-window",
+        "value": "inset 0 3px 8px rgb(0 0 0 / 85%), inset 0 -1px 0 rgb(255 255 255 / 16%)",
+        "purpose": "Recessed LCD windows and the booth status screen (--led-window)."
+      },
+      {
+        "name": "micro-recess",
+        "value": "inset 0 1px 2px rgb(0 0 0 / 70%), inset 0 -1px 0 rgb(255 255 255 / 16%)",
+        "purpose": "LED wells, fader slots, meter wells."
+      },
+      {
+        "name": "milled-pocket",
+        "value": "inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%), 0 -1px 0 rgb(0 0 0 / 55%)",
+        "purpose": "The grid well cut into each lane plate."
+      },
+      {
+        "name": "signal-glow",
+        "value": "0 0 3px color-mix(in srgb, var(--lane-hue) 50%, transparent)",
+        "purpose": "The one decorative ≤3px halo on lit keys, LEDs, sounding tiles."
       }
     ],
     "motion": [
       {
-        "name": "trigger-glow",
-        "value": "180ms ease-out 1",
-        "purpose": "One-shot cell trigger glow; the token-law maximum decay."
+        "name": "press-down",
+        "value": "80ms ease-out, translateY(1.5px) scale(0.985)",
+        "purpose": "Key travel on :active (transform only; hit geometry never changes)."
       },
       {
-        "name": "fill-rail-reveal",
-        "value": "opacity 120ms ease",
-        "purpose": "Euclid fill-rail hover/focus reveal; none under reduced motion."
+        "name": "press-return",
+        "value": "140ms cubic-bezier(0.2, 0.9, 0.3, 1.15)",
+        "purpose": "Spring return of a released key."
       },
       {
-        "name": "playhead",
-        "value": "transform-only, compositor",
-        "purpose": "Playhead sweep: rAF + transform, never framework state; hidden under reduced motion (quantized column highlight + text readout instead)."
+        "name": "switch-throw",
+        "value": "120ms, 3px + 1px end-bounce",
+        "purpose": "MUTE/SOLO/bypass rider throw."
       },
       {
-        "name": "play-nudge",
-        "value": "1.6s ease-in-out infinite",
-        "purpose": "First-run PLAY pulse; the one sanctioned infinite animation; static lit border under reduced motion."
+        "name": "value-roll",
+        "value": "110ms cubic-bezier(0.2, 0.9, 0.3, 1)",
+        "purpose": "Stepper value drops into its window with an over-bright landing (WAAPI)."
+      },
+      {
+        "name": "scan-on",
+        "value": "200ms cubic-bezier(0.3, 0.7, 0.2, 1)",
+        "purpose": "Phosphor refresh line sweeping a popover/FX console as it opens."
+      },
+      {
+        "name": "rim-pulse",
+        "value": "120ms ease-out (opacity)",
+        "purpose": "Beat-rate sounding pulse on a lane plate's rim layer."
+      },
+      {
+        "name": "trigger-bloom",
+        "value": "≤180ms ease-out (opacity)",
+        "purpose": "Crossed-step pad bloom; the glow-law ceiling."
+      },
+      {
+        "name": "landing-strobe",
+        "value": "260ms ease-out (opacity double-flash)",
+        "purpose": "Rail tile strobe when its pattern takes the floor."
+      },
+      {
+        "name": "meter-strike",
+        "value": "460ms, 12% hold, steps() fall",
+        "purpose": "Channel meter strike at a note's audible time (WAAPI, one live animation per bar)."
+      },
+      {
+        "name": "power-on",
+        "value": "520ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "First-open-per-session backlight veil + rim self-check + LED chase."
       }
     ],
     "breakpoints": [
       {
-        "name": "desktop-one-page",
-        "value": ">=1024x600 (1440x900 primary, 1280x800 tested minimum)",
-        "purpose": "2x2 quadrant stage; whole instrument fits with zero page scroll at BOTH committed viewports (browser-asserted); quadrant rows flex to per-lane floors (drums 20 / pitched 11px) under a real deficit; long patterns scroll inside quadrants. Since v0.2 the floors fill the viewport width at EVERY desktop width (the 1400px cap retired; >=95% utilization gated at 1280/1440/1920; width buys columns, never bigger cells), pitched grids show one equal one-octave register window (full manifest one scroll away), and patterns >64 steps render virtualized (visible window inside pattern-wide extents)."
+        "name": "phone",
+        "value": "<768px, or <1024px with height <600px"
       },
       {
         "name": "tablet",
-        "value": "768-1024",
-        "purpose": "Responsive scale of the same 2x2 quadrant stage; still one page."
+        "value": "768–1023px"
       },
       {
-        "name": "phone",
-        "value": "<768 (or <1024 with height <600 \u2014 rotated phone keeps the phone law)",
-        "purpose": "Single-lane stage: lane-switcher tabs = quadrant selection; ONE sticky phone-chrome (booth + switcher + condensed rail) <50% viewport height; grid scrolls naturally (rows vertical, 2/4-bar horizontal, 1-bar default); page never h-scrolls. Since i5: 1-bar rows fill the well width exactly (exact-fraction cells, clamp [15,24]; 0 dead-right), row tracks grown [44,64]px (44 floor), and the card bottom owns the viewport bottom at scroll end (grid share 52.1/49.5/56.7% at 390/360/430)."
+        "name": "desktop",
+        "value": "≥1024×600px"
       }
     ]
   },
   "components": [
     {
-      "name": "Chassis Button (booth)",
+      "name": "Machined Key",
       "kind": "button",
-      "refersTo": "booth-button",
-      "description": "The transport control at rest: outline chassis, silkscreen label.",
-      "html": "<button class=\"ds-btn-chassis\">PLAY</button>",
-      "css": ".ds-btn-chassis { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-ink, #f5f2e9); background: transparent; border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 40%, transparent); border-radius: 4px; padding: 8px 12px; cursor: pointer; } .ds-btn-chassis:hover { border-color: color-mix(in srgb, var(--color-ink, #f5f2e9) 70%, transparent); } .ds-btn-chassis:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 2px; }"
+      "refersTo": "machined-key",
+      "description": "Every booth/strip/rail control: raised graphite, sculpted keycap, printed legend; seats and lights instantly on press.",
+      "html": "<button class=\"ds-key\">METRONOME</button>",
+      "css": ".ds-key { font: 500 10px/1 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-ink, #f5f2e9); background: var(--metal-raised, #232128); border: 1px solid color-mix(in srgb, #f5f2e9 40%, #232128); border-radius: 4px; padding: 8px 12px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 1px 0 0 rgb(255 255 255 / 6%), inset -1px 0 0 rgb(0 0 0 / 32%), inset 0 -2px 0 rgb(0 0 0 / 40%), inset 0 9px 10px -8px rgb(255 255 255 / 9%), 0 1px 0 rgb(0 0 0 / 70%), 0 3px 6px -2px rgb(0 0 0 / 55%); transition: transform 140ms cubic-bezier(0.2, 0.9, 0.3, 1.15); } .ds-key:hover { background: color-mix(in srgb, #f5f2e9 12%, #232128); } .ds-key:active { transform: translateY(1.5px) scale(0.985); transition-duration: 80ms; box-shadow: inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 0 10px rgb(255 255 255 / 16%), inset 0 1px 3px rgb(0 0 0 / 60%); } .ds-key:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; }"
     },
     {
-      "name": "Chassis Button \u2014 lit",
+      "name": "Machined Key — lit",
       "kind": "button",
-      "refersTo": "booth-button-lit",
-      "description": "Active transport control: lane-hue fill, ink-on-fill glyphs, one glow layer.",
-      "html": "<button class=\"ds-btn-lit\">PLAY</button>",
-      "css": ".ds-btn-lit { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-ink-on-fill, #0d0b10); background: var(--color-lane-chords, #35d07f); border: 2px solid var(--color-lane-chords, #35d07f); border-radius: 4px; padding: 8px 12px; cursor: pointer; box-shadow: 0 0 3px color-mix(in srgb, var(--color-lane-chords, #35d07f) 50%, transparent); } .ds-btn-lit:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 2px; }"
+      "refersTo": "machined-key-lit",
+      "description": "A latched key (PLAY green, LOOP blue, METRONOME amber): lane-hue fill, ink-on-fill legend, backlit cap, one ≤3px glow.",
+      "html": "<button class=\"ds-key-lit\" aria-pressed=\"true\">STOP</button>",
+      "css": ".ds-key-lit { font: 500 10px/1 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #0d0b10; background: #35d07f; border: 2px solid #35d07f; border-radius: 4px; padding: 7px 11px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), inset 0 -2px 0 rgb(0 0 0 / 26%), inset 0 9px 10px -8px rgb(255 255 255 / 28%), 0 1px 0 rgb(0 0 0 / 70%), 0 0 3px color-mix(in srgb, #35d07f 50%, transparent); } .ds-key-lit:active { transform: translateY(1.5px) scale(0.985); box-shadow: inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 0 10px rgb(255 255 255 / 16%), inset 0 1px 3px rgb(0 0 0 / 60%); } .ds-key-lit:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; }"
     },
     {
-      "name": "Grid Cell",
+      "name": "Stepper",
       "kind": "custom",
-      "refersTo": "grid-cell",
-      "description": "The pad cell: beat-shaded at rest; on = lane fill + 8px corner notch (shape mark).",
-      "html": "<div class=\"ds-cellrow\"><div class=\"ds-cell\"></div><div class=\"ds-cell ds-on\"></div><div class=\"ds-cell ds-beat\"></div></div>",
-      "css": ".ds-cellrow { display: flex; gap: 2px; } .ds-cell { width: 24px; height: 24px; border-radius: 3px; background: color-mix(in srgb, var(--color-ink, #f5f2e9) 7%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 14%, var(--color-ground, #0d0b10)); } .ds-beat { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 11%, var(--color-ground, #0d0b10)); border-color: color-mix(in srgb, var(--color-ink, #f5f2e9) 18%, var(--color-ground, #0d0b10)); } .ds-on { background: var(--color-lane-chords, #35d07f); border-color: color-mix(in srgb, var(--color-lane-chords, #35d07f) 60%, var(--color-ground, #0d0b10)); clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }"
+      "refersTo": "stepper-key",
+      "description": "20px square −/+ keys with a lane-hue rim flanking a value window that rolls on change.",
+      "html": "<div class=\"ds-stepper\"><button class=\"ds-step\">–</button><span class=\"ds-step-value\">SOFT STEP</span><button class=\"ds-step\">+</button></div>",
+      "css": ".ds-stepper { display: inline-flex; align-items: center; gap: 4px; } .ds-step { width: 20px; height: 20px; display: grid; place-items: center; font: 500 11px/1 'IBM Plex Mono', ui-monospace, monospace; color: #f5f2e9; background: #232128; border: 1px solid color-mix(in srgb, #f23d4c 38%, #232128); border-radius: 3px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 40%), 0 1px 0 rgb(0 0 0 / 70%); } .ds-step:hover { background: color-mix(in srgb, #f5f2e9 12%, #232128); } .ds-step:active { transform: translateY(1.5px) scale(0.985); box-shadow: inset 0 0 0 1px rgb(245 242 233 / 75%), inset 0 1px 3px rgb(0 0 0 / 60%); } .ds-step:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; } .ds-step-value { font: 400 11px/1 'Departure Mono', 'IBM Plex Mono', monospace; color: #f5f2e9; min-width: 8ch; text-align: center; }"
     },
     {
-      "name": "Stepper Button",
-      "kind": "button",
-      "refersTo": "stepper-button",
-      "description": "20px square stepper with lane-hue border accent \u2014 the one vocabulary for preset stepping, OCT -/+ transpose (one octave, clamped \u00b13, exports follow), and the pattern LENGTH ladder (BARS 1..128, refuse-on-truncation).",
-      "html": "<button class=\"ds-stepper\">&gt;</button>",
-      "css": ".ds-stepper { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; color: var(--color-ink, #f5f2e9); background: color-mix(in srgb, var(--color-ink, #f5f2e9) 7%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-lane-lead, #4da6ff) 35%, var(--color-ground, #0d0b10)); border-radius: 3px; width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; } .ds-stepper:hover { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 14%, var(--color-ground, #0d0b10)); } .ds-stepper:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 1px; }"
+      "name": "Pad (off / on / sustain)",
+      "kind": "custom",
+      "refersTo": "pad",
+      "description": "Grid pads in the milled pocket: dim silicone at rest; lane-hue fill with an 8px bottom-left notch when on; hatched sustain tail.",
+      "html": "<div class=\"ds-pocket\"><span class=\"ds-pad\"></span><span class=\"ds-pad ds-pad-on\"></span><span class=\"ds-pad ds-pad-sustain\"></span><span class=\"ds-pad\"></span></div>",
+      "css": ".ds-pocket { display: inline-flex; gap: 2px; padding: 6px; background: #0a090c; border-radius: 3px; box-shadow: inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%); } .ds-pad { width: 20px; height: 20px; border-radius: 3px; background: color-mix(in srgb, #f5f2e9 7%, #111014); border: 1px solid color-mix(in srgb, #f5f2e9 14%, #111014); cursor: pointer; } .ds-pad:hover { border-color: color-mix(in srgb, #f5f2e9 30%, #111014); } .ds-pad:active { transform: translateY(1.5px) scale(0.985); } .ds-pad-on { background: #f23d4c; border-color: color-mix(in srgb, #f23d4c 60%, #111014); clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px)); } .ds-pad-sustain { background: repeating-linear-gradient(135deg, color-mix(in srgb, #f23d4c 55%, #111014) 0 2px, color-mix(in srgb, #f23d4c 20%, #111014) 2px 4px); }"
+    },
+    {
+      "name": "LED Readout Window",
+      "kind": "custom",
+      "refersTo": "readout-window",
+      "description": "Recessed LCD: VT323 warm-white digits with ghosted unlit 8s behind, display scanlines and a split glass glint.",
+      "html": "<span class=\"ds-led\" data-ghost=\"8888888\">1.3.2</span>",
+      "css": ".ds-led { position: relative; isolation: isolate; display: inline-block; min-width: 7ch; padding: 2px 6px; text-align: right; font: 400 22px/1 VT323, 'IBM Plex Mono', monospace; color: #f5f2e9; text-shadow: 0 0 2px rgb(245 242 233 / 40%); background-color: #0a090c; background-image: linear-gradient(180deg, rgb(255 255 255 / 7%) 0%, rgb(255 255 255 / 2.5%) 46%, transparent 50%), repeating-linear-gradient(180deg, rgb(255 255 255 / 3.5%) 0 1px, transparent 1px 3px); border-radius: 4px; box-shadow: inset 0 3px 8px rgb(0 0 0 / 85%), inset 0 -1px 0 rgb(255 255 255 / 16%), 0 0 0 1px rgb(0 0 0 / 68%); } .ds-led::before { content: attr(data-ghost); position: absolute; inset: 2px 6px; z-index: -1; direction: rtl; overflow: hidden; white-space: nowrap; color: rgb(245 242 233 / 8%); text-shadow: none; }"
     },
     {
       "name": "Scale Chip",
       "kind": "chip",
-      "refersTo": "chip-scale",
-      "description": "Effective-scale chip in the lane edit strip; opens the 6px scale popover.",
-      "html": "<button class=\"ds-chip\">LANE &middot; D DORIAN</button>",
-      "css": ".ds-chip { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; color: var(--color-ink, #f5f2e9); background: color-mix(in srgb, var(--color-ink, #f5f2e9) 7%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 22%, var(--color-ground, #0d0b10)); border-radius: 3px; padding: 4px 8px; cursor: pointer; } .ds-chip:hover { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 12%, var(--color-ground, #0d0b10)); } .ds-chip:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 1px; }"
+      "refersTo": "scale-chip",
+      "description": "Effective-scale key; a lane override lights it with the lane hue.",
+      "html": "<button class=\"ds-chip\">PROJECT · C MIN</button> <button class=\"ds-chip ds-chip-lane\">LANE · D DORIAN</button>",
+      "css": ".ds-chip { font: 500 10px/1 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #f5f2e9; background: #232128; border: 1px solid color-mix(in srgb, #f5f2e9 30%, #232128); border-radius: 4px; padding: 4px 8px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 40%), 0 1px 0 rgb(0 0 0 / 70%); } .ds-chip:hover { background: color-mix(in srgb, #f5f2e9 12%, #232128); } .ds-chip:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; } .ds-chip-lane { border-color: #4da6ff; background: color-mix(in srgb, #4da6ff 14%, #232128); box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 40%), 0 0 3px color-mix(in srgb, #4da6ff 45%, transparent); }"
     },
     {
-      "name": "FX Module (lit console)",
-      "kind": "card",
-      "refersTo": "fx-module",
-      "description": "One lit FX device inside the overlay chassis; active = lane-hue border + tint, bypassed = dimmed chassis.",
-      "html": "<div class=\"ds-fxmod\"><span class=\"ds-fxmod-name\">FILTER</span><span class=\"ds-fxmod-value\">CUT 64%</span></div>",
-      "css": ".ds-fxmod { display: flex; flex-direction: column; gap: 8px; width: 236px; padding: 8px 12px 16px; border-radius: 4px; background: color-mix(in srgb, var(--color-ink, #f5f2e9) 5%, var(--color-ground, #0d0b10)); border: 2px solid color-mix(in srgb, var(--color-lane-bass, #ffb300) 60%, var(--color-ground, #0d0b10)); box-shadow: 0 2px 4px rgba(0,0,0,0.45); cursor: grab; } .ds-fxmod-name { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; color: var(--color-ink, #f5f2e9); } .ds-fxmod-value { font: 400 11px/1 'Departure Mono', 'IBM Plex Mono', monospace; color: var(--color-ink, #f5f2e9); }"
-    },
-    {
-      "name": "Pattern Rail Tile",
+      "name": "Rail Tile",
       "kind": "chip",
       "refersTo": "rail-tile",
-      "description": "Arrangement tile: state = border + fill (+ hatch + diamond flag when pending), bar count at full ink on state tiles; the row's group name carries the lane's n-BAR CYCLE, and the row's + creates a NEW blank next-letter pattern (DUP stays the only duplicator).",
-      "html": "<button class=\"ds-railtile ds-active\"><span class=\"ds-tile-name\">A</span><span class=\"ds-tile-bars\">2B</span></button>",
-      "css": ".ds-railtile { display: flex; align-items: baseline; gap: 4px; min-width: 48px; padding: 2px 8px; border-radius: 3px; border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 16%, var(--color-ground, #0d0b10)); background: color-mix(in srgb, var(--color-ink, #f5f2e9) 6%, var(--color-ground, #0d0b10)); font: 400 11px/1 'Departure Mono', 'IBM Plex Mono', monospace; color: var(--color-ink, #f5f2e9); cursor: pointer; } .ds-railtile:hover { border-color: color-mix(in srgb, var(--color-lane-drums, #f23d4c) 55%, var(--color-ground, #0d0b10)); } .ds-railtile.ds-active { border-color: var(--color-lane-drums, #f23d4c); background: color-mix(in srgb, var(--color-lane-drums, #f23d4c) 18%, var(--color-ground, #0d0b10)); } .ds-tile-bars { color: color-mix(in srgb, var(--color-ink, #f5f2e9) 55%, var(--color-ground, #0d0b10)); } .ds-railtile.ds-active .ds-tile-bars { color: var(--color-ink, #f5f2e9); } .ds-railtile:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 1px; }"
+      "description": "A pattern slot in the song chain; sounding = doubled hairline + underglow, pending = dashed rim + hatch; a bottom-trailing ⟲/→ mark says what the slot does when it ends.",
+      "html": "<span class=\"ds-tile\">A <b>1B</b></span> <span class=\"ds-tile ds-tile-sounding\">B <b>2B</b></span> <span class=\"ds-tile ds-tile-pending\">C <b>1B</b></span>",
+      "css": ".ds-tile { display: inline-flex; gap: 4px; padding: 2px 8px; min-width: 48px; font: 400 11px/1 'Departure Mono', 'IBM Plex Mono', monospace; color: #f5f2e9; background: #232128; border: 1px solid color-mix(in srgb, #f5f2e9 30%, #232128); border-radius: 3px; cursor: pointer; box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 -2px 0 rgb(0 0 0 / 40%), 0 1px 0 rgb(0 0 0 / 70%); } .ds-tile b { font-weight: 400; color: color-mix(in srgb, #f5f2e9 55%, #232128); } .ds-tile:hover { border-color: color-mix(in srgb, #ffb300 55%, #232128); } .ds-tile-sounding { border-color: #ffb300; background: color-mix(in srgb, #ffb300 18%, #232128); outline: 1px solid color-mix(in srgb, #ffb300 80%, #232128); outline-offset: -5px; box-shadow: 0 0 3px color-mix(in srgb, #ffb300 55%, transparent); } .ds-tile-sounding b, .ds-tile-pending b { color: #f5f2e9; } .ds-tile-pending { border: 1px dashed #ffb300; background: repeating-linear-gradient(135deg, color-mix(in srgb, #ffb300 32%, #232128) 0 4px, color-mix(in srgb, #ffb300 12%, #232128) 4px 8px); }"
     },
     {
-      "name": "Info Tag (help mode)",
+      "name": "Status Screen",
       "kind": "custom",
-      "refersTo": "info-tag",
-      "description": "The help-mode '?' badge: 3px control-corner chassis chip inside the non-interactive bottom status bar.",
-      "html": "<span class=\"ds-infotag\">?</span>",
-      "css": ".ds-infotag { font: 700 10px/1 'Silkscreen', 'IBM Plex Mono', monospace; letter-spacing: 0.05em; color: var(--color-ink, #f5f2e9); background: color-mix(in srgb, var(--color-ink, #f5f2e9) 8%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 40%, var(--color-ground, #0d0b10)); border-radius: 3px; padding: 2px 5px; }"
+      "refersTo": "readout-window",
+      "description": "The booth's LCD: ghosted/lit annunciators, live tempo, the last control's read-back value, a four-lane meter bank.",
+      "html": "<div class=\"ds-screen\"><span class=\"ds-ann ds-on\">▶ PLAY</span><span class=\"ds-ann\">LOOP</span><span class=\"ds-bpm\">112<small>BPM</small></span><span class=\"ds-sep\"></span><span class=\"ds-label\">BASS GATE</span><span class=\"ds-val\">2ST</span></div>",
+      "css": ".ds-screen { display: flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; width: 420px; border-radius: 4px; background-color: #0a090c; background-image: linear-gradient(180deg, rgb(255 255 255 / 7%) 0%, rgb(255 255 255 / 2.5%) 46%, transparent 50%), repeating-linear-gradient(180deg, rgb(255 255 255 / 3.5%) 0 1px, transparent 1px 3px); box-shadow: inset 0 3px 8px rgb(0 0 0 / 85%), inset 0 -1px 0 rgb(255 255 255 / 16%), 0 0 0 1px rgb(0 0 0 / 68%); } .ds-ann { font: 700 10px/1 Silkscreen, 'IBM Plex Mono', monospace; letter-spacing: 0.05em; color: color-mix(in srgb, #f5f2e9 16%, #0a090c); } .ds-ann.ds-on { color: #f5f2e9; text-shadow: 0 0 3px rgb(245 242 233 / 45%); } .ds-bpm { font: 400 20px/1 VT323, monospace; color: #f5f2e9; } .ds-bpm small { font: 700 10px/1 Silkscreen, monospace; margin-left: 3px; color: color-mix(in srgb, #f5f2e9 62%, #0a090c); } .ds-sep { width: 1px; align-self: stretch; margin: 6px 0; background: rgb(245 242 233 / 12%); } .ds-label { font: 500 10px/1.2 'IBM Plex Mono', monospace; letter-spacing: 0.08em; color: color-mix(in srgb, #f5f2e9 62%, #0a090c); } .ds-val { font: 400 20px/1 VT323, monospace; color: #f5f2e9; text-shadow: 0 0 2px rgb(245 242 233 / 55%); }"
     },
     {
-      "name": "Chassis Slider",
-      "kind": "input",
-      "refersTo": "slider",
-      "description": "Custom-drawn range control: chassis track + square warm-white thumb with amber edge accent (never the OS thumb).",
-      "html": "<input class=\"ds-slider\" type=\"range\" />",
-      "css": ".ds-slider { -webkit-appearance: none; appearance: none; width: 96px; height: 14px; background: transparent; cursor: pointer; } .ds-slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--color-ink, #f5f2e9) 14%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 12%, var(--color-ground, #0d0b10)); } .ds-slider::-moz-range-track { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--color-ink, #f5f2e9) 14%, var(--color-ground, #0d0b10)); border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 12%, var(--color-ground, #0d0b10)); } .ds-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 10px; margin-top: -4px; border-radius: 1px; background: var(--color-ink, #f5f2e9); border: 1px solid color-mix(in srgb, var(--color-lane-bass, #ffb300) 55%, var(--color-ground, #0d0b10)); } .ds-slider::-moz-range-thumb { width: 10px; height: 10px; border-radius: 1px; background: var(--color-ink, #f5f2e9); border: 1px solid color-mix(in srgb, var(--color-lane-bass, #ffb300) 55%, var(--color-ground, #0d0b10)); } .ds-slider:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 1px; }"
+      "name": "Lane Plate",
+      "kind": "card",
+      "refersTo": "lane-plate",
+      "description": "A quadrant: panel graphite dyed toward its lane, chamfered edge + plate cast; selected = doubled rim.",
+      "html": "<section class=\"ds-plate\"><header class=\"ds-plate-head\"><span class=\"ds-led-dot\"></span>DRUMS · EDIT</header><div class=\"ds-plate-well\"></div></section>",
+      "css": ".ds-plate { width: 280px; padding: 4px 8px 10px; border-radius: 4px; background-color: color-mix(in srgb, #f23d4c 7%, #1a191d); background-image: linear-gradient(180deg, rgb(255 255 255 / 4%) 0%, transparent 34%, rgb(0 0 0 / 14%) 100%); border: 1px solid color-mix(in srgb, #f23d4c 65%, #1a191d); outline: 1px solid color-mix(in srgb, #f23d4c 55%, transparent); outline-offset: -3px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), inset 0 2px 0 rgb(255 255 255 / 4%), inset 0 -1px 0 rgb(0 0 0 / 68%), 0 1px 1px rgb(0 0 0 / 55%), 0 12px 24px -10px rgb(0 0 0 / 72%); } .ds-plate-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; font: 500 10px/1 'IBM Plex Mono', monospace; letter-spacing: 0.08em; color: #f5f2e9; } .ds-led-dot { width: 3px; height: 3px; border-radius: 50%; border: 1px solid rgb(245 242 233 / 55%); background: #f23d4c; box-shadow: 0 0 3px color-mix(in srgb, #f23d4c 55%, transparent); } .ds-plate-well { height: 64px; border-radius: 3px; background: #0a090c; box-shadow: inset 0 2px 2px -1px rgb(0 0 0 / 90%), inset 0 10px 18px rgb(0 0 0 / 62%), inset 0 -1px 0 rgb(255 255 255 / 9%), 0 1px 0 rgb(255 255 255 / 8%); }"
     },
     {
-      "name": "Toast",
-      "kind": "custom",
-      "refersTo": "toast",
-      "description": "Ground chassis card, 1px ink border (2px on errors); sticky errors, subtle info.",
-      "html": "<div class=\"ds-toast\"><p class=\"ds-toast-msg\">PROJECT LOADED</p></div>",
-      "css": ".ds-toast { display: flex; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-ink, #f5f2e9); border-radius: 4px; background: var(--color-ground, #0d0b10); color: var(--color-ink, #f5f2e9); font: 400 12px/1.4 'IBM Plex Mono', monospace; box-shadow: 4px 4px 12px rgba(0,0,0,0.55); } .ds-toast-msg { margin: 0; font-weight: bold; }"
+      "name": "Slot Follow Mark",
+      "kind": "icon",
+      "refersTo": "rail-tile-mode",
+      "description": "The per-slot follow mode on a chain tile: ⟲ replays the slot until another is cued, → plays it once and moves on. Absolutely positioned inside the tile padding so tile widths never move; 44px on the phone SONG page.",
+      "html": "<span class=\"ds-mark\">⟲</span> <span class=\"ds-mark ds-mark-next\">→</span>",
+      "css": ".ds-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; font: 400 12px/1 'IBM Plex Mono', monospace; color: #f5f2e9; } .ds-mark-next { color: color-mix(in srgb, #f5f2e9 55%, #232128); }"
     },
     {
-      "name": "Projects Saved Row (iteration 6)",
-      "kind": "custom",
-      "refersTo": "booth-button",
-      "description": "A saved song in the PROJECTS popover: machined open-key with always-visible RENAME/DELETE; special states replace the row.",
-      "html": "<div class=\"ds-projects-row\"><button class=\"ds-projects-item\"><span class=\"ds-projects-name\">Retro Stages</span><span class=\"ds-projects-when\">1m ago</span></button><button class=\"ds-projects-x\">RENAME</button><button class=\"ds-projects-x\">DELETE</button></div>",
-      "css": ".ds-projects-row { display: flex; gap: 2px; align-items: stretch; } .ds-projects-item, .ds-projects-x { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.05em; color: #f5f2e9; background: #17151c; border: 1px solid color-mix(in srgb, #f5f2e9 18%, #17151c); border-radius: 3px; } .ds-projects-item { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; text-align: left; } .ds-projects-name { contain: inline-size; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-projects-when { font-size: 10px; color: color-mix(in srgb, #f5f2e9 62%, #17151c); flex-shrink: 0; } .ds-projects-x { flex-shrink: 0; padding: 4px 8px; cursor: pointer; } .ds-projects-item:hover, .ds-projects-x:hover { background: color-mix(in srgb, #f5f2e9 12%, #17151c); } .ds-projects-item:focus-visible, .ds-projects-x:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 2px; }"
+      "name": "Lane Follow Footer",
+      "kind": "control",
+      "refersTo": "lane-follow",
+      "description": "The bottom line of a lane plate: a FIXED 14px machined key reading ⟲ LOOP (lit in the lane hue) or → NEXT (dim), beside SLOT n · NAME. Fixed height by law — the quadrant fill budget subtracts exactly this box.",
+      "html": "<span class=\"ds-follow\"><button class=\"ds-follow-key\">⟲ LOOP</button> SLOT 2 · B</span>",
+      "css": ".ds-follow { display: inline-flex; align-items: center; gap: 4px; height: 14px; font: 400 10px/14px 'Silkscreen', monospace; letter-spacing: 0.05em; color: color-mix(in srgb, #f5f2e9 62%, #1a191d); } .ds-follow-key { height: 14px; padding: 0 4px; border: 1px solid #ffb300; border-radius: 3px; background: color-mix(in srgb, #ffb300 22%, #232128); color: #f5f2e9; font: inherit; }"
     },
     {
-      "name": "Phone Register Row (iteration 7)",
-      "kind": "custom",
-      "refersTo": "stepper-button",
-      "description": "The phone card's ONE view-control row under the header: ONE OCT stepper, ONE SEMI stepper, the aria-live ROWS readout, and the zoom chip (factor + reset).",
-      "html": "<div class=\"ds-regrow\"><div class=\"ds-regstep\"><span class=\"ds-reglabel\">OCT</span><button class=\"ds-regbtn\">\u2013</button><button class=\"ds-regbtn\">+</button></div><div class=\"ds-regstep\"><span class=\"ds-reglabel\">SEMI</span><button class=\"ds-regbtn\">\u2013</button><button class=\"ds-regbtn\">+</button></div><span class=\"ds-regread\">\u25a0 ROWS 7\u201313 OF 14</span><button class=\"ds-zoomchip\"><span class=\"ds-zoomf\">1.00\u00d7</span><span class=\"ds-zoomr\">RESET</span></button></div>",
-      "css": ".ds-regrow { display: flex; align-items: center; gap: 8px; padding: 4px 8px; } .ds-regstep { display: flex; align-items: center; gap: 4px; } .ds-reglabel { font-family: ui-monospace, monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: #f5f2e9; } .ds-regbtn { width: 44px; height: 44px; font-family: ui-monospace, monospace; font-size: 13px; color: #f5f2e9; background: #17151c; border: 1px solid color-mix(in srgb, #4da6ff 35%, #17151c); border-radius: 3px; cursor: pointer; } .ds-regbtn:hover { background: color-mix(in srgb, #f5f2e9 12%, #17151c); } .ds-regbtn:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 1px; } .ds-regbtn:disabled { opacity: 0.4; cursor: default; } .ds-regread { font-family: ui-monospace, monospace; font-size: 11px; color: color-mix(in srgb, #f5f2e9 62%, #17151c); margin-left: auto; white-space: nowrap; } .ds-zoomchip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 2px 6px; font-family: ui-monospace, monospace; background: #17151c; border: 1px solid color-mix(in srgb, #f5f2e9 22%, #17151c); border-radius: 3px; color: #f5f2e9; cursor: pointer; } .ds-zoomf { font-size: 11px; } .ds-zoomr { font-size: 8px; letter-spacing: 0.05em; color: color-mix(in srgb, #f5f2e9 62%, #17151c); } .ds-zoomchip:focus-visible { outline: 2px solid #f5f2e9; outline-offset: 1px; }"
+      "name": "Phone Page Key",
+      "kind": "button",
+      "refersTo": "phone-page-toggle",
+      "description": "The EDIT ⇄ SONG toggle riding the pinned transport row's edge column, lit while the SONG sequencer page shows. Costs zero chrome height.",
+      "html": "<button class=\"ds-pagekey\" aria-pressed=\"true\">SONG</button>",
+      "css": ".ds-pagekey { min-height: 44px; min-width: 64px; padding: 0 8px; border: 1px solid color-mix(in srgb, #f5f2e9 30%, #232128); border-radius: 3px; background: color-mix(in srgb, #f5f2e9 14%, #232128); color: #f5f2e9; font: 500 10px/1 'Silkscreen', monospace; letter-spacing: 0.08em; text-transform: uppercase; }"
     }
   ],
   "narrative": {
-    "northStar": "Arcade Stage Floor",
-    "overview": [
-      "The whole screen is a dark stage. Four lane quadrants are LED pad floors that light as they sound under a sweeping playhead light bar; the transport is the booth \u2014 a silkscreened chassis bolted across the top; per-lane FX chains open as lit console modules inside the selected quadrant. Teenage Engineering-style silkscreened labels carry print-level craft: every control is named, uppercase, tracked, and machine-honest. The register is industrial-playful: arcade hardware, not arcade carnival. Nothing pulses at rest, nothing gradients, nothing borrows OS-native chrome. Density is instrument-grade \u2014 the whole DAW fits one page at 1440\u00d7900 \u2014 and the constraint is the charm. Iteration 2 (v0.1) rebuilt the layout into 2\u00d72 lane quadrants, added an Ableton-style info view, and (closing addendum) took the same stage mobile: below tablet width the 2\u00d72 collapses to a single-lane stage behind a lane switcher, with full touch parity \u2014 same world, smaller floor. The closing finishing pass machined the static paint only (idle-register amplitude, milled micro-recesses, the normalized type ramp) with zero new motion. By recorded design decision none of this touched the world itself: palette, typography, and corner language are byte-identical to v0. Iteration 3 (v0.2) made time itself polyphonic. Every pitched lane now shows through the same one-octave register window (the full row manifest one scroll away) with an OCT transpose control beside it; patterns stretch across powers of two from 1 to 128 bars on windowed, virtualized grids; each lane sweeps at its own cycle length, the lanes weaving against each other and re-aligning at the song's LCM \u2014 which is exactly the length WAV/MIDI export. The 1400px width cap is retired: the floors fill the viewport at every desktop width, and the first-run demo song is a chords-led 8-bar cycle demonstrating the whole poly-loop law by ear.",
-      "Iteration 4 (mobile rework) put the whole instrument in one hand: KEYS/INFO dropped from the phone stage, a centered always-visible transport pinned in the chrome, booth options folded into a zero-DOM-when-closed drawer, the desktop one-octave register window extended to phone grids behind explicit \u00b1octave/\u00b1semitone shift rows with fill+border+shape change feedback, and 44px finger-sized rows lifting the grid to ~35% of the phone viewport. Desktop surfaces untouched.",
-      "Iteration 5 (phone fill) gave the grid the whole floor: exact-fraction width-fit (clamp [15,24]; 1-bar rows fill the well with zero dead-right, 2-bar keeps the 15px floor + internal scroll), [44,64]px grown row tracks, and bottom ownership (card bottom meets the viewport bottom at scroll end) \u2014 grid share ~35% to 52.1/49.5/56.7% at 390/360/430; desktop byte-identical.",
-      "Iteration 6 (saved-song management) made the library self-managing: always-visible RENAME/DELETE machined keys per saved row, replaced-row special states that never widen the popover, a shared 48-codepoint title normalizer, a deliberate two-step drums-red CONFIRM DELETE, and a sticky one-shot byte-exact UNDO \u2014 with the popover's width independent of song-title length (the ellipsized name owns its intrinsic width).",
-      "Iteration 7 (phone MIDI section rework) put the register under law: a semitone-snap window (exactly modeSize COMPLETE rows at every rest, the pane box pinned to the renderer's inline height), ONE OCT + ONE SEMI register row with the sound-transpose OCT fenced into the phone OPTIONS drawer (\"Changes what you HEAR, not what you SEE\"), pitch-anchored notes (identity = scale degree; scale edits relabel in place), pinch-to-zoom [1,2]x re-fit through the renderer seams with a factor chip + double-tap reset, and the phone card header re-tiered into two edge-anchored rows (the \u00b7 EDIT word hidden at phone scope; one line in landscape). Desktop and tablet surfaces remain byte-identical."
-    ],
+    "northStar": "Machined Console",
+    "overview": "Bitbounce is one premium hardware DAW unit that happens to run in a browser: the kind of large-ticket standalone instrument you hold, weigh, and play, that still answers like a lightning-fast digital machine. The whole viewport is the unit's anodized graphite deck, bead-blasted rather than brushed. The transport booth is its faceplate, the pattern rail its arrangement strip, and each of the four lane quadrants a milled plate with a pad display set into a machined pocket. Every surface is lit from one studio seat at the unit's top-left shoulder, so each chamfer, keycap wall and pocket lip agrees on where the light comes from. The four lane hues are the unit's signal system: LED values, anodized rim tints, lit pads. They are never paint and never decoration.\n\nThe register is industrial-precise with a chiptune soul. Controls are machined keys with sculpted caps that seat and light on the very frame your finger lands. Readouts are recessed LCD windows with scanlines, a glass glint and ghosted unlit cells. The booth carries a status screen that echoes every control you touch with its read-back value, and a channel meter on each quadrant strikes at the exact moment each note is heard. Motion is instant or mechanical: key travel with a spring return, detent ticks, switch throws, rolling value windows, a phosphor scan when a surface opens. Nothing drifts or breathes for show, and no light follows the cursor. Density is instrument-grade: the whole DAW fits one screen at 1280×800 and 1440×900, and that constraint is the charm.\n\nState is carried by form, never by hue alone. Rims change line form (solid, dashed or doubled), fills light, pads carry a corner notch and sustain tails a hatch, pending switches fly a diamond flag, and every state has a text or aria equivalent. Glow is a single decorative layer laid over that coding. Faithful to the product's roots (1BITDRAGON's no-wrong-notes grid, Ableton's device chains), the palette stays tiny: one graphite family, one warm white, four lane hues.",
     "keyCharacteristics": [
-      "Dark stage ground; four lane hues carry identity; warm white carries information.",
-      "Silkscreened uppercase labels on every control; mono value readouts are tabular by construction.",
-      "State = fill + border + shape mark (corner notch, diagonal hatch, diamond flag) \u2014 never glow alone, never color alone.",
-      "One glow layer max, \u22643px blur, lane hue at 45\u201360% alpha, decoration-only.",
-      "Flat chassis with 1px ink-mix borders; floating surfaces get one offset shadow, not a stack."
+      "Bead-blasted graphite deck; milled plates with two-facet chamfered edges and two-layer casts; everything lit from the top-left.",
+      "Sculpted keycaps drawn in inset shadow that seat and light instantly under the finger (zero-ramp acknowledgement).",
+      "Recessed LCD readouts: scanlines, glass glint, ghosted 8s behind the lit VT323 digits.",
+      "Four lane hues as signal (LEDs, rims, lit pads); warm white carries every piece of information.",
+      "State = line form + fill + shape mark + text — never glow alone, never color alone.",
+      "A fast digital unit: rolling value windows, scan-on surfaces, a booth status screen, channel meters striking at audible time."
     ],
     "rules": [
       {
         "name": "The Ink Law",
-        "body": "(1) Filled cells and lit buttons set glyphs in ink-on-fill, never warm white on lane fills. (2) Info-critical text is warm white on ground \u2014 never lane-hued, never dimmed. (3) No lane-hue text on lane fills. (4) Red text \u226410px, Silkscreen 700 only.",
+        "body": "Lit keys and filled pads set glyphs in Ink-on-Fill, never warm white. Info-critical text is warm white on graphite, never lane-hued and never dimmed below the 62% legend mix (7.00:1). No lane-hue text on lane fills.",
         "section": "colors"
       },
       {
-        "name": "The Six-Color Rule",
-        "body": "No new color enters the stage without a lane to own it. Tints and dims are color-mix() of ink or a lane hue into ground \u2014 never new hex values.",
+        "name": "The Signal Rule",
+        "body": "A lane hue appears only where it carries that lane's signal (a lit pad, an LED, a rim tint, a lit key, a meter). It is never used as a decorative accent. Tints are color-mix() of a hue into graphite at 5–28%.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-New-Color Rule",
+        "body": "No color enters the unit without a lane or a material role to own it. Material lighting (grain, panel light, chamfers, pocket, glass glint) is built only from warm-white or black alpha, never from a new hue.",
         "section": "colors"
       },
       {
         "name": "The Size-Law Rule",
-        "body": "Each face has a size band it may never leave: Silkscreen 10\u201312px, Departure Mono 11px, Plex Mono 13\u201314px, VT323 20\u201324px, Press Start 2P 16px+ in multiples of 8. Glow on text only \u226518px.",
+        "body": "Each face keeps its band: Silkscreen 10–12px (8px engravings only), Departure Mono 11px, Plex 10–14px, VT323 20–24px, Press Start 2P 16px+ in multiples of 8. The ramp is exactly 10 / 11 / 13 / 16 / 22 — no 12px step.",
         "section": "typography"
       },
       {
+        "name": "The Static Elevation Rule",
+        "body": "Elevation is never animated. A key seats by an instant swap to the seated cap on the pointerdown frame and lifts on the release frame — zero ramp is the digital half of the brief.",
+        "section": "elevation"
+      },
+      {
         "name": "The Decoration-Only Glow Rule",
-        "body": "Glow never counts toward contrast and never substitutes for it; glow is never the only state signal; exactly one glow layer, \u22643px blur, lane hue 45\u201360% alpha; no glow on text <18px; trigger glow decays \u2264180ms.",
+        "body": "Glow never counts toward contrast and is never the only state signal. Exactly one glow layer, ≤3px blur, lane hue at 45–60% alpha, no glow on text under 18px. One-shot glows decay in ≤180ms as the opacity of a pre-painted layer.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "Do take every value from tokens.css \u2014 the file's own law says \"Do not hardcode these values.\"",
-      "Do code state as fill + border + shape mark + text equivalent (notch, hatch, diamond flag, \"\u00b7 EDIT\" word, aria-label).",
-      "Do keep the register contract honest: every pitched lane's window always seats exactly modeSize COMPLETE rows (any semitone offset, snapped at every rest \u2014 boot, steppers, wheel, scroll-end); the readout, the grid aria, and the pixels derive from ONE manifest (the mounted pattern's). OCT changes what a lane SOUNDS (\u00b13 octave clamp, exports follow \u2014 the strip on desktop/tablet, the OPTIONS drawer on phone); the register row's OCT/SEMI and window scrolling change what you SEE \u2014 never conflate the two in copy, help, or control placement.",
-      "Do keep every text pair \u2265 AA by the res-9 table (warm white on ground 17.49:1; ink-on-fill \u22655.17:1; dim legends at 62% ink = 7.00:1, never 45%).",
-      "Do gate motion in BOTH CSS media query and the render loop via matchMedia; honor prefers-reduced-motion by construction.",
-      "Do keep floating surfaces inside the viewport law: overlays never grow the page.",
-      "Do give touch a target \u226544px: painted \u226544px in the scrolling stage/overlays; the pinned phone booth stays compact behind invisible \u00b18px hit straps (meet, never overlap); sliders take a 44px input-height hit; the euclid overlay clamps to the grid scrollport and spreads drum rows.",
-      "Do keep the phone options drawer zero-DOM while closed and the register shift rows' bounds honest (disabled at the clamp, aria-live ROWS readout on every change).",
-      "Do keep every floating surface's width independent of its content's longest unwrapped string \u2014 an ellipsized name must own its intrinsic width (contain: inline-size), and the projects popover stays at its committed width for a 68-codepoint title exactly as for \u201cUntitled\u201d (gated with a long-titled seeded row).",
-      "Do keep a note's identity its scale DEGREE: window, scroll, and zoom changes re-map rows and runs through the renderer seams (a scale edit relabels rows in place, same-length only) \u2014 a note's apparent pitch never changes with scrolling.",
-      "Do zoom by re-fitting geometry (cell/track px through the renderer seams), never a CSS transform; the factor clamps [1,2]x the fill, the window keeps exactly modeSize complete rows at every factor, and the double-tap reset is consumed before cell activation so it never places or removes a note under it."
+      "Do take every value from tokens.css; its own law says \"Do not hardcode these values.\"",
+      "Do code state as line form + fill + shape mark + text (notch, hatch, diamond flag, doubled rim, \"· EDIT\", aria-label), and let hue ride on top as signal.",
+      "Do light every surface from the top-left seat: catch-light on top and left walls, dark walls below and right, casts falling down.",
+      "Do seat and light a key on the pointerdown frame (instant swap to the seated cap) and lift it on release; digital acknowledgement has zero ramp.",
+      "Do keep every text pair ≥ AA: warm white on graphite 16.93:1, ink-on-fill ≥5.17:1, dim legends at 62% ink, never 45%.",
+      "Do gate motion in both the CSS media query and the JS path (matchMedia); every animation ships its prefers-reduced-motion twin in the same change.",
+      "Do keep the register contract honest: OCT changes what a lane SOUNDS; window scroll changes what you SEE.",
+      "Do give touch targets ≥44px: painted in the scrolling stage and overlays, or an invisible ±8px hit strap on the pinned phone chrome.",
+      "Do keep floating surfaces inside the viewport and independent of content length (an ellipsized name owns its intrinsic width with contain: inline-size).",
+      "Do keep every pad live under the pointer on the 2×2 stages, with only the selected grid owning the keyboard tab stop.",
+      "Do let a DRAG-CREATED note length become that lane's next placement length (click or Enter); the gate stays the explicit default, and editing it clears the memory.",
+      "Do carry the ⟲/→ follow on the SLOT, in shape plus text (the mark, the LOOP/NEXT footer, the tile's \"loops\" aria suffix) — never hue alone."
     ],
     "donts": [
-      "Don't put warm-white text on a lane-hue fill, or lane-hue text on ground for info-critical copy (red text \u226410px Silkscreen 700 only).",
-      "Don't add a second glow layer, a glow >3px, or an infinite pulse (the first-run nudge is the one sanctioned exception, static under reduced motion).",
-      "Don't introduce a new color, gradient, or OS-native control appearance.",
-      "Don't break the one-page law on desktop: at 1440\u00d7900 AND 1280\u00d7800 (and the floors filling the viewport width at every desktop width \u2014 1920 included), quadrant content scrolls inside quadrants; the page never scrolls (the phone stage is the deliberate exception \u2014 sticky chrome + scrolling grid is its law).",
-      "Don't restyle the world for a layout need \u2014 palette, typography, corner language stay untouched; layout problems get layout answers (the mobile slice obeyed: one seam decides the stage, no new tokens; iteration 3 obeyed too: full-viewport densification, register windows, and virtualized long grids changed layout only \u2014 no token moved)."
+      "Don't put warm-white text on a lane-hue fill, or lane-hue text on graphite for info-critical copy (red text only at ≤10px Silkscreen 700).",
+      "Don't introduce a new color, a decorative gradient, or an OS-native control appearance. The only permitted gradients are material lighting (grain, panel light, chamfer, pocket, glass glint), built from warm-white or black alpha.",
+      "Don't animate an elevation, add a second glow layer, exceed a 3px glow, or run an infinite pulse (the first-run PLAY nudge is the one exception, static under reduced motion).",
+      "Don't light the unit from the cursor; the pointer-follow studio light was tried and rejected.",
+      "Don't write the DOM from anything that moves during playback. Meters, rolls and strobes are Web Animations or CSS on existing seams, so the gates' mutation set never grows.",
+      "Don't paint inside a grid scroller: no per-pad or per-note-bar gradients or insets, and no image background on the scroller. The 128-bar virtualized grids render thousands of pads (measured: fling frames collapsed to 84% over budget).",
+      "Don't break the one-page law: at 1440×900 and 1280×800, quadrant content scrolls inside quadrants and the page never scrolls. The phone stage's sticky chrome plus scrolling page is the deliberate exception.",
+      "Don't let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, and ghosts and scans are pseudo-elements.",
+      "Don't give the lane follow footer a content-sized box; it is a FIXED 14px line the quadrant fill budget subtracts, and a growing one breaks the one-page fit.",
+      "Don't let a tile's follow mark take tile width; it is absolutely positioned inside the tile's own padding (the rail-density and one-page laws measure tile widths)."
     ]
   }
 }

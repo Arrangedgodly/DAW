@@ -74,16 +74,17 @@
    * material must be perceptible for the unit read; worst text pair
    * re-verified ≥ AA, see production-log T4): horizontal strokes on the
    * deck, vertical on booth side walls (paint-once backgrounds). */
-  --metal-brush: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.045) 0 1px,
-    transparent 1px 2px
-  );
-  --metal-brush-v: repeating-linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.045) 0 1px,
-    transparent 1px 2px
-  );
+  /* THE FULL UNIT (2026-09-11 overdrive): the 1px brush lines read as CRT
+   * scanlines at 1x — a cheap-screen tell on what must read as a milled
+   * object. Both tokens now carry ONE bead-blasted anodized grain tile
+   * (non-directional, so the -v twin is the same finish): an inline SVG
+   * fractal-noise pair — sparse bright specks over sparser dark pits —
+   * rasterized once per tile by the browser, zero asset files, paint-once.
+   * Same token names, same single-image shape, so every multi-layer
+   * background list that consumes them keeps its layer count. */
+  --metal-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 2.4 0 0 0 -1.15'/%3E%3C/filter%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.4 0 0 -1.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23a)' opacity='0.17'/%3E%3Crect width='160' height='160' filter='url(%23b)' opacity='0.38'/%3E%3C/svg%3E");
+  --metal-brush: var(--metal-grain);
+  --metal-brush-v: var(--metal-grain);
 
   /* ---- Static elevation (box-shadow stacks; painted once, NEVER
    * animated; chassis surfaces only — booth, rail, quadrant floors, FX
@@ -94,8 +95,31 @@
    * visibly ON the deck / keys visibly ON their panel — at the proposal
    * amplitudes static review read "flat fills, no depth". Still paint-once,
    * still static, still chassis-only. */
-  --elev-2: var(--elev-1), 0 8px 18px -9px rgb(0 0 0 / 62%);
-  --elev-3: var(--elev-1), 0 14px 32px -12px rgb(0 0 0 / 70%);
+  /* THE FULL UNIT: panels are milled plates, not flat fills. The CHAMFER is
+   * a two-facet machined edge (a bright 1px catch-light plus a faint second
+   * facet below it, dim flank walls, a dark lower lip in two steps), and
+   * every cast is TWO layers — a tight contact shadow where the plate meets
+   * the deck plus a long soft ambient fall — the difference between a
+   * rectangle with a shadow and a heavy object sitting on a surface. */
+  --chamfer: inset 0 1px 0 var(--metal-edge-hi),
+    inset 0 2px 0 rgb(255 255 255 / 4%),
+    inset 1px 0 0 rgb(255 255 255 / 5%),
+    inset -1px 0 0 rgb(0 0 0 / 30%),
+    inset 0 -1px 0 var(--metal-edge-lo),
+    inset 0 -2px 0 rgb(0 0 0 / 22%);
+  --elev-2: var(--chamfer), 0 1px 1px rgb(0 0 0 / 55%),
+    0 12px 24px -10px rgb(0 0 0 / 72%);
+  --elev-3: var(--chamfer), 0 2px 3px rgb(0 0 0 / 50%),
+    0 20px 42px -14px rgb(0 0 0 / 80%);
+  /* Panel light: the studio key light falling on a plate from above — a
+   * faint lift at the top face fading into a darker lower third. A
+   * background LAYER (consumers stack it over the grain), static paint. */
+  --panel-light: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 4%) 0%,
+    transparent 34%,
+    rgb(0 0 0 / 14%) 100%
+  );
   /* Key cast (T4/AC-9 round 2): a raised key/module sits on its panel — a
    * small offset+blur cast under the bezel. Same laws as the family.
    * Re-pinned at the 2026-09-05 finishing polish pass (critique P2 #2: the
@@ -107,11 +131,37 @@
    * compose --elev-1) keep the symmetric pair: flat plates are lit evenly,
    * keys sit raised under directional light. Still static, paint-once,
    * chassis-only, never animated. */
-  --elev-key: inset 0 1px 0 var(--metal-edge-hi),
-    inset 1px 0 0 color-mix(in srgb, var(--color-ink) 9%, transparent),
-    inset 0 -1px 0 var(--metal-edge-lo),
-    inset -1px 0 0 rgb(0 0 0 / 40%),
-    0 2px 4px rgb(0 0 0 / 45%);
+  /* THE FULL UNIT keycap: every raised key is a SCULPTED cap, drawn entirely
+   * in inset shadow so it layers over ANY fill (metal, hover mix, lit lane
+   * hue, the pending hatch) without touching a single background rule:
+   * top chamfer catch-light, lit left wall, dark right wall, a 2px front
+   * SKIRT (the cap's visible side wall), a convex sheen on the top face,
+   * then a contact line + a short ambient cast on the panel. --keycap-lit
+   * is the backlit twin for lane-hue fills (brighter chamfer + face sheen:
+   * the cap reads lit from inside; ink-on-fill contrast only rises under a
+   * white lift). --keycap-down is the SEATED cap, swapped in INSTANTLY on
+   * :active (no transition — the zero-latency half of the brief): the cast
+   * vanishes and the face goes concave, before the travel even starts. */
+  --keycap: inset 0 1px 0 rgb(255 255 255 / 20%),
+    inset 1px 0 0 rgb(255 255 255 / 6%),
+    inset -1px 0 0 rgb(0 0 0 / 32%),
+    inset 0 -2px 0 rgb(0 0 0 / 40%),
+    inset 0 9px 10px -8px rgb(255 255 255 / 9%),
+    0 1px 0 rgb(0 0 0 / 70%),
+    0 3px 6px -2px rgb(0 0 0 / 55%);
+  --keycap-lit: inset 0 1px 0 rgb(255 255 255 / 45%),
+    inset 0 -2px 0 rgb(0 0 0 / 26%),
+    inset 0 9px 10px -8px rgb(255 255 255 / 28%),
+    0 1px 0 rgb(0 0 0 / 70%);
+  /* Lightning-fast pass: the seated cap also LIGHTS — a warm-white LED edge
+   * and an inner flash fill land on the pointerdown frame and vanish on the
+   * release frame (instant on / instant off: a digital unit acknowledges
+   * input with zero ramp). Static paint swapped by :active, never
+   * transitioned. */
+  --keycap-down: inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 75%, transparent),
+    inset 0 0 10px rgb(255 255 255 / 16%),
+    inset 0 1px 3px rgb(0 0 0 / 60%);
+  --elev-key: var(--keycap);
   /* The device-frame cast — used ONCE, on the outer chassis (inverted into
    * inset shadows on the bezel overlay in chassis.css). */
   --elev-4: 0 24px 48px -16px rgb(0 0 0 / 70%);

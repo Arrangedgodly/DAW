@@ -176,7 +176,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
@@ -253,7 +253,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   background: var(--metal-raised);
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   cursor: pointer;
   font: var(--text-value);
   white-space: nowrap;
@@ -332,7 +332,7 @@
 .rail-tile[data-state="selected"] {
   border-color: var(--lane-hue);
   background: color-mix(in srgb, var(--lane-hue) 28%, var(--metal-raised));
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
 }
 
 /* PENDING: the DASHED lane-hue hairline — the quantized switch is queued
@@ -347,7 +347,7 @@
     color-mix(in srgb, var(--lane-hue) 32%, var(--metal-raised)) 0 4px,
     color-mix(in srgb, var(--lane-hue) 12%, var(--metal-raised)) 4px 8px
   );
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
 }
 
 /* The DOUBLED hairline + static underglow, on the RAW sounding seam
@@ -426,7 +426,7 @@
   border: 1px dashed
     color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
@@ -449,7 +449,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 35%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   padding: var(--space-1) var(--space-3);
 }
 
@@ -504,7 +504,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-ink) 30%, var(--metal-raised));
   border-radius: 3px;
-  box-shadow: var(--elev-1);
+  box-shadow: var(--keycap);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
 }
@@ -624,11 +624,13 @@
   background-image:
     var(--furniture-screw),
     var(--furniture-screw),
+    var(--panel-light),
     var(--metal-brush-v);
-  background-repeat: no-repeat, no-repeat, repeat;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   background-size:
     var(--furniture-screw-size) var(--furniture-screw-size),
     var(--furniture-screw-size) var(--furniture-screw-size),
+    100% 100%,
     auto;
-  background-position: left 6px top 2px, right 6px top 2px, 0 0;
+  background-position: left 6px top 2px, right 6px top 2px, 0 0, 0 0;
 }

@@ -247,7 +247,7 @@ async function bootPhone(
     // The demo chain booted: at phone width only the ACTIVE lane's rail row
     // renders, and the VERSE cues live on the CHORDS lane — the honest
     // phone-mode boot signal is the tile count (the MB-1 precedent).
-    await poll(() => $$(".rail-tile").length >= 2, 5_000, "demo chain tiles");
+    await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
 
     // --- trusted CDP touch, mapped through BOTH iframe boxes -------------
     const c = cdp();
@@ -506,29 +506,29 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
         // evidence is the QUEUED cue summary + the target tile ENGAGING
         // (pending → landed: selected/active), asserted as a poll.
         {
+          // 2026-09-11: the chain rail lives on the phone SONG page. The
+          // page stacks its big tiles in ONE column, so a cross-tile sweep
+          // is a VERTICAL drag — the browser's pan-y page scroll, not a
+          // rail gesture (pointercancel). The phone SONG page's designed
+          // cue interaction is the TILE TAP: triggerTile cues the pressed
+          // slot while playing (requestSlotCue), observable as the tile's
+          // data-state pending → landed. (The QUEUED summary text belongs
+          // to the multi-clip sweep funnel — desktop rail + keyboard.)
+          $<HTMLElement>(".phone-page-toggle").click();
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
-          expect(tiles().length).toBeGreaterThanOrEqual(4);
-          const box = tiles()[0]!.parentElement!.getBoundingClientRect();
-          const a = tiles()[0]!.getBoundingClientRect();
-          const b = tiles()[2]!.getBoundingClientRect();
-          await touchLine(
-            { x: a.left - box.left + 8, y: a.top - box.top + 10 },
-            { x: b.right - box.left - 6, y: b.top - box.top + 10 },
-            box,
-          );
-          await poll(
-            () =>
-              ($(".rail-cue-summary").textContent ?? "").match(
-                /QUEUED 1 LANES?/,
-              ) !== null,
-            4_000,
-            "playing touch sweep queues the switch (cue summary announces QUEUED)",
-          );
+          await poll(() => tiles().length >= 4, 3_000, "SONG page chain tiles");
+          tiles()[2]!.scrollIntoView({ block: "center" });
+          await tapStable(tiles()[2]!, {
+            effect: () => tiles()[2]!.dataset.state === "pending",
+            what: "playing tile tap cues the slot (tile goes pending)",
+            verifyMs: 4_000,
+          });
           await poll(
             () => tiles()[2]!.dataset.state !== "idle",
             4_000,
-            "the swept-to tile engages (pending or landed: selected/active)",
+            "the cued tile engages (pending or landed: selected/active)",
           );
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
         await tapStable(playBtn(), {
           effect: () => playBtn().getAttribute("aria-pressed") === "false",
@@ -832,21 +832,19 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
 
         // ---- stopped rail sweep: selection follows the LAST-touched tile ---
         {
+          $<HTMLElement>(".phone-page-toggle").click(); // to the SONG page
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
           await poll(() => tiles().length >= 4, 3_000, "demo chain tiles");
-          const box = tiles()[0]!.parentElement!.getBoundingClientRect();
-          const a = tiles()[0]!.getBoundingClientRect();
-          const b = tiles()[3]!.getBoundingClientRect();
-          await touchLine(
-            { x: a.left - box.left + 8, y: a.top - box.top + 10 },
-            { x: b.right - box.left - 6, y: b.top - box.top + 10 },
-            box,
-          );
-          await poll(
-            () => tiles()[3]!.dataset.state === "selected",
-            4_000,
-            "stopped touch sweep selects the LAST-touched tile",
-          );
+          // One-column SONG tiles: the sweep is the page pan here — the
+          // designed stopped interaction is the TAP (selects the pressed
+          // tile; the sweep's LAST-touched law becomes the tapped tile).
+          tiles()[3]!.scrollIntoView({ block: "center" });
+          await tapStable(tiles()[3]!, {
+            effect: () => tiles()[3]!.dataset.state === "selected",
+            what: "stopped tile tap selects the tapped tile",
+            verifyMs: 4_000,
+          });
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
 
         // ---- busy-guarded exports + projects switch --------------------------
@@ -901,19 +899,36 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
           effect: () => idoc().querySelector(".projects-pop") !== null,
           what: "projects popover reopens",
         });
-        const demoRow = $$(".projects-item").find(
-          (r) =>
-            r.querySelector(".projects-name")?.textContent === "WELCOME SONG",
-        );
-        expect(demoRow, "the WELCOME SONG row is listed").toBeTruthy();
-        await tapStable(demoRow!, {
-          effect: () =>
-            idoc().querySelector(".stage-hint") === null &&
-            $$(".rail-row .rail-tile").length >= 4,
-          what:
-            "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo's 4-slot chain returns)",
-          verifyMs: 6_000,
-        });
+        // The WELCOME SONG row can be REPLACED mid-tap by the save pulse
+        // (Solid re-creates the row elements) — re-query fresh per attempt
+        // instead of holding a detached reference. The demo-restore signal
+        // is phone-lawful: the stage hint clears AND the preset readout
+        // returns to the demo's SOFT STEP (the chain tiles live on the
+        // SONG page now — the forked-helper convention).
+        let switched = false;
+        for (let attempt = 1; attempt <= 3 && !switched; attempt++) {
+          const demoRow = $$(".projects-item").find(
+            (r) =>
+              r.querySelector(".projects-name")?.textContent ===
+              "WELCOME SONG",
+          );
+          expect(demoRow, "the WELCOME SONG row is listed").toBeTruthy();
+          try {
+            await tapStable(demoRow!, {
+              effect: () =>
+                idoc().querySelector(".stage-hint") === null &&
+                $$(".head-ctl-value").some((v) =>
+                  (v.textContent ?? "").includes("SOFT STEP"),
+                ),
+              what:
+                "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo preset returns)",
+              verifyMs: 6_000,
+            });
+            switched = true;
+          } catch (err) {
+            if (attempt === 3) throw err;
+          }
+        }
       } finally {
         await app.teardown();
       }
@@ -1095,22 +1110,20 @@ describe.skipIf(onLinuxCI)("MB-6 mobile acceptance: trusted CDP touch on the BUI
         });
         await tapStable($(".head-fill-toggle")); // hide (single attempt)
 
-        // Stopped sweep at the tight width.
+        // Stopped sweep at the tight width (on the SONG page — 2026-09-11).
         {
+          $<HTMLElement>(".phone-page-toggle").click();
           const tiles = () => $$(".rail-row .rail-tile") as HTMLElement[];
-          const box = tiles()[0]!.parentElement!.getBoundingClientRect();
-          const a = tiles()[0]!.getBoundingClientRect();
-          const b = tiles()[2]!.getBoundingClientRect();
-          await touchLine(
-            { x: a.left - box.left + 8, y: a.top - box.top + 10 },
-            { x: b.right - box.left - 6, y: b.top - box.top + 10 },
-            box,
-          );
-          await poll(
-            () => tiles()[2]!.dataset.state === "selected",
-            4_000,
-            "stopped sweep at 360",
-          );
+          await poll(() => tiles().length >= 3, 3_000, "SONG page tiles (360)");
+          // One-column SONG tiles: the designed stopped interaction is the
+          // TAP (the sweep's vertical drag is the page pan at this width).
+          tiles()[2]!.scrollIntoView({ block: "center" });
+          await tapStable(tiles()[2]!, {
+            effect: () => tiles()[2]!.dataset.state === "selected",
+            what: "stopped tile tap at 360",
+            verifyMs: 4_000,
+          });
+          $<HTMLElement>(".phone-page-toggle").click(); // back to EDIT
         }
         expect(idoc().documentElement.scrollWidth).toBeLessThanOrEqual(360);
       } finally {
