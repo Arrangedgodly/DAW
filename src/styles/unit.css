@@ -44,6 +44,53 @@
   background-image: var(--panel-light), var(--metal-brush);
 }
 
+/* Deluxe faceplates: light catches the rim; the working display sits below
+ * it. Keep this outside the grid renderer so long patterns stay cheap. */
+.lane-floor {
+  border-radius: 8px;
+  box-shadow: var(--chamfer), inset 0 -5px 3px rgb(0 0 0 / 35%),
+    0 3px 4px rgb(0 0 0 / 75%), 0 12px 18px -8px rgb(0 0 0 / 80%);
+}
+
+.lane-head-strip {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.lane-strip-compact .lane-name,
+.stage-song .rail-lane-name {
+  font: 700 13px/1.2 var(--font-label);
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  text-shadow: 0 1px 1px rgb(0 0 0 / 80%);
+}
+
+.lane-name::before {
+  width: 5px;
+  height: 5px;
+}
+
+.lane-name .lane-state {
+  font: var(--text-panel-label-sm);
+  letter-spacing: var(--track-panel-label);
+}
+
+.app:not([data-stage="phone"]) .lane-strip-compact {
+  column-gap: var(--space-3);
+}
+
+.booth {
+  background-image: var(--panel-light), var(--metal-brush-v);
+}
+
+.booth-screen {
+  background-image: linear-gradient(165deg, rgb(255 255 255 / 7%), transparent 45%);
+}
+
+.stage-song .rail-lane-name {
+  width: 76px;
+}
+
+
 .phone-chrome {
   background-color: var(--metal-panel);
   background-image: var(--panel-light), var(--metal-grain);
