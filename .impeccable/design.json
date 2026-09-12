@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-11T13:20:00Z",
+  "generatedAt": "2026-09-12T02:56:22.163Z",
   "title": "Design System: Bitbounce",
   "extensions": {
     "colorMeta": {
@@ -156,6 +156,18 @@
       }
     },
     "typographyMeta": {
+      "viz-heading": {
+        "displayName": "VIZ page heading",
+        "purpose": "18px desktop title, 16px at the VIZ phone breakpoint."
+      },
+      "viz-instrument": {
+        "displayName": "VIZ selected instrument",
+        "purpose": "23px selected-lane heading, 18px on phones."
+      },
+      "viz-label": {
+        "displayName": "VIZ field label",
+        "purpose": "Sentence-case inspector labels and descriptions, scoped outside the console engraved-label ramp."
+      },
       "panel-label": {
         "displayName": "Panel Label",
         "purpose": "Every control and group name — printed uppercase legends on machined keys and plates."
@@ -239,6 +251,11 @@
     ],
     "motion": [
       {
+        "name": "viz-midi-geometry",
+        "value": "Audible-time MIDI; no artwork during silence, stop or reduced motion",
+        "purpose": "Four bounded lane ledgers feed procedural geometry. Reduced motion fixes phase, pulse, and pitch deformation at zero and uses bounded textual summaries."
+      },
+      {
         "name": "press-down",
         "value": "80ms ease-out, translateY(1.5px) scale(0.985)",
         "purpose": "Key travel on :active (transform only; hit geometry never changes)."
@@ -291,6 +308,10 @@
     ],
     "breakpoints": [
       {
+        "name": "viz-phone",
+        "value": "max-width: 700px"
+      },
+      {
         "name": "phone",
         "value": "<768px, or <1024px with height <600px"
       },
@@ -305,6 +326,29 @@
     ]
   },
   "components": [
+    {
+      "name": "VIZ motion controls",
+      "kind": "custom",
+      "description": "Permanent Fluid folds, Flowing trails and Orbit choices; Blended or Distinct composition. Blended is the default. Saved with the local composition.",
+      "html": "<label class=\"ds-viz-motion\">Motion<select aria-label=\"Motion\"><option>Fluid folds</option><option>Flowing trails</option><option>Orbit</option></select></label>",
+      "css": ".ds-viz-motion { display: grid; gap: 4px; color: var(--color-ink); font: 11px var(--font-ui); } .ds-viz-motion select { min-height: 44px; padding: 8px 12px; background: var(--metal-panel); color: var(--color-ink); border: 1px solid color-mix(in srgb, var(--color-ink) 24%, var(--metal-panel)); font: inherit; }"
+    },
+    {
+      "name": "VIZ reroll",
+      "kind": "button",
+      "refersTo": "viz-reroll",
+      "description": "Rerolls effects, starting phases and geometric variations while retaining motion, blending, scale and orbit strength.",
+      "html": "<button class=\"ds-viz-button ds-viz-reroll\">Reroll composition</button>",
+      "css": ".ds-viz-button { border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 24%, var(--metal-panel, #1a191d)); border-radius: 4px; background: var(--metal-raised, #232128); color: var(--color-ink, #f5f2e9); padding: 8px 12px; min-height: 44px; font: 13px/1.5 var(--font-ui, monospace); cursor: pointer; } .ds-viz-button:hover { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 12%, var(--metal-raised, #232128)); } .ds-viz-button:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 3px; } .ds-viz-button:active { box-shadow: var(--keycap-down, inset 0 1px 3px rgb(0 0 0 / 60%)); } .ds-viz-reroll, .ds-viz-reroll:hover { background: var(--color-ink, #f5f2e9); color: var(--color-ink-on-fill, #0d0b10); font-weight: 500; } .ds-viz-reroll:hover { box-shadow: var(--keycap); }"
+    },
+    {
+      "name": "VIZ editor button",
+      "kind": "button",
+      "refersTo": "viz-button",
+      "description": "Console-colored 44px action with native button interaction and visible keyboard focus.",
+      "html": "<button class=\"ds-viz-button\">Hide controls</button>",
+      "css": ".ds-viz-button { border: 1px solid color-mix(in srgb, var(--color-ink, #f5f2e9) 24%, var(--metal-panel, #1a191d)); border-radius: 4px; background: var(--metal-raised, #232128); color: var(--color-ink, #f5f2e9); padding: 8px 12px; min-height: 44px; font: 13px/1.5 var(--font-ui, monospace); cursor: pointer; } .ds-viz-button:hover { background: color-mix(in srgb, var(--color-ink, #f5f2e9) 12%, var(--metal-raised, #232128)); } .ds-viz-button:focus-visible { outline: 2px solid var(--color-ink, #f5f2e9); outline-offset: 3px; } .ds-viz-button:active { box-shadow: var(--keycap-down, inset 0 1px 3px rgb(0 0 0 / 60%)); }"
+    },
     {
       "name": "Machined Key",
       "kind": "button",
@@ -404,7 +448,7 @@
   ],
   "narrative": {
     "northStar": "Machined Console",
-    "overview": "Bitbounce is one premium hardware DAW unit that happens to run in a browser: the kind of large-ticket standalone instrument you hold, weigh, and play, that still answers like a lightning-fast digital machine. The whole viewport is the unit's anodized graphite deck, bead-blasted rather than brushed. The transport booth is its faceplate, the pattern rail its arrangement strip, and each of the four lane quadrants a milled plate with a pad display set into a machined pocket. Every surface is lit from one studio seat at the unit's top-left shoulder, so each chamfer, keycap wall and pocket lip agrees on where the light comes from. The four lane hues are the unit's signal system: LED values, anodized rim tints, lit pads. They are never paint and never decoration.\n\nThe register is industrial-precise with a chiptune soul. Controls are machined keys with sculpted caps that seat and light on the very frame your finger lands. Readouts are recessed LCD windows with scanlines, a glass glint and ghosted unlit cells. The booth carries a status screen that echoes every control you touch with its read-back value, and a channel meter on each quadrant strikes at the exact moment each note is heard. Motion is instant or mechanical: key travel with a spring return, detent ticks, switch throws, rolling value windows, a phosphor scan when a surface opens. Nothing drifts or breathes for show, and no light follows the cursor. Density is instrument-grade: the whole DAW fits one screen at 1280×800 and 1440×900, and that constraint is the charm.\n\nState is carried by form, never by hue alone. Rims change line form (solid, dashed or doubled), fills light, pads carry a corner notch and sustain tails a hatch, pending switches fly a diamond flag, and every state has a text or aria equivalent. Glow is a single decorative layer laid over that coding. Faithful to the product's roots (1BITDRAGON's no-wrong-notes grid, Ableton's device chains), the palette stays tiny: one graphite family, one warm white, four lane hues.",
+    "overview": "Bitbounce is one premium hardware DAW unit that happens to run in a browser: the kind of large-ticket standalone instrument you hold, weigh, and play, that still answers like a lightning-fast digital machine. The whole viewport is the unit's anodized graphite deck, bead-blasted rather than brushed. The transport booth is its faceplate, the pattern rail its arrangement strip, and each of the four lane quadrants a milled plate with a pad display set into a machined pocket. Every surface is lit from one studio seat at the unit's top-left shoulder, so each chamfer, keycap wall and pocket lip agrees on where the light comes from. The four lane hues are the unit's signal system: LED values, anodized rim tints, lit pads. They are never paint and never decoration.\n\nThe register is industrial-precise with a chiptune soul. Controls are machined keys with sculpted caps that seat and light on the very frame your finger lands. Readouts are recessed LCD windows with scanlines, a glass glint and ghosted unlit cells. The booth carries a status screen that echoes every control you touch with its read-back value, and a channel meter on each quadrant strikes at the exact moment each note is heard. Motion is instant or mechanical: key travel with a spring return, detent ticks, switch throws, rolling value windows, a phosphor scan when a surface opens. Nothing drifts or breathes for show, and no light follows the cursor. Density is instrument-grade: the whole DAW fits one screen at 1280×800 and 1440×900, and that constraint is the charm.\n\nState is carried by form, never by hue alone. Rims change line form (solid, dashed or doubled), fills light, pads carry a corner notch and sustain tails a hatch, pending switches fly a diamond flag, and every state has a text or aria equivalent. Glow is a single decorative layer laid over that coding. Faithful to the product's roots (1BITDRAGON's no-wrong-notes grid, Ableton's device chains), the palette stays tiny: one graphite family, one warm white, four lane hues.\n\nThe VIZ composition editor extends this console with lane-colored procedural linework on the graphite deck. Its control panels use flat tonal separation so overlapping contours, meshes, arcs, and point trails remain the focal content. The approved interactive option B and route-specific composition live in .impeccable/surfaces/route-viz.md; they do not replace the DAW's arrangement layout.",
     "keyCharacteristics": [
       "Bead-blasted graphite deck; milled plates with two-facet chamfered edges and two-layer casts; everything lit from the top-left.",
       "Sculpted keycaps drawn in inset shadow that seat and light instantly under the finger (zero-ramp acknowledgement).",
@@ -414,6 +458,11 @@
       "A fast digital unit: rolling value windows, scan-on surfaces, a booth status screen, channel meters striking at audible time."
     ],
     "rules": [
+      {
+        "name": "The VIZ Signal Rule",
+        "body": "Real audible-time MIDI updates only the matching lane's pitch and velocity response. Silent lanes draw no artwork. Note releases fade to zero; stop and effective mute clear the lane. Reduced motion omits artwork and supplies bounded textual activity summaries.",
+        "section": "components"
+      },
       {
         "name": "The Ink Law",
         "body": "Lit keys and filled pads set glyphs in Ink-on-Fill, never warm white. Info-critical text is warm white on graphite, never lane-hued and never dimmed below the 62% legend mix (7.00:1). No lane-hue text on lane fills.",

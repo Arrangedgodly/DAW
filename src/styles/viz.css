@@ -1,273 +1,450 @@
-/*
- * VIZ page (VZ-IM-2) — the House Lights surface (.impeccable/surfaces/
- * viz.md): one continuous near-black floor, tokens only. VZ-IM-4 adds the
- * full-bleed canvas ground below; the draw engine (VZ-IM-5), phase states
- * (VZ-IM-6) and remote chrome (VZ-DD-1) extend this file under the same
- * tokens — no new palette values, ever (tokens.css is the authority).
- *
- * Mount law: this element exists ONLY while vizMode is on (App's <Show>);
- * nothing here leaks into the closed app (HP-1 zero-cost clause).
- */
-
 .viz-page {
   position: fixed;
   inset: 0;
-  /* Above the stage + FX overlays (30/40) and the info bar (50) — a full
-   * surface; BELOW toasts (60) and the audio-resume affordance (70), the
-   * failure chrome that must stay reachable/visible in any mode. */
   z-index: 55;
-  background: var(--color-ground);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  color: var(--color-ink);
+  background: var(--metal-deck);
+  font: 13px/1.5 var(--font-ui);
+  --viz-border: color-mix(in srgb, var(--color-ink) 24%, var(--metal-panel));
+  --viz-muted: color-mix(in srgb, var(--color-ink) 72%, var(--metal-panel));
 }
-
-/*
- * VZ-IM-4 — the renderer canvas (src/viz/renderer.ts sizes the BACKING
- * store; CSS only fixes the element box): absolutely full-bleed inside the
- * page, block so no inline baseline gap. The element's box is what the
- * ResizeObserver watches — CSS size and backing store stay decoupled by
- * design (backing = round(css × min(dpr, VIZ_DPR_CAP)), never set here).
- */
+.viz-page * {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--viz-muted) var(--metal-panel);
+}
+.viz-page ::selection {
+  background: var(--color-ink);
+  color: var(--color-ink-on-fill);
+}
+.viz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--viz-border);
+  background: var(--metal-panel);
+}
+.viz-header h1 {
+  font: 500 18px/1.3 var(--font-ui);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.viz-header p {
+  margin: 4px 0 0;
+  color: var(--viz-muted);
+  font-size: 11px;
+}
+.viz-header-actions {
+  display: flex;
+  gap: 8px;
+}
+.viz-btn,
+.viz-field select {
+  border: 1px solid var(--viz-border);
+  background: var(--metal-raised);
+  color: var(--color-ink);
+  border-radius: 4px;
+  padding: 8px 12px;
+  min-height: 44px;
+  font: inherit;
+  cursor: pointer;
+}
+.viz-btn:hover,
+.viz-field select:hover {
+  background: color-mix(in srgb, var(--color-ink) 12%, var(--metal-raised));
+}
+.viz-btn:active {
+  box-shadow: var(--keycap-down);
+}
+.viz-page :is(button, select, input):focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+.viz-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 304px;
+  min-height: 0;
+}
+.viz-stage {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
 .viz-canvas {
   position: absolute;
   inset: 0;
-  display: block;
   width: 100%;
   height: 100%;
+  display: block;
 }
-
-/*
- * VZ-DD-4 — the PHONE GATE: at the phone stage the canvas element persists
- * (ref stability for a wide-stage re-boot) but paints nothing and sizes to
- * zero — no renderer ever runs there (VizPage's stage-mode effect), so this
- * is belt-and-braces, not the mechanism.
- */
-.app[data-stage="phone"] .viz-canvas {
-  display: none;
-}
-
-/*
- * VZ-DD-1 — the REMOTE: the surface's entire DOM chrome, bottom-anchored
- * and center-set so the light show leads from the first viewport
- * (Experience mode: the remote recedes by smallness and stillness, never
- * by hiding). ONE chassis cast — the rail-popover law: opaque token ground
- * (never glass over the show), 1px 25%-ink border, 6px radius, one
- * offset+blur shadow. Static by construction: no pulses, no transitions,
- * no glow layers — the glow budget stays unspent while the canvas carries
- * all the light (tokens.css law 4 is a ceiling, not a quota). Wraps (never
- * overflows) at narrow widths; its phone form is the GATE below (VZ-DD-4).
- */
-.viz-remote {
+.viz-stage-hint {
   position: absolute;
-  bottom: var(--space-5);
+  bottom: 16px;
+  left: 24px;
+  right: 24px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--viz-muted);
+  pointer-events: none;
+}
+.viz-anchor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--viz-lane);
+  border-radius: 50%;
+  background: var(--metal-recess);
+  color: var(--color-ink);
+  cursor: grab;
+  touch-action: none;
+  font: 12px var(--font-ui);
+}
+.viz-anchor[aria-pressed="true"] {
+  background: var(--viz-lane);
+  color: var(--color-ink-on-fill);
+  border-style: double;
+  border-width: 3px;
+  z-index: 2;
+}
+.viz-anchor:active {
+  cursor: grabbing;
+}
+.viz-anchor-name {
+  position: absolute;
+  top: 48px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  max-width: calc(100% - 2 * var(--space-5));
-  box-sizing: border-box;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-ground);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--color-ground));
-  border-radius: 6px;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.55);
-}
-
-/* While help mode joins the surface, the info bar (lifted above the page
- * by info-view.css) owns the bottom edge — the remote steps up clear of
- * it, the same static choreography as every help-mode marker. */
-.app[data-help-mode="on"] .viz-remote {
-  bottom: 56px;
-}
-
-/*
- * VZ-DD-4 — the PHONE GATE form of the SAME chassis (the committed
- * fallback: gate + message): at the phone stage there is no show to
- * recede under, so the gate is a CENTERED message card — same rail-
- * popover cast (opaque ground, 1px 25%-ink border, 6px radius, one
- * offset+blur shadow), column-set, wrapping text (a message wraps —
- * nothing here may overflow the 360-430 px widths). Static by
- * construction, like the strip form; the reduce gate below covers both.
- */
-.viz-remote.viz-remote-gate {
-  bottom: auto;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: min(30rem, calc(100% - 2 * var(--space-5)));
-  padding: var(--space-5) var(--space-4);
-  text-align: center;
-}
-
-/* The gate message: warm-white ink on the ground (the ink law — never
- * dimmed), the LED display voice at message scale — the gate is a
- * full-screen card, not pinned chrome, so its one line can afford the
- * stage's largest type (the 2026-09-05 polish P3: 10px silkscreen inside a
- * centered full-viewport card under-read the moment). Wraps by law. */
-.viz-phone-message {
-  margin: 0;
-  font: 400 20px/1.4 var(--font-led);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--color-ink);
-  white-space: normal;
-}
-
-/* The idle line WRAPS inside the gate (its strip-form nowrap assumed the
- * wide chassis; at 360 the line must never clip). */
-.viz-remote-gate .viz-remote-idle {
-  white-space: normal;
-}
-
-/*
- * The gate's EXIT — the surface's single control at phone, and the gate
- * is a full-screen message (not pinned chrome), so the honest target-size
- * route is PAINT: ≥44×44 (m2 / WCAG 2.5.5, the world-respecting "painted"
- * route — no strap needed where there is room).
- */
-.viz-remote-gate .viz-remote-btn {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 var(--space-5);
-}
-
-/* The preset stepper — the booth TEMPO group cast: dim silkscreen label,
- * outline chassis buttons (the .fx-mod-btn language), the readout between
- * them as the one full-ink value (info-critical text, D9). */
-.viz-remote-preset {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.viz-remote-label {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
+  background: var(--metal-recess);
+  font: 10px/1.5 var(--font-ui);
+  padding: 2px 5px;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
-  white-space: nowrap;
+  pointer-events: none;
 }
-
-.viz-remote-name {
-  font: var(--text-label-sm);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  min-width: 12ch; /* the longest library name; steps never shift the cast */
-  text-align: center;
-  white-space: nowrap;
+.viz-anchor[hidden],
+.viz-stage-hint[hidden] {
+  display: none;
 }
-
-/* The J2 idle line: transport stopped names the way back to the booth.
- * Warm-white info text on the ground (never dimmed — the ink law). */
-.viz-remote-idle {
-  margin: 0;
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  white-space: nowrap;
+.viz-remote {
+  background: var(--metal-panel);
+  border-left: 1px solid var(--viz-border);
+  overflow-y: auto;
 }
-
-/* Controls — the .fx-mod-btn / .lane-fx-close language verbatim (3px
- * radius, 7%-ink fill, 18%-ink border, control-height 24px): the remote is
- * the same world's chassis furniture. Hover = fill step; focus-visible =
- * the D9 ink outline, never glow-dependent. */
-.viz-remote-btn {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-ink) 7%, var(--color-ground));
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 18%, var(--color-ground));
-  border-radius: 3px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 var(--space-3);
+.viz-lane-tabs {
   display: grid;
-  place-items: center;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 16px;
+  border-bottom: 1px solid var(--viz-border);
+}
+.viz-lane-tabs .viz-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  text-transform: capitalize;
+  font-size: 12px;
+}
+.viz-lane-tabs .viz-btn[aria-pressed="true"] {
+  outline: 1px solid var(--color-ink);
+  outline-offset: -3px;
+  background: var(--metal-recess);
+}
+.viz-lane-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+}
+.viz-inspector-body {
+  padding: 22px 20px;
+}
+.viz-inspector-body h2 {
+  margin: 0 0 22px;
+  font: 500 23px/1.3 var(--font-ui);
+  text-transform: capitalize;
+  letter-spacing: -0.02em;
+}
+.viz-field {
+  display: block;
+  font-size: 12px;
+  color: var(--viz-muted);
+}
+.viz-field select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 13px;
+  appearance: auto;
+}
+.viz-effect-description {
+  min-height: 74px;
+  margin: 12px 0 26px;
+  color: var(--viz-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.viz-position-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.viz-position-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--viz-muted);
+}
+.viz-position-head output,
+.viz-scale output {
+  font: 11px var(--font-value);
+  color: var(--color-ink);
+}
+.viz-position-map {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+  position: relative;
+}
+.viz-position-btn {
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--viz-border);
+  background: var(--metal-recess);
+  border-radius: 2px;
   cursor: pointer;
-  white-space: nowrap;
 }
-
-.viz-remote-btn:hover {
-  background: color-mix(in srgb, var(--color-ink) 12%, var(--color-ground));
+.viz-position-btn:hover {
+  background: var(--metal-raised);
 }
-
-.viz-remote-btn:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 1px;
+.viz-position-btn[aria-pressed="true"] {
+  border: 2px solid var(--viz-lane);
 }
-
-/*
- * VZ-DD-2 — the ANNOUNCEMENT REGION (src/viz/announcements.ts): the
- * surface's ONE polite live region, screen-reader-only (the .head-sr clip
- * idiom, lane-header.css — no offsets, no colors, tokens untouched). The
- * remote's visible readout and idle line are the sighted twins; this
- * region carries the spoken channel. Static by construction: nothing
- * here animates or transitions (the reduce gate below is belt+braces).
- */
+.viz-position-marker {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--viz-lane);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.viz-scale {
+  margin-top: 26px;
+}
+.viz-scale output {
+  float: right;
+}
+.viz-scale input {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 10px 0 0;
+  accent-color: var(--viz-lane);
+  cursor: pointer;
+}
+.viz-inspector-tip {
+  margin: 22px 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--viz-muted);
+}
+.viz-library-note {
+  padding-top: 16px;
+  border-top: 1px solid var(--viz-border);
+  font-size: 11px;
+  color: var(--viz-muted);
+}
+.viz-footer {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--viz-border);
+  background: var(--metal-panel);
+}
+.viz-footer > span {
+  color: var(--viz-muted);
+  font-size: 11px;
+}
+.viz-footer output {
+  margin-left: auto;
+  font: 11px var(--font-value);
+  color: var(--viz-muted);
+}
+.viz-reroll {
+  background: var(--color-ink);
+  color: var(--color-ink-on-fill);
+  font-weight: 500;
+}
+.viz-reroll:hover {
+  background: var(--color-ink);
+  box-shadow: var(--keycap);
+}
+.viz-error:empty {
+  display: none;
+}
+.viz-error {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  padding: 16px;
+  color: var(--color-ink);
+  background: var(--metal-recess);
+  border: 1px solid var(--color-ink);
+}
 .viz-announce {
   position: absolute;
   width: 1px;
   height: 1px;
-  margin: -1px;
-  padding: 0;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
-  border: 0;
 }
-
-/*
- * VZ-DD-3 — reduced motion, the CSS half of the BOTH-gates law (tokens.css
- * "Reduced motion (law)" + the grid.css D9 precedent): kill every
- * transition/animation in the surface's DOM chrome under the media query.
- * The remote is static by construction today (no pulses, no transitions —
- * the stillness law), so this gate holds the line for any future chrome
- * rather than changing the present cast. The CANVAS half of the gate lives
- * in the render loop: the renderer's matchMedia seam swaps the node engine
- * to static placed marks + bounded hold (src/viz/renderer.ts +
- * src/viz/nodes.ts + src/viz/clamps.ts) — a CSS-only gate could not reach
- * canvas pixels, and a loop-only gate could not reach the chrome.
- */
+.viz-view-only .viz-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.viz-view-only .viz-remote {
+  display: none;
+}
+.app[data-help-mode="on"] .viz-footer {
+  padding-bottom: 56px;
+}
+@media (max-width: 700px) {
+  .viz-header {
+    padding: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .viz-header h1 {
+    font-size: 16px;
+  }
+  .viz-header-actions {
+    width: 100%;
+  }
+  .viz-header-actions .viz-btn {
+    flex: 1;
+    font-size: 11px;
+  }
+  .viz-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(200px, 1fr) minmax(160px, 38%);
+  }
+  .viz-remote {
+    border-left: 0;
+    border-top: 1px solid var(--viz-border);
+  }
+  .viz-lane-tabs {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 8px;
+    background: var(--metal-panel);
+  }
+  .viz-lane-tabs .viz-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px;
+    font-size: 10px;
+    gap: 5px;
+  }
+  .viz-inspector-body {
+    padding: 16px;
+  }
+  .viz-inspector-body h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+  .viz-stage-hint {
+    display: none;
+  }
+  .viz-footer {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+  .viz-footer > span {
+    display: none;
+  }
+  .viz-footer output {
+    font-size: 9px;
+  }
+  .viz-footer .viz-btn {
+    font-size: 11px;
+  }
+  .viz-view-only .viz-workspace {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .viz-remote,
-  .viz-remote * {
-    transition: none;
-    animation: none;
+  .viz-page *,
+  .viz-page *::before,
+  .viz-page *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
-/*
- * VZ-HU-1 — the ERROR LINE: the draw-fault containment boundary's visible
- * half (VizPage's onError writes ONE fixed line when the renderer parks a
- * thrown draw). Hidden while empty (:empty — the closed surface carries
- * zero chrome for a fault that never happened), then a single static line
- * above the remote: warm-white info ink on the token ground, no fill, no
- * border, no glow (the glow budget stays unspent; this is critical info,
- * not light). The line itself is NOT a live region (DD-2's one-polite-
- * region law) — its SPOKEN twin rides the surface's one polite region
- * (VizPage's onError announces the same fixed line once per fault; the
- * 2026-09-05 polish P3 — a screen-reader user whose show parks hears it,
- * the closed list's "state changes only" class). Static by construction:
- * nothing here transitions or animates.
- */
-.viz-error:not(:empty) {
+.viz-orbit-guide {
   position: absolute;
-  bottom: calc(var(--space-5) * 2 + 3rem); /* above the remote chassis */
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: min(48rem, calc(100% - 2 * var(--space-4)));
-  padding: var(--space-2) var(--space-3);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-opacity: 0.2;
+  stroke-width: 0.12;
+}
+.viz-orbit-guide circle {
+  stroke-dasharray: 0.6 1.4;
+}
+
+.viz-motion-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.viz-motion-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
   color: var(--color-ink);
-  font-size: 0.75rem;
-  text-align: center;
+}
+.viz-motion-controls select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 24%, var(--metal-panel));
+  background: var(--metal-panel);
+  color: var(--color-ink);
+  font: inherit;
+}
+.viz-motion-controls select:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.viz-view-only .viz-motion-controls {
+  display: none;
+}
+@media (max-width: 700px) {
+  .viz-motion-controls {
+    width: 100%;
+  }
+  .viz-motion-controls label {
+    flex: 1;
+    min-width: 0;
+  }
+  .viz-motion-controls select {
+    width: 100%;
+    min-width: 0;
+  }
 }

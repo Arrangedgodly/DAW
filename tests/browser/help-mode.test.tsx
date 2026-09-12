@@ -90,9 +90,9 @@ import scalePopoverSrc from "../../src/components/ScalePopover.tsx?raw";
 import toastsSrc from "../../src/components/Toasts.tsx?raw";
 import bannerSrc from "../../src/components/Banner.tsx?raw";
 import audioStatusSrc from "../../src/components/AudioStatus.tsx?raw";
-// VZ-DD-1: the viz remote registers three entries (viz.preset/reroll/exit)
-// — the surface joins the registry, so it joins the census.
+// Help is registered by the inspector and used by both visualizer components.
 import vizRemoteSrc from "../../src/components/VizRemote.tsx?raw";
+import vizPageSrc from "../../src/components/VizPage.tsx?raw";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
@@ -541,6 +541,7 @@ const SOURCES = [
   bannerSrc,
   audioStatusSrc,
   vizRemoteSrc,
+  vizPageSrc,
 ] as const;
 
 /** Every LITERAL `data-help="…"` id stamped in the component sources. */
@@ -570,7 +571,7 @@ function generatedHelpIds(): Set<string> {
     ]) {
       ids.add(`lane.${lane}.${part}`);
     }
-      ids.add(`grid.${lane}`);
+    ids.add(`grid.${lane}`);
   }
   // M-5 (iteration 4): the phone register-window shift row (pitched lanes
   // only — RegisterShiftControls stamps it via a `lane.${lane}.regshift`

@@ -479,7 +479,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         await waitFor(
           () =>
             host.querySelector(".info-view-title")?.textContent?.trim() ===
-            "REROLL",
+            "REROLL COMPOSITION",
           2000,
           "focused REROLL drives the info region over the surface",
         );

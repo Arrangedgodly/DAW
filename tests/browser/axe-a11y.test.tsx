@@ -26,9 +26,9 @@ import { loadDocument } from "../../src/state/store";
 import { createDemoProject } from "../../src/document/demoSong";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
-import { activeVizNodeEngines } from "../../src/viz/nodes";
-import { VIZ_PHONE_GATE_MESSAGE } from "../../src/viz/announcements";
-import { VIZ_IDLE_LINE } from "../../src/components/VizRemote";
+import { activeCompositionEngines } from "../../src/viz/compositionEngine";
+
+
 // DA-3 fix: App imports app.css/grid.css but NOT the token sheet (that is
 // main.tsx's job in the real bundle). Without tokens every var(--color-*)
 // background resolves to nothing, axe falls back to a white page, and light
@@ -299,8 +299,8 @@ describe("DA-2 axe-core gate", () => {
         "viz remote mounted",
       );
       const remote = host.querySelector<HTMLElement>(".viz-remote")!;
-      expect(remote.getAttribute("role")).toBe("toolbar");
-      expect(remote.getAttribute("aria-label")).toBe("VIZ remote");
+      expect(remote.tagName).toBe("ASIDE");
+      expect(remote.getAttribute("aria-label")).toBe("Instrument inspector");
       expect(
         host.querySelector(".viz-canvas")?.getAttribute("aria-hidden"),
       ).toBe("true");
@@ -309,8 +309,8 @@ describe("DA-2 axe-core gate", () => {
       // VZ-HW-3 names this snapshot the mounted-IDLE state (transport
       // stopped): the idle line is its legibility law, visible here.
       expect(
-        host.querySelector(".viz-remote-idle")?.textContent?.trim(),
-      ).toBe(VIZ_IDLE_LINE);
+        host.querySelector(".viz-header p")?.textContent?.trim(),
+      ).toContain("Playback stopped");
       // axe-after-settle: let the transport subscription + roving seed land.
       await new Promise((r) => setTimeout(r, 300));
       expectClean(await runAxe(host), "viz mode on");
@@ -372,7 +372,7 @@ describe("DA-2 axe-core gate", () => {
         "emulated media applied",
       );
       await waitFor(
-        () => activeVizNodeEngines()[0]?.probe().reducedMotion === true,
+        () => activeCompositionEngines()[0]?.probe().reduced === true,
         5000,
         "engine swapped to reduced motion (the matchMedia seam)",
       );
@@ -380,7 +380,7 @@ describe("DA-2 axe-core gate", () => {
       expectClean(await runAxe(host), "viz reduced-motion");
       await emulateReducedMotion("no-preference");
       await waitFor(
-        () => activeVizNodeEngines()[0]?.probe().reducedMotion === false,
+        () => activeCompositionEngines()[0]?.probe().reduced === false,
         5000,
         "engine back at full motion",
       );
@@ -393,7 +393,7 @@ describe("DA-2 axe-core gate", () => {
         "transport stopped",
       );
       await waitFor(
-        () => host.querySelector(".viz-remote-idle") !== null,
+        () => host.querySelector(".viz-header p")?.textContent?.includes("Playback stopped") === true,
         5000,
         "idle line visible under the surface",
       );
@@ -428,11 +428,9 @@ describe("DA-2 axe-core gate", () => {
         "phone gate mounted",
       );
       const gate = host.querySelector<HTMLElement>(".viz-remote")!;
-      expect(gate.classList.contains("viz-remote-gate")).toBe(true);
-      expect(gate.getAttribute("role")).toBe("group");
-      expect(host.querySelector(".viz-phone-message")?.textContent).toBe(
-        VIZ_PHONE_GATE_MESSAGE,
-      );
+      expect(gate.classList.contains("viz-remote-gate")).toBe(false);
+      expect(gate.tagName).toBe("ASIDE");
+      expect(host.querySelectorAll(".viz-lane-tabs button")).toHaveLength(4);
       await new Promise((r) => setTimeout(r, 300));
       expectClean(await runAxe(host), "viz phone-gate 390×844");
     } finally {

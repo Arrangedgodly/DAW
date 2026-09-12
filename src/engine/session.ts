@@ -175,6 +175,9 @@ export interface VizNoteOn {
   readonly velocity: number;
   /** Absolute audio-clock seconds when the note becomes audible. */
   readonly audibleAt: number;
+  /** Observation-only gate/release copied from the scheduled voice event. */
+  readonly holdSeconds?: number;
+  readonly releaseSeconds?: number;
 }
 
 /**
@@ -623,6 +626,8 @@ export class Session {
         pitch: freqToMidi(e.freq),
         velocity: e.level,
         audibleAt: when,
+        holdSeconds: e.holdSeconds,
+        releaseSeconds: e.release,
       };
       for (const listener of this.noteOnListeners) {
         try {

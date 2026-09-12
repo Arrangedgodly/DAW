@@ -201,9 +201,7 @@ describe("Session pattern playback seam", () => {
 
     expect(sent.length).toBeGreaterThanOrEqual(1);
     // Step 64's kick arrives at its exact time — NOT bucketed onto 63.
-    const kick = sent
-      .flatMap((s) => s.events)
-      .find((e) => e.freq! > 100);
+    const kick = sent.flatMap((s) => s.events).find((e) => e.freq! > 100);
     expect(kick).toBeDefined();
     expect(kick!.time).toBeCloseTo(timeAtStep(64, groove) + 10.1, 6);
   });
@@ -373,6 +371,8 @@ describe("Session note-on tap (VZ-IM-1, subscribeNoteOns)", () => {
       expect(taps[k]!.lane).toBe(laneNames[hostFlat[k]!.lane]);
       expect(taps[k]!.audibleAt).toBe(hostFlat[k]!.e.time); // exact `when`
       expect(taps[k]!.velocity).toBe(hostFlat[k]!.e.level);
+      expect(taps[k]!.holdSeconds).toBe(hostFlat[k]!.e.holdSeconds);
+      expect(taps[k]!.releaseSeconds).toBe(hostFlat[k]!.e.release);
       expect(taps[k]!.pitch).toBe(midiOf(hostFlat[k]!.e.freq));
     }
 
@@ -383,7 +383,14 @@ describe("Session note-on tap (VZ-IM-1, subscribeNoteOns)", () => {
       0,
       BASS_PRESET.pitchRange?.octaveBase ?? 4,
     );
-    expect(taps).toEqual([
+    expect(
+      taps.map(({ lane, pitch, velocity, audibleAt }) => ({
+        lane,
+        pitch,
+        velocity,
+        audibleAt,
+      })),
+    ).toEqual([
       {
         lane: "drums",
         pitch: 51,
@@ -488,17 +495,13 @@ describe("Session note-on tap (VZ-IM-1, subscribeNoteOns)", () => {
     const drums = h.hostLog
       .filter((c) => c.lane === 0)
       .flatMap((c) => c.events);
-    const bass = h.hostLog
-      .filter((c) => c.lane === 1)
-      .flatMap((c) => c.events);
+    const bass = h.hostLog.filter((c) => c.lane === 1).flatMap((c) => c.events);
     expect(drums.length).toBe(drumSrc.length);
     expect(bass.length).toBe(bassSrc.length);
     drums.forEach((e, k) =>
       expect(e).toEqual({ ...drumSrc[k]!, time: e.time }),
     );
-    bass.forEach((e, k) =>
-      expect(e).toEqual({ ...bassSrc[k]!, time: e.time }),
-    );
+    bass.forEach((e, k) => expect(e).toEqual({ ...bassSrc[k]!, time: e.time }));
   });
 
   it("no refill double-delivery: each delivered note-on emits exactly once", async () => {
@@ -520,8 +523,7 @@ describe("Session note-on tap (VZ-IM-1, subscribeNoteOns)", () => {
 
     // Multiset: every scheduled note exactly once across all refills.
     const counts = new Map<string, number>();
-    for (const t of taps)
-      counts.set(t.lane, (counts.get(t.lane) ?? 0) + 1);
+    for (const t of taps) counts.set(t.lane, (counts.get(t.lane) ?? 0) + 1);
     expect(counts.get("drums")).toBe(3);
     expect(counts.get("bass")).toBe(1);
     const hostTotal = h.hostLog.reduce((n, c) => n + c.events.length, 0);

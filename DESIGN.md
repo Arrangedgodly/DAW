@@ -73,6 +73,24 @@ typography:
     fontSize: "22px"
     fontWeight: 400
     lineHeight: 1
+  viz-heading:
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "18px"
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: "-0.02em"
+  viz-instrument:
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "23px"
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: "-0.02em"
+  viz-label:
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.5
+
 rounded:
   popover: "6px"
   chassis: "4px"
@@ -89,6 +107,18 @@ spacing:
   "7": "32px"
   "8": "48px"
 components:
+  viz-button:
+    backgroundColor: "{colors.metal-raised}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.chassis}"
+    padding: "8px 12px"
+  viz-reroll:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.ink-on-fill}"
+    rounded: "{rounded.chassis}"
+    padding: "8px 12px"
+
   machined-key:
     backgroundColor: "{colors.metal-raised}"
     textColor: "{colors.ink}"
@@ -163,6 +193,8 @@ Iteration 7 (phone MIDI section rework) put the register under law. The phone pi
 - State = line form + fill + shape mark + text — never glow alone, never color alone.
 - A fast digital unit: rolling value windows, scan-on surfaces, a booth status screen, channel meters striking at audible time.
 
+The VIZ composition editor extends this console with lane-colored procedural linework on the graphite deck. Its control panels use flat tonal separation so overlapping contours, meshes, arcs, and point trails remain the focal content. The approved interactive option B and route-specific composition live in .impeccable/surfaces/route-viz.md; they do not replace the DAW's arrangement layout.
+
 ## Colors
 
 A graphite hardware family, one warm white, and four lane signal hues — the palette is the world's law.
@@ -194,6 +226,10 @@ A graphite hardware family, one warm white, and four lane signal hues — the pa
 
 **The No-New-Color Rule.** No color enters the unit without a lane or a material role to own it. Material lighting (grain, panel light, chamfers, pocket, glass glint) is built only from warm-white or black alpha, never from a new hue.
 
+### VIZ color application
+
+The canvas reads the four lane colors directly from the console tokens. Its additive overlap belongs to the geometric content. Editor borders mix 24% warm ink into Panel Graphite; secondary copy mixes 72%. Selected instrument tabs use a warm outline and retain warm text on graphite. Motion and blending controls reuse the panel and ink tokens.
+
 ## Typography
 
 **Body/UI Font:** IBM Plex Mono (ui-monospace fallback), the panel workhorse
@@ -218,6 +254,10 @@ A graphite hardware family, one warm white, and four lane signal hues — the pa
 
 **The Size-Law Rule.** Each face keeps its band: Silkscreen 10–12px (8px engravings only), Departure Mono 11px, Plex 10–14px, VT323 20–24px, Press Start 2P 16px+ in multiples of 8. The ramp is exactly 10 / 11 / 13 / 16 / 22 — no 12px step.
 
+### VIZ type exception
+
+VIZ uses the scoped heading, instrument, and label roles in the frontmatter alongside the existing body and value roles. These extend the console's engraved-label ramp only inside the composition editor. At the phone breakpoint, the page heading becomes 16px and the selected instrument heading becomes 18px. Controls use sentence case, and instrument names use capitalization rather than the console's tracked uppercase legends.
+
 ## Layout
 
 **One page, one screen — the one-page law (desktop).** At 1440×900 and 1280×800 the booth, the pattern rail and all four lane quadrants fit the viewport exactly. Long patterns scroll inside their quadrant, never the page. The shell is a 100dvh flex column:
@@ -230,6 +270,12 @@ The floors fill the viewport width at every desktop width, with ≥95% utilizati
 The stage is responsive across three device classes (one `stageMode()` seam decides, the layout itself stays one law per class): **desktop** (≥1024×600) is the 2×2 quadrant stage above — pointer + keyboard, one-page at both committed viewports, quadrant rows flex within the 100dvh budget down to per-lane readability floors (drums 20px / pitched 11px tracks) when a real deficit demands it, never on provisional font metrics. Since v0.2 every pitched lane's grid shows through one equal one-octave REGISTER WINDOW (the lane's scale-mode row count, view state only — never a document field, never undo history); the full row manifest stays one scroll away (Shift+arrows move the window, announced "VIEW … ROWS a–b", focus never moves), and patterns longer than 64 steps render virtualized — the visible column window sits inside a pattern-wide scroll extent, so the grid reads as one long floor while the DOM stays bounded. **Tablet** (768–1024) is a responsive scale of the same 2×2 stage, still one page, register windows included. **Phone** (<768, or <1024 with height <600 so a rotated phone keeps the phone law) collapses to a single-lane stage: the quadrant selection becomes a lane-switcher tab row above one sticky `.phone-chrome` block whose centerpiece is the always-visible, horizontally centered PLAY/STOP transport (never scrolls away); KEYS/INFO do not render on phone at all (a render guard, not a hide). Every booth option that the thin chrome sheds — LOOP, METRO, VIZ, TEMPO, SCALE, SWING, MASTER — lives in a collapsible OPTIONS drawer under the chrome, built from the shared BoothOptions parts, mounting zero DOM while closed. Since iteration 7 the phone pitched grids show through the SAME one-octave register window as desktop (the `registerWindowStarts` seam), now a SEMITONE-SNAP window: exactly `modeSize` COMPLETE rows at every rest — boot, steppers, wheel, settled scroll-end snap — at any semitone offset (octave multiples are not required), with the pane box pinned to the renderer's inline height (`windowRows × track`) so no partial row can ever intersect it; leftover grows row tracks first (the [44,64] fill clamp measured on the PAINTED window, not the manifest) and then the page, never the pane. The window moves by the ONE register row — ONE OCT −/+ stepper (a whole scale-octave, `modeSize` rows) beside ONE SEMI −/+ stepper (one semitone) — that disable at their clamps and confirm every change with an aria-live "ROWS a–b OF n" readout chip (ONE source of truth with the grid's aria: the MOUNTED pattern's manifest, 0-based) plus a transient fill+border+shape-coded direction cue (▲/▼; never stamped under reduced motion); the row also carries the ZOOM chip (factor readout + ≥44px reset target). The strip's SOUND-transpose OCT stepper does not render at phone — it lives in the OPTIONS drawer (the E9 fence spoken where the control lives) so one card never carries two same-labeled octave controls. A two-finger pinch zooms the pitched grid [1,2]× — the fill-law geometry re-fit LIVE through the renderer seams (cell [15,24]px × factor, row fill × factor; never a CSS transform, hit-math stays honest), exactly `modeSize` complete rows at every factor, committed on release and persistent until reset (double-tap ≤350ms/≤32px, consumed pre-activation, or the chip). Since iteration 5 the phone grids FILL the measured well: cell width is the exact fraction (well − label − (n−1)·gap)/n clamped to [15,24]px, so a 1-bar row spans 100% of the width with a 0px dead-right edge (cells 17.6/15.7/20.1px drums and 18.3/16.4/20.8px pitched at 390/360/430), while 2-bar patterns keep the 15px readability floor and scroll horizontally inside the well; rows are finger-sized targets grown into the measured leftover, clamped [44,64]px (44 the floor law), and the stage's grow-only flex chain gives the card bottom ownership of the viewport bottom at scroll end (Δ0 — the page-scroll law is unchanged). The grid owns ≥47.5% of the viewport at 390×844 (measured 52.1/49.5/56.7% at 390/360/430) and the chrome stays <50% of viewport height. Touch is a first-class input everywhere (see Components); the phone scroll-vs-gesture law is per-origin `touch-action` (vertical pan stays the browser's from anywhere; horizontal on gesture surfaces is reserved for editing drags).
 
 **Editing model.** On the 2×2 stages every quadrant's pads are live under the pointer: a press on any floor edits it, and the same click then selects that quadrant, so its edit row (scale chip, GATE, FX) and keyboard cursor follow. The keyboard law is stricter: only the selected grid owns a tab stop. `]`/`[` or PageUp/PageDown move the selection, and focus never lives in a non-selected grid.
+
+### VIZ canvas and inspector
+
+The fixed viewport contains a header, a flexible workspace, and a footer. Desktop gives the canvas remaining width beside one 304px scrolling inspector. The header and footer keep exit, viewing mode, and reroll reachable. The inspector starts with four lane buttons in two columns, followed by the selected lane's effect, description, scale and, in Orbit mode, orbit strength. The header carries permanent Motion and Composition selectors.
+
+At widths of 700px or less, the inspector sits below the canvas in its own scrolling region. The workspace rows use minmax(200px, 1fr) and minmax(160px, 38%); the four lane buttons form one sticky row. Header actions wrap onto a full-width row. Hide controls removes the motion controls, orbit guide and inspector, letting the canvas occupy the workspace while the header and footer remain available.
 
 ## Elevation & Depth
 
@@ -252,9 +298,15 @@ Milled plates under one studio light. Surfaces step through the graphite family:
 
 **The Decoration-Only Glow Rule.** Glow never counts toward contrast and is never the only state signal. Exactly one glow layer, ≤3px blur, lane hue at 45–60% alpha, no glow on text under 18px. One-shot glows decay in ≤180ms as the opacity of a pre-painted layer.
 
+### VIZ depth
+
+The editor panels are flat, divided by thin borders. Buttons use the existing seated keycap shadow while pressed; reroll uses the keycap shadow on hover. The canvas draws procedural paths with additive compositing and no blur or pixel readbacks. Geometry supplies its own projected depth.
+
 ## Shapes
 
 Square-ish hardware geometry whose corner radius steps with importance: 1px hairlines (fader caps, meter segments), 2px beat LEDs and the serial plate, 3px controls, pads and rail tiles, 4px chassis (booth keys, lane plates, FX modules, readout windows), 6px floating surfaces (popovers, FX console). Pads carry a shape language of state: the on-state clips an 8px corner notch (bottom-left), sustain tails render a 135° hatch, euclid and drag previews are a 2px dashed lane-hue outline (never the committed fill), and pending pattern switches fly a 10px diamond flag. Rims carry the emission grammar in line form: solid = idle, dashed = pending/cued, doubled = sounding (two 1px lines, the second drawn as an inset outline). The playhead is a 2px warm-white phosphor edge dragging a 14px decaying wake, moved by transform only (a wider trail was tried and reverted: it widened the overlap-compositing band and cost the 128-bar fling budget).
+
+VIZ uses 44px minimum controls and the 4px editor button radius. Manual placement handles and position-map keys are retired. The Orbit guide is a noninteractive dashed circle with a center mark, visible only while editing Orbit mode. Keyboard focus uses a 2px warm-white outline with a 3px offset in this editor.
 
 ## Components
 
@@ -311,6 +363,18 @@ Each lane plate carries a segmented channel meter in its left padding. Meters st
 
 Help mode is a fixed bottom status bar: a VT323 "?" badge, the control's name in legend dim, and a plain-language explanation. It is `pointer-events: none`, so it never blocks the stage, and it mounts only while on. On desktop, hover/focus explains; on touch, a tap both activates and explains, and INFO ? toggles the mode.
 
+### VIZ composition controls
+
+Four instrument tabs select the inspector. Motion chooses Fluid folds, Flowing trails or Orbit; Composition chooses Blended or Distinct. Fluid folds and Blended are the defaults. Composition is disabled in Orbit, which uses the selected lane's orbit strength instead. A 0% orbit remains centered; 100% reaches a radius of 32% of the shorter canvas dimension. Scale is independent. Escape restores editing and focus to the selected instrument tab, or returns to the DAW when already editing.
+
+The effect selector offers 24 procedural effects with seeded geometric variations. The range input sets the selected lane's visual scale from 35% to 130%, without changing audio volume. Reroll assigns every lane another seeded effect, starting angle, and variation while preserving motion, blending, scale and orbit strength; repeated effect assignments are valid. Its warm-white fill identifies the main exploration action, and the footer displays the composition seed.
+
+The motion, composition and effect selects and the scale/orbit ranges intentionally retain browser-native interaction inside the styled console panels. This is a VIZ-specific exception to the console's native-appearance prohibition. All interactive controls have 44px minimum height.
+
+**The VIZ Signal Rule.** Real audible-time MIDI updates only the matching lane's pitch and velocity response. Silent lanes draw no artwork. Note releases fade to zero, and stop clears every lane. Muted, zero-volume and non-soloed lanes are hidden using the shared effective-gain law. Reduced motion omits artwork and supplies bounded textual activity summaries.
+
+The composition restores from bitbounce.viz.composition.v2 in localStorage, separate from project saves and undo. Motion and blending changes persist immediately; range changes update live and persist on completion. Old local compositions default to Fluid folds and Blended while retaining their effects and variations. Invalid stored data falls back to the default composition; storage failures leave editing usable in the current session. The retired scene-wide preference is ignored and left untouched.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -342,3 +406,12 @@ Help mode is a fixed bottom status bar: a VT323 "?" badge, the control's name in
 - **Don't** break the one-page law: at 1440×900 and 1280×800, quadrant content scrolls inside quadrants and the page never scrolls. The phone stage's sticky chrome plus scrolling page is the deliberate exception.
 - **Don't** let a decorative addition cost layout px. The status screen takes only leftover width, meters sit in padding, ghosts and scans are pseudo-elements, and a tile's follow mark is absolutely positioned inside the tile's own padding so tile widths never move.
 - **Don't** give the lane follow footer a content-sized box. It is a FIXED 14px line: the quadrant fill budget subtracts exactly that under the bed, so a footer that grows with its font or text breaks the one-page fit (measured: the floors stopped 8px short of the viewport bottom).
+
+
+Visualizer phrasing refinement: MIDI observers carry the compiled note hold and release durations without altering audio scheduling. Drums use a sharp outward impulse and rapid decay; bass punches and holds, while lead and chords stretch and evolve through their MIDI gates, then release. Up to 16 overlapping notes per lane preserve long sustains beneath short retriggers. Energy drives deformation and motion speed across all 24 effects without adding geometry or rendering passes. Stop clears the active envelopes; reduced motion omits artwork and retains textual activity summaries. The previously recorded dense-playback performance limitation remains unresolved.
+
+
+Silence is part of the visual composition: lane artwork exists only during a note and its brief release. Releases fade to full transparency and then skip drawing entirely. Instrument tabs remain available to edit silent lanes; Hide controls leaves only sounding artwork. Muted lanes, zero-volume lanes, and lanes excluded by Solo are hidden immediately. Unmuting waits for the next note instead of replaying a hidden hit.
+
+
+Permanent motion controls: Fluid folds applies nonlinear folds and ripples inside the geometry. Flowing trails elongates paths and offsets their phase to form moving tails without retaining a framebuffer. Blended puts moving centers in a shared region; Distinct gives them more separation. Orbit retains gradual rotation around a shared center. The selected mode and blending preference persist and survive rerolls. The old motion-study query parameter no longer gates any feature.

@@ -1,3 +1,4 @@
+import { COMPOSITION_KEY, type VisualComposition } from "../../src/viz/composition";
 /**
  * VZ-HW-2 — the VIZ browser harness: the shared machinery every VIZ browser
  * test builds its journey on (plan.md §"VZ-HW-2"; consumed by VZ-TH-2's
@@ -413,6 +414,7 @@ export interface VizPrefsSeed {
 }
 
 export interface VizAppOptions {
+  readonly composition?: VisualComposition;
   /** Iframe CSS size (default 1280×960, the e2e harness default). */
   readonly width?: number;
   readonly height?: number;
@@ -507,6 +509,8 @@ export async function bootVizApp(
   // the default deal is deterministic even when an earlier test on this
   // shared origin left one behind (VizPage reads it at mount).
   try {
+    if(opts.composition) win.localStorage.setItem(COMPOSITION_KEY, JSON.stringify(opts.composition));
+    else win.localStorage.removeItem(COMPOSITION_KEY);
     if (opts.vizPrefs) {
       writeVizPrefs(
         {
@@ -774,6 +778,7 @@ export async function bootVizApp(
     }
     try {
       win.localStorage.removeItem(VIZ_PREFS_STORAGE_KEY);
+      win.localStorage.removeItem(COMPOSITION_KEY);
     } catch {
       /* iframe may already be gone */
     }

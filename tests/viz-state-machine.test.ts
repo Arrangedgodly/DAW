@@ -289,62 +289,8 @@ describe("VIZ_TEARDOWN_CHECKLIST — the ordered post-exit invariant", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Source fence — VizPage.tsx runs the checklist in the pinned order
-// ---------------------------------------------------------------------------
-
-describe("VizPage teardown source fence — the real block, the real order", () => {
-  const SOURCE = readFileSync("src/components/VizPage.tsx", "utf8");
-  // Comments stripped so the fence counts CODE, not prose.
-  const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(
-    /^\s*\/\/.*$/gm,
-    "",
-  );
-
-  it("the engine teardown block executes the checklist steps in ORDER (source positions strictly increasing)", () => {
-    const markers: [string, RegExp][] = [
-      ["unsubscribe-bpm", /unsubscribeBpm\(\)/],
-      ["stop-persistence", /stopMemory\(\)/],
-      ["release-summarizer", /releaseVizActivitySummarizer\(summarizer\)/],
-      ["dispose-arranger", /arranger\?\.dispose\(\)/],
-      ["dispose-renderer", /renderer\?\.dispose\(\)/],
-      ["dispose-pipeline", /pipeline\?\.dispose\(\)/],
-      ["dispose-phase-controller", /phaseCtl\?\.dispose\(\)/],
-      ["dispose-node-engine", /nodeEngine\?\.dispose\(\)/],
-    ];
-    let last = -1;
-    for (const [id, re] of markers) {
-      const at = CODE.search(re);
-      expect(at, `${id} present in the teardown block`).toBeGreaterThan(-1);
-      expect(at, `${id} comes after the previous step`).toBeGreaterThan(last);
-      last = at;
-    }
-  });
-
-  it("each disposed handle is nulled in the same block (no post-dispose writes, no zombie refs)", () => {
-    for (const re of [
-      /arranger = null/,
-      /renderer = null/,
-      /pipeline = null/,
-      /phaseCtl = null/,
-      /nodeEngine = null/,
-    ]) {
-      expect(CODE).toMatch(re);
-    }
-  });
-
-  it("the page-level steps exist: the entry timer is cleared and the announcer disposed at unmount", () => {
-    expect(CODE).toMatch(/clearTimeout\(entryTimer\)/);
-    expect(CODE).toMatch(/announcer\.dispose\(\)/);
-    expect(CODE).toMatch(/removeEventListener\("keydown", onKeyDown, true\)/);
-  });
-
-  it("the containment boundary is wired: onError writes the ONE fixed line to the .viz-error element", () => {
-    expect(CODE).toMatch(/onError:/);
-    expect(CODE).toMatch(/class="viz-error"/);
-    expect(CODE).toMatch(/VIZ_ERROR_LINE/);
-  });
-});
+// The former VizPage source-regex fence was replaced by mounted disposal
+// and failure-containment tests in tests/browser/viz-composition.test.tsx.
 
 // ---------------------------------------------------------------------------
 // Module fence — stateMachine.ts is pure contract data

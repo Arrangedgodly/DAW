@@ -70,18 +70,27 @@ Confirmed v0 scope (approved brief, `docs/ultron/town-hall.md`):
 - Audition on cell placement/click; no live performance keyboard or recording.
 - Undo/redo (~50 steps); demo song preloaded on first run.
 
-In-flight on branch `visualizer` (approved brief `docs/ultron/town-hall.md`, 2026-09-04;
-scoping defaults recorded by the coordinator after the user went unattended mid-run —
-labeled inferred, correctable at delivery):
+Visualizer composition (user-approved option B and advanced motion controls, 2026-09-12):
 
-- VIZ second surface: full-screen MIDI-driven visual instrument; every audible note-on
-  fires the active preset's generative reactions (lane hue, pitch, intensity shape them);
-  audio engine and FX chains untouched by visuals.
-- Built-in visual preset library (~8–12); user cycles presets and rerolls the current
-  preset's node arrangement with seeded randomness (reproducible); no preset save/share,
-  no node editor, no audio-analysis input in v1.
-- Last preset + seed remembered in lightweight local state only — never in the project
-  document schema.
+- VIZ is a local MIDI-driven composition editor. Each of Drums, Bass, Chords and
+  Lead owns one of 24 selectable geometric effects, scale and seeded variation.
+- Permanent motion choices are Fluid folds, Flowing trails and Orbit. Fluid folds
+  with Blended composition is the default. Blended overlaps the instruments;
+  Distinct separates their moving centers. Orbit instead uses each lane's
+  0-100% orbit strength around one shared center. Scale is independent (35-130%).
+- Four instrument tabs select one inspector. Manual placement handles and the
+  position map are retired. Hide controls removes motion controls, the inspector
+  and orbit guide. On phones the inspector scrolls below the canvas.
+- Reroll changes effects, geometric variations and starting angles while retaining
+  motion, blending, scale and orbit strength. These settings persist in
+  `bitbounce.viz.composition.v2`, outside project saves and undo. Legacy local
+  compositions acquire Fluid folds + Blended without losing their lane effects.
+- Actual audible MIDI gate and release durations drive lane-local phrasing:
+  explosive drum transients, held bass/lead/chords, then full disappearance.
+  Silent, muted, zero-volume and non-soloed lanes draw no artwork. Reduced motion
+  omits artwork and uses bounded textual summaries. No simulated notes or changes
+  to audio scheduling, sound generation or the project schema.
+- No visual preset sharing, node-graph editor, recording, streaming, or video export.
 
 Explicit v0 non-goals: samples, flexible tracks, arrangement timeline, session-clip
 launcher, master FX chain, automation, live performance/recording, arpeggiator, live
@@ -137,3 +146,9 @@ Confirmed product-level requirements: grid editing fully keyboard-operable (arro
 toggles, lane navigation), ARIA grid semantics with beat announcements, focus
 management on mode switches, reduced-motion support for playhead/pulse animation, and
 a palette that passes contrast checks using shape/pattern coding (not color alone).
+
+
+Visualizer phrasing refinement: MIDI observers carry the compiled note hold and release durations without altering audio scheduling. Drums use a sharp outward impulse and rapid decay; bass punches and holds, while lead and chords stretch and evolve through their MIDI gates, then release. Up to 16 overlapping notes per lane preserve long sustains beneath short retriggers. Energy drives deformation and motion speed across all 24 effects without adding geometry or rendering passes. Stop clears the active envelopes; reduced motion omits artwork and retains textual activity summaries. The previously recorded dense-playback performance limitation remains unresolved.
+
+
+Silence is part of the visual composition: lane artwork exists only during a note and its brief release. Releases fade to full transparency and then skip drawing entirely. Instrument tabs remain available to edit silent lanes; Hide controls leaves only sounding artwork. Muted lanes, zero-volume lanes, and lanes excluded by Solo are hidden immediately. Unmuting waits for the next note instead of replaying a hidden hit.
