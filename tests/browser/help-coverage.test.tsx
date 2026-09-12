@@ -408,6 +408,14 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
         // Refinement-6: the six management tools live behind the row's PAT
         // popover — walk it OPEN (every tool must still resolve to its
         // registered entry), then the rename field inside it.
+        // 2026-09-11: the rail lives on the SONG page on every stage now —
+        // open it for this state, and hand the stage back at the end of it.
+        showPhonePage("song");
+        await waitFor(
+          () => host.querySelector(".stage-song .rail-row") !== null,
+          2000,
+          "song page rail",
+        );
         click('.rail-row[data-lane="bass"] .rail-tools-trigger');
         await waitFor(
           () => host.querySelector(".rail-tools-menu") !== null,
@@ -453,6 +461,13 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () => host.querySelector(".rail-tools-menu") === null,
           2000,
           "pattern tools menu closed",
+        );
+        // Back to the note grid for the remaining states.
+        showPhonePage("edit");
+        await waitFor(
+          () => host.querySelector(".stage-floors") !== null,
+          2000,
+          "edit stage back",
         );
 
         // --- STATE 8: the VIZ surface's remote (VZ-DD-1) ------------------

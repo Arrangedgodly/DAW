@@ -46,6 +46,7 @@ import { render } from "solid-js/web";
 import App from "../../src/App";
 import { docStore, loadDocument } from "../../src/state/store";
 import { createDemoProject } from "../../src/document/demoSong";
+import { showPhonePage } from "../../src/state/phonePage";
 import { getSession } from "../../src/engine/session";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
@@ -158,6 +159,9 @@ describe("IN-3 multi-clip drag cueing (real app, pointer + keyboard)", () => {
         bootDb = await openRawProjectDb("bitbounce");
         snapshotRows = await bootDb.allRecords();
         loadDocument(createDemoProject()); // 4 chain slots per lane
+        // 2026-09-11 (user call): the chain is its own SONG page now — the
+        // rail is not on the stage. Open it before addressing tiles.
+        showPhonePage("song");
 
         // ===== 1. POINTER SWEEP (E5 path A) ===============================
         await session.togglePlay();

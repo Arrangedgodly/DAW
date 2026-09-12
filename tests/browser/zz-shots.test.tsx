@@ -46,7 +46,10 @@ async function bootIframe(w: number, h: number) {
         ? Array.from(doc.querySelectorAll(".head-ctl-value")).some((v) =>
             (v.textContent ?? "").includes("SOFT STEP"),
           )
-        : doc.querySelectorAll(".rail-tile").length >= 2;
+        // 2026-09-11: rail-free on every stage (the chain is its own page).
+        : Array.from(doc.querySelectorAll(".head-ctl-value")).some((v) =>
+            (v.textContent ?? "").includes("SOFT STEP"),
+          );
     },
     8000,
     "demo tiles",

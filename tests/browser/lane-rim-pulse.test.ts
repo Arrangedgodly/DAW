@@ -150,8 +150,8 @@ describe("T5 lane-rim sounding pulse (built app)", () => {
       try {
         await poll(
           () =>
-            Array.from(doc().querySelectorAll(".rail-tile-cue")).some(
-              (c) => c.textContent === "VERSE",
+            Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5_000,
           "demo cues",
@@ -239,8 +239,8 @@ describe("T5 lane-rim sounding pulse (built app)", () => {
       try {
         await poll(
           () =>
-            Array.from(rmDoc().querySelectorAll(".rail-tile-cue")).some(
-              (c) => c.textContent === "VERSE",
+            Array.from(rmDoc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5_000,
           "demo cues (reduced-motion boot)",

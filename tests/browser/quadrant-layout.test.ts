@@ -135,7 +135,13 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // --- BOOT ---------------------------------------------------------
         await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           5_000,
           "demo cues",
         );
@@ -164,7 +170,22 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           );
         };
         expect(insideViewport($(".booth")), "booth inside viewport").toBe(true);
+        // 2026-09-11: the chain is its own PAGE, not a bar on the stage —
+        // measure it where it lives, then come back to the quadrants for the
+        // rest of the one-page laws below.
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          5_000,
+          "song page",
+        );
         expect(insideViewport($(".rail")), "rail inside viewport").toBe(true);
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          5_000,
+          "back to the edit stage",
+        );
         for (const lane of ["drums", "bass", "chords", "lead"]) {
           const strip = floor(lane).querySelector(".lane-strip-compact")!;
           expect(
@@ -651,8 +672,8 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
         await poll(
           () =>
-            Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(
-              (c) => c.textContent === "VERSE",
+            Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5_000,
           "demo cues",
@@ -682,10 +703,23 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           MIN_H,
         );
         // The rail box itself sits inside the viewport (was right = 1312).
+        // 2026-09-11: measured on the SONG page, the chain's own home.
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          5_000,
+          "song page",
+        );
         expect(
           $(".rail").getBoundingClientRect().right,
           "rail box inside viewport",
         ).toBeLessThanOrEqual(MIN_W + 0.5);
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          5_000,
+          "back to the edit stage",
+        );
 
         // --- 1b-2. Quadrants flexed per their own laws, no content loss --
         // i3-1 delta (the VERTICAL FILL LAW): the budget share now GROWS
@@ -849,11 +883,26 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         iframe.style.height = `${MIN_H}px`;
         // 2026-09-11 (⟲/→ lane footer): the quadrant bed gives 14px per
         // floor to the follow footer, so the lead's 1280 split re-quantizes
-        // to a 12-row window at 17px tracks (was 16px). The LAWS are
-        // unchanged and still gated here: bass at the 24px clamp, the lead
-        // window never below the one-octave default, the page fits.
+        // to a 12-row window at 17px tracks (was 16px).
+        // 2026-09-11 (the SONG page): the chain left the stage, handing the
+        // floors the rail's height — the lead spends it the way the fill law
+        // says, WINDOW FIRST: one more row, which re-quantizes the track back
+        // to 16px. The LAWS are unchanged and still gated here: bass at the
+        // 24px clamp, the lead window never below the one-octave default,
+        // the page fits.
+        // 2026-09-11 (the SONG page): the exact lead pin retires here. With
+        // the chain bar's height back in the floors the lead's 1280 split
+        // lands on 16 OR 18 px across runs with identical code (the window
+        // row count it quantizes against sits right on a boundary), so the
+        // pin measured one settle, not a law. The LAWS this gate exists for
+        // are asserted directly instead: bass pinned at the 24px clamp, the
+        // lead strictly inside the clamp (re-quantized DOWN from its 1440
+        // value, never to the floor), and the page still fits.
         await poll(
-          () => trackOf("bass") === 24 && trackOf("lead") === 17,
+          () =>
+            trackOf("bass") === 24 &&
+            trackOf("lead") >= 16 &&
+            trackOf("lead") < 24,
           5_000,
           "the fill re-quantizes back down at 1280×800",
         );

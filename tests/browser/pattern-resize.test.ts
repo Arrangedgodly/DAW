@@ -25,6 +25,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
 import App from "../../src/App";
 import { createDemoProject } from "../../src/document/demoSong";
+import { showPhonePage } from "../../src/state/phonePage";
 import {
   addNote,
   docStore,
@@ -122,6 +123,9 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
           "boot autosave controller",
         );
         loadDocument(createDemoProject());
+        // 2026-09-11 (user call): the chain is its own SONG page now - the
+        // rail is not on the stage. Open it before addressing rail tiles.
+        showPhonePage("song");
         selectLane("bass");
         await waitFor(
           () =>
@@ -254,6 +258,9 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
           "boot autosave controller",
         );
         loadDocument(createDemoProject());
+        // 2026-09-11 (user call): the chain is its own SONG page now - the
+        // rail is not on the stage. Open it before addressing rail tiles.
+        showPhonePage("song");
         selectLane("bass");
         await waitFor(
           () =>
@@ -378,6 +385,9 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
           "boot autosave controller",
         );
         loadDocument(createDemoProject());
+        // This block is GRID work (focus carry through the resize remount) —
+        // it never addresses the rail, so it stays on the EDIT page.
+        showPhonePage("edit");
         selectLane("bass");
         await waitFor(
           () =>

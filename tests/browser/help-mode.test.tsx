@@ -54,6 +54,7 @@ import {
 } from "../../src/state/helpMode";
 import { closeHelp, openHelp } from "../../src/state/helpOverlay";
 import { selectLane } from "../../src/state/selection";
+import { showPhonePage } from "../../src/state/phonePage";
 import {
   createFreshProjectDocument,
   docStore,
@@ -262,9 +263,22 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         $<HTMLElement>('[data-help="euclid.snare.fill"] button').focus();
         expect(title()).toBe("SNARE FILL");
 
-        // pattern rail tile
+        // pattern rail tile — 2026-09-11: on the SONG page now, on every
+        // stage; hand the grid back straight after.
+        showPhonePage("song");
+        await waitFor(
+          () => !!host.querySelector(".stage-song .rail-tile"),
+          2000,
+          "song page rail",
+        );
         $<HTMLElement>('.rail-row[data-lane="drums"] .rail-tile').focus();
         expect(title()).toBe("CHAIN TILE");
+        showPhonePage("edit");
+        await waitFor(
+          () => !!host.querySelector(".stage-floors"),
+          2000,
+          "edit stage back",
+        );
 
         // save indicator
         $<HTMLElement>('[data-help="save.status"]').focus();
@@ -384,7 +398,10 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         // Hovering UNREGISTERED ground keeps the last entry (persistence).
         // Asserted synchronously — the shared browser's parked real cursor
         // can legitimately fire its own boundary events at any async gap.
-        const unregistered = $(".rail-title"); // "SONG CHAIN" label
+        // 2026-09-11: the rail's "SONG CHAIN" label moved to the SONG page;
+        // the quadrant container is the EDIT page's equivalent unregistered
+        // ground (no [data-help] ancestor), which is all this law needs.
+        const unregistered = $(".stage-floors");
         expect(unregistered.closest("[data-help]")).toBeNull();
         pe(unregistered, "pointerover", 0, 0);
         expect(title()).toBe("LOOP");

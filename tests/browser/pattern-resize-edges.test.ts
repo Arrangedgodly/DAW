@@ -40,6 +40,7 @@ import { render } from "solid-js/web";
 import App from "../../src/App";
 import { createDefaultProject } from "../../src/document/schema";
 import { createDemoProject } from "../../src/document/demoSong";
+import { showPhonePage } from "../../src/state/phonePage";
 import {
   addNote,
   docStore,
@@ -149,6 +150,9 @@ async function bootBass(): Promise<Ctx & { cleanup: () => void }> {
     "boot autosave controller",
   );
   loadDocument(createDemoProject());
+  // 2026-09-11 (user call): the chain is its own SONG page now - the
+  // rail is not on the stage. Open it before addressing rail tiles.
+  showPhonePage("song");
   selectLane("bass");
   await waitFor(
     () =>

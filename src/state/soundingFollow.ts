@@ -19,12 +19,24 @@ import { createSignal } from "solid-js";
 import type { LaneId } from "../document/schema";
 import { getSession } from "../engine/session";
 import { RAIL_ROWS } from "./patternRail";
+import { selectPattern } from "./selection";
 
 const [sounding, setSounding] = createSignal<{
   readonly [L in LaneId]: string | null;
 }>({ drums: null, bass: null, chords: null, lead: null });
 
-export { sounding };
+/**
+ * 2026-09-11 (user call): the sounding SLOT per lane — the section identity
+ * the rail lights. Read from the same ledger entry as `sounding`, so the lit
+ * tile and the grid's notes can never name different slots. A chain that
+ * repeats one pattern (A A A B) lights exactly the slot that is playing,
+ * where the pattern-id read lit all three A tiles.
+ */
+const [soundingSlot, setSoundingSlot] = createSignal<{
+  readonly [L in LaneId]: number | null;
+}>({ drums: null, bass: null, chords: null, lead: null });
+
+export { sounding, soundingSlot };
 
 let followFrame = 0;
 /**
@@ -41,16 +53,44 @@ let heldPointers = 0;
 function pollSounding(): void {
   const session = getSession();
   const prev = sounding();
+  const prevSlot = soundingSlot();
   const next = { ...prev };
+  const nextSlot = { ...prevSlot };
+  const playing = session.transport.snapshot.playing;
   let changed = false;
+  let slotChanged = false;
   for (const lane of RAIL_ROWS) {
     const id = session.getSoundingPattern(lane);
+    const slot = session.getSoundingSlot(lane);
     if (id !== prev[lane]) {
       next[lane] = id;
       changed = true;
     }
+    if (slot !== prevSlot[lane]) {
+      nextSlot[lane] = slot;
+      slotChanged = true;
+    }
+    /**
+     * THE ARRANGEMENT FOLLOW (2026-09-11, user call): while the transport
+     * runs, the EDITING SELECTION rides the chain. Natural advance used to
+     * move only the `active` tile, leaving the old slot painted `selected`
+     * (tileState's strongest fill) and the grid still showing the pattern
+     * that had stopped playing — two lit sections and stale notes.
+     *
+     * Driven from the SLOT, not the pattern id, and the slot is carried into
+     * the selection: a chain repeats patterns (A A A B is the ordinary
+     * case), so a pattern-addressed selection would light every tile holding
+     * that pattern — the same "more than one lit section" defect this
+     * change exists to remove.
+     *
+     * Playing only: while stopped, selection is the user's editing place and
+     * nothing may move it.
+     */
+    if (playing && slot !== prevSlot[lane] && slot !== null && id !== null)
+      selectPattern(lane, id, slot);
   }
   if (changed) setSounding(next);
+  if (slotChanged) setSoundingSlot(nextSlot);
 }
 
 /** (Re)align the follow loop with the transport: rAF while playing, one
@@ -111,6 +151,7 @@ export function mountSoundingFollow(): () => void {
       unwatch();
       cancelAnimationFrame(followFrame);
       setSounding({ drums: null, bass: null, chords: null, lead: null });
+      setSoundingSlot({ drums: null, bass: null, chords: null, lead: null });
     };
   }
   let released = false;

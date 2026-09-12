@@ -717,12 +717,20 @@ function fitQuadrantRows(): void {
   // either — this guard is defense in depth for mid-rotation transitions.)
   if (stageMode() === "phone") return;
   const stage = document.querySelector<HTMLElement>("main.stage");
-  const rail = document.querySelector<HTMLElement>(".rail");
   const floors = document.querySelector<HTMLElement>(".stage-floors");
-  if (!stage || !rail || !floors || liveSurfaces.size === 0) return;
+  if (!stage || !floors || liveSurfaces.size === 0) return;
   const stageH = stage.clientHeight;
-  const railH = rail.offsetHeight;
-  if (stageH <= 0 || railH <= 0) return; // no layout context — stand down
+  // 2026-09-11 (user call): the song chain moved to its own PAGE, so the
+  // EDIT stage carries NO rail and its whole height belongs to the floors.
+  // An ABSENT rail is now the ordinary case and contributes zero — it must
+  // not stand the fit down, which is what a required `.rail` did here: the
+  // fill never ran, the windowed lanes stayed at the one-octave default and
+  // the floors left the viewport bottom dead. (While the SONG page shows,
+  // `main.stage` is the hidden EDIT stage — clientHeight 0 — so the
+  // stageH guard below still stands the fit down, correctly.)
+  const rail = document.querySelector<HTMLElement>("main.stage > .rail");
+  const railH = rail?.offsetHeight ?? 0;
+  if (stageH <= 0) return; // no layout context — stand down
   // Never COMPRESS on provisional metrics: before the pixel faces load,
   // fallback-font heights run a hair taller and the compression would be
   // undone by the font-swap observer — the TH-4(b) flip-flop write class.
@@ -882,9 +890,11 @@ function ensureFitObservers(surfaces: Iterable<QuadrantSurface>): void {
     return;
   }
   fitObserver = new ResizeObserver(() => scheduleFit());
-  // Viewport/booth wrap (stage height) + rail growth (tile wraps).
+  // Viewport/booth wrap (stage height) + rail growth (tile wraps). The rail
+  // only rides the EDIT stage on stages that still carry it — since
+  // 2026-09-11 the chain is its own page, so this is usually absent.
   const stage = document.querySelector("main.stage");
-  const rail = document.querySelector(".rail");
+  const rail = document.querySelector("main.stage > .rail");
   if (stage) fitObserver.observe(stage);
   if (rail) fitObserver.observe(rail);
   // Strip height flips (the edit tier follows the selection).
@@ -908,7 +918,7 @@ function registerQuadrantSurface(surface: QuadrantSurface): void {
   // remount therefore always lands observed.
   if (fitObserver) {
     const stage = document.querySelector("main.stage");
-    const rail = document.querySelector(".rail");
+    const rail = document.querySelector("main.stage > .rail");
     if (stage) fitObserver.observe(stage);
     if (rail) fitObserver.observe(rail);
   } else {

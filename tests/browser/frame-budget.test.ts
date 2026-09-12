@@ -651,6 +651,41 @@ function heapUsed(): number | undefined {
     ?.usedJSHeapSize;
 }
 
+/**
+ * 2026-09-11 (user call): the song chain is its own PAGE on every stage now.
+ * Rail state (the LL-1 bars badge, the `+` append, the PAT menu) is only on
+ * screen while that page shows, so the setup steps that use it open it and
+ * hand the quadrant stage back before any frame measurement.
+ */
+/** The page key for the CURRENT stage: the booth's on desktop/tablet, the
+ *  pinned transport row's on the phone (the compact booth omits its copy). */
+function pageKey(doc: () => Document): HTMLButtonElement | null {
+  return (
+    doc().querySelector<HTMLButtonElement>(".booth-btn-song") ??
+    doc().querySelector<HTMLButtonElement>(".phone-page-toggle")
+  );
+}
+
+async function openSongPage(doc: () => Document): Promise<void> {
+  if (doc().querySelector(".stage-song .rail")) return;
+  pageKey(doc)?.click();
+  await poll(
+    () => !!doc().querySelector(".stage-song .rail"),
+    5_000,
+    "song page",
+  );
+}
+
+async function openEditPage(doc: () => Document): Promise<void> {
+  if (!doc().querySelector(".stage-song")) return;
+  pageKey(doc)?.click();
+  await poll(
+    () => !!doc().querySelector(".stage-floors"),
+    5_000,
+    "edit stage",
+  );
+}
+
 /** The rail badge a lane's first tile carries ("<bars>B" — the LL-1 law). */
 function railBadge(doc: () => Document, lane: string): string {
   return (
@@ -805,8 +840,8 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".rail-tile-cue")].some(
-              (c) => c.textContent === "VERSE",
+            [...doc().querySelectorAll(".head-ctl-value")].some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5000,
           "demo cues",
@@ -875,6 +910,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
           );
         };
         const add4Bar = async (lane: string): Promise<void> => {
+          await openSongPage(doc); // the rail `+` lives on the chain's page
           // LL-1 journey delta: the +4B menu button retired with the LENGTH
           // stepper — create the blank via the rail `+` (1 bar, appended +
           // selected — BC-1), then grow it with the global `b` ladder ×2.
@@ -905,6 +941,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
               }),
             );
           }
+          await openEditPage(doc); // back to the grid for the dense clicks
           await poll(
             () => {
               const n = floor(lane).querySelectorAll(".cell").length;
@@ -933,6 +970,7 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
          * counted from the rail itself.
          */
         const removeDemoPatterns = async (lane: string): Promise<void> => {
+          await openSongPage(doc); // the PAT menu lives on the chain's page
           const rmLabel = `Remove ${lane.toUpperCase()} selected pattern`;
           const tilesNow = (): number =>
             doc().querySelectorAll(`.rail-row[data-lane="${lane}"] .rail-tile`)
@@ -1260,8 +1298,8 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".rail-tile-cue")].some(
-              (c) => c.textContent === "VERSE",
+            [...doc().querySelectorAll(".head-ctl-value")].some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5000,
           "demo cues",
@@ -1458,6 +1496,8 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
         }
 
         // Storm 4 — rail cue sweep (across tiles and across lane rows).
+        // 2026-09-11: the sweep's surface is the SONG page now.
+        await openSongPage(doc);
         {
           const drumsRow = $('.rail-row[data-lane="drums"]');
           const bassRow = $('.rail-row[data-lane="bass"]');
@@ -1711,7 +1751,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone at 390×844",
         );
         await poll(
-          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
+          // 2026-09-11: rail-free boot readiness (the chain is its own page).
+          () =>
+            Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -2337,7 +2381,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone",
         );
         await poll(
-          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
+          // 2026-09-11: rail-free boot readiness (the chain is its own page).
+          () =>
+            Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           5_000,
           "demo chain tiles",
         );
@@ -2711,7 +2759,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           "data-stage=phone",
         );
         await poll(
-          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
+          // 2026-09-11: rail-free boot readiness (the chain is its own page).
+          () =>
+            Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           5_000,
           "demo chain tiles",
         );
@@ -2862,8 +2914,8 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".rail-tile-cue")].some(
-              (c) => c.textContent === "VERSE",
+            [...doc().querySelectorAll(".head-ctl-value")].some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5000,
           "demo cues",
@@ -2878,6 +2930,9 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
           encode(denseLead128Doc()),
           "th5-dense-long-loop.bitbounce.json",
         );
+        // 2026-09-11: the chain badges live on the SONG page — read them
+        // there, then hand the quadrant stage back for the census.
+        await openSongPage(doc);
         await poll(
           () =>
             railBadge(doc, "drums") === "64B" &&
@@ -2887,6 +2942,7 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
           10_000,
           "imported dense long-loop doc (mixed chains 64/4/8/128 bars)",
         );
+        await openEditPage(doc);
 
         // --- (b) the virtualization census law ----------------------------
         const census0 = doc().querySelectorAll(".cell").length;
@@ -2941,10 +2997,15 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
             }),
           );
         }
+        await openSongPage(doc);
         await poll(
-          () =>
-            floor("bass").querySelector(".grid-col-sizer") !== null &&
-            railBadge(doc, "bass") === "16B",
+          () => railBadge(doc, "bass") === "16B",
+          5_000,
+          "bass grown 4→16 bars (the chain badge, on the SONG page)",
+        );
+        await openEditPage(doc);
+        await poll(
+          () => floor("bass").querySelector(".grid-col-sizer") !== null,
           5_000,
           "bass grown 4→16 bars (virtualized)",
         );
@@ -3173,7 +3234,11 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
           "data-stage=phone at 390×844",
         );
         await poll(
-          () => (doc().querySelectorAll(".lane-switch-tab").length === 4 ? Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) => (v.textContent ?? "").includes("SOFT STEP")) : doc().querySelectorAll(".rail-tile").length >= 2),
+          // 2026-09-11: rail-free boot readiness (the chain is its own page).
+          () =>
+            Array.from(doc().querySelectorAll(".head-ctl-value")).some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           5_000,
           "demo chain tiles (phone boot signal)",
         );
@@ -3372,8 +3437,8 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
 
           await poll(
             () =>
-              [...doc().querySelectorAll(".rail-tile-cue")].some(
-                (c) => c.textContent === "VERSE",
+              [...doc().querySelectorAll(".head-ctl-value")].some((v) =>
+                (v.textContent ?? "").includes("SOFT STEP"),
               ),
             5000,
             "demo cues",
@@ -3592,13 +3657,14 @@ describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ ope
         // the first-run persistence pass).
         await poll(
           () =>
-            [...doc().querySelectorAll(".rail-tile-cue")].some(
-              (c) => c.textContent === "VERSE",
+            [...doc().querySelectorAll(".head-ctl-value")].some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
             ),
           5000,
           "demo cues (boot readiness)",
         );
         importDocFile(app, encode(vizDoc), "vz-th4-dense-4bar.bitbounce.json");
+        await openSongPage(doc);
         await poll(
           () =>
             ["drums", "bass", "chords", "lead"].every(
@@ -3607,6 +3673,7 @@ describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ ope
           10_000,
           "imported VZ dense doc (4-bar singles, all lanes, 200 BPM)",
         );
+        await openEditPage(doc);
 
         // --- PLAY, open VIZ, settle ---------------------------------------
         await clickPlayAndWait(app);

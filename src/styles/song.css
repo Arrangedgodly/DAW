@@ -161,64 +161,202 @@
   outline-offset: 2px;
 }
 
-/* ---- Phone SONG page: every lane's chain as big tiles --------------------- */
-.app[data-stage="phone"] .stage-song {
-  padding: var(--space-3);
+/* ---- Booth SONG key (desktop/tablet) ------------------------------------- */
+/* The booth's own lit-key vocabulary — the INFO/VIZ family, so the
+ * arrangement entry reads as the stage-global mode it is. */
+.booth-btn-song[aria-pressed="true"] {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--metal-panel);
 }
 
-.app[data-stage="phone"] .stage-song .rail {
+/*
+ * ---- THE PAGE SWITCH -------------------------------------------------------
+ * The EDIT stage stays MOUNTED while the SONG page shows (the grids keep
+ * their scroll/register place and the store→engine bridge StageFloor owns
+ * keeps running), so it is hidden by the `hidden` ATTRIBUTE.
+ *
+ * `.stage` sets `display: flex`, and an author `display` beats the UA
+ * stylesheet's `[hidden] { display: none }` — which is exactly why the phone
+ * SONG page still showed the MIDI grid (2026-09-11 user report), with the
+ * song page pushed a full stage-height below the fold. An author-level rule
+ * is required, and it must outrank every `.stage` display rule.
+ */
+.stage[hidden] {
+  display: none !important;
+}
+
+/*
+ * ---- THE SONG PAGE (every stage) -------------------------------------------
+ * The arrangement is a PLACE, not a bar: one page, every lane's chain, all
+ * lanes visible at once. The page owns the stage box and never scrolls
+ * vertically — the lanes divide the height and each chain scrolls
+ * HORIZONTALLY inside its own strip. That is the live-mix law: the next
+ * section arrives on a musical boundary, so reaching any lane's tiles must
+ * never cost a vertical scroll (2026-09-11 user call).
+ */
+.stage-song {
+  min-height: 0;
+  /* Normally nothing overflows — the lanes are sized to fit. This is the
+   * safety valve for the short landscape phone, where four strips plus the
+   * chrome genuinely exceed the box: scroll rather than clip. */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.stage-song .rail {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  /* Lane strips are CONTENT-sized and the leftover page height is spread
+   * between them — stretching four rows to fill produced 163px-tall tiles
+   * on a 72px-wide grid, which reads as a column of towers, not sections. */
+  justify-content: space-evenly;
   width: auto;
-  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
 }
 
-.app[data-stage="phone"] .stage-song .rail-row {
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
+.stage-song .rail-row {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
   border-top: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
 }
 
-.app[data-stage="phone"] .stage-song .rail-row:first-of-type {
+.stage-song .rail-row:first-of-type {
   border-top: 0;
 }
 
-.app[data-stage="phone"] .stage-song .rail-lane-name {
-  flex: 1 1 auto;
+/* The lane names form a COLUMN down the page — a fixed gutter, so the four
+ * chains start at the same x and read as one matrix. */
+.stage-song .rail-lane-name {
+  flex: none;
+  width: 64px;
   color: var(--color-ink);
 }
 
-.app[data-stage="phone"] .stage-song .rail-tiles {
-  flex: 1 0 100%;
-  order: 3;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: var(--space-2);
-  overflow: visible;
-  padding: 0;
+/* The chain strip: one horizontal line per lane, scrolled inside itself. */
+.stage-song .rail-tiles {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  /* Tiles set the strip's height and share it — `+` stands as tall as the
+   * tiles beside it. */
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-right: 1px;
 }
 
-.app[data-stage="phone"] .stage-song .rail-tile {
+.stage-song .rail-tools {
+  flex: none;
+}
+
+/* Page tiles are the arrangement's primary targets — bigger than the old
+ * bar's, sized so a lane's sections read at a glance. */
+.stage-song .rail-tile {
+  flex: 0 0 auto;
+  min-width: 76px;
+  min-height: 56px;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: flex-start;
-  gap: var(--space-1);
-  min-height: 76px;
+  justify-content: center;
+  gap: 2px;
   padding: var(--space-2) var(--space-3);
-  white-space: normal;
+  white-space: nowrap;
 }
 
-.app[data-stage="phone"] .stage-song .rail-tile-name {
-  font-size: 18px;
+.stage-song .rail-tile-name {
+  font-size: 15px;
   line-height: 1.1;
 }
 
+/* ---- Phone SONG page ------------------------------------------------------
+ * The same law at phone scale: four horizontal chains stacked, every lane on
+ * screen at once, tiles at the ≥44px target law. The first pass stacked each
+ * lane's tiles into a WRAPPING GRID below its name, which made the page
+ * ~1745px tall on a 375px phone — one instrument at a time, a scroll away
+ * from the next. That is the shape this replaces.
+ */
+.app[data-stage="phone"] .stage-song {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.app[data-stage="phone"] .stage-song .rail {
+  padding: var(--space-2);
+  gap: 0;
+}
+
+.app[data-stage="phone"] .stage-song .rail-row {
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+/* A narrower gutter buys tile width back on a 360px phone; the four names
+ * still line up as a column. */
+.app[data-stage="phone"] .stage-song .rail-lane-name {
+  width: 46px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile {
+  min-width: 72px;
+  /* The page has vertical room the old bar never did, and on a phone that
+   * room is touch target: a tall slot card, comfortably past the 44px law. */
+  min-height: 84px;
+  padding: var(--space-2);
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile-name {
+  font-size: 17px;
+}
+
+/* The slot-mode glyph keeps a generous target on the phone page, parked in
+ * the tile's trailing corner (out of flow — it adds no tile width). */
 .app[data-stage="phone"] .stage-song .rail-tile-mode {
-  position: absolute;
   right: 0;
   bottom: 0;
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   margin: 0;
-  font-size: 20px;
+  font-size: 15px;
+}
+
+.app[data-stage="phone"] .stage-song .rail-tile-mode::before {
+  inset: -8px;
+}
+
+/*
+ * THE LANDSCAPE BUDGET (the i7 header law's twin, measured the same way).
+ * A rotated phone is 390 tall: chrome ~114 leaves 276 for four strips, and
+ * the portrait row (84px tile + 16px padding = 93) needs 372 — LEAD fell
+ * below the fold, which is the very scroll the page exists to abolish. The
+ * tile shrinks to 52 (still clear of the 44px target law) and the paddings
+ * tighten, so all four lanes hold their place on one screen at every
+ * rotation. Keyed on HEIGHT, so any short viewport gets the same budget.
+ */
+@media (max-height: 520px) {
+  .app[data-stage="phone"] .stage-song {
+    padding: var(--space-1) var(--space-2) var(--space-2);
+  }
+
+  .app[data-stage="phone"] .stage-song .rail {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .app[data-stage="phone"] .stage-song .rail-row {
+    padding: var(--space-1) 0;
+  }
+
+  .app[data-stage="phone"] .stage-song .rail-tile {
+    min-height: 52px;
+  }
+
+  .app[data-stage="phone"] .stage-song .rail-tile-name {
+    font-size: 15px;
+  }
 }

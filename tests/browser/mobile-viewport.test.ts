@@ -160,7 +160,12 @@ html { scrollbar-width: none; }
   // cue, but at phone width only the ACTIVE lane's rail row renders, so the
   // cue may live on an unrendered lane — the tile count is the honest
   // phone-mode boot signal.
-  await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
+  // 2026-09-11: boot readiness is RAIL-FREE on every stage. The chain moved
+  // off the stage into its own SONG page, so rail tiles are no longer proof
+  // the demo loaded — and they never were the thing under test here. The
+  // drums KIT readout is the stage-independent demo signal (it was already
+  // the phone branch's).
+  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
   return { iframe, win, $, $$, idoc };
 }
 
@@ -636,7 +641,22 @@ describe("MB-1 responsive stage (built app)", () => {
         // The quadrant stage stays 2×2: four floors + four grids + full rail.
         expect($$(".lane-floor")).toHaveLength(4);
         expect($$(".lane-grid")).toHaveLength(4);
-        expect($$(".rail-row")).toHaveLength(4);
+        // 2026-09-11: the full four-row rail moved to the tablet's own SONG
+        // page (the chain is a place, not a bar) — assert it THERE, then
+        // return to the quadrant stage for the one-page laws below.
+        expect($$(".rail-row")).toHaveLength(0);
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => $$(".stage-song .rail-row").length === 4,
+          5_000,
+          "tablet song page carries all four rows",
+        );
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => $$(".stage-floors").length === 1,
+          5_000,
+          "back to the tablet quadrant stage",
+        );
 
         // ONE PAGE, both axes (m1 tablet clause). Settle first — the webfont
         // race is real (refinement-7's recorded correction): the fit lawfully

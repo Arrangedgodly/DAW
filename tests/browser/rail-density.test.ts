@@ -184,6 +184,20 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
 
       try {
         await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
+        // 2026-09-11 (user call): the chain is a PAGE now, not a bar on the
+        // stage — open it before any rail assertion. The booth SONG key is
+        // the desktop entry (the phone's transport-row key is the twin).
+        await poll(
+          () => !!idoc().querySelector(".booth-btn-song"),
+          5_000,
+          "booth SONG key",
+        );
+        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          5_000,
+          "song page",
+        );
         await poll(
           () =>
             Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(

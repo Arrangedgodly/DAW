@@ -153,6 +153,15 @@ function sameStructure(a: LaneSchedule, b: LaneSchedule): boolean {
 interface SoundingEntry {
   readonly at: number;
   readonly patternId: string;
+  /**
+   * 2026-09-11 (user call — the arrangement follow): the chain SLOT that is
+   * sounding, not just its pattern. A chain repeats patterns (A A A B is the
+   * ordinary case), so a pattern-id-only ledger cannot say WHICH section is
+   * playing — every tile holding that pattern reads active at once. The slot
+   * is the section's identity; the pattern id stays for the callers that
+   * genuinely ask "what is sounding" (the grid, the announcements).
+   */
+  readonly slot: number;
 }
 
 /**
@@ -551,7 +560,9 @@ export class Session {
    * the doc-derived song.ts laneCycleSteps).
    */
   getLaneCycleSteps(lane: LaneId): number | null {
-    return this.lanePlayback[LANE_IDS.indexOf(lane)]?.schedule.chainSteps ?? null;
+    return (
+      this.lanePlayback[LANE_IDS.indexOf(lane)]?.schedule.chainSteps ?? null
+    );
   }
 
   /**
@@ -564,6 +575,22 @@ export class Session {
    * but cancelled by a stop (still in the audible future) never read.
    */
   getSoundingPattern(lane: LaneId): string | null {
+    return this.soundingEntry(lane)?.patternId ?? null;
+  }
+
+  /**
+   * 2026-09-11 (user call): the chain SLOT sounding at the audio clock's now
+   * — the rail's section identity. Same time-accurate read as
+   * getSoundingPattern (they resolve the SAME ledger entry, so the tile the
+   * rail lights and the pattern the grid shows can never disagree); null
+   * under exactly the same conditions.
+   */
+  getSoundingSlot(lane: LaneId): number | null {
+    return this.soundingEntry(lane)?.slot ?? null;
+  }
+
+  /** The ledger entry audible now (see getSoundingPattern's contract). */
+  private soundingEntry(lane: LaneId): SoundingEntry | null {
     const ledger = this.soundingLedger[LANE_IDS.indexOf(lane)];
     if (!ledger || ledger.length === 0) return null;
     const now = this.engine.getContext().currentTime;
@@ -572,8 +599,8 @@ export class Session {
       if (entry.at <= now) sounding = entry;
       else break;
     }
-    if (sounding) return sounding.patternId;
-    return this.transport.snapshot.playing ? ledger[0]!.patternId : null;
+    if (sounding) return sounding;
+    return this.transport.snapshot.playing ? ledger[0]! : null;
   }
 
   /** Observe pending-switch changes (request/apply/cancel); unsubscribing. */
@@ -1044,14 +1071,22 @@ export class Session {
         // Refinement-7: record the sounding slot for the rail follow. The
         // entry carries this tick's AUDIBLE time (delivery runs ahead), so
         // the ledger can be read time-accurately against ctx.currentTime.
-        const seg = pb.schedule.segments.find(
+        const segIndex = pb.schedule.segments.findIndex(
           (s) => local >= s.startStep && local < s.startStep + s.steps,
         );
+        const seg = segIndex < 0 ? undefined : pb.schedule.segments[segIndex]!;
         if (seg) {
           const ledger = (this.soundingLedger[i] ??= []);
           const last = ledger[ledger.length - 1];
-          if (!last || last.patternId !== seg.patternId)
-            ledger.push({ at: when, patternId: seg.patternId });
+          // `slot` is optional on LaneSegment; for a schedule built without
+          // explicit slots the segment INDEX is the chain position.
+          const slot = seg.slot ?? segIndex;
+          // Dedupe on the SLOT: A(slot 0) → A(slot 1) is a real section
+          // change even though the pattern id never moves (the 2026-09-11
+          // slot-identity fix — a patternId-only compare swallowed it and
+          // left the old section reading active).
+          if (!last || last.slot !== slot || last.patternId !== seg.patternId)
+            ledger.push({ at: when, patternId: seg.patternId, slot });
           // Prune: one audible-past anchor + the audible future is all the
           // lookup ever needs (bounded across arbitrarily long playback).
           const now = this.engine.getContext().currentTime;
@@ -1093,10 +1128,7 @@ export class Session {
   }
 
   /** RC-1: set a pitched lane's register offset for auditions (engineBridge). */
-  setLaneOctave(
-    laneId: Exclude<LaneId, "drums">,
-    octave: number | null,
-  ): void {
+  setLaneOctave(laneId: Exclude<LaneId, "drums">, octave: number | null): void {
     if (octave === null || octave === 0) delete this.laneOctaves[laneId];
     else this.laneOctaves[laneId] = octave;
   }

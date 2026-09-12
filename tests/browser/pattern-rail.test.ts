@@ -23,6 +23,7 @@ import { createDemoProject } from "../../src/document/demoSong";
 import { docStore } from "../../src/state/store";
 import { activePatterns, currentPatternFor, selectLane } from "../../src/state/selection";
 import { getAutosaveController } from "../../src/persist/boot";
+import { showPhonePage } from "../../src/state/phonePage";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 // Token sheet exactly as deployed (the DA-3-fix axe-gate precedent).
 import "../../src/styles/base.css";
@@ -88,6 +89,9 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
           loadDocument(createDemoProject()),
         );
         selectLane("bass");
+        // 2026-09-11 (user call): the chain is a PAGE now, not a bar on the
+        // stage — the rail only renders while the SONG page shows.
+        showPhonePage("song");
         await waitFor(
           () =>
             host

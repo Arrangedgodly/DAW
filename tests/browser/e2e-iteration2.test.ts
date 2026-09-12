@@ -175,6 +175,32 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         if (!el) throw new Error(`missing ${sel}`);
         return el;
       };
+      /**
+       * 2026-09-11 (user call): the song chain is its own PAGE on every
+       * stage now, not a bar above the quadrants. These move between the
+       * pages through the real booth key, so every rail block below
+       * addresses a rail that is actually on screen. Handles captured while
+       * the SONG page is open go stale when it closes (the rail unmounts),
+       * so a block opens once and closes once.
+       */
+      const openSong = async (): Promise<void> => {
+        if (idoc().querySelector(".stage-song .rail")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          T.ui,
+          "song page",
+        );
+      };
+      const openEdit = async (): Promise<void> => {
+        if (!idoc().querySelector(".stage-song")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          T.ui,
+          "edit stage",
+        );
+      };
       const $$ = <El extends Element>(sel: string): El[] =>
         Array.from(idoc().querySelectorAll<El>(sel));
       const floor = (lane: string) => $(`.lane-floor[data-lane="${lane}"]`);
@@ -261,7 +287,13 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // --- 1. FIRST-RUN BOOT + one-page law ------------------------------
         await poll(() => !!idoc().querySelector(".booth"), T.boot, "boot");
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "demo cue labels in the rail",
         );
@@ -422,6 +454,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         created.length = 6;
 
         // --- 5. MULTI-CLIP RAIL SWEEP CUE (playing; quantized landing) ----
+        await openSong(); // the sweep's tiles live on the chain's own page
         const playBtn = () => $<HTMLButtonElement>(".booth-btn-play");
         playBtn().click();
         await poll(
@@ -464,6 +497,8 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           T.ui,
           "stop after the sweep",
         );
+
+        await openEdit();
 
         // --- 6. PRESETS: Karplus-Strong, then sample-backed (LAZY path) ---
         const bassSound = () => $('[aria-label="BASS sound"]');
@@ -637,7 +672,13 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         app = await loadApp();
         await poll(() => !!idoc().querySelector(".booth"), T.boot, "remount");
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "restored cues after reload",
         );
@@ -660,6 +701,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // The dragged note survived: click through the bass rail tiles until
         // the pattern carrying it is displayed (selection is ephemeral).
         const noteSurvived = async (): Promise<boolean> => {
+          await openSong(); // the tiles this clicks through are on the page
           const bassTiles = Array.from(
             $('.rail-row[data-lane="bass"]').querySelectorAll<HTMLButtonElement>(
               ".rail-tile",
@@ -709,12 +751,19 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           "v1 import toast",
         );
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "migrated demo cues",
         );
         // The migration law, visible in the UI: the demo's chord pads
         // (6-step gate + 9 sustains) migrate to 15-step notes.
+        await openSong();
         const chordsTiles = Array.from(
           $('.rail-row[data-lane="chords"]').querySelectorAll<HTMLButtonElement>(
             ".rail-tile",

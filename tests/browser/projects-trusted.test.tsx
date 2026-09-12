@@ -190,7 +190,12 @@ async function bootPhone(
       Array.from(idoc().querySelectorAll<T>(sel));
 
     await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
-    await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
+    // 2026-09-11: boot readiness is RAIL-FREE on every stage. The chain moved
+  // off the stage into its own SONG page, so rail tiles are no longer proof
+  // the demo loaded — and they never were the thing under test here. The
+  // drums KIT readout is the stage-independent demo signal (it was already
+  // the phone branch's).
+  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
     await poll(
       () => idoc().querySelector(".app")?.getAttribute("data-stage") === "phone",
       5_000,

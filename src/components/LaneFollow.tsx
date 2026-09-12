@@ -17,11 +17,16 @@ import {
 } from "solid-js";
 import type { LaneId } from "../document/schema";
 import { registerHelp } from "../help/registry";
-import { currentPatternFor } from "../state/selection";
-import { mountSoundingFollow, sounding } from "../state/soundingFollow";
+import { currentPatternFor, getActiveSlot } from "../state/selection";
+import {
+  mountSoundingFollow,
+  sounding,
+  soundingSlot,
+} from "../state/soundingFollow";
 import { docStore, toggleChainSlotMode } from "../state/store";
 import { LANE_NAMES } from "./laneMeta";
 import ModeIcon from "./ModeIcon";
+import { getSession } from "../engine/session";
 
 registerHelp([
   {
@@ -32,20 +37,35 @@ registerHelp([
 ]);
 
 export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
+  const session = getSession();
+  const [playing, setPlaying] = createSignal(
+    session.transport.snapshot.playing,
+  );
   const [doc, setDoc] = createSignal(docStore.getState().doc);
   onMount(() => {
     const unsubscribe = docStore.subscribe((state) => setDoc(state.doc));
     const release = mountSoundingFollow();
+    const stopTransport = session.subscribe((snapshot) =>
+      setPlaying(snapshot.playing),
+    );
     onCleanup(() => {
       unsubscribe();
       release();
+      stopTransport();
     });
   });
 
   const slot = createMemo(() => {
     const chain = doc().songChain[props.lane];
+    const addressedSlot = playing()
+      ? soundingSlot()[props.lane]
+      : getActiveSlot(props.lane);
+    if (addressedSlot != null && chain[addressedSlot] !== undefined)
+      return addressedSlot;
     const id =
-      sounding()[props.lane] ?? currentPatternFor(props.lane)?.id ?? chain[0];
+      (playing()
+        ? sounding()[props.lane]
+        : currentPatternFor(props.lane)?.id) ?? chain[0];
     const index = chain.indexOf(id ?? "");
     return index >= 0 ? index : 0;
   });
@@ -67,7 +87,9 @@ export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
         onClick={() => toggleChainSlotMode(props.lane, slot())}
       >
         <ModeIcon mode={mode()} />
-        <span class="lane-follow-mode">{mode() === "loop" ? "LOOP" : "NEXT"}</span>
+        <span class="lane-follow-mode">
+          {mode() === "loop" ? "LOOP" : "NEXT"}
+        </span>
       </button>
       <span class="lane-follow-slot" aria-hidden="true">
         SLOT {slot() + 1} · {name()}

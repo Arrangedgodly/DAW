@@ -152,3 +152,10 @@ Visualizer phrasing refinement: MIDI observers carry the compiled note hold and 
 
 
 Silence is part of the visual composition: lane artwork exists only during a note and its brief release. Releases fade to full transparency and then skip drawing entirely. Instrument tabs remain available to edit silent lanes; Hide controls leaves only sounding artwork. Muted lanes, zero-volume lanes, and lanes excluded by Solo are hidden immediately. Unmuting waits for the next note instead of replaying a hidden hit.
+
+
+## Arrangement pages and playback follow
+
+EDIT and SONG are separate pages on desktop, tablet and phone. EDIT keeps the note grids and their register/scroll state mounted while SONG shows all four instrument chains as horizontal strips. The SONG button in the desktop booth or phone transport switches pages and returns the page scroll to the top.
+
+Playback follows chain-slot identity, including consecutive slots that reference the same pattern. The sounding tile, editing selection and lane LOOP/NEXT footer identify the same slot at audible audio time. While stopped, the footer targets the user's selected slot. Page changes and visualizer entry do not interrupt audio. These controls remain view state outside the saved project schema; existing chain modes keep their current persistence and undo behavior.

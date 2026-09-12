@@ -52,7 +52,11 @@ const GROOVE = { bpm: 120, swing: 0 };
 const SPB = 0.125;
 const TIMELINE = 10.1; // play() at ctx.now = 10 + 0.1 start delay
 
-function drumPattern(id: string, bars: 1 | 2, kickSteps: number[]): DrumPattern {
+function drumPattern(
+  id: string,
+  bars: 1 | 2,
+  kickSteps: number[],
+): DrumPattern {
   const kick = new Array(16 * bars).fill(false);
   for (const s of kickSteps) kick[s] = true;
   const empty = () => new Array(16 * bars).fill(false);
@@ -172,6 +176,23 @@ async function makeHarness(
 }
 
 describe("rail active-tile follow (refinement-7, sounding ledger)", () => {
+  it("distinguishes repeated patterns by their audible chain slot", async () => {
+    const h = await makeHarness({ drums: scheduleFor([A1, A1, B1]) });
+    await h.deliverAt(10);
+    expect(h.session.getSoundingSlot("drums")).toBe(0);
+    await h.deliverAt(11.9);
+    h.setNow(h.timeOf(16) - 0.001);
+    expect(h.session.getSoundingSlot("drums")).toBe(0);
+    h.setNow(h.timeOf(16) + 0.001);
+    expect(h.session.getSoundingPattern("drums")).toBe("A1");
+    expect(h.session.getSoundingSlot("drums")).toBe(1);
+    await h.deliverAt(13.9);
+    h.setNow(h.timeOf(32) + 0.001);
+    expect(h.session.getSoundingPattern("drums")).toBe("B1");
+    expect(h.session.getSoundingSlot("drums")).toBe(2);
+    h.session.transport.stop();
+  });
+
   it("lights the slot at its AUDIBLE time — not at delivery (horizon-ahead slot stays dark)", async () => {
     const h = await makeHarness({ drums: scheduleFor([A1, B1]) });
     // One refill at play time delivers steps 0..7 (times ≤ 11.0): slot 0 only.

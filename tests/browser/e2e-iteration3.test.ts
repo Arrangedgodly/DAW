@@ -268,6 +268,32 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         if (!el) throw new Error(`missing ${sel}`);
         return el;
       };
+      /**
+       * 2026-09-11 (user call): the song chain is its own PAGE on every
+       * stage now, not a bar above the quadrants. These move between the
+       * pages through the real booth key, so every rail block below
+       * addresses a rail that is actually on screen. Handles captured while
+       * the SONG page is open go stale when it closes (the rail unmounts),
+       * so a block opens once and closes once.
+       */
+      const openSong = async (): Promise<void> => {
+        if (idoc().querySelector(".stage-song .rail")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          T.ui,
+          "song page",
+        );
+      };
+      const openEdit = async (): Promise<void> => {
+        if (!idoc().querySelector(".stage-song")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          T.ui,
+          "edit stage",
+        );
+      };
       const $$ = <El extends Element>(sel: string): El[] =>
         Array.from(idoc().querySelectorAll<El>(sel));
       const floor = (lane: string) => $(`.lane-floor[data-lane="${lane}"]`);
@@ -402,7 +428,13 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         // --- 1. BOOT: the poly-loop demo + equal windows + one page --------
         await poll(() => !!idoc().querySelector(".booth"), T.boot, "boot");
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "demo cue labels in the rail",
         );
@@ -415,6 +447,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         }
         // The POLY-LOOP is visible before any interaction: UNEQUAL lane
         // cycles (chords 4×2B = 8-bar cycle vs the 4-bar rhythm lanes).
+        await openSong();
         expect(
           tiles("chords").map(
             (t) => t.querySelector(".rail-tile-bars")!.textContent,
@@ -432,6 +465,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         );
         expect(chainCycleName("lead")).toBe("LEAD song chain · 4-BAR CYCLE");
         expect(chainCycleName("drums")).toBe("DRUMS song chain · 4-BAR CYCLE");
+        await openEdit(); // the register/geometry checks below read the grid
         // i3-1: equal default register windows + the VERTICAL FILL twin. The
         // lead (15-row manifest) windows — GROWN by the 1440×900 budget
         // share (possibly to its full manifest, the unwindowed law) — while
@@ -597,6 +631,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         );
 
         // --- 3. RAIL `+` TWINS: blank E by button, blank F by key, RM F ----
+        await openSong();
         const leadPlus = () =>
           $<HTMLButtonElement>('.rail-row[data-lane="lead"] .rail-append');
         expect(leadPlus().getAttribute("aria-label")).toBe(
@@ -663,6 +698,8 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           "E re-selected",
         );
 
+        await openEdit(); // drag-create needs the grid's real geometry
+
         // --- 4. EDIT the blank: drag-create a 4-step note ------------------
         await poll(
           () => cellsPerRow("lead") === 16,
@@ -705,6 +742,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         ).toBe(true);
 
         // --- 5. LENGTH: the ladder, the refusal, the undo family -----------
+        await openSong();
         key(idoc().body, "b");
         await poll(
           () => railAnnounce("lead") === "PATTERN E · 2 BARS",
@@ -721,6 +759,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         ).toBe("2B");
         expect(chainCycleName("lead")).toBe("LEAD song chain · 6-BAR CYCLE");
         // A note at bar 2 will block the shrink back to 1.
+        await openEdit(); // drawing the blocking note needs grid geometry
         const e2Cells = laneCells("lead", noteRow);
         const b2 = center(e2Cells[16]!);
         const b2m = center(e2Cells[18]!);
@@ -737,6 +776,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           T.ui,
           "the bar-2 blocking note committed",
         );
+        await openSong(); // back to the rail for the refusal + PAT stepper
         const refusal = `CANNOT SHRINK PATTERN E TO 1 BAR · ${rowLabels("lead")[noteRow]} NOTE AT BAR 2 WOULD BE LOST · MOVE OR SHORTEN IT FIRST`;
         shrinkB();
         await poll(
@@ -862,6 +902,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         // DOM cells ≪ the eager 128/row, while the dedicated h-scroller's
         // SIZER carries the pattern-wide extent (the LP-1 law — the sticky
         // layer mechanism keeps the scrollport itself viewport-sized).
+        await openEdit(); // the virtualization geometry below reads the grid
         await poll(
           () =>
             floor("lead").querySelectorAll(".cell").length <
@@ -1185,10 +1226,17 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         app = await loadApp(VIEW_W, VIEW_H);
         await poll(() => !!idoc().querySelector(".booth"), T.boot, "remount");
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "restored cues after reload",
         );
+        await openSong();
         await poll(
           () =>
             tiles("lead").length === 5 &&
@@ -1215,6 +1263,8 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect(wavReload.byteLength).toBe(wavBytes.byteLength);
         expect(firstDiffByte(wavReload, wavBytes)).toBe(-1);
 
+        await openEdit();
+
         // --- 10. FV-1 WIDE PROBE: the same document at 1920×1080 -----------
         await new Promise((r) => setTimeout(r, 500));
         await teardownApp(false);
@@ -1225,7 +1275,13 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           "wide remount",
         );
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "journey doc at 1920",
         );
@@ -1248,6 +1304,8 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           const clientW = idoc().documentElement.clientWidth;
           expect(clientW, "1920 layout viewport (no scrollbar)").toBe(1920);
           const floors = $(".stage-floors").getBoundingClientRect();
+          // 2026-09-11: the chain is its own page — measure it there.
+          await openSong();
           const rail = $(".rail").getBoundingClientRect();
           expect(
             floors.width / clientW,
@@ -1257,6 +1315,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             rail.width / clientW,
             "1920: rail utilization",
           ).toBeGreaterThanOrEqual(0.95);
+          await openEdit(); // the quadrant probes below read the grid stage
           expect(
             floors.left,
             "no centered vacancy (floors)",

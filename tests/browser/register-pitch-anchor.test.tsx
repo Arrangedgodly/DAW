@@ -116,9 +116,10 @@ async function bootIframe(
   // lives on the SONG page now — the forked-helper convention).
   await poll(
     () =>
-      $$(".lane-switch-tab").length === 4
-        ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP"))
-        : $$(".rail-tile").length >= 2,
+      // 2026-09-11: rail-free on every stage (the chain is its own page).
+      $$(".head-ctl-value").some((v) =>
+        (v.textContent ?? "").includes("SOFT STEP"),
+      ),
     5_000,
     "demo chain tiles",
   );

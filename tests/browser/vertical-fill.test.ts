@@ -109,15 +109,15 @@ async function boot(
     const ok = await new Promise<boolean>((resolve) => {
       const t0 = performance.now();
       const check = () => {
-        const cues = Array.from(
-          iframe!.contentDocument?.querySelectorAll(".rail-tile-cue") ?? [],
-        ).map((c) => c.textContent);
-        // A caller-supplied signature decides ALONE: the phone EDIT page has
-        // no rail at all since 2026-09-11 (the chain moved to the SONG page),
-        // so cue tiles are not a universal readiness signal.
+        // A caller-supplied signature decides ALONE; otherwise the drums KIT
+        // readout is the rail-free demo signal (the chain moved to its own
+        // SONG page on 2026-09-11, so cue tiles are on no stage at boot).
+        const kits = Array.from(
+          iframe!.contentDocument?.querySelectorAll(".head-ctl-value") ?? [],
+        ).map((c) => c.textContent ?? "");
         const settled = demoOk
           ? demoOk(iframe!)
-          : cues.some((c) => c === "VERSE");
+          : kits.some((c) => c.includes("SOFT STEP"));
         if (settled) return resolve(true);
         if (performance.now() - t0 > 6_000) return resolve(false);
         setTimeout(check, 100);
@@ -127,7 +127,7 @@ async function boot(
     if (ok) break;
     if (attempt >= 3) {
       const cues = Array.from(
-        iframe.contentDocument?.querySelectorAll(".rail-tile-cue") ?? [],
+        iframe.contentDocument?.querySelectorAll(".head-ctl-value") ?? [],
       ).map((c) => c.textContent);
       const lane = iframe.contentDocument?.querySelector(".lane-floor");
       throw new Error(
@@ -219,7 +219,10 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
           );
           const r0 = rows[0]!.getBoundingClientRect();
           const r2 = rows[2]!.getBoundingClientRect();
-          expect(Math.abs(r0.height - r2.height)).toBeLessThanOrEqual(1.5);
+          expect(
+            Math.abs(r0.height - r2.height),
+            `${w}×${h}: equal stage rows (row0 ${r0.height.toFixed(1)} vs row1 ${r2.height.toFixed(1)}; floors ${fr.height.toFixed(1)})`,
+          ).toBeLessThanOrEqual(1.5);
 
           // --- B. THE DISTRIBUTION ---------------------------------------
           for (const lane of ["drums", "bass", "chords", "lead"]) {
@@ -354,7 +357,11 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
       }
 
       // --- D. THE DEFICIT PATH (grow-on-miss preserved) ------------------
-      const ctx2 = await boot(1024, 600);
+      // 2026-09-11: the deficit TRIGGER moved. The song chain left the stage
+      // for its own page, handing the floors back the rail's height, so
+      // 1024×600 now FITS — the law is unchanged, the viewport that misses
+      // the budget is simply shorter than it used to be.
+      const ctx2 = await boot(1024, 500);
       try {
         await new Promise((r) => setTimeout(r, 900)); // fonts + fit settle
         const idoc = ctx2.iframe.contentDocument!;
@@ -370,7 +377,7 @@ describe("i3-1 vertical fill law (built app, demo state)", () => {
         expect(
           idoc.documentElement.scrollHeight,
           "a budget miss honestly GROWS the page (grow-on-miss), never clips",
-        ).toBeGreaterThan(600);
+        ).toBeGreaterThan(500);
       } finally {
         await ctx2.cleanup();
       }

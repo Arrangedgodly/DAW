@@ -127,8 +127,8 @@ async function bootIframe(
   await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
   await poll(
     () =>
-      Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(
-        (c) => c.textContent === "VERSE",
+      Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
+        (v.textContent ?? "").includes("SOFT STEP"),
       ),
     5_000,
     "demo cues",
@@ -233,7 +233,23 @@ describe("FV-1 full-viewport densification (built app, 1280/1440/1920)", () => {
           const clientW = idoc().documentElement.clientWidth;
           expect(clientW, `${w} layout viewport (no scrollbar)`).toBe(w);
           const floors = $(".stage-floors").getBoundingClientRect();
+          // 2026-09-11: the chain is its own PAGE now — open it to measure
+          // the twin capped surface, then return to the quadrant stage so
+          // the one-page and densification laws below measure what they
+          // always did.
+          $<HTMLButtonElement>(".booth-btn-song").click();
+          await poll(
+            () => !!idoc().querySelector(".stage-song .rail"),
+            5_000,
+            "song page",
+          );
           const rail = $(".rail").getBoundingClientRect();
+          $<HTMLButtonElement>(".booth-btn-song").click();
+          await poll(
+            () => !!idoc().querySelector(".stage-floors"),
+            5_000,
+            "back to the edit stage",
+          );
           expect(
             floors.width / clientW,
             `${w}×${h}: stage floors utilization (≥${UTILIZATION_MIN * 100}%; the retired cap measured 1400/${w})`,

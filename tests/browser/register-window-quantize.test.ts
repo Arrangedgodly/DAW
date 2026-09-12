@@ -100,10 +100,12 @@ async function boot(w: number, h: number): Promise<Ctx> {
     const ok = await new Promise<boolean>((resolve) => {
       const t0 = performance.now();
       const check = () => {
-        const cues = Array.from(
-          iframe!.contentDocument?.querySelectorAll(".rail-tile-cue") ?? [],
-        ).map((c) => c.textContent);
-        if (cues.some((c) => c === "VERSE")) return resolve(true);
+        // 2026-09-11: rail-free readiness — the chain lives on its own SONG
+        // page now, so cue tiles are not on screen at boot on ANY stage.
+        const kits = Array.from(
+          iframe!.contentDocument?.querySelectorAll(".head-ctl-value") ?? [],
+        ).map((c) => c.textContent ?? "");
+        if (kits.some((c) => c.includes("SOFT STEP"))) return resolve(true);
         if (performance.now() - t0 > 6_000) return resolve(false);
         setTimeout(check, 100);
       };
@@ -428,6 +430,10 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         assertQuantized(idoc(), "rhythm flip → editing 1280");
 
         // B5 — a pattern switch remounts the surface (fresh mount pin).
+        // 2026-09-11: the chain is its own page — switch from there, then
+        // come back to the grid for the quantization assertion.
+        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        await new Promise((r) => setTimeout(r, 250));
         const tiles = Array.from(
           idoc().querySelectorAll<HTMLButtonElement>(
             '.rail-row[data-lane="lead"] .rail-tile',
@@ -435,6 +441,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         );
         expect(tiles.length).toBeGreaterThanOrEqual(2);
         tiles[1]!.click();
+        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
         await new Promise((r) => setTimeout(r, 500));
         assertQuantized(idoc(), "pattern switch 1280");
 

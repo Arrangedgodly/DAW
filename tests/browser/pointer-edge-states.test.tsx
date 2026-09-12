@@ -541,6 +541,14 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
           if (!el) throw new Error(`missing rail tile ${slot}`);
           return el as HTMLElement;
         };
+        // 2026-09-11: the chain is its own page on every stage — the rail
+        // rows this block sweeps only mount while that page shows.
+        showPhonePage("song");
+        await waitFor(
+          () => document.querySelector(".stage-song .rail") !== null,
+          2000,
+          "song page rail",
+        );
         const rail = document.querySelector(".rail") as HTMLElement;
         // Row 14: idle contextmenu on the rail is free…
         const railMenuIdle = new MouseEvent("contextmenu", {
@@ -570,6 +578,9 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
           document.querySelectorAll('.rail-tile[data-cue-preview]'),
         ).toHaveLength(0); // no stuck sweep preview
       } finally {
+        // View state is MODULE-LEVEL — never leak SONG into the next test
+        // (the help-coverage precedent).
+        showPhonePage("edit");
         session.audition = origAudition;
         void import("../../src/engine/session")
           .then(({ getSession: g }) => g().transport.stop?.())

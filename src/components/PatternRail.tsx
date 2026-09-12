@@ -82,7 +82,11 @@ import { CUE_MAX_CHARS, type LaneId } from "../document/schema";
 import { LANE_NAMES } from "./laneMeta";
 import { getSession } from "../engine/session";
 import { requestSlotCue } from "../state/engineBridge";
-import { mountSoundingFollow, sounding } from "../state/soundingFollow";
+import {
+  mountSoundingFollow,
+  sounding,
+  soundingSlot,
+} from "../state/soundingFollow";
 import ModeIcon from "./ModeIcon";
 import {
   appendBlankPattern,
@@ -134,6 +138,7 @@ import {
 } from "../interaction/drag";
 import {
   activePatterns,
+  activeSlots,
   currentPatternFor,
   selectPattern,
   toggleViewMode,
@@ -316,7 +321,7 @@ function cueTiles(
   for (const target of targets) {
     const patternId = chain[target.lane][target.slot];
     if (!patternId) continue;
-    selectPattern(target.lane, patternId);
+    selectPattern(target.lane, patternId, target.slot);
     if (playing) {
       requestSlotCue(target.lane, target.slot);
       queued++;
@@ -534,6 +539,8 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   });
 
   const selectedId = () => activePatterns()[props.lane];
+  const selectedSlot = (): number | null =>
+    activeSlots()[props.lane] ?? null;
 
   /**
    * Refinement-7: the lane's sounding pattern (the follow), falling back to
@@ -542,6 +549,26 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
    */
   const activeFollow = (): string | null =>
     sounding()[props.lane] ?? session.getActivePattern(props.lane);
+
+  /**
+   * 2026-09-11: the sounding SLOT — the section identity.
+   *
+   * Before anything has sounded there is no ledger, so the slot is resolved
+   * from the engine's active pattern: the lane will enter its chain at the
+   * FIRST slot holding it (the session's play-start law — the follow starts
+   * at the imminent entry, never parked on a previous play). Resolving it
+   * here rather than leaving tileState to match the pattern id is what keeps
+   * "exactly one lit section" true at BOOT for a chain that repeats a
+   * pattern — id-matching lit all three tiles of an A A A B chain.
+   */
+  const activeSlotFollow = (): number | null => {
+    const slot = soundingSlot()[props.lane];
+    if (slot != null) return slot;
+    const id = session.getActivePattern(props.lane);
+    if (id == null) return null;
+    const i = tiles().findIndex((t) => t.patternId === id);
+    return i >= 0 ? i : null;
+  };
 
   // Event-driven announcements (Daredevil: pending/active states announced).
   // Refinement-7: the "now <pattern>" line follows the SOUNDING slot too —
@@ -610,9 +637,11 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     void switchVersion();
     return tileState(tile, {
       activePatternId: activeFollow(),
+      activeSlot: activeSlotFollow(),
       pending: session.getPendingSwitch(props.lane),
       structurePending: structurePending(),
       selectedPatternId: selectedId(),
+      selectedSlot: selectedSlot(),
     });
   };
 
@@ -627,11 +656,21 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
    * no new writes while a pointer gesture is armed (the follow's TH-4(b)
    * freeze covers both attributes).
    */
+  /**
+   * Slot-exact (see tileState): the doubled sounding hairline marks the ONE
+   * section playing, never every tile sharing its pattern.
+   *
+   * It reads the SAME resolver as the tile state, pre-roll included. Reading
+   * the raw ledger here instead left the rail with ZERO marked tiles for the
+   * window between play and the first sounded step — the follow gate's own
+   * "exactly one lit tile" law caught it at bar 1. One resolver, so the
+   * hairline and the fill can never disagree about which section is live.
+   */
   const isSounding = (tile: RailTile): boolean =>
-    sounding()[props.lane] === tile.patternId;
+    activeSlotFollow() === tile.slot;
 
   const triggerTile = (tile: RailTile) => {
-    selectPattern(props.lane, tile.patternId);
+    selectPattern(props.lane, tile.patternId, tile.slot);
     // ⟲/→ follow: a tap while playing cues THIS chain slot (the lane jumps
     // there at the end of the segment it is playing, then follows its mode).
     if (playing()) requestSlotCue(props.lane, tile.slot);
@@ -669,7 +708,14 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     const n = patternPool(docStore.getState().doc, props.lane).length;
     const label = nextPatternLabel(n);
     const id = appendBlankPattern(props.lane, label);
-    selectPattern(props.lane, id);
+    // The append addresses the NEW chain slot (the last) — select it by
+    // slot so the fresh tile is the one that lights, not every tile that
+    // happens to share its pattern.
+    selectPattern(
+      props.lane,
+      id,
+      docStore.getState().doc.songChain[props.lane].length - 1,
+    );
     const bars =
       docStore.getState().doc.patterns[props.lane].find((p) => p.id === id)
         ?.bars ?? 1;

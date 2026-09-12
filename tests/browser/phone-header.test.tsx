@@ -130,11 +130,10 @@ async function bootIframe(w: number, h: number) {
   // never on the raw width.
   await poll(
     () =>
-      idoc().querySelector(".lane-switch-tab") !== null
-        ? Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
-            (v.textContent ?? "").includes("SOFT STEP"),
-          )
-        : idoc().querySelectorAll(".rail-tile").length >= 2,
+      // 2026-09-11: rail-free on every stage (the chain is its own page).
+      Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
+        (v.textContent ?? "").includes("SOFT STEP"),
+      ),
     5_000,
     "demo chain tiles",
   );

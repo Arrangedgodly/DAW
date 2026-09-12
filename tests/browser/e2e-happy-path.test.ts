@@ -207,6 +207,32 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         if (!el) throw new Error(`missing ${sel}`);
         return el;
       };
+      /**
+       * 2026-09-11 (user call): the song chain is its own PAGE on every
+       * stage now, not a bar above the quadrants. `openSong` / `openEdit`
+       * move between them through the real booth key, so every rail block
+       * below addresses a rail that is actually on screen. Element handles
+       * captured while the SONG page is open go stale when it closes (the
+       * rail unmounts), so a block opens once and closes once.
+       */
+      const openSong = async (): Promise<void> => {
+        if (idoc().querySelector(".stage-song .rail")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          T.ui,
+          "song page",
+        );
+      };
+      const openEdit = async (): Promise<void> => {
+        if (!idoc().querySelector(".stage-song")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          T.ui,
+          "edit stage",
+        );
+      };
       const $$ = <El extends Element>(sel: string): El[] =>
         Array.from(idoc().querySelectorAll<El>(sel));
 
@@ -242,7 +268,13 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "app to mount",
         );
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "demo cue labels in the rail",
         );
@@ -445,6 +477,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "play for quantized switch",
         );
+        await openSong();
         const bassRow = $('.rail-row[data-lane="bass"]');
         const tiles = () =>
           Array.from(bassRow.querySelectorAll<HTMLButtonElement>(".rail-tile"));
@@ -522,6 +555,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "appended tile is the NEW blank pattern (not the duplicate)",
         ).toBe("F");
         bassTilesAfter = tiles().length;
+
+        await openEdit();
 
         // --- 6. EXPORT WAV through the real button + LAZY import ------------
         const actionByLabel = async (
@@ -690,6 +725,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           }
           return shots.join("|");
         };
+        await openSong(); // the tiles snapshotDrums clicks live here now
         const drumsBeforeReload = await snapshotDrums();
         expect(drumsBeforeReload).not.toBe("");
         app.iframe.remove(); // same-origin IDB survives; pagehide flush fired
@@ -700,7 +736,13 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "app to remount after reload",
         );
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "restored demo cues",
         );
@@ -727,6 +769,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "fx chain survived reload",
         );
+        await openSong(); // the reloaded app boots on the EDIT page
         const bassRow2 = $('.rail-row[data-lane="bass"]');
         await poll(
           () =>

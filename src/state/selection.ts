@@ -39,10 +39,39 @@ function defaultActivePatterns(): Record<LaneId, string> {
   };
 }
 
+/**
+ * The default selection is the chain's FIRST SLOT, so name it as one: a
+ * chain that repeats a pattern (A A A B) would otherwise light every A tile
+ * at boot, the id-match fallback standing in for a slot nobody named. Null
+ * only for a lane whose chain is empty — there is no slot to point at, and
+ * the id match is then the honest read.
+ */
+function defaultActiveSlots(): Partial<Record<LaneId, number | null>> {
+  const doc = docStore.getState().doc;
+  const slot = (lane: LaneId) => (doc.songChain[lane][0] ? 0 : null);
+  return {
+    drums: slot("drums"),
+    bass: slot("bass"),
+    chords: slot("chords"),
+    lead: slot("lead"),
+  };
+}
+
 const [activeLane, setActiveLane] = createSignal<LaneId>("drums");
 const [activePatterns, setActivePatterns] = createSignal<
   Record<LaneId, string>
 >(defaultActivePatterns());
+/**
+ * 2026-09-11 (user call): the selected CHAIN SLOT per lane, when the
+ * selection was made by addressing one (a rail tile, the arrangement
+ * follow). A chain repeats patterns, so a pattern id cannot say which
+ * section is selected — matching by id lit every tile holding it. Null
+ * means "selected by pattern, no slot in mind" (the PAT menu's DUP/RM, the
+ * global `n`): callers fall back to the pattern-id match, exactly as before.
+ */
+const [activeSlots, setActiveSlots] = createSignal<
+  Partial<Record<LaneId, number | null>>
+>(defaultActiveSlots());
 const [focusedCell, setFocusedCell] = createSignal<FocusedCell | null>(null);
 
 /**
@@ -108,6 +137,7 @@ export {
   activeLane,
   focusedCell,
   activePatterns,
+  activeSlots,
   viewMode,
   stageStatus,
   stageMode,
@@ -141,8 +171,26 @@ export function selectLane(lane: LaneId): void {
   setStageStatus(`NOW EDITING ${LANE_NAMES[lane]}`);
 }
 
-export function selectPattern(lane: LaneId, patternId: string): void {
+/**
+ * Select a lane's pattern for editing. `slot` names the chain position when
+ * the caller addressed one (a rail tile, the arrangement follow); omitting
+ * it clears the slot, which is the honest state for a pattern-addressed
+ * selection — the rail then matches by pattern id as it always did.
+ */
+export function selectPattern(
+  lane: LaneId,
+  patternId: string,
+  slot?: number,
+): void {
   setActivePatterns((prev) => ({ ...prev, [lane]: patternId }));
+  setActiveSlots((prev) =>
+    prev[lane] === (slot ?? null) ? prev : { ...prev, [lane]: slot ?? null },
+  );
+}
+
+/** The lane's selected chain slot, or null when selected by pattern alone. */
+export function getActiveSlot(lane: LaneId): number | null {
+  return activeSlots()[lane] ?? null;
 }
 
 export function getActivePattern(lane: LaneId): string {
@@ -269,6 +317,13 @@ export function getOrCreateRegisterWindow(
  */
 onDocumentReplaced(() => {
   setRegisterWindowStarts({});
+  // The incoming project has its own patterns and its own chain: a selection
+  // carried over from the previous document can name a pattern that no
+  // longer exists, and a slot that no longer exists. Re-default both
+  // together (they are one selection) — ordinary edits never fire this, and
+  // undo/redo are not replacements.
+  setActivePatterns(defaultActivePatterns());
+  setActiveSlots(defaultActiveSlots());
 });
 
 /* ---------------------------------------------------------------------------

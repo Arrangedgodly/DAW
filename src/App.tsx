@@ -64,7 +64,9 @@ export default function App() {
       data-help-mode={helpMode() ? "on" : "off"}
       data-viz-mode={vizMode() ? "on" : "off"}
       data-stage={stageMode()}
-      data-phone-page={stageMode() === "phone" ? phonePage() : undefined}
+      // 2026-09-11 (user call): the EDIT/SONG split is stage-WIDE now, so
+      // the page attribute is written on every stage (was phone-only).
+      data-page={phonePage()}
     >
       <SupportBanners />
       {/* MB-1 (mobile slice): the committed phone law — sticky chrome +
@@ -83,14 +85,30 @@ export default function App() {
         fallback={
           <>
             <Booth covered={vizMode()} />
+            {/* 2026-09-11 (user call): the chain is no longer a permanent
+                BAR above the quadrants — desktop and tablet get the phone's
+                two-page split. EDIT is the quadrant stage; SONG is the
+                arrangement page. The EDIT stage stays MOUNTED (hidden) so
+                the grids keep their scroll/register place and the
+                store→engine bridge StageFloor owns keeps running — the same
+                law the phone branch below has always followed. */}
             <main
               class="stage"
               aria-label="Stage floor"
+              hidden={phonePage() === "song"}
               inert={vizMode() ? true : undefined}
             >
-              <PatternRail />
               <StageFloor />
             </main>
+            <Show when={phonePage() === "song"}>
+              <main
+                class="stage stage-song"
+                aria-label="Song sequencer"
+                inert={vizMode() ? true : undefined}
+              >
+                <PatternRail />
+              </main>
+            </Show>
           </>
         }
       >

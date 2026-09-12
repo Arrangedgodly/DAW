@@ -144,6 +144,32 @@ describe("DA-3 full keyboard journey (built app)", () => {
         if (!el) throw new Error(`missing ${sel}`);
         return el;
       };
+      /**
+       * 2026-09-11 (user call): the song chain is its own PAGE on every
+       * stage now, not a bar above the quadrants. These move between the
+       * pages through the real booth key, so every rail block below
+       * addresses a rail that is actually on screen. Handles captured while
+       * the SONG page is open go stale when it closes (the rail unmounts),
+       * so a block opens once and closes once.
+       */
+      const openSong = async (): Promise<void> => {
+        if (idoc().querySelector(".stage-song .rail")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          T.ui,
+          "song page",
+        );
+      };
+      const openEdit = async (): Promise<void> => {
+        if (!idoc().querySelector(".stage-song")) return;
+        $<HTMLButtonElement>(".booth-btn-song").click();
+        await poll(
+          () => !!idoc().querySelector(".stage-floors"),
+          T.ui,
+          "edit stage",
+        );
+      };
       const $$ = <T extends Element>(sel: string): T[] =>
         Array.from(idoc().querySelectorAll<T>(sel));
 
@@ -157,7 +183,13 @@ describe("DA-3 full keyboard journey (built app)", () => {
         const playBtn = () => $<HTMLButtonElement>(".booth-btn-play");
         // Demo loaded (PX-1): the rail carries named section cues.
         await poll(
-          () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+          // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
           T.ui,
           "demo cue labels in the rail",
         );
@@ -384,6 +416,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
         );
 
         // --- 11. QUANTIZED SWITCH while playing ------------------------------
+        await openSong(); // the chain is its own page since 2026-09-11
         const bassRow = $('.rail-row[data-lane="bass"]');
         const tiles = () =>
           Array.from(bassRow.querySelectorAll<HTMLButtonElement>(".rail-tile"));
@@ -484,6 +517,8 @@ describe("DA-3 full keyboard journey (built app)", () => {
           T.ui,
           "rail Escape → rail head",
         );
+
+        await openEdit();
 
         // --- 13. EXPORTS via the Projects popover ------------------------------
         kbActivate($(".projects-btn"));

@@ -26,6 +26,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { showPhonePage } from "../../src/state/phonePage";
 import { page, userEvent } from "vitest/browser";
 import { render } from "solid-js/web";
 import App from "../../src/App";
@@ -112,6 +113,14 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
         bootDb = await openRawProjectDb("bitbounce");
         snapshotRows = await bootDb.allRecords();
         loadDocument(createFreshProjectDocument());
+        // 2026-09-11: the chain is its own page on every stage — the tile
+        // this block double-clicks only mounts while that page shows.
+        showPhonePage("song");
+        await waitFor(
+          () => document.querySelector(".stage-song .rail-tile") !== null,
+          2000,
+          "song page rail",
+        );
 
         // --- 1. DBLCLICK FOCUS: the editor opens AND holds DOM focus -------
         const tile = document.querySelector(
@@ -146,6 +155,14 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
         );
 
         // --- 2. HONEST NOTE-EDGE GEOMETRY under real capture ----------------
+        // Back to the grid: everything below is trusted GRID actionability,
+        // which needs the quadrants on screen.
+        showPhonePage("edit");
+        await waitFor(
+          () => document.querySelector(".stage-floors") !== null,
+          2000,
+          "edit stage back",
+        );
         selectLane("bass");
         await waitFor(
           () =>
@@ -228,6 +245,8 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
           bassNotes().filter((n) => n.start === 10 || n.start === 13).length,
         ).toBe(2);
       } finally {
+        // View state is MODULE-LEVEL — never leak SONG into the next test.
+        showPhonePage("edit");
         session.audition = origAudition;
         void import("../../src/engine/session")
           .then(({ getSession: g }) => g().transport.stop?.())

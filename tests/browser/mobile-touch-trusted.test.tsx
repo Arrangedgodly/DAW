@@ -247,7 +247,12 @@ async function bootPhone(
     // The demo chain booted: at phone width only the ACTIVE lane's rail row
     // renders, and the VERSE cues live on the CHORDS lane — the honest
     // phone-mode boot signal is the tile count (the MB-1 precedent).
-    await poll(() => ($$(".lane-switch-tab").length === 4 ? $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")) : $$(".rail-tile").length >= 2), 5_000, "demo chain tiles");
+    // 2026-09-11: boot readiness is RAIL-FREE on every stage. The chain moved
+  // off the stage into its own SONG page, so rail tiles are no longer proof
+  // the demo loaded — and they never were the thing under test here. The
+  // drums KIT readout is the stage-independent demo signal (it was already
+  // the phone branch's).
+  await poll(() => $$(".head-ctl-value").some((v) => (v.textContent ?? "").includes("SOFT STEP")), 5_000, "demo loaded");
 
     // --- trusted CDP touch, mapped through BOTH iframe boxes -------------
     const c = cdp();

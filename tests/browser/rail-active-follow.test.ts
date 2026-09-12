@@ -115,8 +115,21 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
             `.rail-row[data-lane="${lane}"] .rail-tile`,
           ),
         );
-      const activeSlot = (lane: string): number =>
-        tiles(lane).findIndex((t) => t.dataset.state === "active");
+      /**
+       * The LIT slot — the one section the lane is playing.
+       *
+       * 2026-09-11 (user call) re-base: the editing selection now FOLLOWS
+       * natural chain advance, so the sounding tile renders "selected"
+       * (tileState's active+selected collapse) rather than "active" — the
+       * whole point of the change was that the old slot stopped staying lit
+       * beside the new one. `data-sounding` is the slot-exact seam that
+       * survives the collapse, so the follow reads through it now.
+       */
+      const litSlots = (lane: string): number[] =>
+        tiles(lane)
+          .map((t, i) => (t.dataset.sounding === "true" ? i : -1))
+          .filter((i) => i >= 0);
+      const activeSlot = (lane: string): number => litSlots(lane)[0] ?? -1;
       /**
        * The booth's BAR.BEAT.STEP readout (rAF-written from ctx.currentTime)
        * wraps at the TRANSPORT's cycle basis. LL-2: that basis is the LCM of
@@ -160,6 +173,20 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
 
       try {
         await poll(() => !!idoc().querySelector(".booth"), 15_000, "boot");
+        // 2026-09-11 (user call): the chain is a PAGE now, not a bar on the
+        // stage — open it before any rail assertion. The booth SONG key is
+        // the desktop entry (the phone's transport-row key is the twin).
+        await poll(
+          () => !!idoc().querySelector(".booth-btn-song"),
+          5_000,
+          "booth SONG key",
+        );
+        idoc().querySelector<HTMLButtonElement>(".booth-btn-song")!.click();
+        await poll(
+          () => !!idoc().querySelector(".stage-song .rail"),
+          5_000,
+          "song page",
+        );
         await poll(
           () =>
             Array.from(idoc().querySelectorAll(".rail-tile-cue")).some(
@@ -212,46 +239,37 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
           samples++;
           const barsElapsed = tickChainClock();
           for (const lane of LANES) {
-            const slot = activeSlot(lane);
+            const lit = litSlots(lane);
+            const slot = lit[0] ?? -1;
             const seq = transitions[lane];
             if (slot >= 0 && seq[seq.length - 1] !== slot) seq.push(slot);
-            const slot0Sounding = laneSlot(lane, barsElapsed) === 0;
-            if (slot0Sounding) {
-              // Sounding slot === selected slot → tile 0 reads "selected"
-              // (the stronger state; the v0 tile law) — no active tile then.
-              if (tiles(lane)[0].dataset.state !== "selected")
-                violations.push(
-                  `${lane}: bar ${barsElapsed + 1} tile 0 not selected (got ${tiles(lane)[0].dataset.state})`,
-                );
-            } else {
-              const expected = laneSlot(lane, barsElapsed);
-              // No ACTIVE tile here is legal ONLY as the slot-0 wrap frame:
-              // sounding === selected renders tile 0 "selected" (the v0 tile
-              // law), one poll-frame on either side of the wrap. Anything
-              // else — or a selected-0 stuck two bars away — is a violation.
-              const effSlot =
-                slot >= 0
-                  ? slot
-                  : tiles(lane)[0].dataset.state === "selected"
-                    ? 0
-                    : -1;
-              if (effSlot < 0) {
-                violations.push(
-                  `${lane}: bar ${barsElapsed + 1} — ZERO active tiles`,
-                );
-                continue;
-              }
-              // Cyclic distance to the sounding bar's slot (≤1 poll skew).
-              const d = Math.min(
-                (effSlot - expected + 4) % 4,
-                (expected - effSlot + 4) % 4,
+            // THE 2026-09-11 LAW: exactly ONE section is lit, always. The
+            // user-reported defect was two (the chain moved to B and A
+            // stayed painted) — a count check is the tooth for it.
+            if (lit.length !== 1) {
+              violations.push(
+                `${lane}: bar ${barsElapsed + 1} — ${lit.length} lit tiles (must be exactly 1)`,
               );
-              maxDistance[lane] = Math.max(maxDistance[lane], d);
-              if (d > 1)
-                violations.push(
-                  `${lane}: distance ${d} at bar ${barsElapsed + 1}`,
-                );
+              continue;
             }
+            // The lit tile is the one the grid is editing: the follow moves
+            // selection with the chain, so the section on screen and the
+            // notes under it can never name different slots.
+            if (tiles(lane)[slot].dataset.state !== "selected")
+              violations.push(
+                `${lane}: bar ${barsElapsed + 1} lit slot ${slot} not selected (got ${tiles(lane)[slot].dataset.state})`,
+              );
+            const expected = laneSlot(lane, barsElapsed);
+            // Cyclic distance to the sounding bar's slot (≤1 poll skew).
+            const d = Math.min(
+              (slot - expected + 4) % 4,
+              (expected - slot + 4) % 4,
+            );
+            maxDistance[lane] = Math.max(maxDistance[lane], d);
+            if (d > 1)
+              violations.push(
+                `${lane}: distance ${d} at bar ${barsElapsed + 1}`,
+              );
             if (slot >= 1) advancedAwayFromSlot0 = true;
           }
           await waitMs(POLL_MS);
@@ -263,7 +281,7 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         // The critique's failure mode: zero active tiles through it all.
         expect(
           advancedAwayFromSlot0,
-          "lanes showed ACTIVE tiles on natural advance (pre-fix: zero)",
+          "lanes lit a non-zero slot on natural advance (pre-fix: zero)",
         ).toBe(true);
         if (violations.length > 0) {
           console.log(
@@ -276,10 +294,11 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
         ).toBe("");
         for (const lane of LANES) {
           const seq = transitions[lane];
-          // 2 song cycles in ACTIVE-tile terms: slot 0 renders "selected"
-          // (sounding === selected — the v0 tile law), so the wrap in the
-          // ACTIVE sequence is 3→1. PX-4: the slowest lane (4-bar slots)
-          // still traverses its whole chain twice inside FOLLOW_MS.
+          // 2 song cycles in LIT-tile terms. 2026-09-11: the sounding seam
+          // marks EVERY slot including 0 (it no longer disappears into a
+          // pinned selection), so the sequence walks 0→1→2→3→0… and the
+          // wrap is 3→0. PX-4: the slowest lane (4-bar slots) still
+          // traverses its whole chain twice inside FOLLOW_MS.
           expect(
             seq.length,
             `${lane}: enough observed advance for ≥2 chain iterations`,
@@ -288,10 +307,10 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
           for (let i = 1; i < seq.length; i++) {
             const prev = seq[i - 1]!;
             const cur = seq[i]!;
-            if (prev === 3 && cur === 1) wraps++;
+            if (prev === 3 && cur === 0) wraps++;
             expect(
-              (cur - prev + 4) % 4 === 1 || (prev === 3 && cur === 1),
-              `${lane}: natural advance is +1 slot (the wrap 3→1 skips slot 0, which renders selected at bar 1) — saw ${prev}→${cur}`,
+              (cur - prev + 4) % 4 === 1,
+              `${lane}: natural advance is +1 slot — saw ${prev}→${cur}`,
             ).toBe(true);
           }
           expect(

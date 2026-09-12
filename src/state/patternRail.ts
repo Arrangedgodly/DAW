@@ -166,12 +166,25 @@ export type TileState = "active" | "pending" | "selected" | "idle";
 export interface TileStateInput {
   /** Engine's active pattern id for the lane (session.getActivePattern). */
   readonly activePatternId: string | null;
+  /**
+   * 2026-09-11: the SLOT sounding now (soundingFollow's slot read). When
+   * present it is the authority — a chain repeats patterns, so matching the
+   * pattern id lit every tile holding it and the old section stayed lit
+   * after the chain moved on. Null before anything has sounded: the
+   * pattern-id match below is the pre-follow fallback, unchanged.
+   */
+  readonly activeSlot: number | null;
   /** Engine pending switch snapshot (session.getPendingSwitch). */
   readonly pending: PendingSwitchSnapshot | null;
   /** Engine has a deferred chain-structure edit (session.hasPendingSchedule). */
   readonly structurePending: boolean;
   /** Ephemeral editing selection (selection.getActivePattern). */
   readonly selectedPatternId: string;
+  /**
+   * The selected CHAIN SLOT (selection.getActiveSlot), when the selection
+   * addressed one. Null = selected by pattern alone → id match.
+   */
+  readonly selectedSlot: number | null;
 }
 
 /**
@@ -191,13 +204,21 @@ export function tileState(tile: RailTile, input: TileStateInput): TileState {
       : input.pending.toPatternId === tile.patternId)
   )
     return "pending";
-  if (
-    input.activePatternId != null &&
-    input.activePatternId === tile.patternId
-  ) {
-    return input.selectedPatternId === tile.patternId ? "selected" : "active";
-  }
-  if (input.selectedPatternId === tile.patternId) return "selected";
+  // ACTIVE and SELECTED both resolve slot-first, pattern-id only as the
+  // fallback for a selection that never named a slot. Slot-first is what
+  // makes "exactly one lit section" true across a chain that repeats a
+  // pattern, and across the natural advance the follow now tracks.
+  const isActive =
+    input.activeSlot != null
+      ? input.activeSlot === tile.slot
+      : input.activePatternId != null &&
+        input.activePatternId === tile.patternId;
+  const isSelected =
+    input.selectedSlot != null
+      ? input.selectedSlot === tile.slot
+      : input.selectedPatternId === tile.patternId;
+  if (isActive) return isSelected ? "selected" : "active";
+  if (isSelected) return "selected";
   return "idle";
 }
 

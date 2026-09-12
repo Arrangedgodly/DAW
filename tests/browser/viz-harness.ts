@@ -555,7 +555,13 @@ export async function bootVizApp(
   // Boot + known-pattern signal: the demo rail (e2e law).
   await poll(() => !!doc().querySelector(".booth"), 15_000, "app to mount");
   await poll(
-    () => $$(".rail-tile-cue").some((c) => c.textContent === "VERSE"),
+    // 2026-09-11: rail-free boot readiness — the chain moved to its own
+          // SONG page, so cue labels no longer exist at boot. The drums KIT
+          // readout is the stage-independent "demo loaded" signal.
+          () =>
+            $$(".head-ctl-value").some((v) =>
+              (v.textContent ?? "").includes("SOFT STEP"),
+            ),
     10_000,
     "demo cue labels in the rail (first-run demo)",
   );
