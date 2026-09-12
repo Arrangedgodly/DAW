@@ -67,6 +67,7 @@ import { registerHelp, type HelpEntry } from "../help/registry";
 import { LANE_NAMES, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
 import FxStrip from "./FxStrip";
+import TrackColorControl from "./TrackColorControl";
 
 const session = getSession();
 
@@ -348,7 +349,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   // exact HEAD markup.
   const NameLabel = () => (
     <span class="lane-name">
-      {LANE_NAMES[props.lane]}
+      {props.lane[0]!.toUpperCase() + props.lane.slice(1)}
       <span class="lane-state" aria-hidden="true">
         {editable() ? "· EDIT" : "· VIEW"}
       </span>
@@ -587,6 +588,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           editRowEl = el;
         }}
       >
+        <TrackColorControl lane={props.lane} />
         <span class="head-scale-wrap">
           <button
             type="button"

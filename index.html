@@ -34,13 +34,13 @@
       type="image/svg+xml"
       href="/src/assets/branding/bitbounce-favicon.svg"
     />
-    <!-- Keep the compact utility faces on the critical path. Barlow is used
-         for large identity text and loads with font-display:swap from CSS. -->
+    <!-- Preload the main control face; other local faces swap in without
+         blocking readable text. -->
     <link
       rel="preload"
-      href="/src/assets/fonts/departure-mono-400.woff2"
+      href="/src/assets/fonts/barlow-600.ttf"
       as="font"
-      type="font/woff2"
+      type="font/ttf"
       crossorigin
     />
     <link

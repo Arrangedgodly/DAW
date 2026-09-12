@@ -18,7 +18,8 @@
     "test:browser": "vitest run --project browser",
     "test:all": "vitest run",
     "fuzz": "node scripts/fuzz.mjs",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=bitbounce --branch=main"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=bitbounce --branch=main",
+    "dev:prototype": "vite --host 127.0.0.1 --port 5193 --open /?variant=A"
   },
   "dependencies": {
     "idb": "^8.0.3",

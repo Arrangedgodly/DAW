@@ -83,6 +83,9 @@ export function createCompositionEngine(
       mode = next.motion ?? "fluid";
       blended = next.blended ?? true;
     },
+    setColors(next: Record<LaneId, string>) {
+      colors = { ...next };
+    },
     setReducedMotion(next: boolean) {
       reduced = next;
     },

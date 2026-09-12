@@ -1,0 +1,687 @@
+/* Approved Membrane instrument. All timing comes from the existing grid
+   renderer. This surface adds no animation loop or audio subscriptions. */
+@font-face {
+  font-family: "Unbounded";
+  src: url("../assets/fonts/unbounded-500.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("../assets/fonts/barlow-400.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("../assets/fonts/barlow-500.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("../assets/fonts/barlow-600.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-ui: "Barlow", "Segoe UI", sans-serif;
+  --font-instrument: "Unbounded", "Barlow", sans-serif;
+  --color-ground: #080b0d;
+  --color-ink: #e8eff2;
+  --color-ink-on-fill: #0b171a;
+  --color-lane-drums: #dfaaa1;
+  --color-lane-bass: #c4d49e;
+  --color-lane-chords: #93cfc7;
+  --color-lane-lead: #aabbe7;
+  --metal-deck: #080b0d;
+  --metal-panel: #10191d;
+  --metal-raised: #1b282e;
+  --metal-recess: #0c1419;
+  --theme-line: #304048;
+  --theme-muted: #a0b1b9;
+  --theme-accent: #b7eeeb;
+  --brand-cyan: #b7eeeb;
+  --display-ground: #0c1419;
+  --display-ink: #d5e9ed;
+  --display-edge: #304048;
+  --metal-edge-hi: #34434b;
+  --metal-edge-lo: #233139;
+  --theme-radius: 8px;
+  --panel-light: none;
+  --keycap: none;
+  --keycap-down: none;
+  --keycap-lit: none;
+  --led-window: none;
+  --membrane-surface: linear-gradient(145deg, #182125, #0a1013 55%, #101b20);
+  --membrane-seam: #ffffff12;
+  --membrane-cell: #a5c4d80b;
+  --membrane-beat: #a5c4d814;
+}
+:root[data-theme="light"] {
+  --color-ground: #e5e9e7;
+  --color-ink: #263438;
+  --color-ink-on-fill: #ffffff;
+  --metal-deck: #e5e9e7;
+  --metal-panel: #edf2ef;
+  --metal-raised: #e0e8e3;
+  --metal-recess: #f4f7f4;
+  --theme-line: #adbbb5;
+  --theme-muted: #526560;
+  --theme-accent: #146861;
+  --brand-cyan: #146861;
+  --display-ground: #e5eeea;
+  --display-ink: #26453e;
+  --display-edge: #b8c8c0;
+  --metal-edge-hi: #bacbc2;
+  --metal-edge-lo: #c1cec7;
+  --membrane-surface: linear-gradient(145deg, #f6f8f5, #e4ebe6 70%, #edf3ee);
+  --membrane-seam: #29434626;
+  --membrane-cell: #29433e0b;
+  --membrane-beat: #29433e14;
+}
+.app.membrane {
+  padding: 18px clamp(12px, 2.3vw, 38px);
+  background: var(--color-ground);
+  font-family: var(--font-ui);
+}
+.app.membrane
+  :is(
+    .booth,
+    .lane-floor,
+    .lane-floor[data-editing],
+    .rail,
+    .lane-head-strip,
+    .phone-chrome,
+    .phone-options-drawer,
+    .fx-strip,
+    .lane-fx-wrap
+  ) {
+  background-image: none;
+  box-shadow: none;
+}
+.app.membrane button:not(.cell):not(.row-label),
+.app.membrane select {
+  box-shadow: none;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  text-shadow: none;
+}
+.app.membrane button:not(.cell):not(.row-label):active:not(:disabled) {
+  box-shadow: none;
+}
+.app.membrane .booth {
+  background: var(--metal-panel);
+  border: 1px solid var(--membrane-seam);
+  border-radius: 22px 22px 0 0;
+  padding: 15px 22px 10px;
+  gap: 10px 16px;
+}
+.app.membrane .bitbounce-brand {
+  font-family: var(--font-instrument);
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.035em;
+  gap: 9px;
+}
+.app.membrane .bitbounce-brand img {
+  width: 31px;
+  height: 31px;
+}
+.app.membrane .booth-group-position {
+  border-top: 1px solid var(--membrane-seam);
+  padding-top: 9px;
+}
+.app.membrane
+  :is(.booth-led, .booth-led-input, .booth-screen, .register-window-readout) {
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--display-ink);
+}
+.app.membrane .booth-screen {
+  border: 0;
+  height: 40px;
+}
+.app.membrane .screen-body {
+  padding-left: 0;
+  box-sizing: border-box;
+}
+.app.membrane .screen-meters {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 6px 12px;
+}
+.app.membrane .screen-meter-tag {
+  width: 39px;
+  font: 500 9px/1.1 var(--font-ui);
+  letter-spacing: 0.02em;
+}
+.app.membrane .screen-meter {
+  width: 38px;
+  height: 5px;
+}
+.app.membrane .desktop-page-nav {
+  order: 3;
+  flex: 1 0 100%;
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--membrane-seam);
+  padding-top: 8px;
+}
+.app.membrane .desktop-page-nav button {
+  min-height: 36px;
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--theme-muted);
+  font-size: 13px;
+}
+.app.membrane .desktop-page-nav button[aria-pressed="true"] {
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  border-color: var(--theme-line);
+  box-shadow: inset 0 -2px var(--theme-accent);
+}
+.app.membrane .screen-annun-item {
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+.app.membrane .booth-label {
+  color: var(--theme-muted);
+  font-size: 10px;
+}
+.app.membrane .booth-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+.app.membrane
+  :is(
+    .booth-btn,
+    .booth-step-btn,
+    .head-step-btn,
+    .head-mix-btn,
+    .head-fx,
+    .scale-chip,
+    .theme-selector,
+    .projects-trigger,
+    .phone-options-btn,
+    .phone-page-toggle,
+    .rail-tool,
+    .rail-view-toggle,
+    .rail-append,
+    .lane-follow-btn,
+    .fx-mod-btn,
+    .fx-add-btn,
+    .lane-fx-close
+  ) {
+  background: transparent;
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+  text-shadow: none;
+}
+.app.membrane
+  :is(.booth-btn, .head-mix-btn, .head-fx, .scale-chip, .theme-selector) {
+  padding-inline: 9px;
+}
+.app.membrane .booth-btn-play {
+  border-radius: 24px;
+  min-width: 75px;
+  color: var(--theme-accent);
+  border-color: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 7%, transparent);
+}
+.app.membrane .booth-btn-play.is-on {
+  background: var(--theme-accent);
+  color: var(--color-ground);
+}
+.app.membrane
+  :is(
+    .head-mix-btn.is-on,
+    .head-fx.is-on,
+    .booth-btn-loop.is-on,
+    .booth-btn-metro.is-on,
+    .phone-options-btn.is-on,
+    .phone-page-toggle[aria-pressed="true"]
+  ) {
+  background: var(--color-ink);
+  color: var(--color-ground);
+  border-color: transparent;
+}
+.app.membrane :is(button, select):disabled {
+  opacity: 0.48;
+}
+.app.membrane .stage-floors {
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--membrane-seam);
+  border-top: 0;
+  border-radius: 0 0 22px 22px;
+  background: var(--membrane-surface);
+}
+.app.membrane .lane-floor,
+.app.membrane .lane-floor[data-editing] {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 19px 22px 15px;
+  box-shadow: none;
+}
+.app.membrane .lane-floor:nth-child(odd) {
+  border-right: 1px solid var(--membrane-seam);
+}
+.app.membrane .lane-floor:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--membrane-seam);
+}
+.app.membrane .lane-head-strip {
+  position: static;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-bottom: 10px;
+}
+.app.membrane .lane-name {
+  text-transform: none;
+  font: 500 20px/1.25 var(--font-instrument);
+  letter-spacing: -0.025em;
+}
+.app.membrane .lane-name::before {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--lane-hue);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lane-hue) 8%, transparent);
+  vertical-align: middle;
+  margin-right: 9px;
+  opacity: 1;
+}
+.app.membrane .lane-state {
+  color: var(--theme-muted);
+  font: 9px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  margin-left: 7px;
+}
+.app.membrane .head-ctl-value,
+.app.membrane .head-vol-value {
+  font: 500 11px/1.2 var(--font-ui);
+  letter-spacing: 0;
+}
+.app.membrane .head-ctl-label {
+  color: var(--theme-muted);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+}
+.app.membrane .lane-meter {
+  height: 1px;
+  left: 22px;
+  right: 22px;
+  top: auto;
+  bottom: 0;
+  background: transparent;
+}
+.app.membrane :is(.head-range, .booth-range, .fx-param-range) {
+  accent-color: var(--lane-hue, var(--theme-accent));
+}
+.app.membrane
+  :is(.head-range, .booth-range, .fx-param-range)::-webkit-slider-thumb {
+  border: 0;
+  border-radius: 50%;
+  background: var(--lane-hue, var(--theme-accent));
+  box-shadow: none;
+}
+.app.membrane
+  :is(.head-range, .booth-range, .fx-param-range)::-moz-range-thumb {
+  border: 0;
+  border-radius: 50%;
+  background: var(--lane-hue, var(--theme-accent));
+  box-shadow: none;
+}
+.app.membrane .cell {
+  background: var(--membrane-cell);
+  border-color: transparent;
+  border-radius: 3px;
+}
+.app.membrane .cell[data-beat="1"] {
+  background: var(--membrane-beat);
+  border-color: transparent;
+}
+.app.membrane .cell[data-on="true"],
+.app.membrane .note-run {
+  background: var(--lane-hue);
+  border-color: transparent;
+  border-radius: 3px;
+  box-shadow: 0 2px 9px color-mix(in srgb, var(--lane-hue) 24%, transparent);
+  color: var(--track-note-ink, var(--color-ink-on-fill));
+}
+/* Prepainted glow; the existing audible-step pulse animates only opacity. */
+.app.membrane .cell::after {
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--lane-hue) 35%, white) 0%,
+    color-mix(in srgb, var(--lane-hue) 70%, transparent) 55%,
+    transparent 100%
+  );
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--lane-hue) 40%, transparent);
+  border-radius: 3px;
+}
+.app.membrane .row-label {
+  font:
+    400 10px/1 "IBM Plex Mono",
+    monospace;
+  color: var(--theme-muted);
+}
+.app.membrane .lane-follow {
+  color: var(--theme-muted);
+  font: 10px/1 var(--font-ui);
+  letter-spacing: 0.02em;
+}
+.app.membrane .lane-follow-btn {
+  border-color: transparent;
+  background: transparent;
+}
+.app.membrane .register-window-readout {
+  font-size: 10px;
+  padding-inline: 4px;
+}
+.app.membrane .lane-fx-wrap {
+  background: var(--metal-panel);
+  border: 1px solid var(--theme-line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px #0004;
+}
+.app.membrane :is(.lane-fx-title, .fx-strip) {
+  background: var(--metal-panel);
+  background-image: none;
+  box-shadow: none;
+}
+.app.membrane :is(.fx-module, .fx-mod) {
+  background: var(--metal-raised);
+  background-image: none;
+  border: 1px solid var(--membrane-seam);
+  border-radius: 9px;
+  box-shadow: none;
+}
+.app.membrane :is(.fx-module, .fx-mod)::after {
+  display: none;
+}
+.app.membrane .stage-song {
+  background: var(--membrane-surface);
+  border: 1px solid var(--membrane-seam);
+  border-top: 0;
+  border-radius: 0 0 22px 22px;
+}
+.app.membrane .stage-song .rail {
+  background: transparent;
+  border: 0;
+}
+.app.membrane .stage-song .rail-lane {
+  background: transparent;
+  border-color: var(--membrane-seam);
+}
+.app.membrane .stage-song .rail-lane-name {
+  font: 500 18px/1.3 var(--font-instrument);
+  letter-spacing: -0.025em;
+}
+.app.membrane .rail-tile {
+  border-radius: 5px;
+  box-shadow: none;
+  background-image: none;
+}
+.app.membrane .rail-tile[data-state] {
+  border-color: var(--lane-hue);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--lane-hue) 15%, transparent);
+}
+.app.membrane
+  :is(.projects-pop, .scale-pop, .phone-options-drawer, .viz-remote) {
+  background: var(--metal-panel);
+  background-image: none;
+  border-color: var(--theme-line);
+  box-shadow: none;
+}
+.app.membrane
+  :is(.viz-toolbar, .viz-footer, .viz-inspector-body, .viz-lane-tabs) {
+  background: var(--metal-panel);
+  border-color: var(--membrane-seam);
+}
+.app.membrane .viz-btn {
+  background: transparent;
+  border-color: var(--theme-line);
+  border-radius: 6px;
+}
+.app.membrane .viz-btn[aria-pressed="true"] {
+  background: var(--metal-raised);
+}
+.app.membrane :is(.viz-field select, .fx-param select) {
+  background: var(--metal-recess);
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+}
+.app.membrane .save-indicator {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+  color: var(--theme-muted);
+}
+.app.membrane :is(.booth, .lane-floor, .lane-head-strip, .phone-chrome)::before,
+.app.membrane :is(.booth, .lane-floor, .lane-head-strip, .phone-chrome)::after {
+  display: none;
+  animation: none;
+}
+@media (max-width: 1300px) {
+  .app.membrane {
+    padding: 12px;
+  }
+  .app.membrane .booth {
+    gap: 8px 10px;
+    padding: 11px 16px 8px;
+  }
+  .app.membrane .lane-floor,
+  .app.membrane .lane-floor[data-editing] {
+    padding: 14px 16px 12px;
+  }
+}
+.app.membrane[data-stage="phone"] {
+  padding: 0 8px 8px;
+}
+.app.membrane[data-stage="phone"] .phone-chrome {
+  background: var(--metal-panel);
+  border: 1px solid var(--membrane-seam);
+  border-radius: 0 0 12px 12px;
+}
+.app.membrane[data-stage="phone"] .booth {
+  border: 0;
+  border-radius: 0;
+  padding: 4px 7px;
+  background: transparent;
+}
+.app.membrane[data-stage="phone"] .bitbounce-brand {
+  font-size: 15px;
+}
+.app.membrane[data-stage="phone"] .bitbounce-brand img {
+  width: 28px;
+  height: 28px;
+}
+.app.membrane[data-stage="phone"] .stage-floors {
+  margin-top: 8px;
+  border: 1px solid var(--membrane-seam);
+  border-radius: 16px;
+}
+.app.membrane[data-stage="phone"] .lane-floor,
+.app.membrane[data-stage="phone"] .lane-floor[data-editing] {
+  padding: 15px 10px 10px;
+  border: 0;
+}
+.app.membrane[data-stage="phone"] .lane-head-strip {
+  margin-bottom: 8px;
+}
+.app.membrane[data-stage="phone"] .lane-name {
+  font-size: 20px;
+}
+.app.membrane[data-stage="phone"] .lane-strip-row-id {
+  align-items: center;
+}
+.app.membrane[data-stage="phone"]
+  button.lane-switch-tab:not(.cell):not(.row-label) {
+  font-family: var(--font-instrument);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: -0.02em;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--theme-muted);
+  box-shadow: none;
+}
+.app.membrane[data-stage="phone"] .lane-switch-tab[aria-selected="true"],
+.app.membrane[data-stage="phone"] .lane-switch-tab[aria-pressed="true"] {
+  background: transparent;
+  color: var(--color-ink);
+  box-shadow: inset 0 -2px var(--lane-hue);
+}
+.app.membrane[data-stage="phone"] .stage-song {
+  margin-top: 8px;
+  border-radius: 16px;
+}
+.app.membrane[data-stage="phone"] .phone-options-drawer {
+  border-radius: 14px 14px 0 0;
+}
+:root[data-theme="light"] .app.membrane .cell[data-on="true"],
+:root[data-theme="light"] .app.membrane .note-run {
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--lane-hue) 12%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app.membrane .cell::after {
+    transition: none;
+    animation: none;
+    box-shadow: none;
+  }
+}
+.app.membrane .lane-floor[data-editing="true"] {
+  outline: none;
+}
+.app.membrane .lane-floor[data-editing="true"] .lane-state {
+  color: var(--lane-hue);
+}
+.app.membrane .lane-grid-scroll {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.app.membrane .lane-fx-title {
+  flex-shrink: 0;
+}
+.app.membrane .fx-strip {
+  flex-shrink: 0;
+}
+.app.membrane .fx-param-slider::-webkit-slider-thumb {
+  border-radius: 50%;
+  background: var(--lane-hue);
+  box-shadow: none;
+  border: 0;
+}
+.app.membrane .fx-param-readout {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--color-ink);
+  font-family: "IBM Plex Mono", monospace;
+}
+.app.membrane .fx-param-select {
+  background: var(--metal-recess);
+  border: 1px solid var(--theme-line);
+  border-radius: 5px;
+  color: var(--color-ink);
+}
+.app.membrane[data-stage="phone"] .booth-group-position {
+  border: 0;
+  padding: 0;
+  gap: 6px;
+}
+.app.membrane[data-stage="phone"] .save-label {
+  display: none;
+}
+.app.membrane[data-stage="phone"] .stage-floors {
+  margin-top: 4px;
+}
+.app.membrane[data-stage="phone"] .lane-floor,
+.app.membrane[data-stage="phone"] .lane-floor[data-editing] {
+  padding-top: 9px;
+}
+.app.membrane[data-stage="phone"] .lane-head-strip {
+  margin-bottom: 6px;
+}
+.app.membrane
+  :is(
+    .lane-fx-wrap,
+    .fx-add-menu,
+    .scale-pop,
+    .projects-pop,
+    .rail-tools-menu
+  )::after {
+  display: none;
+  animation: none;
+}
+/* Phone autosave has its own bottom band, outside the crowded transport. */
+.app.membrane[data-stage="phone"] {
+  --mobile-bottom-reserve: 44px;
+  padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+}
+.mobile-save-status {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 36px;
+  padding: 5px 12px calc(5px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-ground);
+  border-top: 1px solid var(--membrane-seam);
+  z-index: 12;
+}
+.app.membrane[data-stage="phone"] .mobile-save-status .save-indicator {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+  gap: 7px;
+  padding: 0 4px;
+  margin: 0;
+  font: 11px/1.4 var(--font-ui);
+  color: var(--theme-muted);
+}
+.app.membrane[data-stage="phone"] .mobile-save-status .save-label {
+  display: inline;
+  white-space: normal;
+  text-align: center;
+}
+/* Put track color beside the phone's instrument title, freeing a tools row. */
+.app.membrane[data-stage="phone"] .lane-strip-edit > .track-color-control {
+  position: absolute;
+  top: 10px;
+  left: 145px;
+}
+.app.membrane[data-stage="phone"]
+  .lane-strip-edit
+  > .track-color-control
+  .track-color-trigger {
+  min-width: 40px;
+  padding: 5px 9px;
+}
+.app.membrane[data-stage="phone"]
+  .lane-strip-edit
+  > .track-color-control
+  .track-color-trigger
+  > span {
+  display: none;
+}

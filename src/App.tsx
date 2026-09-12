@@ -47,6 +47,8 @@ import "./styles/song.css";
 // THE FULL UNIT (overdrive): imported last — its paint rules win ties.
 import "./styles/unit.css";
 import "./styles/themes.css";
+import "./styles/membrane.css";
+import SaveIndicator from "./components/SaveIndicator";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -63,7 +65,7 @@ void initPersistence().catch((error) => {
 export default function App() {
   return (
     <div
-      class="app"
+      class="app membrane"
       data-help-mode={helpMode() ? "on" : "off"}
       data-viz-mode={vizMode() ? "on" : "off"}
       data-stage={stageMode()}
@@ -184,6 +186,11 @@ export default function App() {
         </Show>
       </Show>
       <AudioStatus />
+      <Show when={stageMode() === "phone" && !vizMode()}>
+        <div class="mobile-save-status">
+          <SaveIndicator />
+        </div>
+      </Show>
       <Toasts />
       {/* HP-1: the info region mounts ONLY while help mode is on (Show
           unmounts it — and its listeners — the instant the mode turns off). */}

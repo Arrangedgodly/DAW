@@ -34,6 +34,7 @@ import {
   releaseVizActivitySummarizer,
 } from "../viz/textEquivalence";
 import VizRemote from "./VizRemote";
+import { trackColor } from "../state/trackColors";
 import "../styles/viz.css";
 
 export default function VizPage(): JSX.Element {
@@ -91,6 +92,14 @@ export default function VizPage(): JSX.Element {
       ]),
     ) as Record<LaneId, string>;
     engine = createCompositionEngine(composition(), colors);
+    // Update paint only; keep active note envelopes and playback intact.
+    createEffect(() => {
+      engine?.setColors(
+        Object.fromEntries(
+          LANE_IDS.map((id) => [id, trackColor(id)]),
+        ) as Record<LaneId, string>,
+      );
+    });
     engine.setPlaying(playing());
     let bpm = docStore.getState().doc.transport.bpm;
     let mixGains: number[] = [];
@@ -161,6 +170,8 @@ export default function VizPage(): JSX.Element {
     engine.setReducedMotion(reduced());
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Escape" || helpOpen() || helpMode()) return;
+      // Let the native palette close first, without leaving the visualizer.
+      if (document.querySelector(".track-swatch-panel:popover-open")) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       if (viewOnly()) {

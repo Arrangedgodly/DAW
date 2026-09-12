@@ -39,7 +39,7 @@ import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
 import BoothScreen from "./BoothScreen";
-import { SongPageButton } from "./PhonePageToggle";
+import { DesktopPageNavigation } from "./PhonePageToggle";
 
 const session = getSession();
 
@@ -281,14 +281,6 @@ export function BoothOptions(props: BoothOptionsProps) {
         >
           VIZ
         </button>
-        {/* 2026-09-11 (user call): the SONG page entry — desktop and tablet
-            reach the arrangement the same way the phone does, because the
-            chain is no longer a bar on the stage. Compact (phone) omits it:
-            the pinned transport row carries the one true toggle, exactly as
-            it does for PLAY. */}
-        <Show when={!props.compact}>
-          <SongPageButton class="booth-btn booth-btn-song" />
-        </Show>
       </div>
 
       <div
@@ -551,6 +543,7 @@ export default function Booth(props: BoothProps) {
       <Show when={!props.compact}>
         <BitbounceBrand />
         <BoothOptions />
+        <DesktopPageNavigation />
       </Show>
 
       <div
@@ -603,7 +596,9 @@ export default function Booth(props: BoothProps) {
         <Show when={props.compact}>
           <BitbounceBrand />
         </Show>
-        <SaveIndicator />
+        <Show when={!props.compact}>
+          <SaveIndicator />
+        </Show>
         <Projects />
         <ThemeSelector />
       </div>

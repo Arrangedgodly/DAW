@@ -1,5 +1,11 @@
 # Product
 
+## Track appearance preferences
+
+Each instrument has 30 predefined color swatches: light, middle and dark shades of red, orange, yellow, green, cyan, blue, purple, pink, brown and gray. The same color control appears in the DAW's selected-track controls and visualizer inspector. A selection updates the track and its visualizer geometry live without restarting playback. Use theme default clears the individual override.
+
+Colors persist locally under `bitbounce.track-colors.v1`, separate from project files, musical undo and exports. Valid previously saved custom hex colors remain readable, but the interface offers only swatches. Note text chooses black or white for custom fills. The Membrane prototype shares this preference; the selected Membrane design is now implemented in the DAW.
+
 <!-- impeccable:product-schema 1 -->
 
 ## Platform
@@ -110,11 +116,8 @@ file contents).
   the product.
 - Chiptune-leaning synth character (pulse/square/triangle/noise-family timbres) is a
   binding sound-design commitment for v0.
-- Approved visual direction, 2026-09-12: rendered prototype B Vector for dark
-  mode and C Alloy for light mode. Preserve the four-panel desktop and single-lane
-  phone flow. Use compact panels with inset musical displays, clear utility text and locally hosted Barlow
-  Bold instrument headings. This supersedes the earlier Machined Console material
-  and typography mandate. Audio-engine behavior remains unchanged.
+- Approved visual direction, 2026-09-12: Membrane from prototype A with C's note-button glow. One continuous four-panel desktop surface, quiet controls and the existing single-lane phone flow. Moving background sheen is rejected. The supplied logo, Barlow wordmark and local favicon remain. Full editor, song, effects and VIZ control styling use the new treatment; audio-engine behavior is unchanged.
+
 - Theme is a device preference stored in `bitbounce.theme.v1`, separate from
   project documents, undo and export. The shared Booth exposes the theme switch.
 
@@ -181,7 +184,7 @@ short screens scroll when needed. Theme spacing and header density must preserve
 this behavior. These are product requirements; this record does not assert that
 release or regression verification is complete.
 
-## Hybrid performance console closeout
+## Historical hybrid performance console closeout
 
 Approved and implemented: supplied Bitbounce logo, Barlow wordmark and local favicon;
 Barlow 700 instrument names at 23px, wordmark at 25px desktop / 19px phone;
@@ -204,3 +207,7 @@ Its backing-store DPR cap is 0.75. Passing VZ-TH-4 closes the prior dense-frame
 performance limitation. Historical measurements remain in docs/dev/perf-budget.md.
 
 Closeout verification, 2026-09-12: finish review returned ship with no material interface defect. Parent-task results: typecheck, lint, 89 unit files / 1772 tests, 21 fuzz tests, production build, pitch-direction, isolated target-size, focused accessibility/VIZ/happy-path pack, LP1 5/5, and full frame-budget 12/12 in 178.49 seconds. These are recorded completed results, not reruns by the documentation pass. No commit, push or deployment is claimed.
+
+## Membrane implementation and mobile autosave
+
+Membrane is implemented in the full DAW. Track swatches carry to VIZ live. On phones, autosave status is displayed once in a fixed bottom-center strip, with full readable text and reserved layout space. Projects and theme remain in the top transport. The phone color control sits beside the instrument title. VIZ hides the phone autosave strip. Styling, layout fitting and appearance preferences do not change song data or audio scheduling. Current verification is recorded in docs/dev/membrane-review/verification.md.

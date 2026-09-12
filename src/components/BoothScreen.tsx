@@ -22,19 +22,20 @@
  * writes).
  */
 
-import { For, createSignal, onCleanup, onMount } from "solid-js";
+import { For, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { LANE_IDS, type LaneId } from "../document/schema";
 import { getSession } from "../engine/session";
 import { getHelp } from "../help/registry";
 import { registerMeter } from "../state/meterBus";
+import { vizMode } from "../state/vizMode";
 
 const MAX_LABEL = 22;
 const MAX_VALUE = 18;
 const LANE_SHORT: Record<LaneId, string> = {
-  drums: "DR",
-  bass: "BS",
-  chords: "CH",
-  lead: "LD",
+  drums: "DRUMS",
+  bass: "BASS",
+  chords: "CHORDS",
+  lead: "LEAD",
 };
 
 function clampText(text: string, max: number): string {
@@ -101,15 +102,24 @@ export default function BoothScreen() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     let raf = 0;
+    createEffect(() => {
+      vizMode();
+      cancelAnimationFrame(raf);
+      label.data = "LOCAL SESSION";
+      value.data = "READY";
+    });
     const echo = (e: Event) => {
       const target = e.target;
       if (!(target instanceof Element) || target.closest(".booth-screen"))
         return;
+      // The background display must never echo controls from the VIZ page.
+      if (target.closest(".viz-page")) return;
       const host = target.closest<HTMLElement>("[data-help]");
       const entry = host?.dataset.help ? getHelp(host.dataset.help) : undefined;
       if (!host || !entry) return;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        if (!target.isConnected || vizMode()) return;
         const nextLabel = clampText(entry.title, MAX_LABEL);
         const nextValue = clampText(readValue(target, host), MAX_VALUE);
         if (label.data !== nextLabel) label.data = nextLabel;

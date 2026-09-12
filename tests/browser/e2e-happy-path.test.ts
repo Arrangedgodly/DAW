@@ -217,7 +217,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
        */
       const openSong = async (): Promise<void> => {
         if (idoc().querySelector(".stage-song .rail")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(".desktop-page-nav [data-page=song]").click();
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           T.ui,
@@ -226,7 +226,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
       };
       const openEdit = async (): Promise<void> => {
         if (!idoc().querySelector(".stage-song")) return;
-        $<HTMLButtonElement>(".booth-btn-song").click();
+        $<HTMLButtonElement>(".desktop-page-nav [data-page=edit]").click();
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           T.ui,

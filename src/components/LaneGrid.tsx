@@ -608,7 +608,15 @@ function fitPhoneRows(
         );
       }, 0);
     const avail =
-      Math.min(floorBox.bottom, window.innerHeight - 8) -
+      Math.min(
+        floorBox.bottom,
+        window.innerHeight -
+          Math.max(
+            8,
+            Number.parseFloat(fs.getPropertyValue("--mobile-bottom-reserve")) ||
+              0,
+          ),
+      ) -
       (Number.parseFloat(fs.paddingBottom) || 0) -
       (Number.parseFloat(fs.borderBottomWidth) || 0) -
       footer -

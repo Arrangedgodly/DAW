@@ -7,6 +7,7 @@ import {
   type VisualEffect,
 } from "../viz/composition";
 import { registerHelp } from "../help/registry";
+import TrackColorControl from "./TrackColorControl";
 export const VIZ_IDLE_LINE = "PLAYBACK STOPPED — EXIT TO TRANSPORT";
 registerHelp([
   {
@@ -149,6 +150,7 @@ export default function VizRemote(props: Props): JSX.Element {
             onChange={() => changeComposition(composition())}
           />
         </label>
+        <TrackColorControl lane={props.selected} />
         <p class="viz-inspector-tip">
           {props.showOrbit === false
             ? "Choose an effect and scale for this instrument. The motion controls above shape the whole composition."

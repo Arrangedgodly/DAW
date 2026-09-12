@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bitbounce · Living instrument studies</title>
+    <link rel="stylesheet" href="./living-instrument.css" />
+  </head>
+  <body>
+    <main id="study" data-variant="A">
+      <header class="study-heading">
+        <div>
+          <h1 id="direction">Membrane</h1>
+          <p id="description"></p>
+        </div>
+        <a href="/" target="_top">Return to DAW</a>
+      </header>
+      <section class="instrument" aria-label="Playable instrument design study">
+        <canvas id="field" aria-hidden="true"></canvas>
+        <header class="transport">
+          <div class="brand">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M5 11v10m5-15v20m6-23v26m6-23v20m5-15v10" /></svg
+            ><strong>bitbounce</strong><span>STUDIO</span>
+          </div>
+          <div class="play-group">
+            <button id="play" class="play" aria-label="Play demo">
+              <svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z" /></svg
+              ><span>Play</span></button
+            ><span id="position">01.01</span
+            ><span class="loop-label">LOOP</span>
+          </div>
+          <label class="tempo"
+            ><input
+              id="tempo"
+              type="number"
+              min="60"
+              max="160"
+              value="112"
+              aria-label="Tempo"
+            /><span>BPM</span></label
+          >
+          <div class="key">
+            <strong>C minor</strong><span>KEY / SCALE</span>
+          </div>
+          <label class="master"
+            >Output<input
+              id="master"
+              type="range"
+              min="0"
+              max="100"
+              value="55"
+              aria-label="Master volume"
+          /></label>
+        </header>
+        <nav class="phone-lanes" aria-label="Instrument">
+          <button data-lane="0" aria-pressed="true">Drums</button
+          ><button data-lane="1" aria-pressed="false">Bass</button
+          ><button data-lane="2" aria-pressed="false">Chords</button
+          ><button data-lane="3" aria-pressed="false">Lead</button>
+        </nav>
+        <div class="lanes" id="lanes"></div>
+        <footer class="instrument-foot">
+          <span
+            ><i id="signal-dot"></i
+            ><span id="signal-status">Ready to play</span></span
+          ><span>DEMO LOOP <b> / </b> 16 STEPS <b> / </b> LOCAL AUDIO</span
+          ><span id="mix-status">4 voices active</span>
+        </footer>
+      </section>
+      <div class="study-notes">
+        <p id="motion-description"></p>
+        <label
+          >Motion<input
+            id="motion"
+            type="range"
+            min="0"
+            max="100"
+            value="65"
+            aria-label="Motion intensity"
+          /><output id="motion-value">65%</output></label
+        >
+      </div>
+      <p class="disclosure">
+        Visual prototype · Try Play, edit the notes, adjust Tone, or mute a
+        part. Synthesized demo audio; edits stay in this tab.
+      </p>
+      <nav class="switcher" aria-label="Visual directions">
+        <button id="previous" aria-label="Previous design">
+          <svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6" /></svg></button
+        ><button data-variant="A">A <span>Membrane</span></button
+        ><button data-variant="B">B <span>Precision</span></button
+        ><button data-variant="C">C <span>Undertow</span></button
+        ><button id="next" aria-label="Next design">
+          <svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6" /></svg>
+        </button>
+      </nav>
+    </main>
+    <script type="module" src="./living-instrument.js"></script>
+  </body>
+</html>

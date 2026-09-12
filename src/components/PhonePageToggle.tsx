@@ -16,7 +16,30 @@
 
 import type { JSX } from "solid-js";
 import { registerHelp } from "../help/registry";
-import { phonePage, togglePhonePage } from "../state/phonePage";
+import { phonePage, showPhonePage, togglePhonePage } from "../state/phonePage";
+
+export function DesktopPageNavigation(): JSX.Element {
+  return (
+    <nav class="desktop-page-nav" aria-label="Workspace view">
+      <button
+        type="button"
+        data-page="edit"
+        aria-pressed={phonePage() === "edit"}
+        onClick={() => showPhonePage("edit")}
+      >
+        Edit notes
+      </button>
+      <button
+        type="button"
+        data-page="song"
+        aria-pressed={phonePage() === "song"}
+        onClick={() => showPhonePage("song")}
+      >
+        Song arrangement
+      </button>
+    </nav>
+  );
+}
 
 registerHelp([
   {
