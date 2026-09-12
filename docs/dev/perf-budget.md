@@ -1132,6 +1132,18 @@ battery):
 
 ## 12. VIZ frame budget (VZ-TH-4 — the densest standard pattern, with teeth)
 
+Current implementation, 2026-09-12: `VIZ_DPR_CAP` in `src/viz/renderer.ts`
+is 0.75 and effective DPR is `min(devicePixelRatio, VIZ_DPR_CAP)`. The hybrid
+composition renders abstract artwork at that backing-store scale while UI text
+remains DOM-rendered. At a 1440 by 900 CSS viewport this means a 1080 by 675
+backing store when device DPR is at least 0.75. The dense VZ-TH-4 gate now passes,
+closing the previously recorded composition performance limitation. The full
+frame-budget suite passed 12/12 in 178.49 seconds; LP1 passed 5/5.
+
+The DPR-2 regime and 2026-09-04 measurements below are retained as historical
+records of the original node renderer. They are not the current DPR setting.
+
+
 The viz gate in `tests/browser/frame-budget.test.ts` ("VZ-TH-4 viz frame
 budget"): the densest standard pattern playing with VIZ OPEN holds the
 committed budget, on the REAL built bundle. **The gate metric is frame
@@ -1226,3 +1238,8 @@ see.
   the measured document, no test-side store access; the fling sweeps are
   quiet-poll-gated (see §10d); the export block is source-mount (the LP-1
   (d) precedent — globalSetup builds the same source).
+
+
+## Hybrid console verification, 2026-09-12
+
+Closeout verification, 2026-09-12: finish review returned ship with no material interface defect. Parent-task results: typecheck, lint, 89 unit files / 1772 tests, 21 fuzz tests, production build, pitch-direction, isolated target-size, focused accessibility/VIZ/happy-path pack, LP1 5/5, and full frame-budget 12/12 in 178.49 seconds. These are recorded completed results, not reruns by the documentation pass. No commit, push or deployment is claimed.

@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" width="1254" height="1254" viewBox="0 0 1254 1254" fill="none">
+<title>BitBounce logo</title>
+<desc>Editable vector recreation of the approved BitBounce emblem: neon blue, cyan, violet and magenta B-shaped ribbons, waveform, floating digital bits and bouncing orb. All visible artwork is built with SVG paths, geometric shapes, gradients and vector filter effects. No visible text or embedded bitmap images.</desc>
+<defs>
+<filter id="blur2" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="2"/></filter>
+<filter id="blur5" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="5"/></filter>
+<filter id="blur10" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="10"/></filter>
+<filter id="blur18" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="18"/></filter>
+<filter id="blur28" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="28"/></filter>
+<filter id="broadGlow" x="-100%" y="-100%" width="300%" height="300%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="42"/></filter>
+<path d="M 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537 C 670,580 510,572 419,553 L 419,479 Q 419,464 405,464
+L 382,464 Q 369,464 369,451 L 369,418 Q 369,404 383,404 L 405,404 Q 419,404 419,390
+L 419,358 Q 419,345 405,345 L 380,345 Q 365,345 365,330 L 365,298 Q 365,284 351,284
+L 326,284 Q 313,284 313,271 L 313,212 Q 313,190 336,190 Z" id="topPlate"/>
+<path d="M 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537 C 718,497 737,474 740,447
+C 749,407 666,349 577,306 C 487,263 405,240 340,209 Q 323,201 318,197 Q 323,190 336,190 Z" id="topRibbon"/>
+<path d="M 744,530 C 854,531 930,592 960,685 C 990,779 964,864 904,930
+C 844,998 758,1037 656,1040 C 556,1043 451,1041 351,1041
+C 330,1041 318,1026 318,1003 L 318,879 Q 318,860 335,860 L 360,860
+Q 376,860 376,876 L 376,886 Q 376,897 388,897 L 429,897 Q 442,897 442,910
+L 442,947 Q 442,961 456,961 L 490,961 C 612,957 742,884 811,802
+C 853,751 884,688 865,621 C 850,564 801,535 744,530 Z" id="bottomRibbon"/>
+<path d="M 719,556 C 773,438 863,348 970,289 L 982,323 C 867,370 778,457 719,556 Z" id="bounceTrail"/>
+<clipPath id="topClip" clipPathUnits="userSpaceOnUse"><use xlink:href="#topPlate" /></clipPath>
+<clipPath id="ribbonClip" clipPathUnits="userSpaceOnUse"><use xlink:href="#topRibbon" /></clipPath>
+<clipPath id="bottomClip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bottomRibbon" /></clipPath>
+<clipPath id="trailClip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bounceTrail" /></clipPath>
+<linearGradient id="topPlateColor" gradientUnits="userSpaceOnUse" x1="319" y1="220" x2="624" y2="479"><stop offset="0%" stop-color="#00e9f2" stop-opacity="1"/><stop offset="23%" stop-color="#0088f6" stop-opacity="1"/><stop offset="48%" stop-color="#0638c5" stop-opacity="1"/><stop offset="73%" stop-color="#04125b" stop-opacity="0.78"/><stop offset="100%" stop-color="#031039" stop-opacity="0"/></linearGradient>
+<linearGradient id="topFade" gradientUnits="userSpaceOnUse" x1="0" y1="260" x2="0" y2="555"><stop offset="0%" stop-color="#ffffff" stop-opacity="1"/><stop offset="26%" stop-color="#ffffff" stop-opacity="1"/><stop offset="73%" stop-color="#ffffff" stop-opacity="0.7"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<mask id="topPlateMask" maskUnits="userSpaceOnUse" x="270" y="150" width="640" height="460"><rect x="280" y="160" width="620" height="440" fill="url(#topFade)"/></mask>
+<linearGradient id="topBody" gradientUnits="userSpaceOnUse" x1="327" y1="213" x2="811" y2="374"><stop offset="0%" stop-color="#02ebef" stop-opacity="1"/><stop offset="25%" stop-color="#009ff6" stop-opacity="1"/><stop offset="52%" stop-color="#075bf5" stop-opacity="1"/><stop offset="76%" stop-color="#2120c8" stop-opacity="1"/><stop offset="90%" stop-color="#6033e5" stop-opacity="1"/><stop offset="100%" stop-color="#d74ff9" stop-opacity="1"/></linearGradient>
+<linearGradient id="topRimColor" gradientUnits="userSpaceOnUse" x1="373" y1="192" x2="839" y2="347"><stop offset="0%" stop-color="#c4ffff" stop-opacity="1"/><stop offset="39%" stop-color="#6bffff" stop-opacity="1"/><stop offset="61%" stop-color="#b6d9ff" stop-opacity="1"/><stop offset="86%" stop-color="#fbb8ff" stop-opacity="1"/><stop offset="100%" stop-color="#fff4ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="topContourColor" gradientUnits="userSpaceOnUse" x1="352" y1="290" x2="424" y2="515"><stop offset="0%" stop-color="#62fbff" stop-opacity="1"/><stop offset="40%" stop-color="#11d3ff" stop-opacity="0.85"/><stop offset="100%" stop-color="#2240ff" stop-opacity="0"/></linearGradient>
+<linearGradient id="topTipColor" gradientUnits="userSpaceOnUse" x1="0" y1="338" x2="0" y2="538"><stop offset="0%" stop-color="#fadcff" stop-opacity="1"/><stop offset="25%" stop-color="#b583ff" stop-opacity="1"/><stop offset="48%" stop-color="#597bff" stop-opacity="1"/><stop offset="72%" stop-color="#05d4ff" stop-opacity="1"/><stop offset="100%" stop-color="#00d6ff" stop-opacity="0.38"/></linearGradient>
+<linearGradient id="topEdgeColor" gradientUnits="userSpaceOnUse" x1="400" y1="265" x2="835" y2="350"><stop offset="0%" stop-color="#00e7ff" stop-opacity="1"/><stop offset="52%" stop-color="#178aff" stop-opacity="1"/><stop offset="78%" stop-color="#b363ff" stop-opacity="1"/><stop offset="100%" stop-color="#f681ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="topCyanLight" gradientUnits="userSpaceOnUse" cx="657" cy="210" r="222"><stop offset="0%" stop-color="#71ffff" stop-opacity="0.98"/><stop offset="23%" stop-color="#10eaff" stop-opacity="0.86"/><stop offset="59%" stop-color="#0796ff" stop-opacity="0.25"/><stop offset="100%" stop-color="#00c6ff" stop-opacity="0"/></radialGradient>
+<radialGradient id="topPinkLight" gradientUnits="userSpaceOnUse" cx="854" cy="328" r="136"><stop offset="0%" stop-color="#fff4ff" stop-opacity="1"/><stop offset="15%" stop-color="#ffe0ff" stop-opacity="1"/><stop offset="36%" stop-color="#ff98ff" stop-opacity="0.88"/><stop offset="67%" stop-color="#ca71ff" stop-opacity="0.32"/><stop offset="100%" stop-color="#7154ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="topFacet" gradientUnits="userSpaceOnUse" x1="615" y1="206" x2="728" y2="413"><stop offset="0%" stop-color="#42f9ff" stop-opacity="0.6"/><stop offset="40%" stop-color="#27b0ff" stop-opacity="0.44"/><stop offset="100%" stop-color="#8460ff" stop-opacity="0"/></linearGradient>
+<radialGradient id="topLeftShine" gradientUnits="userSpaceOnUse" cx="325" cy="201" r="41"><stop offset="0%" stop-color="#e5ffff" stop-opacity="0.83"/><stop offset="25%" stop-color="#91ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#07f4ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="bottomBody" gradientUnits="userSpaceOnUse" x1="327" y1="958" x2="957" y2="812"><stop offset="0%" stop-color="#01dde9" stop-opacity="1"/><stop offset="22%" stop-color="#065ffc" stop-opacity="1"/><stop offset="42%" stop-color="#0a25cb" stop-opacity="1"/><stop offset="60%" stop-color="#11127d" stop-opacity="1"/><stop offset="82%" stop-color="#4620d5" stop-opacity="1"/><stop offset="100%" stop-color="#f846ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bottomDeep" gradientUnits="userSpaceOnUse" cx="627" cy="817" r="320"><stop offset="0%" stop-color="#02052c" stop-opacity="0.94"/><stop offset="44%" stop-color="#050642" stop-opacity="0.62"/><stop offset="76%" stop-color="#071577" stop-opacity="0.22"/><stop offset="100%" stop-color="#101980" stop-opacity="0"/></radialGradient>
+<radialGradient id="bottomCyanLight" gradientUnits="userSpaceOnUse" cx="850" cy="576" r="279"><stop offset="0%" stop-color="#bcffff" stop-opacity="1"/><stop offset="22%" stop-color="#20ecff" stop-opacity="0.96"/><stop offset="51%" stop-color="#1682ff" stop-opacity="0.5"/><stop offset="83%" stop-color="#0136df" stop-opacity="0.08"/><stop offset="100%" stop-color="#0035df" stop-opacity="0"/></radialGradient>
+<radialGradient id="bottomPinkLight" gradientUnits="userSpaceOnUse" cx="969" cy="737" r="214"><stop offset="0%" stop-color="#ffa8ff" stop-opacity="0.92"/><stop offset="25%" stop-color="#ff75ff" stop-opacity="0.92"/><stop offset="57%" stop-color="#f230ff" stop-opacity="0.67"/><stop offset="100%" stop-color="#e70aff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bottomWhiteLight" gradientUnits="userSpaceOnUse" cx="958" cy="667" r="153"><stop offset="0%" stop-color="#ffffff" stop-opacity="1"/><stop offset="19%" stop-color="#f6ffff" stop-opacity="0.91"/><stop offset="55%" stop-color="#c3ebff" stop-opacity="0.44"/><stop offset="100%" stop-color="#bedaff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bottomLeftLight" gradientUnits="userSpaceOnUse" cx="329" cy="1003" r="153"><stop offset="0%" stop-color="#3ffaff" stop-opacity="0.93"/><stop offset="32%" stop-color="#06eaff" stop-opacity="0.7"/><stop offset="100%" stop-color="#00dfff" stop-opacity="0"/></radialGradient>
+<linearGradient id="bottomFacet" gradientUnits="userSpaceOnUse" x1="890" y1="581" x2="859" y2="830"><stop offset="0%" stop-color="#6ef7ff" stop-opacity="0.86"/><stop offset="52%" stop-color="#57b6ff" stop-opacity="0.25"/><stop offset="100%" stop-color="#804bff" stop-opacity="0"/></linearGradient>
+<linearGradient id="leftFacet" gradientUnits="userSpaceOnUse" x1="329" y1="1019" x2="458" y2="966"><stop offset="0%" stop-color="#aaffff" stop-opacity="0.57"/><stop offset="100%" stop-color="#13d8ff" stop-opacity="0.03"/></linearGradient>
+<linearGradient id="bottomOutline" gradientUnits="userSpaceOnUse" x1="335" y1="938" x2="967" y2="812"><stop offset="0%" stop-color="#a7ffff" stop-opacity="1"/><stop offset="30%" stop-color="#02caff" stop-opacity="1"/><stop offset="57%" stop-color="#195eff" stop-opacity="1"/><stop offset="80%" stop-color="#c482ff" stop-opacity="1"/><stop offset="100%" stop-color="#ffe2ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bottomRimColor" gradientUnits="userSpaceOnUse" x1="666" y1="1016" x2="904" y2="578"><stop offset="0%" stop-color="#baffff" stop-opacity="1"/><stop offset="25%" stop-color="#dbbfff" stop-opacity="1"/><stop offset="57%" stop-color="#ff84ff" stop-opacity="1"/><stop offset="86%" stop-color="#fffffc" stop-opacity="1"/><stop offset="100%" stop-color="#61efff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bottomGlowColor" gradientUnits="userSpaceOnUse" x1="370" y1="930" x2="938" y2="826"><stop offset="0%" stop-color="#00dfff" stop-opacity="1"/><stop offset="46%" stop-color="#034bff" stop-opacity="1"/><stop offset="100%" stop-color="#f524ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bottomPinkBand" gradientUnits="userSpaceOnUse" x1="941" y1="684" x2="712" y2="1045"><stop offset="0%" stop-color="#ffe4ff" stop-opacity="1"/><stop offset="24%" stop-color="#fa5cff" stop-opacity="1"/><stop offset="58%" stop-color="#e62dff" stop-opacity="1"/><stop offset="82%" stop-color="#a934ff" stop-opacity="1"/><stop offset="100%" stop-color="#5844ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bottomInnerEdge" gradientUnits="userSpaceOnUse" x1="473" y1="961" x2="801" y2="567"><stop offset="0%" stop-color="#8bfbff" stop-opacity="0.95"/><stop offset="30%" stop-color="#1676ff" stop-opacity="0.78"/><stop offset="79%" stop-color="#0874ff" stop-opacity="0.8"/><stop offset="100%" stop-color="#4bfbff" stop-opacity="1"/></linearGradient>
+<linearGradient id="trailColor" gradientUnits="userSpaceOnUse" x1="836" y1="360" x2="864" y2="410"><stop offset="0%" stop-color="#03c7ff" stop-opacity="1"/><stop offset="30%" stop-color="#28efff" stop-opacity="1"/><stop offset="54%" stop-color="#e8ffff" stop-opacity="1"/><stop offset="72%" stop-color="#7758ff" stop-opacity="1"/><stop offset="100%" stop-color="#024cff" stop-opacity="1"/></linearGradient>
+<linearGradient id="trailFace" gradientUnits="userSpaceOnUse" x1="775" y1="441" x2="953" y2="303"><stop offset="0%" stop-color="#d2ffff" stop-opacity="0.15"/><stop offset="40%" stop-color="#b9ffff" stop-opacity="0.93"/><stop offset="63%" stop-color="#15d8ff" stop-opacity="0.9"/><stop offset="100%" stop-color="#00b1ff" stop-opacity="0.58"/></linearGradient>
+<linearGradient id="trailEdge" gradientUnits="userSpaceOnUse" x1="724" y1="549" x2="975" y2="299"><stop offset="0%" stop-color="#08bfff" stop-opacity="0.2"/><stop offset="23%" stop-color="#71faff" stop-opacity="1"/><stop offset="56%" stop-color="#ffffff" stop-opacity="1"/><stop offset="81%" stop-color="#f3baff" stop-opacity="1"/><stop offset="100%" stop-color="#1deaff" stop-opacity="1"/></linearGradient>
+<linearGradient id="orbitHair" gradientUnits="userSpaceOnUse" x1="702" y1="542" x2="1014" y2="223"><stop offset="0%" stop-color="#00c8ff" stop-opacity="0"/><stop offset="21%" stop-color="#06c6ff" stop-opacity="0.7"/><stop offset="51%" stop-color="#0254fc" stop-opacity="0.74"/><stop offset="100%" stop-color="#0588ff" stop-opacity="0"/></linearGradient>
+<rect id="bit-01-shape" x="272" y="302" width="33" height="34" rx="5"/>
+<clipPath id="bit-01-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-01-shape" /></clipPath>
+<linearGradient id="bit-01-color" gradientUnits="userSpaceOnUse" x1="272" y1="302" x2="283.55" y2="336"><stop offset="0%" stop-color="#3cffff" stop-opacity="1"/><stop offset="22%" stop-color="#00d8f6" stop-opacity="1"/><stop offset="75%" stop-color="#00afd4" stop-opacity="1"/><stop offset="100%" stop-color="#06d9f4" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-01-glass" gradientUnits="userSpaceOnUse" x1="272" y1="302" x2="305" y2="302"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-01-rim" gradientUnits="userSpaceOnUse" x1="272" y1="302" x2="283.55" y2="336"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-01-shine" gradientUnits="userSpaceOnUse" cx="290.48" cy="309" r="19.139999999999997" gradientTransform="translate(0 148.32) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-01-base-light" gradientUnits="userSpaceOnUse" cx="289.49" cy="335" r="19.8" gradientTransform="translate(0 174.2) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.2"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<rect id="bit-02-shape" x="211" y="367" width="33" height="33" rx="5"/>
+<clipPath id="bit-02-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-02-shape" /></clipPath>
+<linearGradient id="bit-02-color" gradientUnits="userSpaceOnUse" x1="211" y1="367" x2="222.55" y2="400"><stop offset="0%" stop-color="#3cffff" stop-opacity="1"/><stop offset="22%" stop-color="#00d8f6" stop-opacity="1"/><stop offset="75%" stop-color="#00afd4" stop-opacity="1"/><stop offset="100%" stop-color="#06d9f4" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-02-glass" gradientUnits="userSpaceOnUse" x1="211" y1="367" x2="244" y2="367"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-02-rim" gradientUnits="userSpaceOnUse" x1="211" y1="367" x2="222.55" y2="400"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-02-shine" gradientUnits="userSpaceOnUse" cx="229.48" cy="374" r="19.139999999999997" gradientTransform="translate(0 179.52) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-02-base-light" gradientUnits="userSpaceOnUse" cx="228.49" cy="399" r="19.8" gradientTransform="translate(0 207.48) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.2"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<rect id="bit-03-shape" x="313" y="347" width="47" height="55" rx="8"/>
+<clipPath id="bit-03-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-03-shape" /></clipPath>
+<linearGradient id="bit-03-color" gradientUnits="userSpaceOnUse" x1="313" y1="347" x2="329.45" y2="402"><stop offset="0%" stop-color="#3cffff" stop-opacity="1"/><stop offset="22%" stop-color="#00d8f6" stop-opacity="1"/><stop offset="75%" stop-color="#00afd4" stop-opacity="1"/><stop offset="100%" stop-color="#06d9f4" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-03-glass" gradientUnits="userSpaceOnUse" x1="313" y1="347" x2="360" y2="347"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-03-rim" gradientUnits="userSpaceOnUse" x1="313" y1="347" x2="329.45" y2="402"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-03-shine" gradientUnits="userSpaceOnUse" cx="339.32" cy="354" r="27.259999999999998" gradientTransform="translate(0 169.92) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-03-base-light" gradientUnits="userSpaceOnUse" cx="337.91" cy="401" r="28.2" gradientTransform="translate(0 208.52) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.2"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<rect id="bit-04-shape" x="262" y="428" width="50" height="55" rx="7"/>
+<clipPath id="bit-04-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-04-shape" /></clipPath>
+<linearGradient id="bit-04-color" gradientUnits="userSpaceOnUse" x1="262" y1="428" x2="279.5" y2="483"><stop offset="0%" stop-color="#25c8ff" stop-opacity="1"/><stop offset="36%" stop-color="#527bff" stop-opacity="1"/><stop offset="70%" stop-color="#7437e9" stop-opacity="1"/><stop offset="100%" stop-color="#e969ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-04-glass" gradientUnits="userSpaceOnUse" x1="262" y1="428" x2="312" y2="428"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-04-rim" gradientUnits="userSpaceOnUse" x1="262" y1="428" x2="279.5" y2="483"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-04-shine" gradientUnits="userSpaceOnUse" cx="290.0" cy="435" r="28.999999999999996" gradientTransform="translate(0 208.8) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-04-base-light" gradientUnits="userSpaceOnUse" cx="288.5" cy="482" r="30.0" gradientTransform="translate(0 250.64) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.2"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="bit-05-shape" x="322" y="494" width="49" height="54" rx="7"/>
+<clipPath id="bit-05-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-05-shape" /></clipPath>
+<linearGradient id="bit-05-color" gradientUnits="userSpaceOnUse" x1="322" y1="494" x2="339.15" y2="548"><stop offset="0%" stop-color="#996bff" stop-opacity="1"/><stop offset="43%" stop-color="#7030ec" stop-opacity="1"/><stop offset="100%" stop-color="#a735fa" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-05-glass" gradientUnits="userSpaceOnUse" x1="322" y1="494" x2="371" y2="494"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-05-rim" gradientUnits="userSpaceOnUse" x1="322" y1="494" x2="339.15" y2="548"><stop offset="0%" stop-color="#ffd8ff" stop-opacity="1"/><stop offset="27%" stop-color="#ffd8ff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-05-shine" gradientUnits="userSpaceOnUse" cx="349.44" cy="501" r="28.419999999999998" gradientTransform="translate(0 240.48) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-05-base-light" gradientUnits="userSpaceOnUse" cx="347.97" cy="547" r="29.4" gradientTransform="translate(0 284.44) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.2"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="bit-06-shape" x="265" y="579" width="31" height="34" rx="5"/>
+<clipPath id="bit-06-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-06-shape" /></clipPath>
+<linearGradient id="bit-06-color" gradientUnits="userSpaceOnUse" x1="265" y1="579" x2="275.85" y2="613"><stop offset="0%" stop-color="#3cffff" stop-opacity="1"/><stop offset="22%" stop-color="#00d8f6" stop-opacity="1"/><stop offset="75%" stop-color="#00afd4" stop-opacity="1"/><stop offset="100%" stop-color="#06d9f4" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-06-glass" gradientUnits="userSpaceOnUse" x1="265" y1="579" x2="296" y2="579"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-06-rim" gradientUnits="userSpaceOnUse" x1="265" y1="579" x2="275.85" y2="613"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-06-shine" gradientUnits="userSpaceOnUse" cx="282.36" cy="586" r="17.98" gradientTransform="translate(0 281.28) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-06-base-light" gradientUnits="userSpaceOnUse" cx="281.43" cy="612" r="18.599999999999998" gradientTransform="translate(0 318.24) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.2"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<rect id="bit-07-shape" x="306" y="624" width="45" height="52" rx="6"/>
+<clipPath id="bit-07-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-07-shape" /></clipPath>
+<linearGradient id="bit-07-color" gradientUnits="userSpaceOnUse" x1="306" y1="624" x2="321.75" y2="676"><stop offset="0%" stop-color="#02c7ff" stop-opacity="1"/><stop offset="42%" stop-color="#006eee" stop-opacity="1"/><stop offset="100%" stop-color="#4e42fb" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-07-glass" gradientUnits="userSpaceOnUse" x1="306" y1="624" x2="351" y2="624"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-07-rim" gradientUnits="userSpaceOnUse" x1="306" y1="624" x2="321.75" y2="676"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#e9d6ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-07-shine" gradientUnits="userSpaceOnUse" cx="331.2" cy="631" r="26.099999999999998" gradientTransform="translate(0 302.88) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-07-base-light" gradientUnits="userSpaceOnUse" cx="329.85" cy="675" r="27.0" gradientTransform="translate(0 351) scale(1 .48)"><stop offset="0%" stop-color="#e9d6ff" stop-opacity="0.2"/><stop offset="48%" stop-color="#e9d6ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="0"/></radialGradient>
+<rect id="bit-08-shape" x="330" y="748" width="49" height="52" rx="6"/>
+<clipPath id="bit-08-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-08-shape" /></clipPath>
+<linearGradient id="bit-08-color" gradientUnits="userSpaceOnUse" x1="330" y1="748" x2="347.15" y2="800"><stop offset="0%" stop-color="#ae3feb" stop-opacity="1"/><stop offset="35%" stop-color="#a32fe0" stop-opacity="1"/><stop offset="100%" stop-color="#e14dff" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-08-glass" gradientUnits="userSpaceOnUse" x1="330" y1="748" x2="379" y2="748"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-08-rim" gradientUnits="userSpaceOnUse" x1="330" y1="748" x2="347.15" y2="800"><stop offset="0%" stop-color="#ffd8ff" stop-opacity="1"/><stop offset="27%" stop-color="#ffd8ff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-08-shine" gradientUnits="userSpaceOnUse" cx="357.44" cy="755" r="28.419999999999998" gradientTransform="translate(0 362.4) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-08-base-light" gradientUnits="userSpaceOnUse" cx="355.97" cy="799" r="29.4" gradientTransform="translate(0 415.48) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.2"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="bit-09-shape" x="272" y="801" width="39" height="45" rx="6"/>
+<clipPath id="bit-09-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-09-shape" /></clipPath>
+<linearGradient id="bit-09-color" gradientUnits="userSpaceOnUse" x1="272" y1="801" x2="285.65" y2="846"><stop offset="0%" stop-color="#3cffff" stop-opacity="1"/><stop offset="22%" stop-color="#00d8f6" stop-opacity="1"/><stop offset="75%" stop-color="#00afd4" stop-opacity="1"/><stop offset="100%" stop-color="#06d9f4" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-09-glass" gradientUnits="userSpaceOnUse" x1="272" y1="801" x2="311" y2="801"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-09-rim" gradientUnits="userSpaceOnUse" x1="272" y1="801" x2="285.65" y2="846"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-09-shine" gradientUnits="userSpaceOnUse" cx="293.84000000000003" cy="808" r="22.619999999999997" gradientTransform="translate(0 387.84) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-09-base-light" gradientUnits="userSpaceOnUse" cx="292.67" cy="845" r="23.4" gradientTransform="translate(0 439.4) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.2"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<rect id="bit-10-shape" x="396" y="815" width="30" height="31" rx="5"/>
+<clipPath id="bit-10-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#bit-10-shape" /></clipPath>
+<linearGradient id="bit-10-color" gradientUnits="userSpaceOnUse" x1="396" y1="815" x2="406.5" y2="846"><stop offset="0%" stop-color="#996bff" stop-opacity="1"/><stop offset="43%" stop-color="#7030ec" stop-opacity="1"/><stop offset="100%" stop-color="#a735fa" stop-opacity="1"/></linearGradient>
+<linearGradient id="bit-10-glass" gradientUnits="userSpaceOnUse" x1="396" y1="815" x2="426" y2="815"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="bit-10-rim" gradientUnits="userSpaceOnUse" x1="396" y1="815" x2="406.5" y2="846"><stop offset="0%" stop-color="#ffd8ff" stop-opacity="1"/><stop offset="27%" stop-color="#ffd8ff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="bit-10-shine" gradientUnits="userSpaceOnUse" cx="412.8" cy="822" r="17.4" gradientTransform="translate(0 394.56) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.17"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="bit-10-base-light" gradientUnits="userSpaceOnUse" cx="411.9" cy="845" r="18.0" gradientTransform="translate(0 439.4) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.2"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-01-shape" x="376" y="560" width="49" height="161" rx="24.5"/>
+<clipPath id="wave-01-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-01-shape" /></clipPath>
+<linearGradient id="wave-01-color" gradientUnits="userSpaceOnUse" x1="376" y1="560" x2="393.15" y2="721"><stop offset="0%" stop-color="#00f3f1" stop-opacity="1"/><stop offset="26%" stop-color="#00b9f9" stop-opacity="1"/><stop offset="56%" stop-color="#075afa" stop-opacity="1"/><stop offset="80%" stop-color="#2433ed" stop-opacity="1"/><stop offset="100%" stop-color="#a386ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-01-glass" gradientUnits="userSpaceOnUse" x1="376" y1="560" x2="425" y2="560"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-01-rim" gradientUnits="userSpaceOnUse" x1="376" y1="560" x2="393.15" y2="721"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#e9d6ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-01-shine" gradientUnits="userSpaceOnUse" cx="403.44" cy="569" r="28.419999999999998" gradientTransform="translate(0 273.12) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-01-base-light" gradientUnits="userSpaceOnUse" cx="401.97" cy="720" r="29.4" gradientTransform="translate(0 374.4) scale(1 .48)"><stop offset="0%" stop-color="#e9d6ff" stop-opacity="0.81"/><stop offset="48%" stop-color="#e9d6ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-02-shape" x="450" y="486" width="56" height="324" rx="28.0"/>
+<clipPath id="wave-02-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-02-shape" /></clipPath>
+<linearGradient id="wave-02-color" gradientUnits="userSpaceOnUse" x1="450" y1="486" x2="469.6" y2="810"><stop offset="0%" stop-color="#00f3f1" stop-opacity="1"/><stop offset="26%" stop-color="#00b9f9" stop-opacity="1"/><stop offset="56%" stop-color="#075afa" stop-opacity="1"/><stop offset="80%" stop-color="#2433ed" stop-opacity="1"/><stop offset="100%" stop-color="#a386ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-02-glass" gradientUnits="userSpaceOnUse" x1="450" y1="486" x2="506" y2="486"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-02-rim" gradientUnits="userSpaceOnUse" x1="450" y1="486" x2="469.6" y2="810"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#e9d6ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-02-shine" gradientUnits="userSpaceOnUse" cx="481.36" cy="495" r="32.48" gradientTransform="translate(0 237.6) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-02-base-light" gradientUnits="userSpaceOnUse" cx="479.68" cy="809" r="33.6" gradientTransform="translate(0 420.68) scale(1 .48)"><stop offset="0%" stop-color="#e9d6ff" stop-opacity="0.81"/><stop offset="48%" stop-color="#e9d6ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#e9d6ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-03-shape" x="532" y="389" width="63" height="511" rx="31.5"/>
+<clipPath id="wave-03-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-03-shape" /></clipPath>
+<linearGradient id="wave-03-color" gradientUnits="userSpaceOnUse" x1="532" y1="389" x2="554.05" y2="900"><stop offset="0%" stop-color="#03f6ef" stop-opacity="1"/><stop offset="26%" stop-color="#00cbe8" stop-opacity="1"/><stop offset="49%" stop-color="#137bfa" stop-opacity="1"/><stop offset="71%" stop-color="#672de8" stop-opacity="1"/><stop offset="90%" stop-color="#d035f5" stop-opacity="1"/><stop offset="100%" stop-color="#ffa2ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-03-glass" gradientUnits="userSpaceOnUse" x1="532" y1="389" x2="595" y2="389"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-03-rim" gradientUnits="userSpaceOnUse" x1="532" y1="389" x2="554.05" y2="900"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-03-shine" gradientUnits="userSpaceOnUse" cx="567.28" cy="398" r="36.54" gradientTransform="translate(0 191.04) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-03-base-light" gradientUnits="userSpaceOnUse" cx="565.39" cy="899" r="37.8" gradientTransform="translate(0 467.48) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.81"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-04-shape" x="621" y="499" width="51" height="302" rx="25.5"/>
+<clipPath id="wave-04-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-04-shape" /></clipPath>
+<linearGradient id="wave-04-color" gradientUnits="userSpaceOnUse" x1="621" y1="499" x2="638.85" y2="801"><stop offset="0%" stop-color="#ffc0ff" stop-opacity="1"/><stop offset="21%" stop-color="#df58fa" stop-opacity="1"/><stop offset="52%" stop-color="#a22be2" stop-opacity="1"/><stop offset="78%" stop-color="#b934ec" stop-opacity="1"/><stop offset="100%" stop-color="#ff94ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-04-glass" gradientUnits="userSpaceOnUse" x1="621" y1="499" x2="672" y2="499"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-04-rim" gradientUnits="userSpaceOnUse" x1="621" y1="499" x2="638.85" y2="801"><stop offset="0%" stop-color="#ffd8ff" stop-opacity="1"/><stop offset="27%" stop-color="#ffd8ff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-04-shine" gradientUnits="userSpaceOnUse" cx="649.56" cy="508" r="29.58" gradientTransform="translate(0 243.84) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-04-base-light" gradientUnits="userSpaceOnUse" cx="648.03" cy="800" r="30.599999999999998" gradientTransform="translate(0 416) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.81"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-05-shape" x="696" y="578" width="43" height="160" rx="21.5"/>
+<clipPath id="wave-05-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-05-shape" /></clipPath>
+<linearGradient id="wave-05-color" gradientUnits="userSpaceOnUse" x1="696" y1="578" x2="711.05" y2="738"><stop offset="0%" stop-color="#ffc0ff" stop-opacity="1"/><stop offset="21%" stop-color="#df58fa" stop-opacity="1"/><stop offset="52%" stop-color="#a22be2" stop-opacity="1"/><stop offset="78%" stop-color="#b934ec" stop-opacity="1"/><stop offset="100%" stop-color="#ff94ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-05-glass" gradientUnits="userSpaceOnUse" x1="696" y1="578" x2="739" y2="578"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-05-rim" gradientUnits="userSpaceOnUse" x1="696" y1="578" x2="711.05" y2="738"><stop offset="0%" stop-color="#ffd8ff" stop-opacity="1"/><stop offset="27%" stop-color="#ffd8ff" stop-opacity="0.48"/><stop offset="70%" stop-color="#fff3ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-05-shine" gradientUnits="userSpaceOnUse" cx="720.08" cy="587" r="24.939999999999998" gradientTransform="translate(0 281.76) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-05-base-light" gradientUnits="userSpaceOnUse" cx="718.79" cy="737" r="25.8" gradientTransform="translate(0 383.24) scale(1 .48)"><stop offset="0%" stop-color="#fff3ff" stop-opacity="0.81"/><stop offset="48%" stop-color="#fff3ff" stop-opacity="0.22"/><stop offset="100%" stop-color="#fff3ff" stop-opacity="0"/></radialGradient>
+<rect id="wave-06-shape" x="763" y="621" width="39" height="79" rx="19.5"/>
+<clipPath id="wave-06-clip" clipPathUnits="userSpaceOnUse"><use xlink:href="#wave-06-shape" /></clipPath>
+<linearGradient id="wave-06-color" gradientUnits="userSpaceOnUse" x1="763" y1="621" x2="776.65" y2="700"><stop offset="0%" stop-color="#51ffff" stop-opacity="1"/><stop offset="29%" stop-color="#00e0ea" stop-opacity="1"/><stop offset="68%" stop-color="#00b4d9" stop-opacity="1"/><stop offset="100%" stop-color="#47f4ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="wave-06-glass" gradientUnits="userSpaceOnUse" x1="763" y1="621" x2="802" y2="621"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.57"/><stop offset="7%" stop-color="#ffffff" stop-opacity="0.15"/><stop offset="23%" stop-color="#ffffff" stop-opacity="0.015"/><stop offset="68%" stop-color="#ffffff" stop-opacity="0"/><stop offset="91%" stop-color="#ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="wave-06-rim" gradientUnits="userSpaceOnUse" x1="763" y1="621" x2="776.65" y2="700"><stop offset="0%" stop-color="#91ffff" stop-opacity="1"/><stop offset="27%" stop-color="#91ffff" stop-opacity="0.48"/><stop offset="70%" stop-color="#b4ffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="1"/></linearGradient>
+<radialGradient id="wave-06-shine" gradientUnits="userSpaceOnUse" cx="784.84" cy="630" r="22.619999999999997" gradientTransform="translate(0 302.4) scale(1 .52)"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.93"/><stop offset="25%" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<radialGradient id="wave-06-base-light" gradientUnits="userSpaceOnUse" cx="783.67" cy="699" r="23.4" gradientTransform="translate(0 363.48) scale(1 .48)"><stop offset="0%" stop-color="#b4ffff" stop-opacity="0.81"/><stop offset="48%" stop-color="#b4ffff" stop-opacity="0.22"/><stop offset="100%" stop-color="#b4ffff" stop-opacity="0"/></radialGradient>
+<circle id="orbShape" cx="1041" cy="293" r="79"/>
+<clipPath id="orbClip" clipPathUnits="userSpaceOnUse"><use xlink:href="#orbShape" /></clipPath>
+<linearGradient id="orbColor" gradientUnits="userSpaceOnUse" x1="963" y1="278" x2="1118" y2="302"><stop offset="0%" stop-color="#14edfc" stop-opacity="1"/><stop offset="18%" stop-color="#00aaf4" stop-opacity="1"/><stop offset="49%" stop-color="#0649d3" stop-opacity="1"/><stop offset="76%" stop-color="#7320d6" stop-opacity="1"/><stop offset="100%" stop-color="#ff62ff" stop-opacity="1"/></linearGradient>
+<radialGradient id="orbDepth" gradientUnits="userSpaceOnUse" cx="1034" cy="307" r="86"><stop offset="0%" stop-color="#000944" stop-opacity="1"/><stop offset="30%" stop-color="#001364" stop-opacity="0.96"/><stop offset="59%" stop-color="#0726a2" stop-opacity="0.5"/><stop offset="100%" stop-color="#1436bf" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbTopLight" gradientUnits="userSpaceOnUse" cx="1056" cy="226" r="80"><stop offset="0%" stop-color="#d1ffff" stop-opacity="1"/><stop offset="28%" stop-color="#24f4ff" stop-opacity="1"/><stop offset="59%" stop-color="#019eff" stop-opacity="0.54"/><stop offset="100%" stop-color="#0825b3" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbBottomLight" gradientUnits="userSpaceOnUse" cx="1033" cy="370" r="66"><stop offset="0%" stop-color="#7dffff" stop-opacity="1"/><stop offset="24%" stop-color="#00e0ff" stop-opacity="0.91"/><stop offset="65%" stop-color="#05caff" stop-opacity="0.22"/><stop offset="100%" stop-color="#0645bf" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbLeftLight" gradientUnits="userSpaceOnUse" cx="968" cy="299" r="47"><stop offset="0%" stop-color="#b7ffff" stop-opacity="0.99"/><stop offset="22%" stop-color="#34f9ff" stop-opacity="0.86"/><stop offset="100%" stop-color="#00d5fb" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbRightLight" gradientUnits="userSpaceOnUse" cx="1115" cy="290" r="58"><stop offset="0%" stop-color="#ffb5ff" stop-opacity="0.99"/><stop offset="26%" stop-color="#fb42ff" stop-opacity="0.95"/><stop offset="67%" stop-color="#ed18ff" stop-opacity="0.5"/><stop offset="100%" stop-color="#c719e9" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbSpecular" gradientUnits="userSpaceOnUse" cx="1068" cy="232" r="83"><stop offset="0%" stop-color="#edffff" stop-opacity="1"/><stop offset="26%" stop-color="#65f5ff" stop-opacity="0.96"/><stop offset="53%" stop-color="#01d2f5" stop-opacity="0.8"/><stop offset="79%" stop-color="#0649d4" stop-opacity="0.45"/><stop offset="100%" stop-color="#1e26b6" stop-opacity="0.1"/></radialGradient>
+<radialGradient id="orbBottomReflection" gradientUnits="userSpaceOnUse" cx="1021" cy="345" r="43"><stop offset="0%" stop-color="#0bcaff" stop-opacity="0.48"/><stop offset="48%" stop-color="#0679fe" stop-opacity="0.22"/><stop offset="100%" stop-color="#145efe" stop-opacity="0"/></radialGradient>
+<linearGradient id="orbRim" gradientUnits="userSpaceOnUse" x1="978" y1="271" x2="1107" y2="322"><stop offset="0%" stop-color="#b2ffff" stop-opacity="1"/><stop offset="27%" stop-color="#67faff" stop-opacity="1"/><stop offset="53%" stop-color="#c8ffff" stop-opacity="1"/><stop offset="80%" stop-color="#edb8ff" stop-opacity="1"/><stop offset="100%" stop-color="#ffd9ff" stop-opacity="1"/></linearGradient>
+<linearGradient id="sparkColor" gradientUnits="userSpaceOnUse" x1="1068" y1="264" x2="1110" y2="189"><stop offset="0%" stop-color="#6d53ff" stop-opacity="0"/><stop offset="37%" stop-color="#aa8aff" stop-opacity="0.45"/><stop offset="51%" stop-color="#ffffff" stop-opacity="1"/><stop offset="65%" stop-color="#b091ff" stop-opacity="0.57"/><stop offset="100%" stop-color="#482bfa" stop-opacity="0"/></linearGradient>
+<radialGradient id="sparkHalo" gradientUnits="userSpaceOnUse" cx="1087" cy="226" r="50"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.98"/><stop offset="12%" stop-color="#f7ceff" stop-opacity="0.6"/><stop offset="33%" stop-color="#b748ff" stop-opacity="0.2"/><stop offset="100%" stop-color="#5626fd" stop-opacity="0"/></radialGradient>
+</defs>
+
+<g id="bitbounce-logo"><g id="ambient-neon"><path d="M 321,197 Q 327,190 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537" fill="none" stroke="url(#topEdgeColor)" stroke-width="23" filter="url(#blur28)" opacity="0.28"/>
+<path d="M 744,530 C 854,531 930,592 960,685 C 990,779 964,864 904,930
+C 844,998 758,1037 656,1040 C 556,1043 451,1041 351,1041
+C 330,1041 318,1026 318,1003 L 318,879 Q 318,860 335,860 L 360,860
+Q 376,860 376,876 L 376,886 Q 376,897 388,897 L 429,897 Q 442,897 442,910 L 442,947
+Q 442,961 456,961 L 490,961 C 612,957 742,884 811,802 C 853,751 884,688 865,621
+C 850,564 801,535 744,530" fill="none" stroke="url(#bottomGlowColor)" stroke-width="22" filter="url(#blur28)" opacity="0.24"/>
+<use xlink:href="#bounceTrail" fill="#026dff" filter="url(#blur28)" opacity="0.5"/>
+<use xlink:href="#orbShape" fill="url(#orbColor)" filter="url(#blur28)" opacity="0.43"/></g>
+<g id="upper-pixel-plate"><use xlink:href="#topPlate" fill="url(#topPlateColor)" mask="url(#topPlateMask)"/>
+<path d="M 419,511 L 419,479 Q 419,464 405,464 L 382,464 Q 369,464 369,451 L 369,418
+Q 369,404 383,404 L 405,404 Q 419,404 419,390 L 419,358 Q 419,345 405,345 L 380,345
+Q 365,345 365,330 L 365,298 Q 365,284 351,284 L 326,284 Q 313,284 313,271 L 313,212
+Q 313,190 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537" fill="none" stroke="url(#topContourColor)" stroke-width="2" mask="url(#topPlateMask)"/></g>
+<g id="upper-ribbon"><use xlink:href="#topRibbon" fill="url(#topBody)"/>
+<use xlink:href="#topRibbon" fill="url(#topCyanLight)"/>
+<path d="M 451,191 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 791,385 752,436 724,486 C 770,398 739,360 689,315 C 623,255 542,204 451,191 Z" fill="url(#topFacet)"/>
+<use xlink:href="#topRibbon" fill="url(#topPinkLight)"/>
+<use xlink:href="#topRibbon" fill="url(#topLeftShine)"/>
+<path d="M 321,197 Q 327,190 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537" fill="none" stroke="url(#topEdgeColor)" stroke-width="8" filter="url(#blur5)" opacity="0.77"/>
+<path d="M 321,197 Q 327,190 336,190 L 610,190 C 721,186 810,226 838,328 Q 844,340 837,346
+C 782,393 736,460 705,537" fill="none" stroke="url(#topRimColor)" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M 837,346 C 782,393 736,460 705,537" fill="none" stroke="url(#topTipColor)" stroke-width="2.3" stroke-linecap="round"/>
+<path d="M 438,194 C 545,194 662,187 733,230 C 786,261 817,300 830,335 Q 833,342 827,351" fill="none" stroke="url(#topRimColor)" stroke-width="1.15" opacity="0.72"/>
+<path d="M 315,268 L 315,210 Q 315,193 332,193" fill="none" stroke="#caffff" stroke-width="1.5" opacity="0.58"/></g>
+<g id="lower-ribbon"><use xlink:href="#bottomRibbon" fill="url(#bottomBody)"/>
+<use xlink:href="#bottomRibbon" fill="url(#bottomDeep)"/>
+<use xlink:href="#bottomRibbon" fill="url(#bottomCyanLight)"/>
+<path d="M 744,530 C 854,531 930,592 960,685 C 975,732 976,781 960,831
+C 950,792 925,749 877,723 Q 862,714 848,711 C 867,675 877,646 865,621
+C 850,564 801,535 744,530 Z" fill="url(#bottomFacet)" clip-path="url(#bottomClip)"/>
+<use xlink:href="#bottomRibbon" fill="url(#bottomPinkLight)"/>
+<use xlink:href="#bottomRibbon" fill="url(#bottomWhiteLight)"/>
+<use xlink:href="#bottomRibbon" fill="url(#bottomLeftLight)"/>
+<path d="M 318,975 C 359,1004 422,973 490,961 C 426,991 369,1000 335,1036
+Q 318,1028 318,1003 Z" fill="url(#leftFacet)"/>
+<g id="lower-ribbon-neon-reflection" clip-path="url(#bottomClip)"><path d="M 946,688 C 979,784 952,863 893,925 C 832,988 758,1029 649,1034" fill="none" stroke="url(#bottomPinkBand)" stroke-width="29" filter="url(#blur18)" opacity="0.79"/></g>
+<path d="M 744,530 C 854,531 930,592 960,685 C 990,779 964,864 904,930
+C 844,998 758,1037 656,1040 C 556,1043 451,1041 351,1041
+C 330,1041 318,1026 318,1003 L 318,879 Q 318,860 335,860 L 360,860
+Q 376,860 376,876 L 376,886 Q 376,897 388,897 L 429,897 Q 442,897 442,910 L 442,947
+Q 442,961 456,961 L 490,961 C 612,957 742,884 811,802 C 853,751 884,688 865,621
+C 850,564 801,535 744,530" fill="none" stroke="url(#bottomGlowColor)" stroke-width="6" filter="url(#blur5)" opacity="0.75"/>
+<path d="M 744,530 C 854,531 930,592 960,685 C 990,779 964,864 904,930
+C 844,998 758,1037 656,1040 C 556,1043 451,1041 351,1041
+C 330,1041 318,1026 318,1003 L 318,879 Q 318,860 335,860 L 360,860
+Q 376,860 376,876 L 376,886 Q 376,897 388,897 L 429,897 Q 442,897 442,910 L 442,947
+Q 442,961 456,961 L 490,961 C 612,957 742,884 811,802 C 853,751 884,688 865,621
+C 850,564 801,535 744,530" fill="none" stroke="url(#bottomOutline)" stroke-width="1.9" stroke-linejoin="round"/>
+<path d="M 752,531 C 850,540 924,598 951,688 C 979,780 949,864 889,928
+C 825,995 742,1032 645,1033 C 532,1037 425,1037 351,1035" fill="none" stroke="url(#bottomRimColor)" stroke-width="2.6" stroke-linecap="round"/>
+<path d="M 752,531 C 850,540 924,598 951,688 C 979,780 949,864 889,928
+C 825,995 742,1032 645,1033 C 532,1037 425,1037 351,1035" fill="none" stroke="url(#bottomRimColor)" stroke-width="5" filter="url(#blur2)" opacity="0.4"/>
+<path d="M 456,961 L 490,961 C 612,957 742,884 811,802 C 853,751 884,688 865,621 C 850,564 801,535 744,530" fill="none" stroke="url(#bottomInnerEdge)" stroke-width="1.65"/></g>
+<g id="floating-digital-bits"><g id="bit-01"><use xlink:href="#bit-01-shape" fill="url(#bit-01-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-01-shape" fill="none" stroke="url(#bit-01-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-01-shape" fill="url(#bit-01-color)"/>
+<use xlink:href="#bit-01-shape" fill="url(#bit-01-glass)"/>
+<use xlink:href="#bit-01-shape" fill="url(#bit-01-shine)"/>
+<use xlink:href="#bit-01-shape" fill="url(#bit-01-base-light)"/>
+<use xlink:href="#bit-01-shape" fill="none" stroke="url(#bit-01-rim)" stroke-width="1.65"/></g>
+<g id="bit-02"><use xlink:href="#bit-02-shape" fill="url(#bit-02-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-02-shape" fill="none" stroke="url(#bit-02-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-02-shape" fill="url(#bit-02-color)"/>
+<use xlink:href="#bit-02-shape" fill="url(#bit-02-glass)"/>
+<use xlink:href="#bit-02-shape" fill="url(#bit-02-shine)"/>
+<use xlink:href="#bit-02-shape" fill="url(#bit-02-base-light)"/>
+<use xlink:href="#bit-02-shape" fill="none" stroke="url(#bit-02-rim)" stroke-width="1.65"/></g>
+<g id="bit-03"><use xlink:href="#bit-03-shape" fill="url(#bit-03-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-03-shape" fill="none" stroke="url(#bit-03-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-03-shape" fill="url(#bit-03-color)"/>
+<use xlink:href="#bit-03-shape" fill="url(#bit-03-glass)"/>
+<use xlink:href="#bit-03-shape" fill="url(#bit-03-shine)"/>
+<use xlink:href="#bit-03-shape" fill="url(#bit-03-base-light)"/>
+<use xlink:href="#bit-03-shape" fill="none" stroke="url(#bit-03-rim)" stroke-width="1.65"/></g>
+<g id="bit-04"><use xlink:href="#bit-04-shape" fill="url(#bit-04-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-04-shape" fill="none" stroke="url(#bit-04-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-04-shape" fill="url(#bit-04-color)"/>
+<use xlink:href="#bit-04-shape" fill="url(#bit-04-glass)"/>
+<use xlink:href="#bit-04-shape" fill="url(#bit-04-shine)"/>
+<use xlink:href="#bit-04-shape" fill="url(#bit-04-base-light)"/>
+<use xlink:href="#bit-04-shape" fill="none" stroke="url(#bit-04-rim)" stroke-width="1.65"/></g>
+<g id="bit-05"><use xlink:href="#bit-05-shape" fill="url(#bit-05-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-05-shape" fill="none" stroke="url(#bit-05-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-05-shape" fill="url(#bit-05-color)"/>
+<use xlink:href="#bit-05-shape" fill="url(#bit-05-glass)"/>
+<use xlink:href="#bit-05-shape" fill="url(#bit-05-shine)"/>
+<use xlink:href="#bit-05-shape" fill="url(#bit-05-base-light)"/>
+<use xlink:href="#bit-05-shape" fill="none" stroke="url(#bit-05-rim)" stroke-width="1.65"/></g>
+<g id="bit-06"><use xlink:href="#bit-06-shape" fill="url(#bit-06-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-06-shape" fill="none" stroke="url(#bit-06-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-06-shape" fill="url(#bit-06-color)"/>
+<use xlink:href="#bit-06-shape" fill="url(#bit-06-glass)"/>
+<use xlink:href="#bit-06-shape" fill="url(#bit-06-shine)"/>
+<use xlink:href="#bit-06-shape" fill="url(#bit-06-base-light)"/>
+<use xlink:href="#bit-06-shape" fill="none" stroke="url(#bit-06-rim)" stroke-width="1.65"/></g>
+<g id="bit-07"><use xlink:href="#bit-07-shape" fill="url(#bit-07-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-07-shape" fill="none" stroke="url(#bit-07-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-07-shape" fill="url(#bit-07-color)"/>
+<use xlink:href="#bit-07-shape" fill="url(#bit-07-glass)"/>
+<use xlink:href="#bit-07-shape" fill="url(#bit-07-shine)"/>
+<use xlink:href="#bit-07-shape" fill="url(#bit-07-base-light)"/>
+<use xlink:href="#bit-07-shape" fill="none" stroke="url(#bit-07-rim)" stroke-width="1.65"/></g>
+<g id="bit-08"><use xlink:href="#bit-08-shape" fill="url(#bit-08-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-08-shape" fill="none" stroke="url(#bit-08-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-08-shape" fill="url(#bit-08-color)"/>
+<use xlink:href="#bit-08-shape" fill="url(#bit-08-glass)"/>
+<use xlink:href="#bit-08-shape" fill="url(#bit-08-shine)"/>
+<use xlink:href="#bit-08-shape" fill="url(#bit-08-base-light)"/>
+<use xlink:href="#bit-08-shape" fill="none" stroke="url(#bit-08-rim)" stroke-width="1.65"/></g>
+<g id="bit-09"><use xlink:href="#bit-09-shape" fill="url(#bit-09-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-09-shape" fill="none" stroke="url(#bit-09-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-09-shape" fill="url(#bit-09-color)"/>
+<use xlink:href="#bit-09-shape" fill="url(#bit-09-glass)"/>
+<use xlink:href="#bit-09-shape" fill="url(#bit-09-shine)"/>
+<use xlink:href="#bit-09-shape" fill="url(#bit-09-base-light)"/>
+<use xlink:href="#bit-09-shape" fill="none" stroke="url(#bit-09-rim)" stroke-width="1.65"/></g>
+<g id="bit-10"><use xlink:href="#bit-10-shape" fill="url(#bit-10-color)" filter="url(#blur10)" opacity="0.3"/>
+<use xlink:href="#bit-10-shape" fill="none" stroke="url(#bit-10-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#bit-10-shape" fill="url(#bit-10-color)"/>
+<use xlink:href="#bit-10-shape" fill="url(#bit-10-glass)"/>
+<use xlink:href="#bit-10-shape" fill="url(#bit-10-shine)"/>
+<use xlink:href="#bit-10-shape" fill="url(#bit-10-base-light)"/>
+<use xlink:href="#bit-10-shape" fill="none" stroke="url(#bit-10-rim)" stroke-width="1.65"/></g></g>
+<g id="audio-waveform"><g id="wave-01"><use xlink:href="#wave-01-shape" fill="url(#wave-01-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-01-shape" fill="none" stroke="url(#wave-01-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-01-shape" fill="url(#wave-01-color)"/>
+<use xlink:href="#wave-01-shape" fill="url(#wave-01-glass)"/>
+<use xlink:href="#wave-01-shape" fill="url(#wave-01-shine)"/>
+<use xlink:href="#wave-01-shape" fill="url(#wave-01-base-light)"/>
+<use xlink:href="#wave-01-shape" fill="none" stroke="url(#wave-01-rim)" stroke-width="2.1"/></g>
+<g id="wave-02"><use xlink:href="#wave-02-shape" fill="url(#wave-02-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-02-shape" fill="none" stroke="url(#wave-02-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-02-shape" fill="url(#wave-02-color)"/>
+<use xlink:href="#wave-02-shape" fill="url(#wave-02-glass)"/>
+<use xlink:href="#wave-02-shape" fill="url(#wave-02-shine)"/>
+<use xlink:href="#wave-02-shape" fill="url(#wave-02-base-light)"/>
+<use xlink:href="#wave-02-shape" fill="none" stroke="url(#wave-02-rim)" stroke-width="2.1"/></g>
+<g id="wave-03"><use xlink:href="#wave-03-shape" fill="url(#wave-03-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-03-shape" fill="none" stroke="url(#wave-03-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-03-shape" fill="url(#wave-03-color)"/>
+<use xlink:href="#wave-03-shape" fill="url(#wave-03-glass)"/>
+<use xlink:href="#wave-03-shape" fill="url(#wave-03-shine)"/>
+<use xlink:href="#wave-03-shape" fill="url(#wave-03-base-light)"/>
+<use xlink:href="#wave-03-shape" fill="none" stroke="url(#wave-03-rim)" stroke-width="2.1"/></g>
+<g id="wave-04"><use xlink:href="#wave-04-shape" fill="url(#wave-04-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-04-shape" fill="none" stroke="url(#wave-04-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-04-shape" fill="url(#wave-04-color)"/>
+<use xlink:href="#wave-04-shape" fill="url(#wave-04-glass)"/>
+<use xlink:href="#wave-04-shape" fill="url(#wave-04-shine)"/>
+<use xlink:href="#wave-04-shape" fill="url(#wave-04-base-light)"/>
+<use xlink:href="#wave-04-shape" fill="none" stroke="url(#wave-04-rim)" stroke-width="2.1"/></g>
+<g id="wave-05"><use xlink:href="#wave-05-shape" fill="url(#wave-05-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-05-shape" fill="none" stroke="url(#wave-05-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-05-shape" fill="url(#wave-05-color)"/>
+<use xlink:href="#wave-05-shape" fill="url(#wave-05-glass)"/>
+<use xlink:href="#wave-05-shape" fill="url(#wave-05-shine)"/>
+<use xlink:href="#wave-05-shape" fill="url(#wave-05-base-light)"/>
+<use xlink:href="#wave-05-shape" fill="none" stroke="url(#wave-05-rim)" stroke-width="2.1"/></g>
+<g id="wave-06"><use xlink:href="#wave-06-shape" fill="url(#wave-06-color)" filter="url(#blur10)" opacity="0.33"/>
+<use xlink:href="#wave-06-shape" fill="none" stroke="url(#wave-06-color)" stroke-width="4" filter="url(#blur2)" opacity="0.5"/>
+<use xlink:href="#wave-06-shape" fill="url(#wave-06-color)"/>
+<use xlink:href="#wave-06-shape" fill="url(#wave-06-glass)"/>
+<use xlink:href="#wave-06-shape" fill="url(#wave-06-shine)"/>
+<use xlink:href="#wave-06-shape" fill="url(#wave-06-base-light)"/>
+<use xlink:href="#wave-06-shape" fill="none" stroke="url(#wave-06-rim)" stroke-width="2.1"/></g></g>
+<g id="bounce-motion"><path d="M 702,541 C 748,396 885,289 1009,222" fill="none" stroke="url(#orbitHair)" stroke-width="1.25"/>
+<use xlink:href="#bounceTrail" fill="url(#trailColor)"/>
+<path d="M 719,556 C 773,438 863,348 970,289 L 975,304 C 866,353 772,448 719,556 Z" fill="url(#trailFace)"/>
+<path d="M 719,556 C 773,438 863,348 970,289" fill="none" stroke="#68f7ff" stroke-width="1.6"/>
+<path d="M 719,556 C 778,457 867,370 982,323" fill="none" stroke="url(#trailEdge)" stroke-width="2"/>
+<path d="M 719,556 C 778,457 867,370 982,323" fill="none" stroke="url(#trailEdge)" stroke-width="5" filter="url(#blur5)" opacity="0.56"/></g>
+<g id="bouncing-orb"><use xlink:href="#orbShape" fill="url(#orbColor)"/>
+<use xlink:href="#orbShape" fill="url(#orbDepth)"/>
+<use xlink:href="#orbShape" fill="url(#orbTopLight)"/>
+<use xlink:href="#orbShape" fill="url(#orbBottomLight)"/>
+<use xlink:href="#orbShape" fill="url(#orbLeftLight)"/>
+<use xlink:href="#orbShape" fill="url(#orbRightLight)"/>
+<ellipse cx="1050" cy="259" rx="50" ry="40" transform="rotate(36 1050 259)" fill="url(#orbSpecular)" clip-path="url(#orbClip)"/>
+<ellipse cx="1026" cy="344" rx="50" ry="27" fill="url(#orbBottomReflection)" clip-path="url(#orbClip)"/>
+<use xlink:href="#orbShape" fill="none" stroke="url(#orbRim)" stroke-width="2.7"/>
+<use xlink:href="#orbShape" fill="none" stroke="url(#orbColor)" stroke-width="6" filter="url(#blur5)" opacity="0.68"/>
+<path d="M 977,325 C 983,355 1010,371 1038,371 C 1061,372 1085,359 1101,341" fill="none" stroke="#a0ffff" stroke-width="1.2" opacity="0.66"/></g>
+<g id="orb-sparkle"><circle cx="1087" cy="226" r="49" fill="url(#sparkHalo)"/>
+<path d="M 1111,182 L 1091,225 L 1087,234 L 1067,275 L 1082,230 L 1083,224 Z" fill="url(#sparkColor)"/>
+<path d="M 1055,213 L 1084,222 L 1125,243 L 1089,231 Z" fill="url(#sparkColor)" opacity="0.93"/>
+<circle cx="1087" cy="226" r="4.2" fill="#ffffff"/>
+<circle cx="1087" cy="226" r="6" fill="#ffffff" filter="url(#blur2)" opacity="0.77"/></g></g>
+</svg>

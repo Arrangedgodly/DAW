@@ -548,7 +548,9 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
                       –
                     </button>
                     <span class="head-ctl-value head-oct-value">
-                      <RollValue value={octave()}>{octaveText(octave())}</RollValue>
+                      <RollValue value={octave()}>
+                        {octaveText(octave())}
+                      </RollValue>
                     </span>
                     <button
                       type="button"
@@ -687,7 +689,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             hover/focus reveal and the desktop law stays byte-identical
             (m4). One action: show/hide every row's rail; the steppers were
             always tab stops, so keyboard reachability is unchanged. */}
-        <Show when={props.lane === "drums" && stageMode() !== "desktop"}>
+        <Show when={props.lane === "drums"}>
           <button
             type="button"
             class="head-mix-btn head-fill-toggle"

@@ -2,10 +2,9 @@
  * RC-1 browser gate — the register controls (v3, i3-1 + i3-2) on the REAL
  * app, demo document:
  *
- * 1. EQUAL REGISTER WINDOWS (i3-1): every pitched lane's grid shows the SAME
- *    one-octave window by default (bass/lead windowed at 7 rows on the
- *    heptatonic demo, chords/drums full) with the FULL row manifest in the
- *    DOM (the construction law) and every window reachable by scroll.
+ * 1. FULL MIDI REGISTER (i3-1): every pitched lane shows a scale-octave
+ *    window backed by the complete physical MIDI domain. Higher pitches are
+ *    first in the DOM and every valid register remains reachable.
  * 2. PER-LANE OCT −/+ (i3-2, a11y E8): the strip control exists on pitched
  *    lanes only; keyboard (`o`/Shift+`o`) and pointer paths produce IDENTICAL
  *    value texts through one funnel; the −3..+3 clamp no-op still announces
@@ -18,15 +17,16 @@
  *    with the window following focus; grid names carry the range and flip
  *    with the window; an OCT transpose never scrolls the window.
  * 4. PHONE half (I3-f regression-only): the OCT control stays reachable at
- *    390×844 (44px target law) and the phone stage keeps its committed
- *    full-manifest scrolling-grid law (m1) — no windowing, keys clamp.
+ *    390×844 (44px target law) and a complete scale octave plus footer fits.
  */
 
 import { describe, expect, it } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "solid-js/web";
+import "../../src/styles/base.css";
 import App from "../../src/App";
 import { createDemoProject } from "../../src/document/demoSong";
+import { pitchDomain } from "../../src/document/pitchWindow";
 import { clampedWindowScroll } from "../../src/grid/keynav";
 import {
   createFreshProjectDocument,
@@ -35,12 +35,8 @@ import {
 } from "../../src/state/store";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
-import {
-  registerWindowStart,
-  selectLane,
-} from "../../src/state/selection";
+import { registerWindowStart, selectLane } from "../../src/state/selection";
 import { setHelpMode } from "../../src/state/helpMode";
-import "../../src/styles/base.css";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
@@ -84,9 +80,7 @@ function laneHost(host: HTMLElement, lane: string): HTMLElement {
 }
 
 function gridOf(host: HTMLElement, lane: string): HTMLElement {
-  return laneHost(host, lane).querySelector(
-    '[role="grid"]',
-  )! as HTMLElement;
+  return laneHost(host, lane).querySelector('[role="grid"]')! as HTMLElement;
 }
 
 function scrollOf(host: HTMLElement, lane: string): HTMLElement {
@@ -139,7 +133,10 @@ function laneOctave(lane: string): number {
  * windowed range {a, b, w} + the manifest's last index n, or null when the
  * grid is unwindowed (full manifest).
  */
-function winRangeOf(host: HTMLElement, lane: string): {
+function winRangeOf(
+  host: HTMLElement,
+  lane: string,
+): {
   a: number;
   b: number;
   w: number;
@@ -188,30 +185,30 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // ------------------------------------------------------------------
         // 1. EQUAL DEFAULT REGISTER WINDOWS (i3-1) + the i3-1 FILL twin
         // ------------------------------------------------------------------
-        // The tall lane windows (grown past one octave by the desktop
-        // budget — the vertical fill law); lanes whose manifest already
-        // fits are not (today's names, byte-identical). The demo's grown
-        // count is budget-derived (≥ the one-octave default, ≤ manifest),
-        // so the assertions carry the LAW, not a hardcoded octave; the
-        // equal-window law itself is proven on the FRESH project below,
-        // where TWO lanes window and the fill grows them in lockstep.
-        const leadWin = winRangeOf(host, "lead");
-        expect(leadWin, "lead windowed (15-row manifest > one octave)").not
-          .toBeNull();
-        for (const lane of ["bass", "chords", "drums"]) {
+        // Pitched lanes all project the complete physical MIDI domain while
+        // the drum voice list remains a compact, unwindowed six-row grid.
+        const demo = docStore.getState().doc;
+        const pitchedWins = Object.fromEntries(
+          (["bass", "chords", "lead"] as const).map((lane) => [
+            lane,
+            winRangeOf(host, lane),
+          ]),
+        ) as Record<"bass" | "chords" | "lead", ReturnType<typeof winRangeOf>>;
+        for (const lane of ["bass", "chords", "lead"] as const) {
           expect(
             scrollOf(host, lane).classList.contains("is-windowed"),
-            `${lane} manifest fits one window — no windowing (byte-identical name law)`,
-          ).toBe(false);
+            `${lane} full MIDI domain uses a scale-octave window`,
+          ).toBe(true);
+          expect(pitchedWins[lane]).not.toBeNull();
         }
-        // The FULL row manifest stays in the DOM (construction law) —
-        // migration is lossless, nothing was cut to shrink the default.
-        // (Demo manifests: bass-1 carries degrees 0..6 — one octave.)
+        expect(scrollOf(host, "drums").classList.contains("is-windowed")).toBe(
+          false,
+        );
         const manifestRows: Record<string, number> = {
           drums: 6,
-          bass: 7,
-          chords: 7,
-          lead: 15,
+          bass: pitchDomain(demo, "bass").degrees.length,
+          chords: pitchDomain(demo, "chords").degrees.length,
+          lead: pitchDomain(demo, "lead").degrees.length,
         };
         for (const [lane, count] of Object.entries(manifestRows)) {
           expect(
@@ -219,22 +216,14 @@ describe("RC-1 register controls (real app, demo document)", () => {
             `${lane} full manifest in the DOM`,
           ).toBe(count);
         }
-        // The fill law: the window never shrinks below the one-octave
-        // default and never passes the manifest.
-        expect(leadWin!.w).toBeGreaterThanOrEqual(7);
-        expect(leadWin!.w).toBeLessThanOrEqual(15);
-        expect(visibleRowCount(host, "bass")).toBe(7);
-        expect(visibleRowCount(host, "chords")).toBe(7);
+        // A complete heptatonic octave is visible in each pitched panel.
+        for (const lane of ["bass", "chords", "lead"] as const) {
+          expect(pitchedWins[lane]!.w).toBe(7);
+          expect(visibleRowCount(host, lane)).toBe(7);
+        }
         expect(visibleRowCount(host, "drums")).toBe(6);
-        expect(visibleRowCount(host, "lead")).toBe(leadWin!.w);
-        // The recorded default-position law survives growth: the window
-        // showing the most noted rows (demo: the lead melody at 6–12)
-        // stays INSIDE the grown window — growth never hides the content
-        // the default chose.
-        expect(leadWin!.a).toBeLessThanOrEqual(6);
-        expect(leadWin!.b).toBeGreaterThanOrEqual(12);
         expect(gridOf(host, "bass").getAttribute("aria-label")).toBe(
-          "BASS grid · VIEW ONLY",
+          `BASS grid · VIEW ONLY · ROWS ${pitchedWins.bass!.a}–${pitchedWins.bass!.b} OF ${pitchedWins.bass!.n}`,
         );
 
         // ------------------------------------------------------------------
@@ -262,16 +251,13 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // --- keyboard path on the ACTIVE lane (global `o`) ----------------
         selectLane("lead");
         // i3-1: freeze the window name only after the fill has settled —
-        // the budget grows the window shortly after mount, and SELECTING
-        // the lane flips the edit tier (a taller strip), which lawfully
-        // re-fits the share once more. The OCT-scroll fence below must not
-        // mistake either for a scroll, so the baseline waits for a grown
-        // window that has held the SAME range for 300ms (past the re-fit).
+        // Selecting the lane changes the edit tier, so wait until its
+        // scale-octave range has held for 300ms before freezing the fence.
         let winBaseline: { name: string; at: number } | null = null;
         await waitFor(
           () => {
             const r = winRangeOf(host, "lead");
-            if (r === null || r.w <= 7) {
+            if (r === null || r.w !== 7) {
               winBaseline = null;
               return false;
             }
@@ -283,7 +269,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
             return false;
           },
           4000,
-          "lead window grown by the fill (fence baseline settles)",
+          "lead scale-octave window settles",
         );
         const leadName = winNameOf(host, "lead");
         expect(
@@ -404,7 +390,8 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // Walk focus down to the window's bottom row (b) — the anchor law
         // needs the focus off the window's top edge for a DOWN scroll, and
         // the walk itself proves arrows traverse the full manifest.
-        for (let i = 0; i < win.b; i++) key(document.activeElement!, "ArrowDown");
+        for (let i = Number(seed.dataset.row); i < win.b; i++)
+          key(document.activeElement!, "ArrowDown");
         const focusedCell = document.activeElement as HTMLElement;
         expect(focusedCell.dataset.row).toBe(String(win.b));
         const docBeforeScroll = docStore.getState().doc;
@@ -477,8 +464,8 @@ describe("RC-1 register controls (real app, demo document)", () => {
           "anchor-blocked UP announces the edge",
         );
 
-        // The full manifest stays reachable: every row visited above (0..12
-        // walked) — and the scrolled-out rows are still in the DOM (law 1).
+        // The full MIDI domain stays in the DOM while rows move in and out
+        // of the visible scale-octave window.
 
         // Text-entry guard: `o` inside a text entry never transposes.
         const renameInput = document.createElement("input");
@@ -492,11 +479,8 @@ describe("RC-1 register controls (real app, demo document)", () => {
 
         // ------------------------------------------------------------------
         // 1b. FRESH project: the equal windows hold there too (i3-1 — fresh
-        // bass/lead carry the 14-row double-octave manifests and BOTH
-        // window; zero document churn — the manifests stay). i3-1 fill
-        // twin: TWO windowed lanes grow in LOCKSTEP — the equal-window
-        // default, grown — so both windows read the SAME row count (each
-        // capped by its own manifest), never below the one-octave default.
+        // bass/lead carry their full physical MIDI domains and BOTH window;
+        // the scale-octave seat remains equal without document churn.
         // ------------------------------------------------------------------
         loadDocument(createFreshProjectDocument());
         // (Lead is the ACTIVE lane here — its name says EDITING.)
@@ -505,12 +489,12 @@ describe("RC-1 register controls (real app, demo document)", () => {
             const b = winRangeOf(host, "bass");
             const l = winRangeOf(host, "lead");
             return (
-              gridOf(host, "bass").getAttribute("aria-label")?.startsWith(
-                "BASS grid · VIEW ONLY · ROWS ",
-              ) === true &&
-              gridOf(host, "lead").getAttribute("aria-label")?.startsWith(
-                "LEAD grid · EDITING · ROWS ",
-              ) === true &&
+              gridOf(host, "bass")
+                .getAttribute("aria-label")
+                ?.startsWith("BASS grid · VIEW ONLY · ROWS ") === true &&
+              gridOf(host, "lead")
+                .getAttribute("aria-label")
+                ?.startsWith("LEAD grid · EDITING · ROWS ") === true &&
               b !== null &&
               l !== null
             );
@@ -520,18 +504,19 @@ describe("RC-1 register controls (real app, demo document)", () => {
         );
         const freshBass = winRangeOf(host, "bass")!;
         const freshLead = winRangeOf(host, "lead")!;
+        const fresh = docStore.getState().doc;
         expect(
           scrollOf(host, "bass").querySelectorAll(".grid-row").length,
-          "fresh bass keeps its full 14-row manifest",
-        ).toBe(14);
-        expect(scrollOf(host, "lead").querySelectorAll(".grid-row").length).toBe(
-          14,
-        );
-        expect(freshBass.w).toBeGreaterThanOrEqual(7);
-        expect(freshLead.w).toBeGreaterThanOrEqual(7);
+          "fresh bass keeps its complete MIDI domain",
+        ).toBe(pitchDomain(fresh, "bass").degrees.length);
+        expect(
+          scrollOf(host, "lead").querySelectorAll(".grid-row").length,
+        ).toBe(pitchDomain(fresh, "lead").degrees.length);
+        expect(freshBass.w).toBe(7);
+        expect(freshLead.w).toBe(7);
         expect(
           freshBass.w,
-          "the fill grows both windows in LOCKSTEP (equal by default, grown equally)",
+          "both pitched lanes show the same scale-octave row count",
         ).toBe(freshLead.w);
         expect(visibleRowCount(host, "bass")).toBe(freshBass.w);
         expect(visibleRowCount(host, "lead")).toBe(freshLead.w);
@@ -599,7 +584,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         ).toBe(true);
         expect(
           scrollOf(host, "lead").querySelectorAll(".grid-row").length,
-        ).toBe(15);
+        ).toBe(pitchDomain(docStore.getState().doc, "lead").degrees.length);
 
         // i7 N-2 (the LY-1 phone carve-out, midi-i7-audit §2.2): the strip's
         // OCT group HIDES at phone — the RC-1 SOUND transpose lives in the
@@ -635,29 +620,29 @@ describe("RC-1 register controls (real app, demo document)", () => {
               const v = Number(m[i]) / 255;
               return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
             });
-            return (
-              0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2]
-            );
+            return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
           };
           const l1 = lum(cs.color);
           const l2 = lum(cs.backgroundColor);
-          expect(l1, "the open lamp paints a real glyph color").toBeGreaterThanOrEqual(0);
-          expect(l2, "the open lamp paints a real fill").toBeGreaterThanOrEqual(0);
-          const ratio =
-            (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+          expect(
+            l1,
+            "the open lamp paints a real glyph color",
+          ).toBeGreaterThanOrEqual(0);
+          expect(l2, "the open lamp paints a real fill").toBeGreaterThanOrEqual(
+            0,
+          );
+          const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
           expect(
             ratio,
             `OPTIONS is-on glyph/bg contrast ≥ 4.5:1 (was 1.2:1, ${cs.color} on ${cs.backgroundColor})`,
           ).toBeGreaterThanOrEqual(4.5);
           expect(cs.borderColor).not.toBe("rgba(0, 0, 0, 0)");
         }
-        // A2 — the E9 fence speaks PROSE: the UI/body voice (13px sentence
-        // case warm white), never the silkscreen label voice (10px
-        // UPPERCASE + tracking); the WORDING itself is byte-pinned.
+        // A2 — the E9 fence speaks PROSE: the shared UI/body voice (13px
+        // sentence case in the active theme), never the compact uppercase
+        // panel-label voice; the WORDING itself is byte-pinned.
         {
-          const fence = drawer.querySelector<HTMLElement>(
-            ".phone-oct-fence",
-          )!;
+          const fence = drawer.querySelector<HTMLElement>(".phone-oct-fence")!;
           expect(fence).toBeTruthy();
           const cs = getComputedStyle(fence);
           expect(
@@ -668,8 +653,8 @@ describe("RC-1 register controls (real app, demo document)", () => {
             cs.textTransform,
             "instructional prose is never uppercased",
           ).toBe("none");
-          expect(cs.fontFamily).toContain("IBM Plex Mono");
-          expect(cs.color).toBe("rgb(245, 242, 233)"); // warm white — the prose law
+          expect(cs.fontFamily).toContain("Segoe UI");
+          expect(cs.color).toBe(getComputedStyle(document.body).color);
           expect(fence.textContent).toBe(
             "Changes what you HEAR, not what you SEE — clamped at −3 and +3. The OCT/SEMI row scrolls the view.",
           );
@@ -732,9 +717,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         (
           host
             .querySelector(".phone-options-drawer")!
-            .querySelector(
-              '[data-help="lane.lead.oct"]',
-            ) as HTMLElement
+            .querySelector('[data-help="lane.lead.oct"]') as HTMLElement
         ).dispatchEvent(
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
@@ -745,8 +728,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
           2000,
           "tap-to-inspect shows the LEAD OCTAVE entry",
         );
-        const octInfo =
-          host.querySelector(".info-view")?.textContent ?? "";
+        const octInfo = host.querySelector(".info-view")?.textContent ?? "";
         expect(octInfo).toContain("SOUND");
         expect(octInfo).toContain("HEAR");
         setHelpMode(false);

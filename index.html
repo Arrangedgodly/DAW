@@ -29,14 +29,13 @@
       content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self'; media-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Bitbounce</title>
-    <!-- res-9 critical-path preload set ONLY: the font-display:swap value/ui
-         faces that ship as separate files (Departure Mono ≈ 5.9 KB, IBM Plex
-         Mono 400 ≈ 10.1 KB). Silkscreen 400/700 sit under Vite's 4 KB inline
-         limit and are data-URL-inlined into the CSS — zero extra request,
-         already on the critical path, so preloading them again would only
-         duplicate bytes. The font-display:optional faces (VT323, Press Start
-         2P) and the numeric-field weight (Plex 500) are deliberately NOT
-         preloaded — the stage never depends on them. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/src/assets/branding/bitbounce-favicon.svg"
+    />
+    <!-- Keep the compact utility faces on the critical path. Barlow is used
+         for large identity text and loads with font-display:swap from CSS. -->
     <link
       rel="preload"
       href="/src/assets/fonts/departure-mono-400.woff2"
@@ -53,24 +52,6 @@
     />
   </head>
   <body>
-    <!--
-      THESIS: Bitbounce turns loop-perfect game music into something you watch
-      happen: a dark arcade stage where every sound is a lit pad under a
-      sweeping playhead.
-      OWN-WORLD: One stage, one screen, no chrome that isn't equipment: a
-      transport booth, LED pad floors, lit FX console strips, labels
-      silkscreened onto the chassis. Nothing imitates an OS.
-      STORY: Visitor presses play on the demo loop; the playhead sweeps, cells
-      flash as they sound; curiosity drives the first edit, the grid answers
-      audibly, and the loop becomes theirs.
-      FIRST VIEWPORT: The booth rides on top, four labeled lane floors stack
-      below, one keystroke from playing.
-      FORM: Arcade Stage Floor visual world, chosen via impeccable shape +
-      new-work roll, seed 102aada7.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with
-      the finish review, the verdict, DESIGN.md, and every shipping raster
-      carrying its provenance.
-    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

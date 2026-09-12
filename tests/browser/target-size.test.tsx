@@ -1145,7 +1145,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
 
         // ================= rotation coherence ==============================
         const cell = $(
-          '.lane-floor[data-lane="bass"] .cell[data-row="0"][data-step="0"]',
+          '.lane-floor[data-lane="bass"] .cell[tabindex="0"]',
         ) as HTMLElement;
         cell.focus();
         await page.viewport(844, 390); // rotated phone keeps the phone law

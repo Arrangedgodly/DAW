@@ -234,8 +234,7 @@ describe("SV-2 depth pre-scan + prototype pollution re-proven at v3 shapes", () 
   it("v3 per-field caps reject their out-of-band neighbors through the real decode path", () => {
     type Json = Record<string, unknown>;
     const clone = () => JSON.parse(encode(v3BoundaryProject())) as Json;
-    const bassPattern = (doc: Json) =>
-      (doc.patterns as Json).bass[0] as Json;
+    const bassPattern = (doc: Json) => (doc.patterns as Json).bass[0] as Json;
     const bassLane = (doc: Json) => (doc.lanes as Json[])[1]! as Json;
     const reject = (doc: Json, why: string) =>
       expect(() => decode(JSON.stringify(doc)), why).toThrowError(
@@ -266,11 +265,11 @@ describe("SV-2 depth pre-scan + prototype pollution re-proven at v3 shapes", () 
       bassLane(doc).octave = octave;
       reject(doc, `octave ${octave}`);
     }
-    // degree past the 23 ceiling.
+    // degree past the 128 ceiling.
     {
       const doc = clone();
-      bassPattern(doc).notes = [{ degree: 24, start: 0, length: 1 }];
-      reject(doc, "degree 24");
+      bassPattern(doc).notes = [{ degree: 129, start: 0, length: 1 }];
+      reject(doc, "degree 129");
     }
     // And the accepted edges ride the seed's own bytes (also exercised by
     // the corpus rotation above and the near-cap case).
@@ -303,7 +302,9 @@ describe("SV-2 guard parity (the cap-raise scale-up record, executable)", () => 
 
   it("DECODE_MAX_DEPTH stays 64; real v3 documents (incl. max-dense) nest far below", () => {
     expect(DECODE_MAX_DEPTH).toBe(64);
-    expect(scanJsonDepth(encode(maximallyDenseV3Doc()))).toBeLessThanOrEqual(10);
+    expect(scanJsonDepth(encode(maximallyDenseV3Doc()))).toBeLessThanOrEqual(
+      10,
+    );
     expect(scanJsonDepth(encode(v3BoundaryProject()))).toBeLessThanOrEqual(10);
   });
 });

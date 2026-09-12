@@ -1,3 +1,9 @@
+import {
+  midiLabel,
+  pitchDomain,
+  pitchWindowStart,
+} from "../document/pitchWindow";
+
 /**
  * LaneGrid (DES-4, DES-6, LY-1, IN-2): one lane's pad floor — a QUADRANT of
  * the 2×2 stage. The DOM grid itself is owned by DomGridRenderer (D1 seam); this
@@ -38,7 +44,6 @@ import {
   type DrumPiece,
   type DrumPattern,
   type LaneId,
-  PITCH_CLASS_NAMES,
   type Pattern,
   resolveGateSteps,
 } from "../document/schema";
@@ -79,10 +84,9 @@ import {
 import { closeFxConsole, fxConsoleLane } from "../state/fxConsole";
 import { closeFillRails, fillRailsOpen } from "../state/fillRails";
 import { noteEditAt, type Span } from "../interaction/drag";
-import {
-  placementLength,
-  rememberNoteLength,
-} from "../state/noteLengthMemory";
+
+import { placementLength, rememberNoteLength } from "../state/noteLengthMemory";
+
 import { registerHelp } from "../help/registry";
 import LaneHeader from "./LaneHeader";
 import LaneMeter from "./LaneMeter";
@@ -106,7 +110,7 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       text:
         lane === "drums"
           ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
-          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the OCT/SEMI steppers move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
+          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, with higher notes above lower notes, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the OCT/SEMI steppers move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -137,7 +141,8 @@ for (const lane of ["bass", "chords", "lead"] as const) {
     {
       id: `lane.${lane}.regshift`,
       title: `${LANE_NAMES[lane]} REGISTER SHIFT`,
-      text: `Moves the one-octave slice of the ${LANE_NAMES[lane]} grid you are viewing. OCT −/+ jumps the window one octave of the scale; SEMI −/+ nudges it one semitone. The buttons disable at the top and bottom of the lane's row range, and the window always snaps so exactly one octave of complete rows is showing. The readout beside the buttons shows the rows in view (ROWS start–end OF total, matching the grid's own range) and flashes with a ▲/▼ arrow when the window moves. This is view only — your notes never move; to change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
+
+      text: `Moves the pitch window of the ${LANE_NAMES[lane]} grid without transposing notes. OCT moves twelve semitones; SEMI moves one semitone. Only notes in your selected scale appear. A semitone step across a scale gap may keep the same rows until the next scale note enters view. The pitch readout shows the window, and controls stop at MIDI pitch limits. Place notes in any visible register; existing notes keep their pitches. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -322,7 +327,8 @@ const PHONE_ROW_MAX_PX = 64;
  * the editing-row scale the world already ships (the v0 floor and the phone
  * stage's PHONE_ROW_PX); quadrant pads grow no taller than that law.
  */
-const FILL_MAX_ROW_PX = 24;
+
+const FILL_MAX_ROW_PX = 64;
 
 /** One live grid surface registered for the budget fit (GridSurface scope). */
 interface QuadrantSurface {
@@ -502,8 +508,9 @@ function fitPhoneGeometry(): void {
 function fitPhoneSurface(surface: PhoneWidthSurface): void {
   const well = surface.well();
   const renderer = surface.renderer();
-  if (!well || !renderer || !well.isConnected || well.clientWidth === 0)
-    return; // no layout yet (jsdom / pre-first-frame) — preset stands
+
+  if (!well || !renderer || !well.isConnected || well.clientWidth === 0) return; // no layout yet (jsdom / pre-first-frame) — preset stands
+
   const label = well.querySelector<HTMLElement>(".row-label");
   if (!label) return;
   const labelBox = label.getBoundingClientRect().width;
@@ -578,11 +585,34 @@ function fitPhoneRows(
     const floor = well.closest<HTMLElement>(".lane-floor");
     if (!floor) return;
     const fs = getComputedStyle(floor);
+    const floorBox = floor.getBoundingClientRect();
+    const wellBox = well.getBoundingClientRect();
+    // The floor may already overflow from an earlier fit. Never use that
+    // overflow as spare space. Reserve every sibling after the grid too.
+    const footer = Array.from(floor.children)
+      .filter(
+        (child) =>
+          child !== well &&
+          Boolean(
+            well.compareDocumentPosition(child) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+          ),
+      )
+      .reduce((height, child) => {
+        const style = getComputedStyle(child);
+        return (
+          height +
+          child.getBoundingClientRect().height +
+          (Number.parseFloat(style.marginTop) || 0) +
+          (Number.parseFloat(style.marginBottom) || 0)
+        );
+      }, 0);
     const avail =
-      floor.getBoundingClientRect().bottom -
+      Math.min(floorBox.bottom, window.innerHeight - 8) -
       (Number.parseFloat(fs.paddingBottom) || 0) -
       (Number.parseFloat(fs.borderBottomWidth) || 0) -
-      well.getBoundingClientRect().top;
+      footer -
+      wellBox.top;
     const natural44 =
       well.offsetHeight - (geo.trackPx - surface.rowFloorPx) * paintedRows;
     leftover = avail - natural44;
@@ -785,6 +815,18 @@ function fitQuadrantRows(): void {
       Number.parseFloat(floorStyle.paddingBottom) +
       Number.parseFloat(floorStyle.borderBottomWidth) +
       followH;
+
+    const label = scroll.querySelector<HTMLElement>(".row-label");
+
+    const labelWidth = label?.getBoundingClientRect().width ?? 64;
+
+    const width = Math.max(
+      16,
+      Math.min(48, Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2),
+    );
+
+    renderer.setCellWidth(width);
+
     const g = renderer.fitGeometry();
     // Live visible rows: the window when windowed, the manifest otherwise.
     const liveRows = g.windowRows ?? g.manifestRows;
@@ -817,14 +859,6 @@ function fitQuadrantRows(): void {
     });
   }
 
-  // i3-1 lockstep: windowed surplus lanes grow their windows EQUALLY — the
-  // RC-1 equal-window default, grown — capped by each lane's manifest.
-  let lockstep = Infinity;
-  for (const m of measured) {
-    if (m.windowHeadroom <= 0) continue; // deficit/full lanes keep the default
-    lockstep = Math.min(lockstep, m.windowHeadroom);
-  }
-
   // Fit: restore under provisional metrics, else grow (surplus) / repay the
   // deficit (refinement-4's law, windows-first in reverse).
   for (const m of measured) {
@@ -839,10 +873,9 @@ function fitQuadrantRows(): void {
     if (canonicalContent <= m.available) {
       // Surplus — i3-1: windows first (whole rows, lockstep), then row
       // scale within the committed clamp.
-      const rows =
-        m.windowHeadroom > 0
-          ? Math.min(m.canonicalRows + lockstep, m.manifest)
-          : m.canonicalRows;
+
+      const rows = m.canonicalRows;
+
       const base = m.contentAt(surface.maxRowPx, rows);
       const track = Math.min(
         FILL_MAX_ROW_PX,
@@ -953,16 +986,11 @@ function pitchedLabels(
   labels: string[];
   degrees: number[];
 } {
-  const doc = docStore.getState().doc;
-  const scale = effectiveScale(doc, lane);
-  const size = modeSize(scale.mode);
-  const degrees = pattern.kind === "pitched" ? [...pattern.rowDegrees] : [];
-  const labels = degrees.map((degree) => {
-    const pc = (scale.root + scale.intervals[degree % size]) % 12;
-    const octave = Math.floor(degree / size);
-    return PITCH_CLASS_NAMES[pc] + (octave > 0 ? "′" : "");
-  });
-  return { labels, degrees };
+  void pattern;
+
+  const domain = pitchDomain(docStore.getState().doc, lane);
+
+  return { labels: domain.pitches.map(midiLabel), degrees: domain.degrees };
 }
 
 /**
@@ -971,7 +999,11 @@ function pitchedLabels(
  * pattern's manifest). The renderer renders note spans natively — the v1
  * cell view (SC-1 bridge) is retired from the UI path.
  */
-function syncPatternFor(pattern: Pattern): DrumPattern | PitchedNotesView {
+
+function syncPatternFor(
+  pattern: Pattern,
+  degrees?: readonly number[],
+): DrumPattern | PitchedNotesView {
   if (pattern.kind !== "pitched") return pattern; // drums pass through
   const byDegree = new Map<number, Span[]>();
   for (const note of pattern.notes) {
@@ -979,8 +1011,11 @@ function syncPatternFor(pattern: Pattern): DrumPattern | PitchedNotesView {
     if (list) list.push(note);
     else byDegree.set(note.degree, [note]);
   }
-  const rows = pattern.rowDegrees.map(
-    (degree) => byDegree.get(degree) ?? [], // degree without a row: unplayed
+
+  const manifest = new Set(pattern.rowDegrees);
+
+  const rows = (degrees ?? pattern.rowDegrees).map(
+    (degree) => (manifest.has(degree) ? (byDegree.get(degree) ?? []) : []), // degree without a row: unplayed
   );
   return { kind: "pitched", rows };
 }
@@ -1172,7 +1207,9 @@ function GridSurface(props: {
       // MB-1: narrow stages overlay the drums fill rail over the cells
       // (out of flow) so a 1-bar row fits; desktop stays inline (the
       // refinement-2 law, byte-identical).
-      fillRailMode: narrow ? "overlay" : "inline",
+
+      fillRailMode: "overlay",
+
       // MB-1: the phone stage restores the v0 24 px editing rows (the single
       // lane owns the viewport height; the page scrolls). Tablet keeps the
       // renderer default (row track = cellPx, the quadrant law the
@@ -1389,7 +1426,9 @@ function GridSurface(props: {
     // factor persists across gestures, scrolls, and re-fits, never across a
     // surface remount — journaled law).
     if (mode === "phone" && pitched) props.onZoom?.(renderer.zoomFactor());
-    renderer.sync(syncPatternFor(pattern));
+
+    renderer.sync(syncPatternFor(pattern, degrees));
+
     // LL-1 (the resize-remount carry law): when the previous surface held
     // DOM focus (its cleanup recorded the cursor), the fresh mount lands
     // focus on the CARRIED cell — same row, step clamped to the new extent
@@ -1568,7 +1607,8 @@ function GridSurface(props: {
       // natively (no gate/BPM-derived view left to invalidate).
       if (state.doc.patterns[lane] === prev.doc.patterns[lane]) return;
       const next = state.doc.patterns[lane].find((p) => p.id === pattern.id);
-      if (next) renderer.sync(syncPatternFor(next));
+
+      if (next) renderer.sync(syncPatternFor(next, degrees));
     });
 
     onCleanup(() => {
@@ -1649,34 +1689,52 @@ function RegisterShiftControls(props: {
 
   const bounds = createMemo(() => {
     void docVersion();
-    const doc = docStore.getState().doc;
-    const h = modeSize(effectiveScale(doc, props.lane).mode);
-    const rows = Math.max(h, props.manifestRows);
-    return { h, rows, maxStart: Math.max(0, rows - h) };
+
+    const domain = pitchDomain(docStore.getState().doc, props.lane);
+
+    return { ...domain, h: domain.windowRows, rows: domain.degrees.length };
   });
 
   const start = createMemo(() => {
-    void docVersion();
-    const { h, maxStart } = bounds();
-    const stored = registerWindowStarts()[props.lane];
-    const s = stored ?? defaultRegisterWindowStart(props.lane, h);
-    return Math.min(maxStart, Math.max(0, s));
+    const b = bounds();
+
+    return Math.min(
+      b.maxStart,
+      Math.max(
+        0,
+        registerWindowStarts()[props.lane] ??
+          defaultRegisterWindowStart(props.lane, b.h),
+      ),
+    );
   });
 
-  const shift = (delta: number) => {
-    const maxStart = bounds().maxStart;
-    const target = Math.min(maxStart, Math.max(0, start() + delta));
-    setRegisterWindowStart(props.lane, target);
+  const [originOverride, setOriginOverride] = createSignal<{
+    row: number;
+    origin: number;
+  }>();
+
+  const origin = () => {
+    const override = originOverride();
+
+    return override && override.row === start()
+      ? Math.min(bounds().maxOrigin, override.origin)
+      : bounds().pitches[start() + bounds().h - 1];
   };
 
-  // M-6 + i7 §2.3: the readout text — the SAME string the grid's aria-label
-  // carries (`… ROWS start–end OF last`, 0-based, the mounted manifest's
-  // last index), announced via aria-live on the chip itself.
-  const readout = (): string => {
-    const { h, rows } = bounds();
-    const s = start();
-    return `ROWS ${s}–${s + h - 1} OF ${rows - 1}`;
+  const shift = (delta: number) => {
+    const b = bounds();
+
+    const target = Math.min(b.maxOrigin, Math.max(0, origin() + delta));
+
+    const row = pitchWindowStart(b.pitches, target, b.h);
+
+    setRegisterWindowStart(props.lane, row);
+
+    setOriginOverride({ row, origin: target });
   };
+
+  const readout = (): string =>
+    `${midiLabel(origin())} – ${midiLabel(Math.min(127, origin() + 11))}`;
 
   // M-6: the transient cue. Rides start() — any window move (buttons, a
   // later echo path) flashes, not just these clicks. Parity key: alternating
@@ -1694,7 +1752,9 @@ function RegisterShiftControls(props: {
       return;
     }
     if (s === lastStart) return;
-    const dir: 1 | -1 = s > lastStart ? 1 : -1;
+
+    const dir: 1 | -1 = s < lastStart ? 1 : -1;
+
     lastStart = s;
     if (reducedMotion()) {
       setCue(null);
@@ -1734,8 +1794,10 @@ function RegisterShiftControls(props: {
               type="button"
               class="register-shift-btn"
               aria-label={`${n} octave view down`}
-              disabled={start() <= 0}
-              onClick={() => shift(-bounds().h)}
+
+              disabled={origin() <= 0}
+
+              onClick={() => shift(-12)}
             >
               –
             </button>
@@ -1743,8 +1805,10 @@ function RegisterShiftControls(props: {
               type="button"
               class="register-shift-btn"
               aria-label={`${n} octave view up`}
-              disabled={start() >= bounds().maxStart}
-              onClick={() => shift(bounds().h)}
+
+              disabled={origin() >= bounds().maxOrigin}
+
+              onClick={() => shift(12)}
             >
               +
             </button>
@@ -1764,7 +1828,9 @@ function RegisterShiftControls(props: {
               type="button"
               class="register-shift-btn"
               aria-label={`${n} semitone view down`}
-              disabled={start() <= 0}
+
+              disabled={origin() <= 0}
+
               onClick={() => shift(-1)}
             >
               –
@@ -1773,7 +1839,9 @@ function RegisterShiftControls(props: {
               type="button"
               class="register-shift-btn"
               aria-label={`${n} semitone view up`}
-              disabled={start() >= bounds().maxStart}
+
+              disabled={origin() >= bounds().maxOrigin}
+
               onClick={() => shift(1)}
             >
               +
@@ -1828,7 +1896,11 @@ export default function LaneGrid(props: { lane: LaneId }) {
    * bounds/readout basis — one source of truth with the renderer's clamp). */
   const pitchedManifestRows = createMemo(() => {
     const p = pattern();
-    return p && p.kind === "pitched" ? p.rowDegrees.length : 0;
+
+    return p && p.kind === "pitched"
+      ? pitchDomain(docStore.getState().doc, props.lane as PitchedLaneId)
+          .degrees.length
+      : 0;
   });
   /*
    * i7 N-4 (audit §2.4): the ZOOM factor, lifted to the lane card so the
@@ -1840,6 +1912,8 @@ export default function LaneGrid(props: { lane: LaneId }) {
   const [zoomFactor, setZoomFactor] = createSignal(1);
   const [zoomResetTick, setZoomResetTick] = createSignal(0);
   const key = () => {
+    void docVersion();
+
     const p = pattern();
     // MB-1: the stage mode rides the key — geometry is pinned at mount, so a
     // phone↔tablet↔desktop crossing (rotation, window resize) remounts the
@@ -1849,7 +1923,18 @@ export default function LaneGrid(props: { lane: LaneId }) {
     // lead-1 = 14 rows vs the demo's 15), and the renderer's row count is
     // fixed at build — the register window's clamp and the ROWS range in
     // the grid name are honest only against the real manifest.
-    const rows = p && p.kind === "pitched" ? p.rowDegrees.length : 0;
+
+    const rows =
+      p && p.kind === "pitched"
+        ? pitchDomain(
+            docStore.getState().doc,
+            props.lane as PitchedLaneId,
+          ).pitches.join(",") +
+          ":" +
+          pitchDomain(docStore.getState().doc, props.lane as PitchedLaneId)
+            .degrees[0]
+        : 0;
+
     return p ? `${p.id}:${p.kind}:${p.bars}:${rows}:${stageMode()}` : "none";
   };
 
@@ -1870,19 +1955,21 @@ export default function LaneGrid(props: { lane: LaneId }) {
     >
       <LaneHeader lane={props.lane} />
       <LaneMeter lane={props.lane} />
+
+      <Show when={props.lane === "drums"}>
+        <div class="register-shift drum-register-label">
+          Percussion · 6 voices
+        </div>
+      </Show>
+
       {/* M-5: the phone-only register-window shift row (pitched lanes). i7
           N-2: bounds + readout derive from the MOUNTED pattern's manifest
           (the same rows the grid clamps against — one source of truth).
           i7 N-4: the row also carries the ZOOM CHIP (factor readout + ≥44px
           reset target); it shows while ANY zoom is committed even on a
           one-octave manifest (the reset target must always exist zoomed). */}
-      <Show
-        when={
-          stageMode() === "phone" &&
-          props.lane !== "drums" &&
-          pattern()?.kind === "pitched"
-        }
-      >
+
+      <Show when={props.lane !== "drums" && pattern()?.kind === "pitched"}>
         <RegisterShiftControls
           lane={props.lane as PitchedLaneId}
           manifestRows={pitchedManifestRows()}

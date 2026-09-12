@@ -181,7 +181,7 @@ const TRANSFORMS: ReadonlyArray<
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
       const bass = (patterns["bass"] as Record<string, unknown>[])[0];
-      (bass["notes"] as unknown[]).push({ degree: 24, start: 0, length: 1 });
+      (bass["notes"] as unknown[]).push({ degree: 129, start: 0, length: 1 });
     },
   ],
   [
@@ -210,7 +210,7 @@ const TRANSFORMS: ReadonlyArray<
     (d) => {
       const patterns = d["patterns"] as Record<string, unknown>;
       const bass = (patterns["bass"] as Record<string, unknown>[])[0];
-      bass["rowDegrees"] = [0, 99];
+      bass["rowDegrees"] = [0, 129];
     },
   ],
   [
@@ -294,10 +294,7 @@ const TRANSFORMS: ReadonlyArray<
     },
   ],
   // PS-3 sample provenance: rejection rows (strict shape, id grammar, caps).
-  [
-    "sampleProvenance not an object",
-    (d) => (d["sampleProvenance"] = ["nope"]),
-  ],
+  ["sampleProvenance not an object", (d) => (d["sampleProvenance"] = ["nope"])],
   [
     "sampleProvenance entry as array",
     (d) => (d["sampleProvenance"] = { "voice.bass.lowtone": [] }),
@@ -495,9 +492,7 @@ describe("validateProject schema v3 (SV-1)", () => {
   });
 
   it("the picklist IS the exported vocabulary constant", () => {
-    expect([1, 2, 4, 8, 16, 32, 64, 128]).toEqual([
-      ...PATTERN_BAR_VOCABULARY,
-    ]);
+    expect([1, 2, 4, 8, 16, 32, 64, 128]).toEqual([...PATTERN_BAR_VOCABULARY]);
   });
 
   it("note bounds: start 2047 + length 2048 valid on a 128-bar pattern; 2048 start rejected", () => {
@@ -519,10 +514,12 @@ describe("validateProject schema v3 (SV-1)", () => {
 
     const over = clone(wide);
     (
-      ((over["patterns"] as Record<string, unknown>)["bass"] as Record<
-        string,
-        unknown
-      >[])[0]!["notes"] as unknown[]
+      (
+        (over["patterns"] as Record<string, unknown>)["bass"] as Record<
+          string,
+          unknown
+        >[]
+      )[0]!["notes"] as unknown[]
     ).push({ degree: 2, start: 2048, length: 1 });
     expect(() => validateProject(over)).toThrow(ProjectValidationError);
   });

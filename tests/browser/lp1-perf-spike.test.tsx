@@ -381,9 +381,7 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         // render cost, and the law being pinned is the RENDER loop's.
         await new Promise((r) => setTimeout(r, 1200));
         const playheads = ["drums", "bass", "chords", "lead"].map((lane) =>
-          host.querySelector(
-            `.lane-floor[data-lane="${lane}"] .grid-playhead`,
-          ),
+          host.querySelector(`.lane-floor[data-lane="${lane}"] .grid-playhead`),
         );
         expect(playheads.every(Boolean)).toBe(true);
         const idle = await measureFrames(MEASURE_MS, playheads as Element[]);
@@ -430,7 +428,7 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         await waitFor(
           () =>
             host.querySelector(
-              '.lane-floor[data-lane="lead"] .cell[data-row="1"][data-step="16"]',
+              '.lane-floor[data-lane="lead"] .grid-row:not([aria-hidden="true"]) .cell[data-step="16"]',
             ) !== null,
           2000,
           "window re-seated at column 0",
@@ -439,9 +437,20 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         // -- per-TOGGLE block (HARD: the O(1) lookup's law — the 50 ms
         // long-task guard the O(steps) scan broke at 276-438 ms, §10c) ----
         const blocks: number[] = [];
-        for (let k = 0; k < 5; k++) {
-          const cell = host.querySelector<HTMLElement>(
-            `.lane-floor[data-lane="lead"] .cell[data-row="1"][data-step="${16 + k * 4}"]`,
+        const activeRow = host.querySelector<HTMLElement>(
+          '.lane-floor[data-lane="lead"] .grid-row:not([aria-hidden="true"])',
+        );
+        if (!activeRow) throw new Error("missing active lead register row");
+        const editSteps = Array.from(
+          activeRow.querySelectorAll<HTMLElement>(".cell"),
+        )
+          .map((cell) => Number(cell.dataset.step))
+          .filter((step) => step >= 16)
+          .slice(0, 5);
+        expect(editSteps).toHaveLength(5);
+        for (const step of editSteps) {
+          const cell = activeRow.querySelector<HTMLElement>(
+            `.cell[data-step="${step}"]`,
           );
           if (!cell) throw new Error("missing lead toggle cell");
           const t0 = performance.now();
@@ -468,7 +477,8 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
 // ---------------------------------------------------------------------------
 
 describe("LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law)", () => {
-  it("four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep",
+  it(
+    "four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep",
     { timeout: 120_000 },
     async () => {
       await page.viewport(1440, 900);
@@ -568,8 +578,8 @@ describe("LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law)
         expect(totalCells).toBeLessThan(10_000);
 
         await clickPlay();
-        const playheads = scrollers.map(
-          (s) => s.querySelector(".grid-playhead")!,
+        const playheads = scrollers.map((s) =>
+          s.querySelector(".grid-playhead")!,
         );
         expect(playheads.every(Boolean)).toBe(true);
         const win = await measureFrames(MEASURE_MS, playheads);
@@ -616,7 +626,8 @@ describe("LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law)
 // ---------------------------------------------------------------------------
 
 describe("LP-1 (a′): phone window at 390×844 (RECORDED, emulation caveat)", () => {
-  it("dense 128-bar lead on the phone stage: frame deltas while all four lanes play",
+  it(
+    "dense 128-bar lead on the phone stage: frame deltas while all four lanes play",
     { timeout: 90_000 },
     async () => {
       await page.viewport(390, 844);
@@ -684,7 +695,8 @@ function assertRenderedSane(channels: readonly Float32Array[]): void {
 }
 
 describe("LP-1 (d): export wall-time + memory at the LCM cycles (REAL pipeline)", () => {
-  it("user's 64-bar LCM (drums 64B + bass 4B + chords 8B) renders; wall + memory recorded",
+  it(
+    "user's 64-bar LCM (drums 64B + bass 4B + chords 8B) renders; wall + memory recorded",
     { timeout: 180_000 },
     async () => {
       const doc = longLoopDoc("user64");
@@ -705,7 +717,8 @@ describe("LP-1 (d): export wall-time + memory at the LCM cycles (REAL pipeline)"
     },
   );
 
-  it("worst-case 128-bar LCM (every lane 128B, musical density) renders; wall + memory recorded",
+  it(
+    "worst-case 128-bar LCM (every lane 128B, musical density) renders; wall + memory recorded",
     { timeout: 300_000 },
     async () => {
       const doc = longLoopDoc("all128");

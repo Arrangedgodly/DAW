@@ -31,7 +31,6 @@
    * the sole definer, so sheet order can never drift the floor. */
   border-radius: 4px;
 }
-
 .lane-floor[data-lane="drums"] {
   --lane-hue: var(--color-lane-drums);
 }
@@ -114,8 +113,9 @@
  * RC-1 (v3, I3-c): the REGISTER WINDOW — a pitched grid whose row manifest
  * exceeds one octave (bass/lead on heptatonic projects) becomes an
  * internally VERTICALLY scrolling pane showing exactly the window (the
- * renderer pins the container height + scroll position inline; the FULL row
- * manifest stays in the DOM — the construction law). The one-page law is a
+ * renderer pins the container height + scroll position inline; the full
+ * semantic pitch range is retained while only the seated octave is
+ * materialized). The one-page law is a
  * PAGE law, not a pane law: the internal scroll is the phone
  * scrolling-grid precedent applied to the row axis. Drums/full-manifest
  * grids never carry the class — byte-identical to before.
@@ -145,7 +145,7 @@
  * and the one-click/key quadrant selection is already the reading path.
  */
 .lane-floor[data-editing="false"] .lane-grid-scroll.is-windowed {
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
 /*
@@ -416,8 +416,7 @@
    * edge + the --elev-3 popover cast (paint-only on the same box). */
   background-color: var(--metal-panel);
   background-image: var(--metal-brush);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 4px;
   box-shadow: var(--elev-3);
 }
@@ -464,6 +463,14 @@
  */
 .app[data-stage="phone"] .lane-grid-scroll {
   container-type: inline-size;
+  /* Touch carries the phone grid's pan. Suppress the native scrollbar track
+   * so a 2/4-bar pattern does not steal 15px from the one-octave height and
+   * push the lane footer below the viewport. Scrolling remains available. */
+  scrollbar-width: none;
+}
+
+.app[data-stage="phone"] .lane-grid-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .app[data-stage="phone"] .row-fill.is-overlay {

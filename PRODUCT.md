@@ -8,8 +8,7 @@ web
 
 ## Stack
 
-Delegated: final framework and library choices are deferred to the Ultron deep-research
-phase (user decision, recorded 2026-09-01). Confirmed bias: TypeScript + Vite-based,
+Current implementation uses SolidJS, TypeScript and Vite. Confirmed bias:
 minimal dependencies, static hosting, local-first with no backend ever (v0/v1).
 
 ## Users
@@ -94,7 +93,7 @@ Visualizer composition (user-approved option B and advanced motion controls, 202
 
 Explicit v0 non-goals: samples, flexible tracks, arrangement timeline, session-clip
 launcher, master FX chain, automation, live performance/recording, arpeggiator, live
-Euclidean mode, stems export, mobile/touch, accounts/cloud/collab/backend, plugin SDK,
+Euclidean mode, stems export, accounts/cloud/collab/backend, plugin SDK,
 non-4/4 time signatures, Safari hardening.
 
 Performance/quality constraints: notes within ±2 ms of musical time; WAV length
@@ -111,12 +110,14 @@ file contents).
   the product.
 - Chiptune-leaning synth character (pulse/square/triangle/noise-family timbres) is a
   binding sound-design commitment for v0.
-- Binding visual mandate (user, 2026-09-04): upgrade the site UI toward a hardware
-  feel — "like you just got access to a $5000 hardware DAW unit, like a standalone
-  Akai unit" — alive, breathing, responding to the user's inputs and the track as
-  they build it. Recorded without expansion; visual/interaction layer only, the
-  audio engine contract unchanged. (Carried from the hardware-ui worktree's
-  uncommitted PRODUCT.md; the Machined Console redesign shipped it.)
+- Approved visual direction, 2026-09-12: rendered prototype B Vector for dark
+  mode and C Alloy for light mode. Preserve the four-panel desktop and single-lane
+  phone flow. Use compact panels with inset musical displays, clear utility text and locally hosted Barlow
+  Bold instrument headings. This supersedes the earlier Machined Console material
+  and typography mandate. Audio-engine behavior remains unchanged.
+- Theme is a device preference stored in `bitbounce.theme.v1`, separate from
+  project documents, undo and export. The shared Booth exposes the theme switch.
+
 
 ## Evidence on Hand
 
@@ -147,15 +148,59 @@ toggles, lane navigation), ARIA grid semantics with beat announcements, focus
 management on mode switches, reduced-motion support for playhead/pulse animation, and
 a palette that passes contrast checks using shape/pattern coding (not color alone).
 
-
-Visualizer phrasing refinement: MIDI observers carry the compiled note hold and release durations without altering audio scheduling. Drums use a sharp outward impulse and rapid decay; bass punches and holds, while lead and chords stretch and evolve through their MIDI gates, then release. Up to 16 overlapping notes per lane preserve long sustains beneath short retriggers. Energy drives deformation and motion speed across all 24 effects without adding geometry or rendering passes. Stop clears the active envelopes; reduced motion omits artwork and retains textual activity summaries. The previously recorded dense-playback performance limitation remains unresolved.
-
+Visualizer phrasing refinement: MIDI observers carry the compiled note hold and release durations without altering audio scheduling. Drums use a sharp outward impulse and rapid decay; bass punches and holds, while lead and chords stretch and evolve through their MIDI gates, then release. Up to 16 overlapping notes per lane preserve long sustains beneath short retriggers. Energy drives deformation and motion speed across all 24 effects without adding geometry or rendering passes. Stop clears the active envelopes; reduced motion omits artwork and retains textual activity summaries. The VIZ DPR cap is now 0.75 and passing VZ-TH-4 closes the previously recorded dense-playback performance limitation.
 
 Silence is part of the visual composition: lane artwork exists only during a note and its brief release. Releases fade to full transparency and then skip drawing entirely. Instrument tabs remain available to edit silent lanes; Hide controls leaves only sounding artwork. Muted lanes, zero-volume lanes, and lanes excluded by Solo are hidden immediately. Unmuting waits for the next note instead of replaying a hidden hit.
-
 
 ## Arrangement pages and playback follow
 
 EDIT and SONG are separate pages on desktop, tablet and phone. EDIT keeps the note grids and their register/scroll state mounted while SONG shows all four instrument chains as horizontal strips. The SONG button in the desktop booth or phone transport switches pages and returns the page scroll to the top.
 
 Playback follows chain-slot identity, including consecutive slots that reference the same pattern. The sounding tile, editing selection and lane LOOP/NEXT footer identify the same slot at audible audio time. While stopped, the footer targets the user's selected slot. Page changes and visualizer entry do not interrupt audio. These controls remain view state outside the saved project schema; existing chain modes keep their current persistence and undo behavior.
+
+## Register navigation and phone editing
+
+The approved phone workflow uses a single instrument stage, sticky playback controls
+and touch editing. This supersedes the original v0 mobile/touch exclusion; it does
+not expand the audio or recording scope.
+
+Pitched grids browse scale notes throughout MIDI 0 through 127. Higher notes appear
+above lower notes. OCT view navigation moves by twelve semitones and SEMI by one,
+with real pitch boundaries. View movement, scroll and zoom preserve note identity
+and do not transpose sound, change saved project data or add undo entries. The
+sound-transpose control remains a separate musical edit.
+
+The editable pitch domain is independent of a pattern's historical row list. Notes
+can use negative and high scale degrees within the schema's -128 through 128 safe
+envelope; placement also rejects resolved pitches outside MIDI range. Valid newly
+reached notes must survive project round trips, compilation and MIDI/WAV export.
+
+Phone grids retain complete scale-octave rows and a 44px base row floor. Height
+fitting bounds available space by the viewport and reserves the following footer;
+short screens scroll when needed. Theme spacing and header density must preserve
+this behavior. These are product requirements; this record does not assert that
+release or regression verification is complete.
+
+## Hybrid performance console closeout
+
+Approved and implemented: supplied Bitbounce logo, Barlow wordmark and local favicon;
+Barlow 700 instrument names at 23px, wordmark at 25px desktop / 19px phone;
+Segoe UI utility controls; IBM Plex Mono for inset musical, transport and register
+displays. Bundled Silkscreen, Departure Mono, VT323 and Press Start 2P remain
+legacy base/fallback roles documented in DESIGN.md. Functional controls use 3px
+radii and inset transport/status windows use 4px. Dark Vector is luminous and
+light Alloy polished silver. One top-edge LaneMeter line per lane follows audible
+note activity; there is no redundant decorative header animation.
+
+Theme preference persists in `bitbounce.theme.v1`, outside musical documents.
+Pitch rows descend from high to low, show only scale notes across MIDI 0 through
+127, and browse by +/-1 or +/-12 semitones without transposing stored music.
+Vertical virtualization preserves the full semantic pitch range while materializing
+only the seated octave. Hidden phone grid scrollbars preserve complete seven-row
+heptatonic windows and the footer while touch panning remains available.
+
+VIZ retains its 24 effects, motion controls and separate composition preferences.
+Its backing-store DPR cap is 0.75. Passing VZ-TH-4 closes the prior dense-frame
+performance limitation. Historical measurements remain in docs/dev/perf-budget.md.
+
+Closeout verification, 2026-09-12: finish review returned ship with no material interface defect. Parent-task results: typecheck, lint, 89 unit files / 1772 tests, 21 fuzz tests, production build, pitch-direction, isolated target-size, focused accessibility/VIZ/happy-path pack, LP1 5/5, and full frame-budget 12/12 in 178.49 seconds. These are recorded completed results, not reruns by the documentation pass. No commit, push or deployment is claimed.

@@ -14,3 +14,8 @@ total budget ≤ 50 KB per res-9.
 SIL OFL 1.1 permits use, study, modification, and redistribution of these
 files as long as they are not sold by themselves. Full license texts:
 https://openfontlicense.org.
+
+## Barlow Bold
+
+Source: https://github.com/google/fonts/tree/main/ofl/barlow
+Locally hosted as `barlow-700.ttf`, used for instrument names. SIL Open Font License 1.1, included in `Barlow-OFL.txt`.

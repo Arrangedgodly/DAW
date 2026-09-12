@@ -1,0 +1,752 @@
+@font-face {
+  font-family: "Barlow";
+  src: url("../assets/fonts/barlow-700.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+/* Vector / Alloy: one control system, two light levels. */
+:root {
+  --color-ground: #0c0c10;
+  --color-ink: #f4f5fa;
+  --color-ink-on-fill: #0c0c10;
+  --color-lane-drums: #ff7893;
+  --color-lane-bass: #e3ef88;
+  --color-lane-chords: #70ded0;
+  --color-lane-lead: #ba9aff;
+  --metal-deck: #0c0c10;
+  --metal-panel: #15151d;
+  --metal-raised: #25252f;
+  --metal-recess: #0d0d13;
+  --theme-line: #393944;
+  --theme-muted: #b8b8c9;
+  --theme-accent: #c7b4ff;
+  --theme-radius: 3px;
+  --metal-edge-hi: #393944;
+  --metal-edge-lo: #393944;
+  --metal-grain: none;
+  --metal-brush: none;
+  --metal-brush-v: none;
+  --panel-light: none;
+  --keycap: none;
+  --keycap-lit: none;
+  --keycap-down: none;
+  --elev-key: none;
+  --elev-1: none;
+  --elev-2: none;
+  --elev-3: none;
+  --chamfer: none;
+  --led-window: none;
+  --micro-recess: none;
+  --font-ui: "Segoe UI", Arial, sans-serif;
+  --font-label: var(--font-ui);
+  --font-value: var(--font-ui);
+  --font-led: var(--font-ui);
+  --font-display: "Barlow", "Segoe UI", sans-serif;
+  --track-panel-label: 0.025em;
+  --press-travel: 0px;
+  --text-panel-label-sm: 600 11px/1.2 var(--font-ui);
+  --text-panel-label: 600 12px/1.2 var(--font-ui);
+  --text-label-sm: 600 11px/1.2 var(--font-ui);
+  --text-value: 500 12px/1.2 var(--font-ui);
+  --text-ui: 400 13px/1.5 var(--font-ui);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --color-ground: #dfe5ed;
+  --color-ink: #182638;
+  --color-ink-on-fill: #ffffff;
+  --color-lane-drums: #bb3055;
+  --color-lane-bass: #886000;
+  --color-lane-chords: #007967;
+  --color-lane-lead: #4f48bd;
+  --metal-deck: #dfe5ed;
+  --metal-panel: #f6f8fb;
+  --metal-raised: #e5ebf2;
+  --metal-recess: #edf1f6;
+  --theme-line: #bac7d6;
+  --theme-muted: #506078;
+  --theme-accent: #4f48bd;
+  --metal-edge-hi: #bac7d6;
+  --metal-edge-lo: #bac7d6;
+  color-scheme: light;
+}
+body,
+.app {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+.app {
+  box-sizing: border-box;
+  background-image: none;
+  padding: 8px;
+}
+.app::before,
+.app::after,
+.stage-floors::before,
+.lane-floor::before,
+.lane-floor::after,
+.booth::before,
+.booth::after,
+.booth-led::before,
+.booth-led::after,
+.booth-led-input::before,
+.head-ctl-value::before,
+.head-ctl-value::after {
+  display: none;
+}
+.app .booth,
+.app .lane-floor,
+.app .lane-floor[data-editing],
+.app .rail,
+.app .lane-head-strip,
+.app .phone-chrome,
+.app .phone-options-drawer,
+.app .fx-strip,
+.app .lane-fx-wrap {
+  background: var(--metal-panel);
+  background-image: none;
+  box-shadow: none;
+}
+.app .lane-floor {
+  border: 1px solid var(--theme-line);
+  border-radius: var(--theme-radius);
+  padding: 12px;
+}
+.app .lane-floor[data-editing="true"] {
+  border-color: var(--lane-hue);
+}
+.app .stage-floors {
+  gap: 12px;
+  padding: 12px 4px 4px;
+}
+.app .booth {
+  border: 1px solid var(--theme-line);
+  border-radius: var(--theme-radius);
+  padding: 10px 12px;
+  gap: 10px;
+}
+.app .booth-group-position {
+  background: var(--metal-recess);
+  box-shadow: none;
+  border: 0;
+  padding: 6px;
+  min-height: 40px;
+}
+.app .booth-screen {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+.app .booth-screen::before,
+.app .booth-screen::after {
+  display: none;
+}
+.app button,
+.app select,
+.app input {
+  font-family: var(--font-ui);
+}
+.app button:not(.cell):not(.row-label),
+.app select {
+  border-radius: var(--theme-radius);
+  background-image: none;
+  box-shadow: none;
+  text-shadow: none;
+}
+.app .row-fill.is-overlay button {
+  border-radius: 3px;
+}
+.app
+  :is(
+    .booth-btn,
+    .booth-step-btn,
+    .head-step-btn,
+    .head-mix-btn,
+    .head-fx,
+    .scale-chip,
+    .rail-tool,
+    .theme-selector,
+    .register-shift-btn
+  ) {
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  border: 1px solid var(--theme-line);
+  min-height: 30px;
+}
+.app :is(.booth-btn, .head-mix-btn, .rail-view-toggle, .lane-switch-tab).is-on,
+.app .booth-btn[aria-pressed="true"],
+.app .head-mix-btn[aria-pressed="true"] {
+  background: var(--color-ink);
+  color: var(--color-ground);
+  border-color: var(--color-ink);
+}
+.app button:focus-visible,
+.app select:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+.app .lane-head-strip {
+  margin: 0 0 8px;
+  padding: 0;
+  gap: 8px;
+}
+.app .lane-name {
+  font: 700 18px/1.2 var(--font-display);
+  letter-spacing: -0.025em;
+}
+.app .lane-name::before {
+  border: 0;
+  border-radius: 1px;
+  box-shadow: none;
+  background: var(--lane-hue);
+  width: 5px;
+  height: 13px;
+}
+.app .lane-state {
+  font: 500 10px/1.2 var(--font-ui);
+  letter-spacing: 0;
+  color: var(--theme-muted);
+}
+.app .lane-strip-compact {
+  gap: 8px;
+  min-height: 34px;
+}
+.app .head-ctl-label {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--theme-muted);
+}
+.app .head-ctl-value {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font-size: 12px;
+}
+.app .head-mix-btn {
+  padding: 4px 7px;
+}
+.app .lane-strip-edit {
+  min-height: 32px;
+  gap: 10px;
+  border: 0;
+}
+.app .lane-strip-edit.is-hidden {
+  display: flex;
+  visibility: hidden;
+}
+.app .lane-grid-scroll {
+  background: var(--metal-recess);
+  box-shadow: none;
+  border: 1px solid var(--theme-line);
+  border-radius: 2px;
+}
+.app .row-label {
+  color: var(--theme-muted);
+  font: 500 11px/1 var(--font-ui);
+  text-shadow: none;
+}
+.app .cell {
+  border-radius: 1px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--color-ink) 5%, var(--metal-recess));
+  border-color: color-mix(in srgb, var(--theme-line) 65%, transparent);
+}
+.app .cell[data-on="true"],
+.app .note-run {
+  background: var(--lane-hue);
+  border-radius: 2px;
+  box-shadow: none;
+  color: var(--color-ink-on-fill);
+}
+.app .cell[data-on="true"] {
+  clip-path: none;
+}
+.app .note-run::before {
+  display: none;
+}
+.app .lane-follow {
+  color: var(--theme-muted);
+  font-family: var(--font-ui);
+  letter-spacing: 0.01em;
+}
+.app .register-shift {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 0 9px;
+  border: 0;
+  background: transparent;
+  min-height: 40px;
+}
+.app .register-stepper {
+  gap: 5px;
+}
+.app .register-stepper-label {
+  font: 500 10px/1.2 var(--font-ui);
+  color: var(--theme-muted);
+}
+.app .register-window-readout {
+  background: transparent;
+  color: var(--color-ink);
+  box-shadow: none;
+  border: 0;
+  font: 500 11px/1.2 var(--font-ui);
+}
+.app .theme-selector {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 9px;
+  font: 500 12px/1 var(--font-ui);
+}
+.app .theme-selector svg {
+  flex: none;
+}
+.app .lane-grid-scroll,
+.app [role="dialog"] {
+  scrollbar-color: var(--theme-muted) var(--metal-recess);
+}
+::selection {
+  background: var(--theme-accent);
+  color: var(--color-ground);
+}
+.app input {
+  accent-color: var(--lane-hue, var(--theme-accent));
+}
+.app .viz-page {
+  background: var(--metal-recess);
+  color: var(--color-ink);
+}
+.app .viz-remote,
+.app .viz-inspector {
+  background: var(--metal-panel);
+  color: var(--color-ink);
+}
+.app .viz-page button,
+.app .viz-page select {
+  color: var(--color-ink);
+  background: var(--metal-raised);
+}
+@media (max-width: 1250px) and (min-width: 768px) {
+  .app .lane-strip-compact {
+    flex-wrap: wrap;
+  }
+  .app .lane-name {
+    font-size: 15px;
+  }
+}
+.app[data-stage="phone"] {
+  padding: 0;
+}
+.app[data-stage="phone"] .phone-chrome {
+  border-bottom: 1px solid var(--theme-line);
+}
+.app[data-stage="phone"] .booth {
+  padding: 4px 8px;
+  border: 0;
+}
+.app[data-stage="phone"] .booth-group-position {
+  min-height: 44px;
+  gap: 7px;
+}
+.app[data-stage="phone"] .theme-selector {
+  min-height: 44px;
+  padding: 8px;
+}
+.app[data-stage="phone"] .stage-floors {
+  padding: 8px;
+}
+.app[data-stage="phone"] .lane-floor {
+  padding: 12px;
+}
+.app[data-stage="phone"] .lane-name {
+  font-size: 21px;
+}
+.app[data-stage="phone"] .lane-strip-row {
+  min-height: 44px;
+  gap: 8px;
+}
+.app[data-stage="phone"] .lane-strip-edit {
+  min-height: 44px;
+}
+.app[data-stage="phone"]
+  :is(
+    .head-step-btn,
+    .head-mix-btn,
+    .head-fx,
+    .scale-chip,
+    .register-shift-btn
+  ) {
+  min-height: 44px;
+}
+.app[data-stage="phone"] .register-shift {
+  gap: 8px;
+  padding: 8px 0 12px;
+}
+.app[data-stage="phone"] .register-shift-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+.app[data-stage="phone"] .phone-transport {
+  padding: 6px 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app .lane-name::before,
+  .app .lane-floor::after {
+    transition: none;
+    animation: none;
+  }
+}
+
+.app .register-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.app .register-stepper-btns {
+  display: flex;
+  gap: 4px;
+}
+.app .register-window-arrow {
+  display: none;
+}
+.app .register-zoom-chip {
+  color: var(--theme-muted);
+  background: transparent;
+  border: 1px solid var(--theme-line);
+  border-radius: var(--theme-radius);
+  padding: 5px 7px;
+  min-height: 30px;
+  font: 500 11px/1 var(--font-ui);
+}
+.app .register-shift-btn {
+  width: 30px;
+  min-height: 30px;
+}
+.app .drum-register-label {
+  color: var(--theme-muted);
+  font-size: 11px;
+}
+.app .screen-main::before,
+.app .screen-main::after,
+.app .screen-value::before,
+.app .screen-value::after,
+.app .screen-body::before,
+.app .screen-body::after {
+  display: none;
+}
+.app .booth {
+  background-image: none;
+  box-shadow: none;
+}
+.app .row-fill.is-overlay {
+  z-index: 10;
+}
+.app .lane-strip-compact {
+  flex-wrap: nowrap;
+}
+.app .head-ctl {
+  gap: 4px;
+}
+.app .head-vol-value {
+  display: none;
+}
+.app .lane-name {
+  min-width: 70px;
+}
+.app .lane-state {
+  display: none;
+}
+.app[data-stage="phone"] .register-shift {
+  min-height: 58px;
+}
+.app[data-stage="phone"] .register-zoom-chip {
+  min-height: 44px;
+}
+
+/* Preserve room for a complete octave and the next-pattern footer on phones. */
+.app[data-stage="phone"] .lane-head-strip {
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.app[data-stage="phone"] .lane-strip-edit {
+  gap: 6px;
+}
+.app[data-stage="phone"] .head-gate .head-step-btn {
+  min-width: 36px;
+}
+.app[data-stage="phone"] .head-gate {
+  gap: 4px;
+}
+.app[data-stage="phone"] .register-shift {
+  min-height: 52px;
+  padding: 4px 0 8px;
+}
+.app[data-stage="phone"] .drum-register-label {
+  min-height: 30px;
+}
+
+.app[data-stage="phone"] .lane-floor {
+  padding: 8px;
+}
+.app[data-stage="phone"] .lane-head-strip {
+  gap: 4px;
+}
+.app[data-stage="phone"] .register-shift {
+  padding: 2px 0 6px;
+}
+
+/* Hybrid performance console: branded identity, inset displays, audible light. */
+:root {
+  --brand-cyan: #62dff9;
+  --brand-violet: #bc9cff;
+  --display-ground: #080d18;
+  --display-ink: #b4f0ff;
+  --display-edge: #394553;
+}
+:root[data-theme="light"] {
+  --brand-cyan: #007d97;
+  --brand-violet: #6841c4;
+  --display-ground: #e0e9f0;
+  --display-ink: #123c51;
+  --display-edge: #a4b6c6;
+}
+.app .bitbounce-brand {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+  color: var(--color-ink);
+  font: 700 25px/1 var(--font-display);
+  letter-spacing: -0.035em;
+  padding-right: 12px;
+}
+.app .bitbounce-brand img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+.app .brand-period {
+  color: var(--brand-cyan);
+}
+.app .booth {
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px 12px;
+}
+.app .booth-group-position {
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  gap: 9px;
+  border-top: 1px solid var(--theme-line);
+  padding: 8px 0 0;
+  background: transparent;
+}
+.app .booth-led,
+.app .booth-led-input {
+  background: var(--display-ground);
+  color: var(--display-ink);
+  border: 1px solid var(--display-edge);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 5px #00000026;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+}
+.app .booth-led {
+  font-size: 25px;
+  padding: 3px 9px;
+}
+.app .booth-led-input {
+  font-size: 23px;
+  height: 38px;
+  padding: 0 6px;
+}
+.app .booth-screen {
+  background: var(--display-ground);
+  border: 1px solid var(--display-edge);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 5px #00000026;
+}
+.app .screen-body {
+  background: transparent;
+  padding: 5px 9px;
+}
+.app .screen-label {
+  color: var(--theme-muted);
+  font: 600 10px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+}
+.app .screen-value {
+  color: var(--display-ink);
+  font:
+    500 19px/1.1 "IBM Plex Mono",
+    monospace;
+  text-shadow: none;
+}
+.app .screen-bpm {
+  color: var(--display-ink);
+  font-family: "IBM Plex Mono", monospace;
+}
+.app .screen-annun-item {
+  color: color-mix(in srgb, var(--display-ink) 78%, var(--display-ground));
+  text-shadow: none;
+}
+.app .screen-meter-tag {
+  color: var(--theme-muted);
+}
+.app .lane-name {
+  font: 700 23px/1.05 var(--font-display);
+  letter-spacing: -0.025em;
+}
+.app .lane-name::before {
+  width: 4px;
+  height: 19px;
+  background: var(--lane-hue);
+}
+.app .lane-head-strip {
+  position: relative;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--theme-line);
+}
+.app .lane-meter {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  width: auto;
+  height: 3px;
+  border-radius: var(--theme-radius) var(--theme-radius) 0 0;
+  background: color-mix(in srgb, var(--lane-hue) 12%, transparent);
+  box-shadow: none;
+}
+.app .lane-meter-lit {
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(
+    to right,
+    var(--lane-hue),
+    color-mix(in srgb, var(--lane-hue) 28%, transparent)
+  );
+}
+.app .head-ctl-value {
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+.app .head-step-btn,
+.app .head-mix-btn,
+.app .head-fx,
+.app .booth-btn,
+.app .theme-selector {
+  border-color: var(--theme-line);
+  transition: border-color 130ms ease-out;
+}
+.app
+  :is(.head-step-btn, .head-mix-btn, .head-fx, .booth-btn, .theme-selector):not(
+    .is-on
+  ):not([aria-pressed="true"]):hover {
+  border-color: var(--brand-cyan);
+  background-color: color-mix(
+    in srgb,
+    var(--brand-cyan) 9%,
+    var(--metal-raised)
+  );
+}
+.app .booth-btn-play.is-on {
+  background: var(--brand-cyan);
+  color: var(--color-ground);
+  border-color: var(--brand-cyan);
+}
+.app .row-label {
+  font:
+    500 11px/1 "IBM Plex Mono",
+    monospace;
+}
+.app .register-window-readout {
+  font:
+    500 11px/1.2 "IBM Plex Mono",
+    monospace;
+  color: var(--display-ink);
+  background: var(--display-ground);
+  border: 1px solid var(--display-edge);
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+.app[data-stage="phone"] .booth {
+  padding: 3px 8px;
+}
+.app[data-stage="phone"] .phone-options-drawer {
+  gap: var(--space-5) var(--space-3);
+  padding: var(--space-3);
+}
+.app[data-stage="phone"] .lane-fx-wrap {
+  scroll-padding-block-start: 54px;
+}
+.app[data-stage="phone"] .projects-pop {
+  position: fixed;
+  top: 45px;
+  right: auto;
+  left: var(--space-4);
+  width: min(320px, calc(100vw - 24px));
+  min-width: 0;
+}
+.app[data-stage="phone"] .booth-group-position {
+  border: 0;
+  padding: 0;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.app[data-stage="phone"] .bitbounce-brand {
+  gap: 4px;
+  padding-right: 0;
+  margin-right: auto;
+  font-size: 19px;
+}
+.app[data-stage="phone"] .bitbounce-brand img {
+  width: 33px;
+  height: 33px;
+}
+.app[data-stage="phone"] .save-text {
+  display: none;
+}
+.app[data-stage="phone"] .save-indicator {
+  min-width: 10px;
+  width: 10px;
+  padding: 0;
+  margin: 0;
+}
+.app[data-stage="phone"] .lane-name {
+  font-size: 23px;
+}
+.app[data-stage="phone"] .lane-strip-row-id {
+  align-items: flex-start;
+}
+.app[data-stage="phone"] .lane-head-strip {
+  padding-bottom: 3px;
+}
+.app[data-stage="phone"] .register-window-readout {
+  padding: 5px;
+}
+.app:not([data-stage="phone"]) .lane-state {
+  display: inline;
+}
+.app .phone-options-btn.is-on,
+.app .phone-options-btn.is-on:hover,
+.app .phone-options-btn[aria-pressed="true"] {
+  color: var(--color-ground);
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app
+    :is(.head-step-btn, .head-mix-btn, .head-fx, .booth-btn, .theme-selector) {
+    transition: none;
+  }
+}

@@ -1,3 +1,4 @@
+import { pitchDomain } from "../document/pitchWindow";
 /**
  * Document store (IM-6, completed from the DES-4 pull-forward): one
  * zustand/vanilla store holding the valibot-validated ProjectDocument with
@@ -320,16 +321,19 @@ export function addNote(
 ): boolean {
   const doc = docStore.getState().doc;
   const next = withPitchedPattern(doc, lane, patternId, (p) => {
-    if (!p.rowDegrees.includes(note.degree)) return p;
+    if (!pitchDomain(doc, lane).degrees.includes(note.degree)) return p;
     const snapped = { ...note, length: snapNoteLength(note.length) };
     const notes = p.notes.filter(
       (n) => !(n.degree === note.degree && n.start === note.start),
     );
     notes.push(snapped);
     notes.sort((a, b) => a.degree - b.degree || a.start - b.start);
-    return { ...p, notes };
+    const rowDegrees = p.rowDegrees.includes(note.degree)
+      ? p.rowDegrees
+      : [...p.rowDegrees, note.degree].sort((a, b) => a - b);
+    return { ...p, rowDegrees, notes };
   });
-  if (!next) return false; // no pattern / degree outside the manifest
+  if (!next) return false; // no pattern / pitch outside MIDI range
   commit(next, `note:${lane}:${patternId}`);
   return true;
 }
@@ -799,10 +803,7 @@ function blankPattern(
         name,
         bars,
         steps: Object.fromEntries(
-          DRUM_PIECES.map((piece) => [
-            piece,
-            new Array(16 * bars).fill(false),
-          ]),
+          DRUM_PIECES.map((piece) => [piece, new Array(16 * bars).fill(false)]),
         ) as Record<DrumPiece, boolean[]>,
       }
     : {
@@ -1005,8 +1006,7 @@ export function setChainSlotMode(
 
 /** Flip one chain slot between ⟲ LOOP and → NEXT; returns the new mode. */
 export function toggleChainSlotMode(lane: LaneId, index: number): SlotMode {
-  const current =
-    docStore.getState().doc.chainModes?.[lane]?.[index] ?? "next";
+  const current = docStore.getState().doc.chainModes?.[lane]?.[index] ?? "next";
   const next: SlotMode = current === "loop" ? "next" : "loop";
   setChainSlotMode(lane, index, next);
   return next;
@@ -1195,7 +1195,11 @@ export function resizePattern(
           (note.start + note.length === blocking.start + blocking.length &&
             note.start > blocking.start)
         ) {
-          blocking = { row: note.degree, start: note.start, length: note.length };
+          blocking = {
+            row: note.degree,
+            start: note.start,
+            length: note.length,
+          };
         }
       }
       if (blocking) {

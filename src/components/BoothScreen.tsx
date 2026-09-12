@@ -72,7 +72,9 @@ function readValue(target: Element, host: HTMLElement): string {
 
 export default function BoothScreen() {
   const session = getSession();
-  const [playing, setPlaying] = createSignal(session.transport.snapshot.playing);
+  const [playing, setPlaying] = createSignal(
+    session.transport.snapshot.playing,
+  );
   const [loop, setLoop] = createSignal(session.transport.snapshot.loop);
   const [bpm, setBpm] = createSignal(session.transport.snapshot.bpm);
 
@@ -92,7 +94,7 @@ export default function BoothScreen() {
     for (const [lane, el] of meterEls) onCleanup(registerMeter(lane, el, "x"));
 
     // Two long-lived text nodes: every echo is a characterData write.
-    const label = document.createTextNode("BITBOUNCE BC-1");
+    const label = document.createTextNode("LOCAL SESSION");
     const value = document.createTextNode("READY");
     labelHost?.append(label);
     valueHost?.append(value);
@@ -101,7 +103,8 @@ export default function BoothScreen() {
     let raf = 0;
     const echo = (e: Event) => {
       const target = e.target;
-      if (!(target instanceof Element) || target.closest(".booth-screen")) return;
+      if (!(target instanceof Element) || target.closest(".booth-screen"))
+        return;
       const host = target.closest<HTMLElement>("[data-help]");
       const entry = host?.dataset.help ? getHelp(host.dataset.help) : undefined;
       if (!host || !entry) return;
@@ -134,7 +137,10 @@ export default function BoothScreen() {
     <div class="booth-screen" aria-hidden="true">
       <div class="screen-body">
         <div class="screen-annun">
-          <span class="screen-annun-item" data-on={playing() ? "true" : "false"}>
+          <span
+            class="screen-annun-item"
+            data-on={playing() ? "true" : "false"}
+          >
             ▶ PLAY
           </span>
           <span class="screen-annun-item" data-on={loop() ? "true" : "false"}>

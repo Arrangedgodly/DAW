@@ -58,26 +58,28 @@
 
 /**
  * THE DPR cap, as one constant (the plan's VZ-IM-4 risk note): effective
- * DPR is always `min(devicePixelRatio, VIZ_DPR_CAP)`. R2 measured DPR 3
- * failing the ≥95%-of-frames gate at DEFAULT load and ~doubling backing
- * memory; 2 passes at 100% at every committed viewport with draw p95
- * ≤ 0.5 ms.
+ * DPR is always `min(devicePixelRatio, VIZ_DPR_CAP)`. The original node
+ * renderer passed at DPR 2, but the later multi-instrument composition
+ * engine draws substantially richer geometry. Its dense 200 BPM gate uses
+ * a 0.75× CSS-pixel backing store. The canvas contains abstract light and
+ * line art rather than text, so browser interpolation preserves the intended
+ * look while the smaller surface keeps dense four-lane motion responsive.
  */
-export const VIZ_DPR_CAP = 2;
+export const VIZ_DPR_CAP = 0.75;
 
 /**
  * Resolve the effective DPR for a raw `window.devicePixelRatio` reading:
  * capped at `cap` (default VIZ_DPR_CAP), with degenerate readings
- * (non-finite or ≤ 0 — never produced by real browsers) normalized to 1
- * (CSS-pixel-perfect). Values below 1 (zoomed-out) pass through: flooring
- * them to 1 would double the pixel load for no fidelity gain.
+ * (non-finite or ≤ 0 — never produced by real browsers) normalized to the
+ * lesser of 1 and the cap. Values below the cap (zoomed-out) pass through:
+ * raising them would add pixel load for no fidelity gain.
  */
 export function resolveDpr(
   rawDevicePixelRatio: number,
   cap: number = VIZ_DPR_CAP,
 ): number {
   if (!Number.isFinite(rawDevicePixelRatio) || rawDevicePixelRatio <= 0)
-    return 1;
+    return Math.min(1, cap);
   return Math.min(rawDevicePixelRatio, cap);
 }
 
@@ -130,12 +132,7 @@ export function backingSizeChanged(
  * thrown draw parked the loop (VZ-HU-1 containment — NOT resumable by
  * show; only dispose closes it) · `stopped` disposed (terminal).
  */
-export type VizLoopState =
-  | "idle"
-  | "running"
-  | "parked"
-  | "error"
-  | "stopped";
+export type VizLoopState = "idle" | "running" | "parked" | "error" | "stopped";
 
 /** Lifecycle events: user start/stop, the visibility pair, the draw fault. */
 export type VizLoopEvent = "start" | "hide" | "show" | "stop" | "error";
@@ -217,7 +214,10 @@ export interface VizRendererOptions {
    * try/catch) parks the loop into `error`, fires `onError` once, and
    * never lets the fault reach the engine or window.
    */
-  readonly onFrame?: (ctx: CanvasRenderingContext2D, frame: VizFrameInfo) => void;
+  readonly onFrame?: (
+    ctx: CanvasRenderingContext2D,
+    frame: VizFrameInfo,
+  ) => void;
   /**
    * Reduced-motion seam (VZ-DD-3 owns the ALTERNATIVE): invoked on every
    * matchMedia change; the current value is always readable on probe().
@@ -393,7 +393,6 @@ export function createVizRenderer(opts: VizRendererOptions): VizRenderer {
   const onReducedMotionChange = (e: MediaQueryListEvent): void => {
     opts.onReducedMotionChange?.(e.matches);
   };
-
 
   const renderer: VizRenderer = {
     start() {

@@ -1,3 +1,4 @@
+import { pitchDomain } from "../src/document/pitchWindow";
 /**
  * RC-1 unit gate — the register controls' laws (v3, i3-1/i3-2):
  *
@@ -22,10 +23,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  clampedWindowScroll,
-  clampWindowStart,
-} from "../src/grid/keynav";
+import { clampedWindowScroll, clampWindowStart } from "../src/grid/keynav";
 import {
   canUndo,
   docStore,
@@ -256,9 +254,9 @@ describe("RC-1 octave consumption (compile + MIDI)", () => {
       demo.transport.swing,
     ).map((n) => n.noteNumber);
     expect(upNotes.length).toBe(baseNotes.length);
-    expect(upNotes.every((m, i) => m === Math.min(127, baseNotes[i]! + 12))).toBe(
-      true,
-    );
+    expect(
+      upNotes.every((m, i) => m === Math.min(127, baseNotes[i]! + 12)),
+    ).toBe(true);
     // Other lanes untouched by the lead's offset (lane-scoped field).
     const bassBase = buildPitchedNotes(
       demo,
@@ -294,12 +292,7 @@ describe("RC-1 octave consumption (compile + MIDI)", () => {
         0,
       ),
     ).toEqual(
-      buildPitchedNotes(
-        demo,
-        "lead",
-        resolveChainPatterns(demo, "lead"),
-        0,
-      ),
+      buildPitchedNotes(demo, "lead", resolveChainPatterns(demo, "lead"), 0),
     );
     expect(bytes.byteLength).toBeGreaterThan(0);
   });
@@ -312,20 +305,40 @@ describe("RC-1 octave consumption (compile + MIDI)", () => {
 describe("RC-1 default register window (selection)", () => {
   it("empty lanes default to the first window", () => {
     // The store boots with the fresh default (no notes anywhere).
-    expect(defaultRegisterWindowStart("bass", 7)).toBe(0);
-    expect(defaultRegisterWindowStart("lead", 7)).toBe(0);
+    expect(
+      pitchDomain(docStore.getState().doc, "bass").degrees[
+        defaultRegisterWindowStart("bass", 7) + 6
+      ],
+    ).toBe(0);
+    expect(
+      pitchDomain(docStore.getState().doc, "lead").degrees[
+        defaultRegisterWindowStart("lead", 7) + 6
+      ],
+    ).toBe(0);
   });
 
   it("the demo: the window showing the MOST noted rows, ties → lowest", () => {
     loadDocument(createDemoProject());
     // Bass roots + approach span degrees 0..7: window 0 (0–6 shows 0,4,5,6 —
     // the 6-hit root rhythm rows; degree 7's lone approach note concedes).
-    expect(defaultRegisterWindowStart("bass", 7)).toBe(0);
+    expect(
+      pitchDomain(docStore.getState().doc, "bass").degrees[
+        defaultRegisterWindowStart("bass", 7) + 6
+      ],
+    ).toBe(0);
     // Lead melody spans degrees 7..14 on a 15-row manifest: windows 6, 7, 8
     // each cover six melody rows — the tie breaks LOWEST → 6 (rows 6–12).
-    expect(defaultRegisterWindowStart("lead", 7)).toBe(6);
+    expect(
+      pitchDomain(docStore.getState().doc, "lead").degrees[
+        defaultRegisterWindowStart("lead", 7) + 6
+      ],
+    ).toBe(6);
     // Chords: 7-row manifest = one window.
-    expect(defaultRegisterWindowStart("chords", 7)).toBe(0);
+    expect(
+      pitchDomain(docStore.getState().doc, "chords").degrees[
+        defaultRegisterWindowStart("chords", 7) + 6
+      ],
+    ).toBe(0);
   });
 
   it("window starts persist as view state and re-default on document replacement", () => {

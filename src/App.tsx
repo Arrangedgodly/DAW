@@ -1,9 +1,8 @@
 /**
- * App shell — Machined Console (2026-09-04; was Arcade Stage Floor): the
- * booth (transport) is fixed at the top of the stage; below it the four lane
- * floors render their pad grids (DES-4). DES-3 adds the lane header strips
- * between booth and floors. chassis.css lays the device deck + inset bezel
- * (zero layout px) that the per-surface hardware restyles consume.
+ * App shell — Hybrid Performance Console: the booth (transport) is fixed at
+ * the top of the stage; below it the four lane floors render their pad grids.
+ * The active theme supplies the luminous Vector or polished Alloy surface,
+ * while the shared shell preserves the composing flow and control positions.
  *
  * HP-1: the shell carries the help-mode attribute (the mode-obvious CSS hook
  * — see styles/info-view.css) and mounts the InfoView ONLY while help mode
@@ -13,7 +12,11 @@
 
 import { Show } from "solid-js";
 import Booth, { PlayStopButton } from "./components/Booth";
-import { OptionsBackdrop, OptionsButton, OptionsDrawerPanel } from "./components/PhoneOptions";
+import {
+  OptionsBackdrop,
+  OptionsButton,
+  OptionsDrawerPanel,
+} from "./components/PhoneOptions";
 import InfoView from "./components/InfoView";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import PatternRail from "./components/PatternRail";
@@ -43,7 +46,7 @@ import "./styles/viz.css";
 import "./styles/song.css";
 // THE FULL UNIT (overdrive): imported last — its paint rules win ties.
 import "./styles/unit.css";
-import UnitOptics from "./components/UnitOptics";
+import "./styles/themes.css";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
 // document is already live, so the app renders immediately and the restored
@@ -119,10 +122,7 @@ export default function App() {
         <Show when={optionsOpen()}>
           <OptionsBackdrop />
         </Show>
-        <div
-          class="phone-chrome"
-          inert={vizMode() ? true : undefined}
-        >
+        <div class="phone-chrome" inert={vizMode() ? true : undefined}>
           {/* M-2: phone stage thins the booth — KEYS ?/INFO ? buttons do
               not render (render guard, not CSS; VZ-DD-1 a11y-tree law).
               The desktop/tablet fallback branch above stays unchanged. */}
@@ -198,7 +198,6 @@ export default function App() {
         <VizPage />
       </Show>
       <KeyboardShortcuts />
-      <UnitOptics />
     </div>
   );
 }

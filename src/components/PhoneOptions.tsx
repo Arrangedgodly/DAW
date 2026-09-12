@@ -174,8 +174,8 @@ function LaneOctaveGroup() {
           {/* The E9 fence, spoken where the control lives: OCT transposes
               the SOUND; the register row scrolls the VIEW. */}
           <span class="phone-oct-fence">
-            Changes what you HEAR, not what you SEE — clamped at −3 and +3.
-            The OCT/SEMI row scrolls the view.
+            Changes what you HEAR, not what you SEE — clamped at −3 and +3. The
+            OCT/SEMI row scrolls the view.
           </span>
         </div>
       )}

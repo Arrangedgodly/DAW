@@ -1,3 +1,4 @@
+import { pitchDomain } from "../document/pitchWindow";
 /**
  * Selection/focus state (IM-6/IM-7, D1 two-tier law): ephemeral UI state lives in
  * Solid signals and NEVER in the document store or undo history. Active lane,
@@ -15,7 +16,12 @@
  */
 
 import { createSignal } from "solid-js";
-import type { DrumPiece, LaneId, Pattern, PitchedLane } from "../document/schema";
+import type {
+  DrumPiece,
+  LaneId,
+  Pattern,
+  PitchedLane,
+} from "../document/schema";
 import { LANE_NAMES } from "../components/laneMeta";
 import { docStore, onDocumentReplaced, setLaneOctave } from "./store";
 
@@ -69,9 +75,8 @@ const [activePatterns, setActivePatterns] = createSignal<
  * means "selected by pattern, no slot in mind" (the PAT menu's DUP/RM, the
  * global `n`): callers fall back to the pattern-id match, exactly as before.
  */
-const [activeSlots, setActiveSlots] = createSignal<
-  Partial<Record<LaneId, number | null>>
->(defaultActiveSlots());
+const [activeSlots, setActiveSlots] =
+  createSignal<Partial<Record<LaneId, number | null>>>(defaultActiveSlots());
 const [focusedCell, setFocusedCell] = createSignal<FocusedCell | null>(null);
 
 /**
@@ -243,9 +248,7 @@ const [registerWindowStarts, setRegisterWindowStarts] = createSignal<
 >({});
 
 /** The lane's stored window start (undefined = not yet placed). */
-export function registerWindowStart(
-  lane: PitchedLaneId,
-): number | undefined {
+export function registerWindowStart(lane: PitchedLaneId): number | undefined {
   return registerWindowStarts()[lane];
 }
 
@@ -253,7 +256,10 @@ export function registerWindowStart(
 export { registerWindowStarts };
 
 /** Store a window start (view-only; clamped by the grid against its rows). */
-export function setRegisterWindowStart(lane: PitchedLaneId, start: number): void {
+export function setRegisterWindowStart(
+  lane: PitchedLaneId,
+  start: number,
+): void {
   setRegisterWindowStarts((prev) =>
     prev[lane] === start ? prev : { ...prev, [lane]: start },
   );
@@ -276,23 +282,25 @@ export function defaultRegisterWindowStart(
 ): number {
   const doc = docStore.getState().doc;
   const noted = new Set<number>();
-  let rows = 0;
+  const domain = pitchDomain(doc, lane);
   for (const p of doc.patterns[lane]) {
     if (p.kind !== "pitched") continue;
-    rows = Math.max(rows, p.rowDegrees.length);
-    for (const note of p.notes) noted.add(note.degree);
+    for (const note of p.notes)
+      if (p.rowDegrees.includes(note.degree)) noted.add(note.degree);
   }
-  const maxStart = Math.max(0, rows - windowRows);
-  if (noted.size === 0) return 0;
-  let best = 0;
+  const maxStart = Math.max(0, domain.degrees.length - windowRows);
+  if (noted.size === 0)
+    return Math.max(0, domain.degrees.indexOf(0) - windowRows + 1);
+  let best = maxStart;
   let bestCount = -1;
-  for (let s = 0; s <= maxStart; s++) {
+  for (let s = maxStart; s >= 0; s--) {
     let count = 0;
-    for (let d = s; d < s + windowRows; d++) if (noted.has(d)) count++;
+    for (let d = s; d < s + windowRows; d++)
+      if (noted.has(domain.degrees[d])) count++;
     if (count > bestCount) {
       bestCount = count;
       best = s;
-    } // ties keep the earlier (lower) window
+    }
   }
   return best;
 }
@@ -359,10 +367,7 @@ function announceOctave(lane: LaneId, text: string): void {
  * Step a PITCHED lane one octave. The domain clamp (−3..+3) is a NO-OP that
  * still announces (`<LANE> OCTAVE +3 · AT LIMIT` — never a silent no-op).
  */
-export function stepLaneOctave(
-  lane: PitchedLaneId,
-  delta: -1 | 1,
-): void {
+export function stepLaneOctave(lane: PitchedLaneId, delta: -1 | 1): void {
   const conf = docStore
     .getState()
     .doc.lanes.find((l) => l.id === lane) as PitchedLane;

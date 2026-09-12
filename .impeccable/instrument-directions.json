@@ -1,0 +1,674 @@
+{
+  "title": "Bitbounce: a new instrument workspace",
+  "question": "Choose a direction to develop. The diagrams compare desktop and phone structure; they are not finished screenshots. Every direction keeps scale notes, free register navigation, audio behavior, SONG and VIZ.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Light score",
+      "thesis": "Four instruments share one wide musical timeline, with luminous notes doing the visual work.",
+      "palette": [
+        "#070D19",
+        "#D8E8FA",
+        "#66E2DF",
+        "#BDACFF"
+      ],
+      "materials": [
+        "Ink-dark score field",
+        "Fine timing rules",
+        "Solid luminous note strokes"
+      ],
+      "viewport": "Desktop: four full-width horizontal instrument bands. Phone: one large instrument with persistent lane tabs and the same control order.",
+      "risk": "Less vertical pitch space when all four instruments are visible.",
+      "comp": ".impeccable/mocks/decision/assigned.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "PLAY / TEMPO / EDIT / SONG / VIZ",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 1
+          },
+          {
+            "label": "Drums • kit / mix",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Drums step grid",
+            "x": 2,
+            "y": 1,
+            "w": 7,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Bass • preset / mix",
+            "x": 0,
+            "y": 3,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Bass note grid",
+            "x": 2,
+            "y": 3,
+            "w": 7,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Chords • preset / mix",
+            "x": 0,
+            "y": 5,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Chords note grid",
+            "x": 2,
+            "y": 5,
+            "w": 7,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Lead • preset / mix",
+            "x": 0,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Lead note grid",
+            "x": 2,
+            "y": 7,
+            "w": 7,
+            "h": 2,
+            "accent": true
+          },
+          {
+            "label": "Phone",
+            "x": 10,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Instrument tabs",
+            "x": 10,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Preset / mix",
+            "x": 10,
+            "y": 2,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Active grid",
+            "x": 10,
+            "y": 4,
+            "w": 2,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 10,
+            "y": 9,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Pitch navigation stays beside each grid; common time ruler",
+            "x": 0,
+            "y": 9,
+            "w": 9,
+            "h": 2
+          }
+        ]
+      },
+      "raised": [
+        {
+          "from": "Character roster",
+          "raise": "Each instrument owns a recognizable identity and identical control locations."
+        },
+        {
+          "from": "Four-shade handheld",
+          "raise": "Selection remains obvious using fill and shape even without color."
+        },
+        {
+          "from": "One-bit desktop",
+          "raise": "Every selected, editing, and disabled state has a crisp boundary."
+        },
+        {
+          "from": "Rhythm machine",
+          "raise": "Playback position is the dominant moving signal, with immediate note-entry feedback."
+        }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Vector studio",
+      "thesis": "A precise digital instrument with four balanced grids, clear sound headers, and a fixed editing toolbar.",
+      "palette": [
+        "#080D13",
+        "#F0F5FA",
+        "#72F3BA",
+        "#669AFF"
+      ],
+      "materials": [
+        "Smooth graphite planes",
+        "Sharp sans-serif labels",
+        "Bright active-note edges"
+      ],
+      "viewport": "Desktop: four equal, grid-dominant panels. Phone: a large active instrument, lane tabs, and a reachable pitch/navigation toolbar.",
+      "risk": "The most familiar DAW layout here; distinction depends on exceptional spacing, type, and interaction.",
+      "comp": ".impeccable/mocks/decision/model-pick.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Transport / EDIT / SONG / VIZ",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 1
+          },
+          {
+            "label": "Drums • kit / mix",
+            "x": 0,
+            "y": 1,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Drums grid",
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Gate / scale / FX",
+            "x": 0,
+            "y": 5,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Bass • preset / mix",
+            "x": 5,
+            "y": 1,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Bass grid",
+            "x": 5,
+            "y": 2,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 5,
+            "y": 5,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Chords • sound / mix",
+            "x": 0,
+            "y": 7,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Chords grid",
+            "x": 0,
+            "y": 8,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Lead • sound / mix",
+            "x": 5,
+            "y": 7,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Lead grid",
+            "x": 5,
+            "y": 8,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Phone",
+            "x": 10,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Lane tabs",
+            "x": 10,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Preset / mix",
+            "x": 10,
+            "y": 2,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Active grid",
+            "x": 10,
+            "y": 4,
+            "w": 2,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 10,
+            "y": 9,
+            "w": 2,
+            "h": 2
+          }
+        ]
+      },
+      "kicker": "IMPECCABLE’S PICK"
+    },
+    {
+      "id": "challenger-stage",
+      "label": "Live stage",
+      "thesis": "One instrument takes the stage while the other three stay visible as compact musical previews.",
+      "palette": [
+        "#070913",
+        "#3164EF",
+        "#EA8DB3",
+        "#F4F6FF"
+      ],
+      "materials": [
+        "Dark stage field",
+        "Cobalt control bands",
+        "Rose active-note accents"
+      ],
+      "viewport": "Desktop: instrument previews on the left, one expansive editor on the right. Phone: the same focused editor with tabs.",
+      "risk": "Editing all four lanes takes more switching; atmospheric color must stay out of the note grid.",
+      "comp": ".impeccable/mocks/decision/challenger-stage.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Transport / EDIT / SONG / VIZ",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 1
+          },
+          {
+            "label": "Drums",
+            "x": 0,
+            "y": 1,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Bass",
+            "x": 0,
+            "y": 3,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Chords",
+            "x": 0,
+            "y": 5,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Lead",
+            "x": 0,
+            "y": 7,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Lead • preset / volume / mute / solo",
+            "x": 2,
+            "y": 1,
+            "w": 7,
+            "h": 1
+          },
+          {
+            "label": "Expanded active instrument grid",
+            "x": 2,
+            "y": 2,
+            "w": 7,
+            "h": 6,
+            "accent": true
+          },
+          {
+            "label": "Semitone / octave / note range",
+            "x": 2,
+            "y": 8,
+            "w": 7,
+            "h": 1
+          },
+          {
+            "label": "Gate / scale / FX",
+            "x": 2,
+            "y": 9,
+            "w": 7,
+            "h": 2
+          },
+          {
+            "label": "Phone",
+            "x": 10,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Lane tabs",
+            "x": 10,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Sound / mix",
+            "x": 10,
+            "y": 2,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Active grid",
+            "x": 10,
+            "y": 4,
+            "w": 2,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 10,
+            "y": 9,
+            "w": 2,
+            "h": 2
+          }
+        ]
+      },
+      "verdict": "competitive",
+      "case": "Strong performance identity and generous editing space; weaker simultaneous four-lane editing.",
+      "hero": "https://impeccable.style/worlds/cards/stagecraft-theater-lighting-cyclorama-dawn-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/stagecraft-theater-lighting-cyclorama-dawn.webp"
+    },
+    {
+      "id": "challenger-daylight",
+      "label": "Daylight spectrum",
+      "thesis": "A bright, exact music workspace with spectral color restricted to active notes and instrument identity.",
+      "palette": [
+        "#F1F4F6",
+        "#17202E",
+        "#6258C9",
+        "#00796F"
+      ],
+      "materials": [
+        "Matte white field",
+        "Slate typography",
+        "Narrow spectral accents"
+      ],
+      "viewport": "Desktop: four aligned instrument grids on a bright continuous workspace. Phone: one focused grid with large dark labels.",
+      "risk": "Excellent daytime clarity; less like an immersive night-time performance instrument.",
+      "comp": ".impeccable/mocks/decision/challenger-daylight.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 12,
+        "regions": [
+          {
+            "label": "Transport / EDIT / SONG / VIZ",
+            "x": 0,
+            "y": 0,
+            "w": 9,
+            "h": 1
+          },
+          {
+            "label": "Drums • kit / mix",
+            "x": 0,
+            "y": 1,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Drums grid",
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Gate / scale / FX",
+            "x": 0,
+            "y": 5,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Bass • preset / mix",
+            "x": 5,
+            "y": 1,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Bass grid",
+            "x": 5,
+            "y": 2,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 5,
+            "y": 5,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Chords • sound / mix",
+            "x": 0,
+            "y": 7,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Chords grid",
+            "x": 0,
+            "y": 8,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Lead • sound / mix",
+            "x": 5,
+            "y": 7,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "label": "Lead grid",
+            "x": 5,
+            "y": 8,
+            "w": 4,
+            "h": 3,
+            "accent": true
+          },
+          {
+            "label": "Phone",
+            "x": 10,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Lane tabs",
+            "x": 10,
+            "y": 1,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "label": "Preset / mix",
+            "x": 10,
+            "y": 2,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "label": "Active grid",
+            "x": 10,
+            "y": 4,
+            "w": 2,
+            "h": 5,
+            "accent": true
+          },
+          {
+            "label": "Pitch / gate / FX",
+            "x": 10,
+            "y": 9,
+            "w": 2,
+            "h": 2
+          }
+        ]
+      },
+      "verdict": "competitive",
+      "case": "Wins on daylight readability, but the user's high-tech performance ambition is stronger in the darker directions.",
+      "hero": "https://impeccable.style/worlds/cards/clouds-storms-auroras-iridescent-cloud-edge-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/clouds-storms-auroras-iridescent-cloud-edge.webp"
+    },
+    {
+      "id": "declined-character",
+      "label": "Character roster",
+      "thesis": "A four-instrument roster with strong individual identities.",
+      "palette": [
+        "#F4DFEE",
+        "#181826"
+      ],
+      "materials": [
+        "Pastel cells and rounded nameplates"
+      ],
+      "viewport": "Four instrument cells with fixed settings.",
+      "risk": "Playful character styling weakens the advanced instrument feel.",
+      "kept": "Instrument identity and stable controls.",
+      "verdict": "declined",
+      "case": "Lower fit to the requested modern identity and no clarity advantage over the main direction."
+    },
+    {
+      "id": "declined-handheld",
+      "label": "Four-shade handheld",
+      "thesis": "A scale grid reduced to four strict visual states.",
+      "palette": [
+        "#9BBC0F",
+        "#0F380F"
+      ],
+      "materials": [
+        "Pixel grid and four-color field"
+      ],
+      "viewport": "A fixed note frame with compact directional controls.",
+      "risk": "Retro constraints conflict with the requested visual replacement and desktop density.",
+      "kept": "Non-color state clarity.",
+      "verdict": "declined",
+      "case": "Lower fit to the requested modern identity and no clarity advantage over the main direction."
+    },
+    {
+      "id": "declined-desktop",
+      "label": "One-bit desktop",
+      "thesis": "Music patterns become tiled, sharply bounded editor windows.",
+      "palette": [
+        "#FFFFFF",
+        "#111111"
+      ],
+      "materials": [
+        "Black and white window chrome"
+      ],
+      "viewport": "Tiled pattern windows with explicit active selection.",
+      "risk": "Overlapping-window conventions add navigation work and repeat the retro tone.",
+      "kept": "Crisp editing boundaries.",
+      "verdict": "declined",
+      "case": "Lower fit to the requested modern identity and no clarity advantage over the main direction."
+    },
+    {
+      "id": "declined-rhythm",
+      "label": "Rhythm machine",
+      "thesis": "Four note sequences organized around a strong running step light.",
+      "palette": [
+        "#171A1D",
+        "#EF6948",
+        "#F2D266"
+      ],
+      "materials": [
+        "Physical step keys and LED states"
+      ],
+      "viewport": "Instrument rows beneath a tempo readout.",
+      "risk": "Its familiar hardware language repeats the style the user is ready to replace.",
+      "kept": "Immediate musical feedback.",
+      "verdict": "declined",
+      "case": "Lower fit to the requested modern identity and no clarity advantage over the main direction."
+    }
+  ],
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  },
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "steer": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Conventional DAW",
+    "thesis": "A familiar neutral piano-roll interface with standard toolbars.",
+    "palette": [
+      "#202226",
+      "#F1F3F5",
+      "#6AA5FF"
+    ],
+    "materials": [
+      "Flat neutral panels",
+      "Conventional transport and toolbars"
+    ],
+    "viewport": "Four traditional editor panels on desktop, one tabbed editor on phone.",
+    "risk": "Easy to recognize, but least distinctive.",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  }
+}

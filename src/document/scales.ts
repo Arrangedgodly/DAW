@@ -58,8 +58,8 @@ export function toEffectiveScale(config: ScaleConfig): EffectiveScale {
 
 /**
  * Scale-degree index → MIDI note number.
- * `degree` may exceed the mode size (or be "negative-via-wrap" never — degrees are
- * non-negative): each full wrap of the mode adds one octave.
+ * `degree` may be negative or exceed the mode size: each full wrap
+ * of the mode moves one octave.
  * `octaveBase` is the octave of degree 0 in scientific pitch notation
  * (e.g. octaveBase 4 → degree 0 of C major is C4 = MIDI 60).
  */

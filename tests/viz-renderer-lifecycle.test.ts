@@ -34,30 +34,33 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("resolveDpr — min(devicePixelRatio, VIZ_DPR_CAP), one constant", () => {
-  it("VIZ_DPR_CAP is exactly 2 (the one-constant law; R2 measured DPR 3 failing the gate at default load)", () => {
-    expect(VIZ_DPR_CAP).toBe(2);
+  it("VIZ_DPR_CAP is exactly 0.75 (the multi-instrument engine's abstract-canvas performance balance)", () => {
+    expect(VIZ_DPR_CAP).toBe(0.75);
   });
 
   it.each([
-    [1, 1],
-    [1.25, 1.25],
-    [1.5, 1.5],
-    [2, 2],
-    [2.5, 2],
-    [3, 2],
-    [8, 2],
-  ])("dpr %s → %s (at or below the cap passes, above caps to 2)", (raw, want) => {
-    expect(resolveDpr(raw)).toBe(want);
-  });
+    [1, 0.75],
+    [1.25, 0.75],
+    [1.5, 0.75],
+    [2, 0.75],
+    [2.5, 0.75],
+    [3, 0.75],
+    [8, 0.75],
+  ])(
+    "dpr %s → %s (at or below the cap passes, above caps to 0.75)",
+    (raw, want) => {
+      expect(resolveDpr(raw)).toBe(want);
+    },
+  );
 
   it("sub-1 readings pass through (no floor: zoomed-out stays honest — flooring would double the pixel load)", () => {
     expect(resolveDpr(0.5)).toBe(0.5);
     expect(resolveDpr(0.75)).toBe(0.75);
   });
 
-  it("degenerate readings (never produced by real browsers) normalize to 1, never 0/NaN/negative", () => {
+  it("degenerate readings (never produced by real browsers) normalize to the safe cap, never 0/NaN/negative", () => {
     for (const raw of [0, -1, -2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(resolveDpr(raw)).toBe(1);
+      expect(resolveDpr(raw)).toBe(0.75);
     }
   });
 
@@ -77,12 +80,9 @@ describe("backingSize — integer backing store = round(css × dpr), floored at 
     [390, 844, 2, 780, 1688],
     [768, 900, 1, 768, 900],
     [1440, 900, 2, 2880, 1800],
-  ])(
-    "committed viewport %s×%s at dpr %s → %s×%s",
-    (w, h, dpr, bw, bh) => {
-      expect(backingSize(w, h, dpr)).toEqual({ width: bw, height: bh });
-    },
-  );
+  ])("committed viewport %s×%s at dpr %s → %s×%s", (w, h, dpr, bw, bh) => {
+    expect(backingSize(w, h, dpr)).toEqual({ width: bw, height: bh });
+  });
 
   it("fractional CSS boxes round to the nearest integer backing pixel", () => {
     expect(backingSize(390.4, 844.6, 2)).toEqual({ width: 781, height: 1689 });
@@ -109,19 +109,31 @@ describe("backingSize — integer backing store = round(css × dpr), floored at 
 describe("backingSizeChanged — the integer-change swap guard", () => {
   it("identical integer sizes swap nothing", () => {
     expect(
-      backingSizeChanged({ width: 2880, height: 1800 }, { width: 2880, height: 1800 }),
+      backingSizeChanged(
+        { width: 2880, height: 1800 },
+        { width: 2880, height: 1800 },
+      ),
     ).toBe(false);
   });
 
   it("any one-axis integer difference forces the swap (sub-pixel churn that rounds equal does not)", () => {
     expect(
-      backingSizeChanged({ width: 2880, height: 1800 }, { width: 2881, height: 1800 }),
+      backingSizeChanged(
+        { width: 2880, height: 1800 },
+        { width: 2881, height: 1800 },
+      ),
     ).toBe(true);
     expect(
-      backingSizeChanged({ width: 2880, height: 1800 }, { width: 2880, height: 1801 }),
+      backingSizeChanged(
+        { width: 2880, height: 1800 },
+        { width: 2880, height: 1801 },
+      ),
     ).toBe(true);
     expect(
-      backingSizeChanged({ width: 2880, height: 1800 }, { width: 2880, height: 1800 }),
+      backingSizeChanged(
+        { width: 2880, height: 1800 },
+        { width: 2880, height: 1800 },
+      ),
     ).toBe(false);
   });
 });

@@ -248,15 +248,15 @@ describe("note-edit actions (SC-2)", () => {
     ]);
   });
 
-  it("addNote refuses unknown patterns and degrees outside the row manifest", () => {
+  it("addNote refuses unknown patterns and pitches outside MIDI range", () => {
     const before = doc();
     expect(addNote("lead", "nope", { degree: 0, start: 0, length: 1 })).toBe(
       false,
     );
     // Default lead manifest is 0..13 (minor × 2 octaves); degree 20 has no row.
-    expect(addNote("lead", "lead-1", { degree: 20, start: 0, length: 1 })).toBe(
-      false,
-    );
+    expect(
+      addNote("lead", "lead-1", { degree: 128, start: 0, length: 1 }),
+    ).toBe(false);
     expect(doc()).toBe(before); // untouched
   });
 

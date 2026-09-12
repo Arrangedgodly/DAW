@@ -134,6 +134,13 @@ export const GRID_FILL_RAIL_LONG_PX = 28;
  */
 export const GRID_VIRTUALIZE_MIN_STEPS = 64;
 /**
+ * Pitched register domains can span the complete MIDI range. Keep the full
+ * row geometry for native register scrolling, while materializing cell and
+ * note DOM only for the seated octave. This threshold leaves the small
+ * legacy manifests byte-identical.
+ */
+const GRID_VIRTUALIZE_MIN_ROWS = 24;
+/**
  * LL-1: overscan columns kept beyond each visible edge. The LP-1 harness
  * tuned 24 on its UNSTYLED prototype (it imports base.css only); on the
  * styled production grid the rewindow's paint cost scales with the window
@@ -509,6 +516,8 @@ export class DomGridRenderer implements GridRenderer {
   private lastQuantized: number | null = null;
   private glowTimers = new Set<number>();
   private rovingCell: HTMLElement | null = null;
+  /** Stable cursor identity while its row is outside the materialized octave. */
+  private rovingPosition: CellPos = { row: 0, step: 0 };
   private reducedMotion: MediaQueryList | null = null;
   /** LY-1 quadrant state (see setEditable). */
   private editable = true;
@@ -579,6 +588,8 @@ export class DomGridRenderer implements GridRenderer {
   /* -- LL-1: the column window (see the header law) ------------------------ */
   /** True when steps > GRID_VIRTUALIZE_MIN_STEPS (sticky-layer windowing). */
   private readonly virtual: boolean;
+  /** Full-MIDI pitched manifests virtualize their vertical cell population. */
+  private readonly rowVirtual: boolean;
   /**
    * The dedicated single-axis HORIZONTAL scroller holding the sizer + sticky
    * layer (virtual only — see build() for the two-axis-split law). Null on
@@ -664,6 +675,8 @@ export class DomGridRenderer implements GridRenderer {
     this.pointerEditable = opts.pointerEditable ?? false;
     this.rowSpans = opts.rowLabels.map(() => []);
     this.virtual = opts.steps > GRID_VIRTUALIZE_MIN_STEPS;
+    this.rowVirtual =
+      opts.pitched && opts.rowLabels.length > GRID_VIRTUALIZE_MIN_ROWS;
     this.winEnd = opts.steps; // eager covers the pattern; virtual re-seats below
     this.build();
     if (this.virtual) {
@@ -747,10 +760,11 @@ export class DomGridRenderer implements GridRenderer {
       // the axis the quadrant viewport-budget fit compresses live.
       cellsEl.style.gridAutoRows = `${this.rowHeightPx}px`;
       cellsEl.style.gap = `${this.gapPx}px`;
+      if (this.rowVirtual) cellsEl.style.height = `${this.rowHeightPx}px`;
       this.rowTracks.push(cellsEl);
 
       const rowCells: HTMLElement[] = [];
-      if (!this.virtual) {
+      if (!this.virtual && !this.rowVirtual) {
         // Eager: every pattern cell exists up front — today's law. The
         // virtualized grid's POOL is created by rewindow() (recycled, only
         // the window's tracks ever exist).
@@ -826,6 +840,10 @@ export class DomGridRenderer implements GridRenderer {
       rowEl.append(cellsEl);
       body.append(rowEl);
       this.rowEls.push(rowEl);
+      if (this.rowVirtual) {
+        rowEl.style.visibility = "hidden";
+        rowEl.setAttribute("aria-hidden", "true");
+      }
     }
 
     // Playhead light bar — compositor-only (transform), spans all rows.
@@ -922,12 +940,15 @@ export class DomGridRenderer implements GridRenderer {
    * rewindow builds the pool (eager keeps today's exact order).
    */
   private seedRoving(): void {
-    const first = this.cells[0]?.[0];
+    const first = this.cells.find((row) => row.length > 0)?.[0];
     if (first && this.editable) {
-      first.tabIndex = 0;
-      this.rovingCell = first;
+      this.setRoving(first);
     } else if (first) {
       this.rovingCell = first; // remembered for setEditable(true), no tab stop
+      this.rovingPosition = {
+        row: Number(first.dataset.row),
+        step: Number(first.dataset.step),
+      };
     }
   }
 
@@ -944,16 +965,27 @@ export class DomGridRenderer implements GridRenderer {
 
   /** LL-1: the roving cursor (see the interface law). */
   cursor(): { row: number; step: number } | null {
-    if (!this.rovingCell || !this.rovingCell.isConnected) return null;
-    const row = Number(this.rovingCell.dataset.row);
-    const step = Number(this.rovingCell.dataset.step);
-    if (!Number.isFinite(row) || !Number.isFinite(step)) return null;
-    return { row, step };
+    if (this.rovingCell?.isConnected) {
+      const row = Number(this.rovingCell.dataset.row);
+      const step = Number(this.rovingCell.dataset.step);
+      if (Number.isFinite(row) && Number.isFinite(step)) {
+        this.rovingPosition = { row, step };
+        return { row, step };
+      }
+    }
+    return this.rowVirtual ? { ...this.rovingPosition } : null;
   }
 
   focusRoving(): void {
     if (!this.editable) return;
-    if (this.rovingCell) {
+    if (!this.rovingCell?.isConnected && this.rowVirtual) {
+      this.ensureRowVisible(this.rovingPosition.row);
+      this.rovingCell = this.cellFor(
+        this.rovingPosition.row,
+        this.rovingPosition.step,
+      );
+    }
+    if (this.rovingCell?.isConnected) {
       this.rovingCell.focus({ preventScroll: true });
       // RC-1: the roving landing must be visible in the window (E2 extended).
       this.ensureRowVisible(this.rovingRowIndex());
@@ -982,7 +1014,16 @@ export class DomGridRenderer implements GridRenderer {
     // cell); view-only grids own none. The remembered roving cell survives
     // the flip, so re-entering edit mode returns to the same place.
     if (editable) {
-      if (!this.rovingCell) this.rovingCell = this.cells[0]?.[0] ?? null;
+      if (!this.rovingCell?.isConnected) {
+        const first = this.cells.find((row) => row.length > 0)?.[0] ?? null;
+        this.rovingCell = first;
+        if (first) {
+          this.rovingPosition = {
+            row: Number(first.dataset.row),
+            step: Number(first.dataset.step),
+          };
+        }
+      }
       if (this.rovingCell) this.rovingCell.tabIndex = 0;
     } else if (this.rovingCell) {
       this.rovingCell.tabIndex = -1;
@@ -1023,7 +1064,10 @@ export class DomGridRenderer implements GridRenderer {
   setRowHeight(px: number): void {
     if (px === this.rowHeightPx) return; // idempotent — observers converge
     this.rowHeightPx = px;
-    for (const track of this.rowTracks) track.style.gridAutoRows = `${px}px`;
+    for (const track of this.rowTracks) {
+      track.style.gridAutoRows = `${px}px`;
+      if (this.rowVirtual) track.style.height = `${px}px`;
+    }
     // RC-1: the pinned window height rides the track px (the budget fit
     // re-pins tracks live); the seat re-anchors on its AUTHORITATIVE start
     // (never a layout-derived one), and a focused row stays visible across
@@ -1145,8 +1189,9 @@ export class DomGridRenderer implements GridRenderer {
     if (!force && container.scrollTop === target && this.seatedStart === s) {
       return;
     }
-    container.scrollTop = target;
     this.seatedStart = s;
+    this.refreshRowWindow();
+    container.scrollTop = target;
     this.seatedScrollTop = target;
     this.updateGridName();
   }
@@ -1300,7 +1345,8 @@ export class DomGridRenderer implements GridRenderer {
     const container = this.opts.container;
     const style = getComputedStyle(container);
     const padY =
-      Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+      Number.parseFloat(style.paddingTop) +
+      Number.parseFloat(style.paddingBottom);
     const borderY =
       Number.parseFloat(style.borderTopWidth) +
       Number.parseFloat(style.borderBottomWidth);
@@ -1387,6 +1433,7 @@ export class DomGridRenderer implements GridRenderer {
       this.seatedStart = start;
       this.seatedScrollTop = target;
     }
+    this.refreshRowWindow();
     this.updateGridName();
   }
 
@@ -1491,6 +1538,95 @@ export class DomGridRenderer implements GridRenderer {
     return this.cellInRow(rowCells, step);
   }
 
+  /** Whether a full-MIDI row belongs to the currently seated octave. */
+  private rowIsActive(row: number): boolean {
+    if (!this.rowVirtual) return true;
+    if (!this.windowRows) return false;
+    return row >= this.seatedStart && row < this.seatedStart + this.windowRows;
+  }
+
+  /**
+   * Size one row's cell pool for both the horizontal and vertical windows.
+   * Inactive register rows retain only their fixed-height shell, preserving
+   * native scroll geometry without thousands of hidden interactive nodes.
+   */
+  private sizeRowPool(row: number): void {
+    const cellsEl = this.rowTracks[row];
+    const rowEl = this.rowEls[row];
+    const pool = this.cells[row];
+    if (!cellsEl || !rowEl || !pool) return;
+
+    const active = this.rowIsActive(row);
+    const visibility = active ? "" : "hidden";
+    if (rowEl.style.visibility !== visibility)
+      rowEl.style.visibility = visibility;
+    if (active) {
+      if (rowEl.hasAttribute("aria-hidden"))
+        rowEl.removeAttribute("aria-hidden");
+    } else if (rowEl.getAttribute("aria-hidden") !== "true") {
+      rowEl.setAttribute("aria-hidden", "true");
+    }
+
+    const desired = active
+      ? this.virtual
+        ? this.winEnd - this.winStart
+        : this.opts.steps
+      : 0;
+    const runs = this.runLayers[row];
+    const columns = `repeat(${Math.max(1, desired)}, ${this.cellPx}px)`;
+    if (cellsEl.style.gridTemplateColumns !== columns)
+      cellsEl.style.gridTemplateColumns = columns;
+    while (pool.length > desired) pool.pop()!.remove();
+    while (pool.length < desired) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.setAttribute("role", "gridcell");
+      cell.dataset.row = String(row);
+      cell.tabIndex = -1;
+      cellsEl.insertBefore(cell, runs ?? null);
+      pool.push(cell);
+    }
+    for (let i = 0; i < pool.length; i++) {
+      const step = this.winStart + i;
+      const cell = pool[i]!;
+      cell.dataset.step = String(step);
+      cell.dataset.beat = String(Math.floor(step / 4) % 2);
+      cell.setAttribute("aria-colindex", String(step + 1));
+    }
+    if (!active) runs?.replaceChildren();
+  }
+
+  /** Materialize the seated octave and preserve a usable roving cursor. */
+  private refreshRowWindow(): void {
+    if (!this.rowVirtual || !this.windowRows) return;
+    const cursor = this.cursor() ?? this.rovingPosition;
+    const hadFocus =
+      !!this.rovingCell && document.activeElement === this.rovingCell;
+    for (let row = 0; row < this.rowTracks.length; row++) this.sizeRowPool(row);
+    this.applyOnState();
+    for (
+      let row = this.seatedStart;
+      row < this.seatedStart + this.windowRows;
+      row++
+    )
+      this.renderRuns(row);
+
+    const row = Math.min(
+      Math.max(cursor.row, this.seatedStart),
+      this.seatedStart + this.windowRows - 1,
+    );
+    const step = Math.min(
+      Math.max(cursor.step, this.winStart),
+      this.winEnd - 1,
+    );
+    this.rovingPosition = { row, step };
+    this.rovingCell = this.cellFor(row, step);
+    if (this.rovingCell) {
+      this.rovingCell.tabIndex = this.editable ? 0 : -1;
+      if (hadFocus) this.rovingCell.focus({ preventScroll: true });
+    }
+  }
+
   /** Pool index for a step within one row's pool (null outside the window). */
   private cellInRow(rowCells: HTMLElement[], step: number): HTMLElement | null {
     const idx = step - this.winStart;
@@ -1506,10 +1642,7 @@ export class DomGridRenderer implements GridRenderer {
    */
   private visibleRange(): { first: number; last: number } {
     const c = this.hScroll();
-    const first = Math.max(
-      0,
-      Math.floor(c.scrollLeft / this.stepWidthPx) - 1,
-    );
+    const first = Math.max(0, Math.floor(c.scrollLeft / this.stepWidthPx) - 1);
     const visible = Math.ceil(
       (c.clientWidth > 0
         ? c.clientWidth - this.playheadLeftPx
@@ -1559,6 +1692,10 @@ export class DomGridRenderer implements GridRenderer {
     this.winEnd = end;
     const winCols = end - start;
     for (let row = 0; row < this.rowTracks.length; row++) {
+      if (this.rowVirtual) {
+        this.sizeRowPool(row);
+        continue;
+      }
       const cellsEl = this.rowTracks[row]!;
       const runs = cellsEl.querySelector<HTMLElement>(".note-runs");
       const pool = this.cells[row]!;
@@ -1583,8 +1720,7 @@ export class DomGridRenderer implements GridRenderer {
       }
     }
     this.applyOnState();
-    for (let row = 0; row < this.rowTracks.length; row++)
-      this.renderRuns(row);
+    for (let row = 0; row < this.rowTracks.length; row++) this.renderRuns(row);
     if (cursor) {
       const rowCells = this.cells[cursor.row];
       if (rowCells && rowCells.length > 0) {
@@ -1663,8 +1799,7 @@ export class DomGridRenderer implements GridRenderer {
       this.rowOn = this.opts.rowLabels.map((_, row) => {
         const arr = new Uint8Array(this.opts.steps);
         const steps = pattern.steps[DRUM_PIECES[row]!];
-        for (let s = 0; s < this.opts.steps; s++)
-          if (steps?.[s]) arr[s] = 1;
+        for (let s = 0; s < this.opts.steps; s++) if (steps?.[s]) arr[s] = 1;
         return arr;
       });
       this.rowAnchorLen = this.rowOn.map(() => []);
@@ -1696,8 +1831,7 @@ export class DomGridRenderer implements GridRenderer {
       });
     }
     this.applyOnState();
-    for (let row = 0; row < this.rowTracks.length; row++)
-      this.renderRuns(row);
+    for (let row = 0; row < this.rowTracks.length; row++) this.renderRuns(row);
   }
 
   previewRow(row: number, on: readonly boolean[] | null): void {
@@ -1780,6 +1914,10 @@ export class DomGridRenderer implements GridRenderer {
   private renderRuns(row: number): void {
     const layer = this.runLayers[row];
     if (!layer) return;
+    if (!this.rowIsActive(row)) {
+      layer.replaceChildren();
+      return;
+    }
     const spans = this.rowSpans[row] ?? [];
     const existing = new Map<string, HTMLElement>();
     for (const child of Array.from(layer.children) as HTMLElement[]) {
@@ -2016,7 +2154,11 @@ export class DomGridRenderer implements GridRenderer {
         };
       }
     }
-    if ((!this.editable && !this.pointerEditable) || this.gesture || !e.isPrimary)
+    if (
+      (!this.editable && !this.pointerEditable) ||
+      this.gesture ||
+      !e.isPrimary
+    )
       return;
     this.suppressClick = false; // a fresh press always re-arms normal clicks
     const target = e.target as HTMLElement;
@@ -2280,7 +2422,10 @@ export class DomGridRenderer implements GridRenderer {
     if (dist <= 0) return;
     const candidate = Math.min(
       PINCH_ZOOM_MAX,
-      Math.max(PINCH_ZOOM_MIN, (this.pinchBase.factor * dist) / this.pinchBase.dist),
+      Math.max(
+        PINCH_ZOOM_MIN,
+        (this.pinchBase.factor * dist) / this.pinchBase.dist,
+      ),
     );
     if (!this.pinchLive) {
       if (Math.abs(candidate - this.pinchBase.factor) <= PINCH_ZOOM_EPS) return;
@@ -2332,9 +2477,7 @@ export class DomGridRenderer implements GridRenderer {
     this.lastTap = { t: now, x: e.clientX, y: e.clientY };
     if (!tap) return false;
     if (now - tap.t > TAP_RESET_WINDOW_MS) return false;
-    if (
-      Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_RESET_SLOP_PX
-    )
+    if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_RESET_SLOP_PX)
       return false;
     this.lastTap = null; // the pair is spent — no chain
     if (this.zoom <= 1 + PINCH_ZOOM_EPS) return false; // ×1: nothing to reset
@@ -2429,7 +2572,11 @@ export class DomGridRenderer implements GridRenderer {
     if (layer && drag.end > drag.start) {
       // LL-1: the preview bar carries the TRUE drag extent (the runs layer
       // translates + clips; zero store writes until release).
-      const bar = this.buildRun(drag.row, drag.start, drag.end - drag.start + 1);
+      const bar = this.buildRun(
+        drag.row,
+        drag.start,
+        drag.end - drag.start + 1,
+      );
       bar.classList.add("is-drag-preview");
       layer.append(bar);
       this.previewRunEl = bar;
@@ -2460,10 +2607,7 @@ export class DomGridRenderer implements GridRenderer {
           step < drag.start + drag.length && step < this.opts.steps;
           step++
         ) {
-          this.cellInRow(rowCells, step)?.setAttribute(
-            "data-preview",
-            "true",
-          );
+          this.cellInRow(rowCells, step)?.setAttribute("data-preview", "true");
         }
       }
     }
@@ -2509,6 +2653,9 @@ export class DomGridRenderer implements GridRenderer {
     // window), and a step outside the window re-seats the window first.
     const rowIndex = Math.min(Math.max(row, 0), this.cells.length - 1);
     const stepIndex = Math.min(Math.max(step, 0), this.opts.steps - 1);
+    // A full-MIDI register materializes the destination octave before the
+    // cursor resolves its target cell.
+    this.ensureRowVisible(rowIndex);
     this.ensureColVisible(stepIndex);
     const cell = this.cellFor(rowIndex, stepIndex);
     if (!cell) return;
@@ -2529,6 +2676,10 @@ export class DomGridRenderer implements GridRenderer {
     if (this.rovingCell) this.rovingCell.tabIndex = -1;
     cell.tabIndex = 0;
     this.rovingCell = cell;
+    this.rovingPosition = {
+      row: Number(cell.dataset.row),
+      step: Number(cell.dataset.step),
+    };
   }
 
   private loop = (): void => {
@@ -2566,8 +2717,7 @@ export class DomGridRenderer implements GridRenderer {
           ),
         );
       }
-      const q =
-        quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
+      const q = quantizedStep(frame.loopTime, frame.options) % this.opts.steps;
       // LL-1/LL-2 (seam G5): BOTH the glow wrap modulus AND the sweep wrap
       // are the renderer's OWN step count (the pattern width), while the
       // frame's basis is the LANE's chain-cycle total (LaneGrid's readFrame)

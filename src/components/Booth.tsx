@@ -1,3 +1,5 @@
+import BitbounceBrand from "./BitbounceBrand";
+import ThemeSelector from "./ThemeSelector";
 /**
  * Booth — the transport control strip at the top of the stage.
  * Arcade Stage Floor vocabulary: dark chassis, silkscreened labels
@@ -547,6 +549,7 @@ export default function Booth(props: BoothProps) {
           phone stage the Booth renders ONLY the position group (readout +
           SaveIndicator + Projects); the option tools sit in the drawer. */}
       <Show when={!props.compact}>
+        <BitbounceBrand />
         <BoothOptions />
       </Show>
 
@@ -597,8 +600,12 @@ export default function Booth(props: BoothProps) {
           class="booth-sr"
           aria-live="polite"
         />
+        <Show when={props.compact}>
+          <BitbounceBrand />
+        </Show>
         <SaveIndicator />
         <Projects />
+        <ThemeSelector />
       </div>
     </header>
   );

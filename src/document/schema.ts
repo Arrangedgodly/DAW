@@ -474,8 +474,8 @@ export interface Note {
 const NoteDegree = v.pipe(
   v.number(),
   v.integer(),
-  v.minValue(0),
-  v.maxValue(23),
+  v.minValue(-128),
+  v.maxValue(128),
 );
 export const NoteSchema = v.strictObject({
   degree: NoteDegree,
