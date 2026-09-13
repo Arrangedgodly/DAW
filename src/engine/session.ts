@@ -347,12 +347,36 @@ export class Session {
    * PLAY/STOP. The first press runs the gesture unlock (ctx.resume) and then
    * starts the transport; every press stays inside the user gesture chain.
    */
+  private playStartToken = 0;
+  private preparingPlayback = false;
+
   async togglePlay(): Promise<void> {
     await this.engine.unlock();
+    const token = ++this.playStartToken;
+    if (this.preparingPlayback) {
+      this.preparingPlayback = false;
+      return;
+    }
     if (this.transport.snapshot.playing) {
       this.transport.stop();
       this.stopAllVoices();
     } else {
+      // Agent edits can select a recorded voice immediately before Play.
+      // Finish decoding those sounds before the scheduler sends step zero.
+      const refs = [
+        ...new Set(Object.values(this.laneSounds).flatMap(sampleRefsForSound)),
+      ];
+      if (refs.length > 0) {
+        this.preparingPlayback = true;
+        try {
+          const host = await this.ensureVoiceEngine();
+          const samples = await host?.ensureSampleVoice();
+          await samples?.preload(refs);
+        } finally {
+          if (token === this.playStartToken) this.preparingPlayback = false;
+        }
+        if (token !== this.playStartToken) return;
+      }
       // Warm the voice engines during the pre-roll so the first pattern step
       // is never dropped waiting on the worklet module load.
       this.resetVoiceStealCount(); // steal stats are per-play (HU-2)

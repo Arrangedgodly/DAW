@@ -1,5 +1,23 @@
 # Product
 
+## Agent playback and instrument feedback
+
+Playback seats each pitched grid on the notes in its current pattern, including
+agent edits made while playing and patterns opened on the second instrument page.
+This moves the view only. Stopped editing retains the user's chosen register.
+Sample-backed sounds finish loading before transport starts.
+
+Pads and Chords are separate preset categories. Every pitched instrument's title
+follows its selected sound category, including the first three pitched lanes.
+Web MCP sound discovery includes categories, home octaves and sample root notes.
+
+All 14 drum kits expose 16 sounds. The original six voices stay unchanged; ten
+additional synthesized voices provide alternate kicks, snares and hats, two more
+toms, rim, shaker, cowbell, crash and percussion. A scrollable row window with
+previous/next controls keeps the editor compact. Old six-row files load with
+silent added rows; empty added rows are omitted on save. New rows support note
+editing, Euclidean fill, undo, Web MCP, audio export and GM MIDI export.
+
 ## Clip length
 
 The selected instrument's Bars control opens a small editor on the current page. Type any whole number from 1 to 128, or use minus and plus to change one bar at a time. Shortening refuses to cut off notes and explains which note blocks the change. Length changes support undo and persist in project files. Escape closes the editor and returns focus to Bars.

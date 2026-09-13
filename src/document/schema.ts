@@ -124,13 +124,26 @@ export function isDefaultLane(id: LaneId): id is DefaultLaneId {
 export const LaneIdSchema = v.picklist(ALL_LANE_IDS);
 
 /** Drum pieces (minimum set; engine may add more via schemaVersion bump). */
-export const DRUM_PIECES = [
+export const CORE_DRUM_PIECES = [
   "kick",
   "snare",
   "hat",
   "openhat",
   "clap",
   "tom",
+] as const;
+export const DRUM_PIECES = [
+  ...CORE_DRUM_PIECES,
+  "kick2",
+  "snare2",
+  "hat2",
+  "midtom",
+  "hightom",
+  "rim",
+  "shaker",
+  "cowbell",
+  "crash",
+  "perc",
 ] as const;
 export type DrumPiece = (typeof DRUM_PIECES)[number];
 

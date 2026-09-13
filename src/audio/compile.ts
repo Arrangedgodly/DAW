@@ -80,7 +80,7 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
     for (const pieceName of DRUM_PIECES) {
       const piecePreset = kit.pieces[pieceName];
       if (!piecePreset) continue;
-      const steps = pattern.steps[pieceName];
+      const steps = pattern.steps[pieceName] ?? [];
       pieceOrdinal++;
       for (let step = 0; step < steps.length; step++) {
         if (!steps[step]) continue;
@@ -118,7 +118,9 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
       if (!manifest.has(note.degree)) continue;
       const hold = note.length * stepSec;
       for (const off of degrees) {
-        const midi = clampMidi(degreeToMidi(scale, note.degree + off, octaveBase));
+        const midi = clampMidi(
+          degreeToMidi(scale, note.degree + off, octaveBase),
+        );
         events.push(
           noteParamsFor(p, {
             time: timeAtStep(note.start, groove),

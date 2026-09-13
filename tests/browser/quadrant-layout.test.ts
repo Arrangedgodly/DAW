@@ -215,8 +215,12 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
               .querySelector(".lane-grid-scroll")!
               .classList.contains("is-windowed");
             if (lane === "drums") {
-              expect(label).toBe(lane.toUpperCase() + " grid · " + state);
-              expect(windowed).toBe(false);
+              expect(label).toMatch(
+                new RegExp(
+                  "^DRUMS grid · " + state + " · ROWS \\d+–\\d+ OF 15$",
+                ),
+              );
+              expect(windowed).toBe(true);
             } else {
               expect(windowed).toBe(true);
               expect(
@@ -393,6 +397,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // From the chords grid (7 rows), select DRUMS (5 rows) by pointer:
         // the carried row index clamps to the drums grid's bounds.
         for (let i = 0; i < 6; i++) key(active()!, "ArrowDown"); // row 6
+        const carriedDrumRow = Math.min(15, Number(active()!.dataset.row));
         const drumsViewCell =
           floor("drums").querySelector<HTMLElement>(".cell")!;
         drumsViewCell.click();
@@ -408,7 +413,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           2_000,
           "focus carried into drums",
         );
-        expect(active()!.dataset.row).toBe("5"); // row 6 clamped to drums' 6 rows
+        expect(Number(active()!.dataset.row)).toBe(carriedDrumRow);
 
         // --- 9. Status region contract (E1 axe-side assertions) ------------
         const status = $(".stage-status");
@@ -531,7 +536,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // px gut), and the one-page law is untouched. Trusted-pointer twins
         // (real clicks + preview/commit) live in euclid-fill-trusted.test.tsx.
         floor("drums").querySelector<HTMLElement>(".head-fill-toggle")!.click();
-        for (let row = 0; row < 6; row++) {
+        for (let row = 0; row < 16; row++) {
           const rail = floor("drums").querySelector<HTMLElement>(
             '.row-fill[data-row="' + row + '"]',
           )!;
@@ -746,16 +751,17 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           const rows = Array.from(
             $(`.lane-floor[data-lane="${lane}"]`).querySelectorAll(".grid-row"),
           );
-          if (lane === "drums") expect(rows.length).toBe(6);
+          if (lane === "drums") expect(rows.length).toBe(16);
           else expect(rows.length).toBeGreaterThan(7);
           const box = scroll.getBoundingClientRect();
           const visible = rows.filter((row) => {
             const r = row.getBoundingClientRect();
             return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
           });
-          expect(visible.length, "one octave or six drum pieces visible").toBe(
-            lane === "drums" ? 6 : 7,
-          );
+          expect(
+            visible.length,
+            "seven full rows visible at the minimum viewport",
+          ).toBe(7);
           expect(
             visible[visible.length - 1]!.getBoundingClientRect().height,
             `${lane} rows render at full track height`,

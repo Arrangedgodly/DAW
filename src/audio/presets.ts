@@ -1029,14 +1029,14 @@ function sampleKit(
   name: string,
   contentKit: string,
   seedBase: number,
-  levels: Readonly<Record<DrumPiece, number>>,
+  levels: Readonly<Record<CoreDrumPiece, number>>,
 ): DrumKit {
   const ref = (pieceName: DrumPiece) => `drums.${contentKit}.${pieceName}`;
   const s = (i: number) => seedBase + i;
   return {
     id,
     name,
-    pieces: {
+    pieces: expandDrumPieces(id, seedBase, {
       kick: samplePiece(id, "Kick", ref("kick"), levels.kick, s(1)),
       snare: samplePiece(id, "Snare", ref("snare"), levels.snare, s(2)),
       hat: samplePiece(id, "Hat", ref("hat"), levels.hat, s(3)),
@@ -1049,7 +1049,7 @@ function sampleKit(
       ),
       clap: samplePiece(id, "Clap", ref("clap"), levels.clap, s(5)),
       tom: samplePiece(id, "Tom", ref("tom"), levels.tom, s(6)),
-    },
+    }),
   };
 }
 
@@ -1109,7 +1109,7 @@ function kit(
   return {
     id,
     name,
-    pieces: {
+    pieces: expandDrumPieces(id, seedBase, {
       kick: piece(id, "Kick", spec.kick.start, {
         pitchSweep: {
           endRatio: spec.kick.endRatio,
@@ -1188,7 +1188,96 @@ function kit(
         level: spec.tom.level,
         seed: s(6),
       }),
-    },
+    }),
+  };
+}
+
+type CoreDrumPiece = "kick" | "snare" | "hat" | "openhat" | "clap" | "tom";
+
+/** Extra voices share each kit's tuning and noise character. Existing voices
+ * keep their IDs, samples and synthesis parameters for project compatibility. */
+function expandDrumPieces(
+  id: string,
+  seed: number,
+  core: Readonly<Record<CoreDrumPiece, VoicePreset>>,
+): Readonly<Record<DrumPiece, VoicePreset>> {
+  const sampled = core.kick.voiceType === "sample";
+  const character = 0.8 + (seed % 127) / 254;
+  const kickFreq = sampled ? 150 * character : core.kick.baseFreq!;
+  const tomFreq = sampled ? 220 * character : core.tom.baseFreq!;
+  const noiseRate = sampled ? Math.round(20 * character) : core.snare.noiseRate;
+  const drum = (
+    name: string,
+    ordinal: number,
+    freq: number,
+    decay: number,
+    level: number,
+    options: Partial<VoicePreset> = {},
+  ) =>
+    piece(id, name, freq, {
+      seed: seed + ordinal,
+      wave: "triangle",
+      level,
+      envelope: { attack: 0.001, decay, sustain: 0, release: 0.025 },
+      ...options,
+    });
+  return {
+    ...core,
+    kick2: drum("Kick 2", 7, kickFreq * 1.25, 0.16 * character, 0.82, {
+      pitchSweep: { endRatio: 0.3, seconds: 0.055 },
+      noiseMix: 0.025,
+      noiseRate: 3,
+    }),
+    snare2: drum("Snare 2", 8, 245 * character, 0.095 * character, 0.7, {
+      noiseMix: 0.8,
+      noiseRate: Math.max(2, Math.round(noiseRate * 0.65)),
+    }),
+    hat2: drum("Hat 2", 9, 6500, 0.065 * character, 0.3, {
+      wave: "noise",
+      noiseMode: "short",
+      noiseRate: Math.max(2, core.hat.noiseRate + 3),
+    }),
+    midtom: drum("Mid Tom", 10, tomFreq * 1.35, 0.19 * character, 0.67, {
+      pitchSweep: { endRatio: 0.65, seconds: 0.09 },
+    }),
+    hightom: drum("High Tom", 11, tomFreq * 1.8, 0.14 * character, 0.63, {
+      pitchSweep: { endRatio: 0.72, seconds: 0.065 },
+    }),
+    rim: drum("Rim", 12, 1050 * character, 0.027, 0.55, {
+      wave: "pulse",
+      duty: 0.25,
+      noiseMix: 0.18,
+      noiseRate: 7,
+    }),
+    shaker: drum("Shaker", 13, 7000, 0.085 * character, 0.3, {
+      wave: "noise",
+      noiseRate: 2,
+      envelope: {
+        attack: 0.015,
+        decay: 0.085 * character,
+        sustain: 0,
+        release: 0.015,
+      },
+    }),
+    cowbell: drum("Cowbell", 14, 560 * character, 0.17, 0.46, {
+      wave: "pulse",
+      duty: 0.25,
+      noiseMix: 0.08,
+      noiseMode: "short",
+      noiseRate: 11,
+    }),
+    crash: drum("Crash", 15, 8500, 0.65 * character, 0.37, {
+      wave: "noise",
+      noiseMode: "short",
+      noiseRate: 2,
+    }),
+    perc: drum("Perc", 16, 430 * character, 0.12 * character, 0.56, {
+      wave: "pulse",
+      duty: 0.125,
+      pitchSweep: { endRatio: 0.42 + character * 0.2, seconds: 0.08 },
+      noiseMix: 0.15,
+      noiseRate: Math.max(2, Math.round(noiseRate / 2)),
+    }),
   };
 }
 

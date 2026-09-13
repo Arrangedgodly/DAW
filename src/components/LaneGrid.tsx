@@ -68,6 +68,7 @@ import {
   activePatterns,
   currentPatternFor,
   defaultRegisterWindowStart,
+  focusPatternRegister,
   getOrCreateRegisterWindow,
   type PitchedLaneId,
   registerWindowStarts,
@@ -1011,7 +1012,12 @@ function currentPattern(lane: LaneId): Pattern | undefined {
 }
 
 function drumLabels(): string[] {
-  return DRUM_PIECES.map((p) => p.toUpperCase());
+  return DRUM_PIECES.map((p) =>
+    p
+      .replace(/2$/, " 2")
+      .replace(/^(open|mid|high)(hat|tom)$/, "$1 $2")
+      .toUpperCase(),
+  );
 }
 
 /** Degree rows for a pitched lane: note names over ~2 octaves (1 for chords). */
@@ -1097,6 +1103,22 @@ function GridSurface(props: {
   let container: HTMLDivElement | undefined;
   let navigationRenderer: DomGridRenderer | undefined;
   const [panMode, setPanMode] = createSignal(false);
+  const [drumStart, setDrumStart] = createSignal(0);
+  const [drumRows, setDrumRows] = createSignal(8);
+  const shiftDrums = (direction: -1 | 1) => {
+    const geometry = navigationRenderer?.fitGeometry();
+    if (!geometry) return;
+    const rows = geometry.windowRows ?? DRUM_PIECES.length;
+    navigationRenderer?.scrollWindowTo(
+      Math.max(
+        0,
+        Math.min(
+          DRUM_PIECES.length - rows,
+          geometry.windowStart + direction * rows,
+        ),
+      ),
+    );
+  };
   const [horizontal, setHorizontal] = createSignal({
     left: 0,
     max: 0,
@@ -1146,21 +1168,25 @@ function GridSurface(props: {
     // scrolling stage — no one-page budget), so the pinned default is the
     // height. Short manifests (h ≥ rows) keep the full manifest (window
     // null) — the chords/drums precedent.
-    const windowed = pitched;
+    const windowed = pitched || DRUM_PIECES.length > 8;
     const windowHeight = (): number =>
-      windowed
-        ? modeSize(effectiveScale(docStore.getState().doc, lane).mode)
-        : 0;
+      lane === "drums"
+        ? mode !== "phone" && window.innerHeight < 850
+          ? 7
+          : 8
+        : windowed
+          ? modeSize(effectiveScale(docStore.getState().doc, lane).mode)
+          : 0;
     const applyRegisterWindow = (): number => {
       const h = windowHeight();
       if (!windowed || h >= rowLabels.length) {
         rendererRef?.setWindow(null);
         return rowLabels.length; // visible rows = the manifest
       }
-      const start = getOrCreateRegisterWindow(
-        lane as Exclude<LaneId, "drums">,
-        h,
-      );
+      const start =
+        lane === "drums"
+          ? drumStart()
+          : getOrCreateRegisterWindow(lane as Exclude<LaneId, "drums">, h);
       // i3-1: the window-scroll STEP is this one-octave default even when
       // the fill later grows the height (Shift+↑/↓ stay ONE OCTAVE).
       rendererRef?.setWindow(h, start, h);
@@ -1454,6 +1480,10 @@ function GridSurface(props: {
       // document write; equal-guarded in the setter so the echo no-ops).
       onWindowScroll: (start) => {
         if (lane !== "drums") setRegisterWindowStart(lane, start);
+        else {
+          setDrumStart(start);
+          setDrumRows(rendererRef?.fitGeometry().windowRows ?? 8);
+        }
       },
       // i7 N-4 (audit §2.4): arm the pinch surface — phone + pitched only.
       // Desktop/tablet and drums never arm it: their pointer law stays
@@ -1492,6 +1522,21 @@ function GridSurface(props: {
 
     renderer.sync(syncPatternFor(pattern, degrees));
 
+    const focusPlaybackNotes = () => {
+      if (lane === "drums" || !session.transport.snapshot.playing) return;
+      const current = (docStore.getState().doc.patterns[lane] ?? []).find(
+        (p) => p.id === pattern.id,
+      );
+      if (current) focusPatternRegister(lane, current);
+    };
+    let wasPlaying = session.transport.snapshot.playing;
+    const stopPlaybackFocus = session.subscribe((snapshot) => {
+      if (snapshot.playing && !wasPlaying) focusPlaybackNotes();
+      wasPlaying = snapshot.playing;
+    });
+    focusPlaybackNotes();
+    onCleanup(stopPlaybackFocus);
+
     // LL-1 (the resize-remount carry law): when the previous surface held
     // DOM focus (its cleanup recorded the cursor), the fresh mount lands
     // focus on the CARRIED cell — same row, step clamped to the new extent
@@ -1515,7 +1560,9 @@ function GridSurface(props: {
     // fitQuadrantRows is the twin).
     const surface: QuadrantSurface = {
       row: lane === "drums" || lane === "bass" ? 0 : 1,
-      defaultWindowRows: windowed ? windowHeight() : null,
+      get defaultWindowRows() {
+        return windowed ? windowHeight() : null;
+      },
       minRowPx: geo.minRowPx,
       maxRowPx: geo.cellPx,
       renderer: () => rendererRef,
@@ -1674,7 +1721,14 @@ function GridSurface(props: {
         (p) => p.id === pattern.id,
       );
 
-      if (next) renderer.sync(syncPatternFor(next, degrees));
+      if (next) {
+        renderer.sync(syncPatternFor(next, degrees));
+        if (
+          next !==
+          (prev.doc.patterns[lane] ?? []).find((p) => p.id === pattern.id)
+        )
+          focusPlaybackNotes();
+      }
     });
 
     onCleanup(() => {
@@ -1691,6 +1745,33 @@ function GridSurface(props: {
 
   return (
     <>
+      <Show when={props.lane === "drums"}>
+        <div class="register-shift drum-register-label">
+          <span>Percussion · {DRUM_PIECES.length} voices</span>
+          <button
+            class="head-step-btn"
+            type="button"
+            aria-label="Previous drum sounds"
+            disabled={drumStart() === 0}
+            onClick={() => shiftDrums(-1)}
+          >
+            −
+          </button>
+          <output aria-live="polite">
+            {drumStart() + 1}–
+            {Math.min(DRUM_PIECES.length, drumStart() + drumRows())}
+          </output>
+          <button
+            class="head-step-btn"
+            type="button"
+            aria-label="Next drum sounds"
+            disabled={drumStart() + drumRows() >= DRUM_PIECES.length}
+            onClick={() => shiftDrums(1)}
+          >
+            +
+          </button>
+        </div>
+      </Show>
       <div class="grid-navigation" role="group" aria-label="Grid navigation">
         <div class="grid-navigation-controls">
           <button
@@ -2104,12 +2185,6 @@ export default function LaneGrid(props: { lane: LaneId }) {
     >
       <LaneHeader lane={props.lane} />
       <LaneMeter lane={props.lane} />
-
-      <Show when={props.lane === "drums"}>
-        <div class="register-shift drum-register-label">
-          Percussion · 6 voices
-        </div>
-      </Show>
 
       {/* M-5: the phone-only register-window shift row (pitched lanes). i7
           N-2: bounds + readout derive from the MOUNTED pattern's manifest

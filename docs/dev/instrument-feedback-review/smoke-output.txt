@@ -1,0 +1,411 @@
+[
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "state": {
+      "width": 1440,
+      "height": 900,
+      "documentHeight": 900,
+      "documentWidth": 1440,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "KICK",
+            "SNARE",
+            "HAT",
+            "OPEN HAT",
+            "CLAP",
+            "TOM",
+            "KICK 2",
+            "SNARE 2"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 120
+        },
+        {
+          "id": "bass",
+          "title": "Bass",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        },
+        {
+          "id": "chords",
+          "title": "Chords",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯3",
+            "G♯3",
+            "G3",
+            "F3",
+            "D♯3",
+            "D3",
+            "C3"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        },
+        {
+          "id": "lead",
+          "title": "Pads",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "secondBank": {
+      "width": 1440,
+      "height": 900,
+      "documentHeight": 900,
+      "documentWidth": 1440,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "HAT 2",
+            "MID TOM",
+            "HIGH TOM",
+            "RIM",
+            "SHAKER",
+            "COWBELL",
+            "CRASH",
+            "PERC"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 120
+        },
+        {
+          "id": "bass",
+          "title": "Bass",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        },
+        {
+          "id": "chords",
+          "title": "Chords",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯3",
+            "G♯3",
+            "G3",
+            "F3",
+            "D♯3",
+            "D3",
+            "C3"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        },
+        {
+          "id": "lead",
+          "title": "Pads",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 119
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "state": {
+      "width": 1280,
+      "height": 800,
+      "documentHeight": 800,
+      "documentWidth": 1280,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "KICK",
+            "SNARE",
+            "HAT",
+            "OPEN HAT",
+            "CLAP",
+            "TOM",
+            "KICK 2"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 105
+        },
+        {
+          "id": "bass",
+          "title": "Bass",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        },
+        {
+          "id": "chords",
+          "title": "Chords",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯3",
+            "G♯3",
+            "G3",
+            "F3",
+            "D♯3",
+            "D3",
+            "C3"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        },
+        {
+          "id": "lead",
+          "title": "Pads",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "secondBank": {
+      "width": 1280,
+      "height": 800,
+      "documentHeight": 800,
+      "documentWidth": 1280,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "MID TOM",
+            "HIGH TOM",
+            "RIM",
+            "SHAKER",
+            "COWBELL",
+            "CRASH",
+            "PERC"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 105
+        },
+        {
+          "id": "bass",
+          "title": "Bass",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        },
+        {
+          "id": "chords",
+          "title": "Chords",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯3",
+            "G♯3",
+            "G3",
+            "F3",
+            "D♯3",
+            "D3",
+            "C3"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        },
+        {
+          "id": "lead",
+          "title": "Pads",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 91
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": {
+      "width": 390,
+      "height": 844,
+      "documentHeight": 927,
+      "documentWidth": 390,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "KICK",
+            "SNARE",
+            "HAT",
+            "OPEN HAT",
+            "CLAP",
+            "TOM",
+            "KICK 2",
+            "SNARE 2"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 384
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "secondBank": {
+      "width": 390,
+      "height": 844,
+      "documentHeight": 927,
+      "documentWidth": 390,
+      "lanes": [
+        {
+          "id": "drums",
+          "title": "Drums",
+          "rows": 16,
+          "visibleLabels": [
+            "HAT 2",
+            "MID TOM",
+            "HIGH TOM",
+            "RIM",
+            "SHAKER",
+            "COWBELL",
+            "CRASH",
+            "PERC"
+          ],
+          "visibleNotes": 0,
+          "gridHeight": 384
+        }
+      ]
+    }
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "bass": {
+      "width": 390,
+      "height": 844,
+      "documentHeight": 844,
+      "documentWidth": 390,
+      "lanes": [
+        {
+          "id": "bass",
+          "title": "Bass",
+          "rows": 75,
+          "visibleLabels": [
+            "A♯5",
+            "G♯5",
+            "G5",
+            "F5",
+            "D♯5",
+            "D5",
+            "C5"
+          ],
+          "visibleNotes": 4,
+          "gridHeight": 336
+        }
+      ]
+    }
+  }
+]

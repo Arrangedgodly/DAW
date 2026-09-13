@@ -24,19 +24,30 @@ export interface SoundOption {
 }
 
 export function soundFamily(id: string): string {
+  // Keep saved preset IDs stable while classifying the older pad voices.
+  if (
+    [
+      "preset-chords-1",
+      "preset-chords-5",
+      "preset-chords-8",
+      "preset-chords-10",
+      "preset-chords-12",
+    ].includes(id)
+  )
+    return "Pads";
   const family = id.split("-")[1];
   return (
     (
       {
         bass: "Bass",
-        chords: "Pads & chords",
+        chords: "Chords",
         lead: "Leads",
         bells: "Bells",
         brass: "Brass",
         fx: "Sound effects",
         keys: "Keys",
         strings: "Plucked strings",
-        pads: "Pads & chords",
+        pads: "Pads",
       } as Record<string, string>
     )[family] ?? "Other"
   );
@@ -60,9 +71,11 @@ export function soundOptionsFor(lane: LaneId): SoundOption[] {
     );
 }
 
-/** Keep the default identities; optional tracks take their preset's category. */
+/** Every pitched track takes its preset's category; IDs remain stable. */
 export function laneDisplayName(lane: LaneId, presetId?: string): string {
-  if (!lane.startsWith("extra")) return lane[0]!.toUpperCase() + lane.slice(1);
+  if (lane === "drums") return "Drums";
+  if (!presetId && !lane.startsWith("extra"))
+    return lane[0]!.toUpperCase() + lane.slice(1);
   const family = presetId ? soundFamily(presetId) : "Instrument";
   if (family === "Plucked strings") return "Plucks";
   if (family === "Sound effects") return "FX";

@@ -88,7 +88,7 @@ export const TICKS_PER_STEP = PPQ / 4; // 120
 /** GM drum channel, zero-based (the wire format's channel 9 = GM "ch 10"). */
 export const DRUM_CHANNEL = 9;
 
-/** GM note numbers for the six drum pieces (one constant table, RES-5b). */
+/** GM note numbers for all 16 drum voices. The original six mappings stay fixed. */
 export const GM_DRUM_NOTES: Readonly<Record<DrumPiece, number>> = {
   kick: 36, // Bass Drum 1
   snare: 38, // Acoustic Snare
@@ -96,6 +96,16 @@ export const GM_DRUM_NOTES: Readonly<Record<DrumPiece, number>> = {
   openhat: 46, // Open Hi-Hat
   clap: 39, // Hand Clap
   tom: 45, // Low Tom
+  kick2: 35,
+  snare2: 40,
+  hat2: 44,
+  midtom: 47,
+  hightom: 50,
+  rim: 37,
+  shaker: 70,
+  cowbell: 56,
+  crash: 49,
+  perc: 75,
 } as const;
 
 /** Fixed sensible drum velocities (piece-typical accents). */
@@ -106,6 +116,16 @@ export const GM_DRUM_VELOCITIES: Readonly<Record<DrumPiece, number>> = {
   openhat: 85,
   clap: 98,
   tom: 96,
+  kick2: 100,
+  snare2: 94,
+  hat2: 76,
+  midtom: 94,
+  hightom: 92,
+  rim: 88,
+  shaker: 72,
+  cowbell: 86,
+  crash: 90,
+  perc: 88,
 } as const;
 
 export const PITCHED_VELOCITY = 96;
@@ -332,7 +352,7 @@ export function buildDrumNotes(
     // Fixed piece order (never Object.keys — the canonical codec key-sorts;
     // same-tick note order must be stable across a save/load round trip).
     for (const piece of DRUM_PIECES) {
-      const steps = pattern.steps[piece];
+      const steps = pattern.steps[piece] ?? [];
       for (let step = 0; step < steps.length; step++) {
         if (!steps[step]) continue;
         notes.push({

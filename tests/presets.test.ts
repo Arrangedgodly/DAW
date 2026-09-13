@@ -1,3 +1,4 @@
+import { CORE_DRUM_PIECES } from "../src/document/schema";
 import { describe, expect, it } from "vitest";
 import * as v from "valibot";
 import {
@@ -454,7 +455,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
       const kit = getDrumKit(kitId)!;
       expect(kit, kitId).toBeDefined();
       const contentKit = kitId.replace(/^kit-/, "");
-      for (const piece of DRUM_PIECES) {
+      for (const piece of CORE_DRUM_PIECES) {
         const p = kit.pieces[piece];
         expect(p.sampleRef, `${kitId}.${piece}`).toBe(
           `drums.${contentKit}.${piece}`,
@@ -469,7 +470,9 @@ describe("PS-3 voice-type slot (preset format)", () => {
     // recorded variant kept for future curation (the 808 flagship extras).
     const wired = new Set(
       SAMPLE_KIT_IDS.flatMap((id) =>
-        DRUM_PIECES.map((piece) => getDrumKit(id)!.pieces[piece].sampleRef),
+        CORE_DRUM_PIECES.map(
+          (piece) => getDrumKit(id)!.pieces[piece].sampleRef,
+        ),
       ),
     );
     const drumAssets = CONTENT_ASSETS.filter((a) => a.kind === "drums");
@@ -488,7 +491,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
     for (const kitId of SAMPLE_KIT_IDS) {
       const refs = sampleRefsForSound(kitId);
       expect(refs).toHaveLength(6);
-      for (const piece of DRUM_PIECES) {
+      for (const piece of CORE_DRUM_PIECES) {
         expect(refs).toContain(`drums.${kitId.replace(/^kit-/, "")}.${piece}`);
       }
     }

@@ -64,11 +64,11 @@ async function waitFor(predicate: () => boolean, ms = 4000): Promise<void> {
 }
 
 describe("Euclidean fill control (browser DOM)", () => {
-  it("drums lane: 6 fill rails, one per drum row; pitched lanes none", () => {
+  it("drums lane: 16 fill rails, one per drum row; pitched lanes none", () => {
     const { host, cleanup } = mount("drums");
     try {
       const rails = host.querySelectorAll(".row-fill");
-      expect(rails.length).toBe(6);
+      expect(rails.length).toBe(16);
       const labels = [...host.querySelectorAll(".row-label")].map(
         (el) => el.textContent,
       );
@@ -76,9 +76,19 @@ describe("Euclidean fill control (browser DOM)", () => {
         "KICK",
         "SNARE",
         "HAT",
-        "OPENHAT",
+        "OPEN HAT",
         "CLAP",
         "TOM",
+        "KICK 2",
+        "SNARE 2",
+        "HAT 2",
+        "MID TOM",
+        "HIGH TOM",
+        "RIM",
+        "SHAKER",
+        "COWBELL",
+        "CRASH",
+        "PERC",
       ]);
       expect(
         host.querySelector(".lane-grid")!.classList.contains("has-fill-rail"),

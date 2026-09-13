@@ -8,7 +8,7 @@
  * synchronous in both browser and node tests (Web Crypto's digest is async).
  */
 
-import type { ProjectDocument } from "./schema";
+import { CORE_DRUM_PIECES, type ProjectDocument } from "./schema";
 import { migrate } from "./migrate";
 import { ProjectValidationError, validateProject } from "./validate";
 
@@ -174,7 +174,23 @@ export function scanJsonDepth(text: string): number {
 
 /** Document → canonical JSON string (sorted keys, deterministic bytes). */
 export function encode(doc: ProjectDocument): string {
-  return canonicalize(doc);
+  // Absent extension rows mean silence on read. Omit empty added rows so
+  // older projects retain their canonical bytes until a new sound is used.
+  const drums = doc.patterns.drums.map((pattern) =>
+    pattern.kind !== "drums"
+      ? pattern
+      : {
+          ...pattern,
+          steps: Object.fromEntries(
+            Object.entries(pattern.steps).filter(
+              ([piece, steps]) =>
+                (CORE_DRUM_PIECES as readonly string[]).includes(piece) ||
+                steps.some(Boolean),
+            ),
+          ),
+        },
+  );
+  return canonicalize({ ...doc, patterns: { ...doc.patterns, drums } });
 }
 
 /**

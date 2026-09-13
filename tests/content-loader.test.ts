@@ -1,3 +1,4 @@
+import { CORE_DRUM_PIECES } from "../src/document/schema";
 /**
  * PS-2 — lazy sample-content loader unit gate.
  *
@@ -21,7 +22,6 @@ import {
   voiceAssetIds,
   type ContentAsset,
 } from "../src/assets/content/loader";
-import { DRUM_PIECES } from "../src/document/schema";
 
 /** Minimal context stand-ins — the loader only keys on identity. */
 const fakeCtx = () => ({}) as BaseAudioContext;
@@ -55,12 +55,14 @@ describe("PS-2 content manifest", () => {
       const assets = kitAssetIds(kit).map(
         (id) => getAsset(id) as Extract<ContentAsset, { kind: "drums" }>,
       );
-      for (const piece of DRUM_PIECES) {
+      for (const piece of CORE_DRUM_PIECES) {
         const base = assets.filter(
           (a) => a.piece === piece && a.variant === undefined,
         );
-        expect(base.length, `${kit}/${piece} must have exactly one base asset`)
-          .toBe(1);
+        expect(
+          base.length,
+          `${kit}/${piece} must have exactly one base asset`,
+        ).toBe(1);
       }
       for (const a of assets) {
         if (a.variant !== undefined) {
@@ -169,9 +171,9 @@ describe("PS-2 loader logic (injected fetch/decode)", () => {
       kind: "decode",
     });
     decodeOk = true;
-    await expect(loader.load(ctx, "voice.lead.highup")).resolves.toMatchObject(
-      { length: 8 },
-    );
+    await expect(loader.load(ctx, "voice.lead.highup")).resolves.toMatchObject({
+      length: 8,
+    });
 
     await expect(loader.load(ctx, "not.an.id")).rejects.toMatchObject({
       kind: "unknown-id",
@@ -207,7 +209,11 @@ describe("PS-2 same-origin discipline (pure guard)", () => {
 
   it("rejects cross-origin URLs with a typed error", () => {
     expect(() =>
-      assertSameOrigin("x", "https://evil.example/a.ogg", "https://bitbounce.example/"),
+      assertSameOrigin(
+        "x",
+        "https://evil.example/a.ogg",
+        "https://bitbounce.example/",
+      ),
     ).toThrowError(/cross-origin/);
     expect(() =>
       assertSameOrigin(

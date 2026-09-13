@@ -325,6 +325,42 @@ export function getOrCreateRegisterWindow(
   return start;
 }
 
+/** Seat the current pattern for playback. This changes only the pitch view. */
+export function focusPatternRegister(
+  lane: PitchedLaneId,
+  pattern: Pattern,
+): void {
+  if (pattern.kind !== "pitched" || pattern.notes.length === 0) return;
+  const domain = pitchDomain(docStore.getState().doc, lane);
+  const rows = [
+    ...new Set(
+      pattern.notes
+        .filter((note) => pattern.rowDegrees.includes(note.degree))
+        .map((note) => domain.degrees.indexOf(note.degree))
+        .filter((row) => row >= 0),
+    ),
+  ];
+  if (!rows.length) return;
+  const current = getOrCreateRegisterWindow(lane, domain.windowRows);
+  if (rows.every((row) => row >= current && row < current + domain.windowRows))
+    return;
+  let best = current;
+  let score = -1;
+  for (let start = 0; start <= domain.maxStart; start++) {
+    const count = rows.filter(
+      (row) => row >= start && row < start + domain.windowRows,
+    ).length;
+    if (
+      count > score ||
+      (count === score && Math.abs(start - current) < Math.abs(best - current))
+    ) {
+      best = start;
+      score = count;
+    }
+  }
+  setRegisterWindowStart(lane, best);
+}
+
 /**
  * A document REPLACEMENT (boot restore, project switch, NEW) re-defaults the
  * windows: the new project's content decides where the default windows sit.

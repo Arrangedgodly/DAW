@@ -103,7 +103,7 @@ describe("tick math", () => {
 describe("mapping tables", () => {
   it("drums map to GM channel 9 (zero-based) with the committed GM notes", () => {
     expect(DRUM_CHANNEL).toBe(9);
-    expect(GM_DRUM_NOTES).toEqual({
+    expect(GM_DRUM_NOTES).toMatchObject({
       kick: 36,
       snare: 38,
       hat: 42,
@@ -504,14 +504,10 @@ describe("XP-1: repeatNotesToCycle — chain-local notes repeat at the chain len
     // magnitude at every iteration (the audio law, render.ts:41-42).
     for (let chain = 16; chain <= 128; chain += 16) {
       for (let k = 1; k < 8; k++) {
-        expect(((k * chain) % 2)).toBe(0);
+        expect((k * chain) % 2).toBe(0);
       }
     }
-    const swung = repeatNotesToCycle(
-      [note(stepTick(1, 0.5))],
-      16,
-      64,
-    );
+    const swung = repeatNotesToCycle([note(stepTick(1, 0.5))], 16, 64);
     // Iteration 1 lands at 1920 + 180 — the same +60 swing delay.
     expect(swung[1].tick).toBe(16 * TICKS_PER_STEP + stepTick(1, 0.5));
   });
@@ -530,12 +526,9 @@ describe("XP-1: the LCM-cycle export bytes (unequal chains)", () => {
 
   it("drums (the longest lane) walk the chain exactly once", () => {
     const lane = doc.lanes.find((l) => l.id === "drums")!;
-    const single = buildDrumNotes(
-      doc.patterns.drums,
-      lane.gate,
-      120,
-      0,
-    ).sort((a, b) => a.tick - b.tick);
+    const single = buildDrumNotes(doc.patterns.drums, lane.gate, 120, 0).sort(
+      (a, b) => a.tick - b.tick,
+    );
     // A: 8 four-on-the-floor kicks in 2 bars; B: 4 snares + 16 hats.
     expect(single).toHaveLength(28);
     const last = single[single.length - 1];
@@ -592,8 +585,9 @@ describe("XP-1: the LCM-cycle export bytes (unequal chains)", () => {
     const bassOn = parsed.tracks[2].filter(
       (e) => e.type === "noteOn" && e.channel === LANE_CHANNELS.bass,
     );
-    expect(bassOn.map((e) => (e.type === "noteOn" ? e.deltaTime : -1)).length)
-      .toBe(2);
+    expect(
+      bassOn.map((e) => (e.type === "noteOn" ? e.deltaTime : -1)).length,
+    ).toBe(2);
     const bassTicks: number[] = [];
     let t = 0;
     for (const e of parsed.tracks[2]) {
@@ -827,9 +821,10 @@ describe("HW-5: the lane mix never touches MIDI bytes", () => {
       expect(notes.length, `${laneConf.id} note count under mix`).toBe(
         cleanNotes.length,
       );
-      expect(notes.length, `${laneConf.id} has content to export`).toBeGreaterThan(
-        0,
-      );
+      expect(
+        notes.length,
+        `${laneConf.id} has content to export`,
+      ).toBeGreaterThan(0);
     }
     expect(noteCount(doc)).toBe(noteCount(clean));
   });

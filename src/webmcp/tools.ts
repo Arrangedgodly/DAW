@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { DRUM_KITS, PRESET_LIBRARY } from "../audio/presets";
+import { soundFamily } from "../components/laneMeta";
 import { MAX_BPM, MIN_BPM, STEPS_PER_BAR } from "../audio/time";
 import { validateProject } from "../document/validate";
 import { pitchDomain } from "../document/pitchWindow";
@@ -163,9 +164,16 @@ export function createAgentTools(
           items.map(({ id, name }) => ({ id, name }));
         return {
           kits: names(Object.values(DRUM_KITS)),
-          presets: names(
-            Object.values(PRESET_LIBRARY).filter((p) => p.pitchRange),
-          ),
+          drumPieces: DRUM_PIECES,
+          presets: Object.values(PRESET_LIBRARY)
+            .filter((p) => p.pitchRange)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              category: soundFamily(p.id),
+              octaveBase: p.pitchRange!.octaveBase,
+              ...(p.rootMidi !== undefined ? { rootMidi: p.rootMidi } : {}),
+            })),
         };
       },
     ),
