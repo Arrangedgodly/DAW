@@ -148,6 +148,7 @@ describe("header-driven changes recompile the lane (engine bridge)", () => {
         s.sounds[lane] = id;
       },
       setLaneChain: () => {},
+      setSections: () => {},
       setLaneMix: () => {},
       setLaneOctave: () => {}, // RC-1: the register push (audition path)
       setBpm: () => {},

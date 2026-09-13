@@ -805,6 +805,31 @@
   gap: 12px;
   padding: 12px;
 }
+.app.membrane[data-stage="phone"] .phone-help-toggle {
+  flex-basis: 100%;
+}
+.app.membrane[data-stage="phone"] .phone-help {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  color: var(--color-ink);
+  font: 400 14px/1.5 var(--font-ui);
+}
+.app.membrane[data-stage="phone"] .phone-help select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+}
+.app.membrane[data-stage="phone"] .phone-help-copy {
+  max-height: min(38dvh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.app.membrane[data-stage="phone"] .phone-help-copy p {
+  margin: 0;
+}
 .app.membrane[data-stage="phone"]
   .phone-options-drawer
   :is(.booth-btn, .booth-step-btn, .scale-chip) {
@@ -875,11 +900,24 @@
   max-width: 100%;
 }
 
-/* Keep long-pattern scrollbars inside the short desktop's note-page budget. */
+/* Compact control spacing leaves room for complete note rows and their footer.
+   Keep the aligned tools tier and existing button sizes on both editor pages. */
 @media (max-height: 850px) {
+  .app.membrane:not([data-stage="phone"]) .booth {
+    padding-block: 7px 4px;
+  }
   .app.membrane:not([data-stage="phone"]) .lane-floor {
-    padding-top: 12px;
-    padding-bottom: 10px;
+    padding-block: 8px;
+  }
+  .app.membrane:not([data-stage="phone"]) .lane-head-strip {
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .app.membrane:not([data-stage="phone"]) .lane-strip-compact {
+    row-gap: 4px;
+  }
+  .app.membrane:not([data-stage="phone"]) .register-shift {
+    padding-block: 0;
   }
 }
 

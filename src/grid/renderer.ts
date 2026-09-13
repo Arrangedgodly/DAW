@@ -360,6 +360,8 @@ export interface GridRenderer {
    * and no focusable descendants (E2 — never a focus trap).
    */
   setEditable(editable: boolean): void;
+  /** Update the spoken instrument name without replacing grid state. */
+  setLaneLabel(label: string): void;
   /** Pointer editing decoupled from the keyboard edit state (see opts). */
   setPointerEditable(pointerEditable: boolean): void;
   /** Position the playhead light bar (px) or park it (null). */
@@ -508,6 +510,7 @@ type Gesture =
  */
 export class DomGridRenderer implements GridRenderer {
   private readonly opts: DomGridRendererOptions;
+  private laneLabel: string;
   private readonly cells: HTMLElement[][] = [];
   private readonly runLayers: (HTMLElement | null)[] = [];
   /** IN-2: committed note spans per row (drives runs, cells, names, keys). */
@@ -708,6 +711,7 @@ export class DomGridRenderer implements GridRenderer {
 
   constructor(opts: DomGridRendererOptions) {
     this.opts = opts;
+    this.laneLabel = opts.laneLabel;
     this.cellPx = opts.cellPx ?? GRID_CELL_PX;
     this.gapPx = opts.gapPx ?? GRID_GAP_PX;
     this.stepWidthPx = this.cellPx + this.gapPx;
@@ -975,7 +979,7 @@ export class DomGridRenderer implements GridRenderer {
    * manifest's last index); when the whole manifest is visible the range is
    * omitted (today's name, byte-identical — chords/drums defaults). */
   private gridAriaLabel(): string {
-    const base = `${this.opts.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
+    const base = `${this.laneLabel} grid · ${this.editable ? "EDITING" : "VIEW ONLY"}`;
     if (!this.windowRows) return base;
     const start = this.seatedStart;
     return `${base} · ROWS ${start}–${start + this.windowRows - 1} OF ${this.cells.length - 1}`;
@@ -1064,6 +1068,12 @@ export class DomGridRenderer implements GridRenderer {
    */
   setPointerEditable(pointerEditable: boolean): void {
     this.pointerEditable = pointerEditable;
+  }
+
+  setLaneLabel(label: string): void {
+    if (this.laneLabel === label) return;
+    this.laneLabel = label;
+    this.gridEl?.setAttribute("aria-label", this.gridAriaLabel());
   }
 
   setEditable(editable: boolean): void {

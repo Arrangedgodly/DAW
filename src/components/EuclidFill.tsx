@@ -52,7 +52,9 @@ registerHelp(
 /** The active drum pattern's row for `piece` (identity mirrors store writes). */
 function drumRow(piece: DrumPiece): readonly boolean[] {
   const pattern = currentPatternFor("drums");
-  return pattern?.kind === "drums" ? pattern.steps[piece] : [];
+  return pattern?.kind === "drums"
+    ? (pattern.steps[piece] ?? Array<boolean>(pattern.bars * 16).fill(false))
+    : [];
 }
 
 export interface EuclidFillProps {

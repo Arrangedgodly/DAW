@@ -1,42 +1,42 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-12T07:55:46.4522356Z",
-  "title": "Design System: Bitbounce",
+  "generatedAt": "2026-09-13T05:44:57.032Z",
+  "title": "Design System: Bitbounce Membrane",
   "extensions": {
-    "source": "src/styles/themes.css",
-    "status": "Approved hybrid performance console; fresh finish review returned ship with no material interface defect. No commit, push or deployment is claimed.",
+    "source": "src/styles/membrane.css",
+    "status": "R1 user-approved; R2 through R4 independently auto-approved. Closing critique 31/40 with no material residual established in its bounded review. No deployment.",
     "typographyMeta": {
       "instrument": {
         "displayName": "Instrument name",
-        "purpose": "Locally hosted Barlow 700; instrument headings 23px/1.05 desktop and phone; wordmark 25px desktop and 19px phone."
+        "purpose": "Unbounded 500 at 20px/1.25; title follows preset category. Wordmark 19px desktop and 15px phone; phone tabs 10px."
       },
-      "panel-label": {
-        "displayName": "Utility label",
-        "purpose": "Segoe UI utility text; IBM Plex Mono reserved for musical and inset transport/register displays at 11, 19, 23 and 25px. Legacy bundled Silkscreen, Departure Mono, VT323 and Press Start 2P base roles remain documented in DESIGN.md."
+      "utility": {
+        "displayName": "Utility controls",
+        "purpose": "Barlow 600 with 0.015em tracking. Supporting text uses Barlow 400/500; IBM Plex Mono is reserved for musical positions, pitch labels and numeric readouts."
       }
     },
     "shadows": [
       {
-        "purpose": "Crisp transport/status displays with 4px radii; panels and utility controls use the 3px theme radius.",
-        "name": "display-inset",
-        "value": "inset 0 2px 5px #00000026"
+        "name": "note-halo",
+        "value": "0 2px 9px color-mix(in srgb, var(--lane-hue) 24%, transparent)",
+        "purpose": "Filled notes and note runs; preserve cell boundaries."
+      },
+      {
+        "name": "fx-overlay",
+        "value": "0 12px 28px #0004",
+        "purpose": "Separate the effects overlay from the note grid; ordinary controls and connected instrument panels remain flat."
       }
     ],
     "motion": [
       {
-        "name": "press-travel",
-        "value": "0px",
-        "purpose": "State uses fill and borders without simulated key travel."
+        "name": "note-bloom",
+        "value": "opacity on existing prepainted overlay",
+        "purpose": "Audible step crossings brighten notes; no new animation loop or audio subscription. Reduced motion disables animated bloom."
       },
       {
-        "name": "playback",
-        "value": "audible-time",
-        "purpose": "Retain existing musical feedback, avoid per-frame DOM writes, and honor reduced motion in CSS and JavaScript."
-      },
-      {
-        "purpose": "One 3px top-edge LaneMeter line per lane with horizontal fill; no redundant decorative header animation.",
         "name": "lane-signal",
-        "value": "audible note activity"
+        "value": "audible note activity",
+        "purpose": "Existing lane meter at the bottom edge, 1px high. No moving background sheen."
       }
     ],
     "breakpoints": [
@@ -66,71 +66,60 @@
       "defaults": "Fluid folds and Blended",
       "controls": "24 effects per lane, Flowing trails and Orbit, 35 to 130 percent scale, 0 to 100 percent orbit strength; four tabs and one inspector",
       "signal": "Actual audible MIDI hold/release, up to 16 overlapping notes per lane; silence and effective mute draw nothing, stop clears, reduced motion uses bounded text",
-      "limitation": "Closed by passing VZ-TH-4 dense frame-budget gate; DPR cap is 0.75. Historical measurements remain in docs/dev/perf-budget.md."
+      "limitation": "Four default tracks have visualizer layers; extra instruments contribute to playback and exports only. DPR cap remains 0.75. Historical performance evidence is not a fresh measurement."
     },
-    "verification": "Parent task reports typecheck, lint, 89 unit files / 1772 tests, 21 fuzz tests, production build, pitch-direction, target-size isolated, focused accessibility/VIZ/happy-path pack, LP1 5/5, frame-budget 12/12 in 178.49 seconds. Documentation pass validates records, not a rerun.",
-    "branding": "Supplied Bitbounce logo, Barlow wordmark and local SVG favicon in src/assets/branding; dark Vector luminous, light Alloy polished silver."
+    "verification": "The finishing refinements have separate fresh evidence in `docs/dev/r1-desktop-fit/`, `r2-control-labels/`, `r3-phone-help/` and `r4-instrument-names/`. Each records its focused checks, independent verification and finish review. R1's legacy phone no-scroll test failed identically with the original files; phone scrolling remains permitted. The full regression suite and physical screen-reader speech have not been established by these focused passes. A constrained CSS viewport capture does not establish actual browser-zoom behavior.",
+    "branding": "Supplied Bitbounce logo and local favicon. Unbounded wordmark; continuous charcoal blue-green instrument in dark mode and pale silver-green material in light mode.",
+    "navigation": "Desktop tabs are Instruments 1–4, Instruments 5–8, then Song arrangement. The second instrument page uses the same four-quadrant MIDI editor, with a fixed slot per quadrant and an Add instrument action in empty slots. All lane headers use two consistent rows: name and mute/solo, then sound and mix controls. The selected instrument title takes its lane color; redundant Edit/View labels are omitted. On phones, the sticky header shows default instrument tabs followed by up to four added track tabs and an Add new instrument button until all slots are occupied. One SONG/NOTES button switches views and preserves track selection. Phone Song sections have discreet centered titles and wrapping pattern tiles with content-sized spacing.",
+    "drumWindow": "The drum editor exposes 16 percussion voices through a scrollable row window. Its register strip shows Percussion, the voice count and the visible row range. Previous drum sounds and Next drum sounds move the window and disable at the boundaries. Navigation changes the visible voices without changing the pattern. Keep the row labels, editing targets and Euclidean fill controls aligned with the visible sounds.",
+    "demoPreviews": "Projects contains a Built-in demos disclosure with named examples and descriptions. Opening a demo starts a temporary preview. Playback, navigation and appearance changes leave it temporary; the first document edit creates a local copy and starts normal autosave. Explain that behavior beside the demo choices and preserve the Built-in demo status until editing begins. Welcome Song remains the first-run demo. Glass Arcade and After Hours demonstrate eight-bar, eight-lane arrangements.\n",
+    "trackAppearance": "The selected track and VIZ inspector use `TrackColorControl`. Its native popover offers 30 named swatches: Light, Middle and Dark variants of red, orange, yellow, green, cyan, blue, purple, pink, brown and gray. Values live in `src/state/trackColorSwatches.ts`. A check mark and outline identify selection; arrow keys navigate; Escape closes the palette before leaving VIZ. Use theme default removes the individual override.",
+    "compactDesktop": "At desktop heights up to 850px, reclaim space from transport padding, header gaps and register padding while preserving control sizes and the aligned instrument tools tier. Grid fitting includes instrument borders and refreshes after selection changes. The R1 matrix verified complete rows and reachable footers at the two desktop targets, including touch-enabled 1280 by 800 layouts.",
+    "phoneHelp": "Phone Options includes optional Help. A native topic picker reveals one registered explanation at a time for drawing, navigation, pitch controls and effects. Help and the picker retain 44px targets; long explanations scroll inside a bounded text region. Close help returns to Options; Escape closes Help first and restores its trigger, then closes Options on the next press. Reading help does not require touching a musical control or changing the song. Pitched help topics follow the active instrument, including extra tracks; drums omit them.",
+    "controlTerminology": "Sound-changing octave controls read Transpose (Oct), both beside desktop presets and in phone Options. Grid navigation reads View Oct and View Semi. Keep these labels and their accessible action names distinct: Transpose changes playback and exports; View only changes the visible register. Help uses the same terms.",
+    "instrumentAccessibility": "Runtime accessible names use the visible category first, followed by the stable track number, such as Keys, track 4. Apply the same identity to instrument regions, presets, mix controls, grid navigation, phone controls and arrangement chains. Names update when presets change. Update the grid's accessible label in place; do not rebuild it merely to change its name. Existing preset changes that alter the pitch domain retain their normal grid behavior. Static help entries keep stable registry IDs.",
+    "closingCritique": ".impeccable/critique/2026-09-13T05-43-59Z__src-app-tsx.md"
   },
   "components": [
     {
       "name": "Theme switch",
       "kind": "button",
-      "refersTo": "vector-theme-button",
-      "description": "Shared control in both themes. Live CSS variables provide the active palette.",
+      "description": "Quiet shared theme control using current Membrane CSS variables.",
       "html": "<button class=\"ds-theme\" aria-label=\"Switch to light theme\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"10\" cy=\"10\" r=\"7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M10 3a7 7 0 0 1 0 14Z\" fill=\"currentColor\"/></svg>Dark</button>",
       "css": ".ds-theme{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 9px;font:500 12px/1 var(--font-ui);color:var(--color-ink);background:var(--metal-raised);border:1px solid var(--theme-line);border-radius:var(--theme-radius);box-shadow:none}.ds-theme:hover{cursor:pointer}.ds-theme:focus-visible{outline:2px solid var(--theme-accent);outline-offset:3px}"
     },
     {
       "name": "Instrument panel",
       "kind": "card",
-      "refersTo": "vector-panel",
-      "description": "Hybrid instrument panel with Barlow 23px heading and a single audible top-edge LaneMeter signal.",
-      "html": "<section class=\"ds-panel\"><h2 class=\"ds-instrument\"><span aria-hidden=\"true\"></span>BASS</h2><p class=\"ds-label\">Scale notes</p></section>",
-      "css": ".ds-panel{background:var(--metal-panel);color:var(--color-ink);border:1px solid var(--theme-line);border-radius:var(--theme-radius);padding:12px;box-shadow:none}.ds-instrument{display:flex;align-items:center;gap:8px;margin:0;font:700 23px/1.05 var(--font-display);letter-spacing:-.025em}.ds-instrument span{width:5px;height:13px;border-radius:1px;background:var(--color-lane-bass)}.ds-label{font:500 11px/1.2 var(--font-ui);color:var(--theme-muted)}"
+      "description": "Connected Membrane quadrant with Unbounded instrument title and bottom-edge activity meter.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-instrument\">Bass</h2><p class=\"ds-label\">Scale notes</p></section>",
+      "css": ".ds-panel{background:transparent;color:var(--color-ink);border:0;border-bottom:1px solid var(--membrane-seam);border-radius:0;padding:12px;box-shadow:none}.ds-instrument{margin:0;font:500 20px/1.25 var(--font-instrument);letter-spacing:-.025em}.ds-label{font:500 11px/1.2 var(--font-ui);color:var(--theme-muted)}"
     }
   ],
   "narrative": {
-    "northStar": "Hybrid performance console: Vector dark and Alloy light",
-    "overview": "Approved hybrid console with supplied Bitbounce logo and wordmark, crisp inset musical displays and one audible signal line per instrument. Dark Vector is luminous; light Alloy polished silver. Four-panel desktop and single-lane phone workflows remain intact.",
+    "northStar": "Bitbounce Membrane",
+    "overview": "Membrane is the approved production direction, selected from prototype A with prototype C's glowing note buttons. The user explicitly rejected moving background sheen. The surface stays still; musical notes, the existing playhead and lane meters carry playback activity.",
     "keyCharacteristics": [
-      "Locally hosted Barlow Bold instrument names and Segoe UI utility text",
-      "Thin-bordered panels, crisp inset Plex displays and one top-edge audible LaneMeter signal per lane",
-      "Scale-only rows in descending pitch order with view-only register navigation",
-      "Theme preference remains outside musical documents"
+      "Desktop has one continuous instrument with a rounded top transport, four connected quadrants and fine dividing seams. Instruments 1–4 and Instruments 5–8 are separate editor pages, followed by Song arrangement. The arrangement inherits the same material and control language. Use the available viewport; keep internal grid scrolling inside the instrument. The existing layout target is an editor that fits without page scrolling at 1280 by 800 and 1440 by 1000; the finishing critique checks current behavior against that target.",
+      "Use thin borders and quiet fills for functional controls. Retire sculpted keycaps, decorative screws, inset display shadows, scanning overlays and moving background reflections. Preserve visible hover, focus, disabled, selected, muted and bypass states. The play button has a rounded shape and clear active fill.",
+      "Filled notes have a soft halo in their instrument color. Audible step crossings brighten the existing prepainted cell overlay; only opacity animates. No new animation loop, audio subscription or scheduling behavior was added. Long notes retain their duration representation and resize affordances."
     ],
     "rules": [
       {
-        "name": "Theme roles",
-        "body": "Use active semantic CSS variables. Filled notes use ink-on-fill; selected transport and mix controls use ink with ground text. State retains labels and ARIA equivalents.",
+        "name": "View identity",
+        "body": "Pitched grids retain complete scale-octave rows with a 44px base row floor. Fit whole rows between the real control stack and reserved bottom area. Short phones scroll rather than compressing editing targets. View changes preserve pitch identity and do not transpose notes or create undo entries. The full MIDI 0 through 127 scale-note range remains vertically virtualized.",
+        "section": "components"
+      },
+      {
+        "name": "Track colors",
+        "body": "The same color updates grid notes, track accents, arrangement accents and live visualizer geometry. Color changes do not restart visualizer envelopes or audio. Custom note fills choose black or white text for readability. Color never replaces labels or selection semantics.",
         "section": "colors"
       },
       {
-        "name": "View identity",
-        "body": "Higher pitches appear above lower pitches. View navigation changes the visible register without changing stored degrees, sound or undo.",
-        "section": "components"
-      },
-      {
-        "name": "Functional depth",
-        "body": "Inset musical displays use 4px radii; panels and controls use 3px. Audible light carries activity without redundant decorative animation.",
-        "section": "elevation"
-      },
-      {
-        "name": "VIZ signal",
-        "body": "Artwork follows real audible MIDI. Silent and effectively muted lanes draw nothing; reduced motion uses bounded textual summaries.",
+        "name": "Demo previews",
+        "body": "Projects contains a Built-in demos disclosure with named examples and descriptions. Opening a demo starts a temporary preview. Playback, navigation and appearance changes leave it temporary; the first document edit creates a local copy and starts normal autosave. Explain that behavior beside the demo choices and preserve the Built-in demo status until editing begins. Welcome Song remains the first-run demo. Glass Arcade and After Hours demonstrate eight-bar, eight-lane arrangements.\n",
         "section": "components"
       }
-    ],
-    "dos": [
-      "Do preserve four-panel desktop and single-lane phone interaction.",
-      "Do reserve footer space when fitting phone rows and retain the 44px base floor.",
-      "Do preserve chain-slot identity and audible-time playback follow.",
-      "Do preserve keyboard editing, focus, ARIA and reduced motion."
-    ],
-    "donts": [
-      "Don't restore superseded Machined Console visual prescriptions.",
-      "Don't transpose music while browsing the pitch window.",
-      "Don't add expensive decoration inside virtualized cells or per-frame playback DOM writes.",
-      "Don't claim verification, release or performance improvements from this documentation."
     ]
   }
 }

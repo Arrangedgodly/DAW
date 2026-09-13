@@ -788,6 +788,30 @@ const ChainCuesSchema = v.nullable(
  * existing documents stay byte-identical.
  */
 export type ChainSlotMode = "loop" | "next";
+export const PlaybackRuleSchema = v.strictObject({
+  unit: v.picklist(["bars", "repeats", "hold"]),
+  amount: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(128)),
+  action: v.picklist(["next", "previous", "goto", "random", "stop", "return"]),
+  target: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  choices: v.optional(v.array(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+});
+export type PlaybackRule = v.InferOutput<typeof PlaybackRuleSchema>;
+export type LanePlaybackRules = Partial<
+  Record<LaneId, readonly (PlaybackRule | null)[]>
+>;
+const PlaybackRulesSchema = v.record(
+  v.picklist(ALL_LANE_IDS),
+  v.array(v.nullable(PlaybackRuleSchema)),
+);
+export const SectionSchema = v.strictObject({
+  name: v.pipe(v.string(), v.trim(), v.maxLength(24)),
+  bars: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(128)),
+  ),
+  next: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  stop: v.optional(v.boolean()),
+});
+export type SongSection = v.InferOutput<typeof SectionSchema>;
 export type LaneChainModes = Readonly<LaneMap<readonly ChainSlotMode[]>>;
 
 const ChainSlotModeSchema = v.picklist(["loop", "next"]);
@@ -950,6 +974,8 @@ export interface ProjectDocument {
   readonly chainCues?: LaneCues | null;
   /** Optional per-slot ⟲/→ follow modes; absent = every slot "next". */
   readonly chainModes?: LaneChainModes | null;
+  readonly playbackRules?: LanePlaybackRules;
+  readonly sections?: readonly (SongSection | null)[];
   /**
    * PS-3 sample-voice provenance; absent (canonical-empty) when no lane uses
    * a sample-backed voice — synth-only projects, including every v2 document
@@ -984,6 +1010,8 @@ export const ProjectDocumentSchema = v.pipe(
     chainCues: v.optional(ChainCuesSchema),
     // Optional (backward compatible): docs without ⟲ slots omit it entirely.
     chainModes: v.optional(ChainModesSchema),
+    playbackRules: v.optional(PlaybackRulesSchema),
+    sections: v.optional(v.array(v.nullable(SectionSchema))),
     // Optional (backward compatible): pre-PS-3 docs omit it entirely.
     sampleProvenance: v.optional(SampleProvenanceSchema),
   }),

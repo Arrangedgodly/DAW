@@ -34,6 +34,7 @@ import {
   releaseVizActivitySummarizer,
 } from "../viz/textEquivalence";
 import VizRemote from "./VizRemote";
+import VizVideoExport from "./VizVideoExport";
 import { trackColor } from "../state/trackColors";
 import "../styles/viz.css";
 
@@ -176,6 +177,7 @@ export default function VizPage(): JSX.Element {
     engine.setReducedMotion(reduced());
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Escape" || helpOpen() || helpMode()) return;
+      if (document.querySelector(".viz-video-dialog[open]")) return;
       // Let the native palette close first, without leaving the visualizer.
       if (document.querySelector(".track-swatch-panel:popover-open")) return;
       event.preventDefault();
@@ -261,6 +263,7 @@ export default function VizPage(): JSX.Element {
           </label>
         </div>
         <div class="viz-header-actions">
+          <VizVideoExport />
           <button
             class="viz-btn"
             data-help="viz.view"

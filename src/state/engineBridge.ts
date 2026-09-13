@@ -44,7 +44,7 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
   return compileLaneSchedule({
     chain,
     // ⟲/→ follow: segments carry their document slot + mode (session holds).
-    slots: slots.map(({ slot, loop }) => ({ slot, loop })),
+    slots: slots.map(({ slot, loop, rule }) => ({ slot, loop, rule })),
     preset:
       lane === "drums"
         ? (getDrumKit((laneConf as { kitId: string }).kitId) ??
@@ -201,6 +201,7 @@ export function connectStoreToEngine(
   session: Session = getSession(),
 ): () => void {
   const pushAll = (doc: ProjectDocument) => {
+    session.setSections(doc.sections ?? []);
     syncTransport(doc, session);
     syncLaneConfig(doc, session);
     for (const lane of Object.keys(doc.patterns) as LaneId[]) {
@@ -211,6 +212,8 @@ export function connectStoreToEngine(
   return docStore.subscribe((state, prev) => {
     const doc = state.doc;
     if (doc === prev.doc) return;
+    if (doc.sections !== prev.doc.sections)
+      session.setSections(doc.sections ?? []);
     // The derived cycle basis follows the CHAIN totals (pattern bars × the
     // songChain ids): a chain edit (rail `+`/remove/resize of a chained
     // pattern) must re-push the transport even though doc.transport is
@@ -268,6 +271,7 @@ export function connectStoreToEngine(
         (doc.patterns[lane] ?? []) !== (prev.doc.patterns[lane] ?? []) ||
         laneConfChanged ||
         pitchedScaleChanged ||
+        doc.playbackRules?.[lane] !== prev.doc.playbackRules?.[lane] ||
         grooveChanged
       ) {
         compileLaneForSession(doc, lane, session);

@@ -150,13 +150,16 @@ function captureSeam(): { seam: DownloadSeam; blob: () => Blob | undefined } {
 
 const Q = 1 / 32767; // one quantization step
 
-describe("MF-4 WAV export — the file IS the loop (real render + encoder)", () => {
+describe("Legacy cycle renderer through the WAV encoder (explicit cycle render seam)", () => {
   it(
     "exports the reference project: header fields exact + sample-exact length",
     { timeout: 120000 },
     async () => {
       const cap = captureSeam();
-      const result = await exportWav(referenceProject(), { seam: cap.seam });
+      const result = await exportWav(referenceProject(), {
+        seam: cap.seam,
+        render: (doc) => renderProjectToBuffer(doc),
+      });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
 
@@ -204,7 +207,10 @@ describe("MF-4 WAV export — the file IS the loop (real render + encoder)", () 
       // 2-bar render whose second loop region carries the TRUE continuation
       // across the seam.
       const cap = captureSeam();
-      const result = await exportWav(referenceProject(), { seam: cap.seam });
+      const result = await exportWav(referenceProject(), {
+        seam: cap.seam,
+        render: (doc) => renderProjectToBuffer(doc),
+      });
       expect(result.ok).toBe(true);
       const bytes = new Uint8Array(await cap.blob()!.arrayBuffer());
       const wav = parseWav16Stereo(bytes);
@@ -339,10 +345,7 @@ describe("MF-4 WAV export — the file IS the loop (real render + encoder)", () 
         return Math.sqrt(sum / (to - from));
       };
       const first = rms(0, barSamples * 4);
-      const last = rms(
-        wav.frames - barSamples * 4,
-        wav.frames - barSamples,
-      );
+      const last = rms(wav.frames - barSamples * 4, wav.frames - barSamples);
       expect(first).toBeGreaterThan(0.01); // real signal, not silence
       expect(Math.abs(first - last)).toBeLessThan(first * 0.1);
     },

@@ -1,3 +1,4 @@
+import { patternExportControl } from "./patternExportControl";
 /**
  * HW-4 — THE definition-of-done e2e: one ordered journey through the REAL
  * BUILT APP (dist/ bundle served by the browser project's publicDir, exactly
@@ -16,7 +17,7 @@
  *      modules statically; only the built app exercises the on-demand path).
  *      The captured seam Blob is parsed + decoded: canonical header, sample-
  *      exact length vs the demo transport math.
- *   7. EXPORT MIDI likewise — MThd header, format 1, MTrk chunks present.
+ *   7. Pattern MIDI through its PAT menu — format 1, tempo + note track.
  *   8. reload (fresh iframe, SAME IndexedDB) → autosave restores the project
  *      with every edit intact
  *   9. export WAV again → BYTE-IDENTICAL to the first export (determinism
@@ -45,14 +46,7 @@ const T = {
   save: 6_000,
 };
 
-/**
- * Demo export math (edits in this journey never touch bpm). SV-1 (J11): the
- * retired loopBars field never sized the export — the LCM law does; PX-4's
- * poly-loop demo (chords 8B · drums 4B · lead 4B · bass 4B) => an 8-bar
- * export cycle (the journey's appended 1-bar bass blank widens it — the
- * toast's own count is the assert). FRAMES_PER_BAR is per ONE bar and the
- * toast's bar count carries the cycle length.
- */
+/** Musical bar duration at the demo's unchanged tempo. WAV also retains its tail. */
 const DEMO_BPM = 112;
 const FRAMES_PER_BAR = 4 * ((EXPORT_SAMPLE_RATE * 60) / DEMO_BPM);
 const EXPECTED_FRAMES = FRAMES_PER_BAR;
@@ -417,14 +411,14 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         );
 
         // (c) preset change on BASS (observable in the lane header value).
-        const bassSound = $('[aria-label="BASS sound"]');
+        const bassSound = $('[data-help="lane.bass.sound"]');
         const presetName = () =>
           bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
             .value;
         const presetBefore = presetName();
         bassSound
           .querySelector<HTMLButtonElement>(
-            'button[aria-label="Next preset for BASS"]',
+            'button[aria-label^="Next preset for "][aria-label$=", track 2"]',
           )!
           .click();
         await poll(
@@ -525,25 +519,24 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         await poll(
           () =>
             bassRow.querySelector<HTMLButtonElement>(
-              'button[aria-label="Duplicate BASS selected pattern"]',
+              'button[aria-label^="Duplicate "][aria-label$=", track 2 selected pattern"]',
             ) !== null,
           T.ui,
           "BASS pattern tools menu open",
         );
-        // Duplicate creates a NEW pattern ("NAME+" copy, selected but not yet
-        // chained — the chain length is unchanged) ...
+        // Duplicate creates and selects an independent NAME+ block in the chain.
         bassRow
           .querySelector<HTMLButtonElement>(
-            'button[aria-label="Duplicate BASS selected pattern"]',
+            'button[aria-label^="Duplicate "][aria-label$=", track 2 selected pattern"]',
           )!
           .click();
         await poll(
           () =>
             bassRow.querySelector<HTMLButtonElement>(
-              'button[aria-label="Append new blank pattern to BASS chain"]',
-            ) !== null && tiles().length === tilesBefore,
+              'button[aria-label^="Append new blank pattern to "][aria-label$=", track 2 chain"]',
+            ) !== null && tiles().length === tilesBefore + 1,
           T.ui,
-          "duplicate pattern (chain unchanged until append)",
+          "duplicate inserts an independent block",
         );
         // ... then the rail "+" chains a NEW BLANK next-letter pattern
         // (BC-1/I3-a: it no longer re-appends the selected copy — DUP is
@@ -551,11 +544,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         // next label by count = F: one MORE tile, blank, named F.
         bassRow
           .querySelector<HTMLButtonElement>(
-            'button[aria-label="Append new blank pattern to BASS chain"]',
+            'button[aria-label^="Append new blank pattern to "][aria-label$=", track 2 chain"]',
           )!
           .click();
         await poll(
-          () => tiles().length === tilesBefore + 1,
+          () => tiles().length === tilesBefore + 2,
           T.ui,
           "new blank pattern appended to the chain",
         );
@@ -578,6 +571,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         const actionByLabel = async (
           label: string,
         ): Promise<HTMLButtonElement> => {
+          if (label === "EXPORT MIDI") return patternExportControl(idoc());
           for (let i = 0; i < 60; i++) {
             const b = $$(".projects-action").find(
               (x) => x.textContent?.trim() === label && !x.disabled,
@@ -619,16 +613,17 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         expect(h.channelsCount).toBe(2);
         expect(h.bits).toBe(16);
         expect(h.sampleRate).toBe(EXPORT_SAMPLE_RATE);
-        // Length via the app's own claim: the toast reports the exported
-        // CYCLE in bars (PX-4 wording `· <n>-BAR CYCLE`); the file must
-        // carry exactly that many sample-exact 112-BPM bars (the demo
-        // journey exports the whole LCM cycle).
+        // The toast reports musical bars; the file also retains a bounded
+        // release/effects tail. Exact frame math is covered in iteration 3.
         const toastBars = Number(
-          (exportToast.match(/· (\d+)-BAR CYCLE/) ?? [])[1],
+          (exportToast.match(/· (\d+)-BAR SONG/) ?? [])[1],
         );
         expect(Number.isInteger(toastBars)).toBe(true);
         expect(toastBars).toBeGreaterThanOrEqual(4); // the 4-section demo
-        expect(h.frames).toBe(toastBars * EXPECTED_FRAMES);
+        expect(h.frames).toBeGreaterThanOrEqual(toastBars * EXPECTED_FRAMES);
+        expect(h.frames).toBeLessThan(
+          toastBars * EXPECTED_FRAMES + 30 * EXPORT_SAMPLE_RATE,
+        );
         expect(Number.isInteger(EXPECTED_FRAMES)).toBe(true);
         // The decoded file is not silence (first bar carries the downbeat).
         let wavPeak = 0;
@@ -662,7 +657,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         const firstMidi = new Uint8Array(await midiBlob!.arrayBuffer());
         const midi = parseMidiHeader(firstMidi);
         expect(midi.format).toBe(1); // simultaneous tracks
-        expect(midi.ntrks).toBeGreaterThanOrEqual(4); // one per lane
+        expect(midi.ntrks).toBe(2); // tempo plus the selected pattern
         expect(midi.division).toBeGreaterThan(0);
 
         // Determinism control: export AGAIN pre-reload — same live document,
@@ -766,7 +761,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "restored demo cues",
         );
         // Edits intact.
-        const bassSound2 = $('[aria-label="BASS sound"]');
+        const bassSound2 = $('[data-help="lane.bass.sound"]');
         await poll(
           () =>
             bassSound2.querySelector<HTMLSelectElement>(".head-sound-select")!

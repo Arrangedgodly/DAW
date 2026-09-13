@@ -1,0 +1,62 @@
+[
+  {
+    "width": 640,
+    "height": 400,
+    "scale": 2,
+    "theme": "light",
+    "lane": "lead",
+    "before": {
+      "octave": 0,
+      "start": 33
+    },
+    "view": {
+      "unchanged": true,
+      "start": 26
+    },
+    "transpose": {
+      "octave": 1,
+      "start": 33
+    },
+    "geometry": {
+      "width": 640,
+      "height": 887,
+      "labels": [
+        "View Oct",
+        "View Semi"
+      ],
+      "footer": [
+        832
+      ]
+    }
+  },
+  {
+    "width": 640,
+    "height": 400,
+    "scale": 2,
+    "theme": "light",
+    "lane": "extra4",
+    "before": {
+      "octave": 0,
+      "start": 39
+    },
+    "view": {
+      "unchanged": true,
+      "start": 32
+    },
+    "transpose": {
+      "octave": 1,
+      "start": 39
+    },
+    "geometry": {
+      "width": 640,
+      "height": 887,
+      "labels": [
+        "View Oct",
+        "View Semi"
+      ],
+      "footer": [
+        832
+      ]
+    }
+  }
+]

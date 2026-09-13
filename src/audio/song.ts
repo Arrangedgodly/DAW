@@ -33,6 +33,7 @@ import {
   type LaneGate,
   type LaneId,
   type Pattern,
+  type PlaybackRule,
   type ProjectDocument,
 } from "../document/schema";
 import { type EffectiveScale, effectiveScale } from "../document/scales";
@@ -49,6 +50,7 @@ export interface LaneSegment {
   readonly slot?: number;
   /** ⟲ LOOP slot: the lane replays it instead of advancing (session). */
   readonly loop?: boolean;
+  readonly rule?: PlaybackRule | null;
 }
 
 /** One resolved chain slot: its pattern, document index, and follow mode. */
@@ -56,6 +58,7 @@ export interface ResolvedChainSlot {
   readonly pattern: Pattern;
   readonly slot: number;
   readonly loop: boolean;
+  readonly rule?: PlaybackRule | null;
 }
 
 /** A lane's compiled playback schedule for one chain iteration. */
@@ -84,7 +87,11 @@ export interface LaneScheduleInput {
    * Per-chain-entry slot identity + ⟲/→ mode (index-aligned with `chain`).
    * Absent → segments carry neither (legacy callers, standalone switches).
    */
-  readonly slots?: readonly { readonly slot: number; readonly loop: boolean }[];
+  readonly slots?: readonly {
+    readonly slot: number;
+    readonly loop: boolean;
+    readonly rule?: PlaybackRule | null;
+  }[];
 }
 
 /**
@@ -113,7 +120,14 @@ export function resolveChainSlots(
   (doc.songChain[lane] ?? []).forEach((id, slot) => {
     const pattern = patterns.find((p) => p.id === id);
     if (pattern)
-      resolved.push({ pattern, slot, loop: modes?.[slot] === "loop" });
+      resolved.push({
+        pattern,
+        slot,
+        loop: modes?.[slot] === "loop",
+        ...(doc.playbackRules?.[lane]?.[slot]
+          ? { rule: doc.playbackRules[lane]![slot] }
+          : {}),
+      });
   });
   return resolved.length > 0
     ? resolved

@@ -1,0 +1,58 @@
+[
+  {
+    "width": 1280,
+    "height": 800,
+    "scrollHeight": 800,
+    "scrollWidth": 1280,
+    "floors": [
+      {
+        "label": "Drums, track 1",
+        "top": 186,
+        "bottom": 480,
+        "grid": "Drums, track 1 grid · VIEW ONLY · ROWS 0–6 OF 15"
+      },
+      {
+        "label": "Bass, track 2",
+        "top": 186,
+        "bottom": 480,
+        "grid": "Bass, track 2 grid · VIEW ONLY · ROWS 48–54 OF 74"
+      },
+      {
+        "label": "Chords, track 3",
+        "top": 480,
+        "bottom": 794,
+        "grid": "Chords, track 3 grid · VIEW ONLY · ROWS 38–44 OF 74"
+      },
+      {
+        "label": "Leads, track 4",
+        "top": 480,
+        "bottom": 794,
+        "grid": "Leads, track 4 grid · EDITING · ROWS 33–39 OF 74"
+      }
+    ],
+    "labels": [
+      "Percussion · 16 voices−1–7+",
+      "View Oct–+View Semi–+▼B1 – A♯21.00×RESET",
+      "View Oct–+View Semi–+▲E3 – D♯41.00×RESET",
+      "View Oct–+View Semi–+▼C4 – B41.00×RESET"
+    ]
+  },
+  {
+    "width": 390,
+    "height": 667,
+    "scrollHeight": 937,
+    "scrollWidth": 390,
+    "floors": [
+      {
+        "label": "FX, track 8",
+        "top": 191,
+        "bottom": 892,
+        "grid": "FX, track 8 grid · EDITING · ROWS 39–45 OF 74"
+      }
+    ],
+    "labels": [
+      "View Oct–+View Semi–+■D3 – C♯41.00×RESET"
+    ],
+    "help": "Help topic\nDraw notes\nScroll the grid\nBack / Forward\nView Oct / View Semi\nTranspose (Oct)\nFilter: LP / HP / BP / Q\nBYP: bypass an effect\nAdjust an effect\n\nTap to place a note or drum hit. Pull quickly to draw a longer note. Hold still briefly, then drag to scroll without editing notes."
+  }
+]

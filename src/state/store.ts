@@ -34,6 +34,8 @@ import {
   type LaneGate,
   type LaneId,
   type ChainSlotMode,
+  type PlaybackRule,
+  type SongSection,
   type LaneMix,
   MAX_FX_PER_LANE,
   MAX_NOTE_LENGTH,
@@ -522,11 +524,15 @@ export function removeInstrumentLane(id: LaneId): void {
   const laneOverrides = doc.laneOverrides ? { ...doc.laneOverrides } : null;
   const chainCues = doc.chainCues ? { ...doc.chainCues } : doc.chainCues;
   const chainModes = doc.chainModes ? { ...doc.chainModes } : doc.chainModes;
+  const playbackRules = doc.playbackRules
+    ? { ...doc.playbackRules }
+    : undefined;
   delete patterns[id];
   delete songChain[id];
   if (laneOverrides) delete laneOverrides[id];
   if (chainCues) delete chainCues[id];
   if (chainModes) delete chainModes[id];
+  if (playbackRules) delete playbackRules[id];
   commit({
     ...doc,
     lanes: doc.lanes.filter((lane) => lane.id !== id),
@@ -535,6 +541,7 @@ export function removeInstrumentLane(id: LaneId): void {
     laneOverrides,
     ...(chainCues !== undefined ? { chainCues } : {}),
     ...(chainModes !== undefined ? { chainModes } : {}),
+    ...(playbackRules !== undefined ? { playbackRules } : {}),
   });
 }
 
@@ -948,6 +955,130 @@ export function duplicatePattern(lane: LaneId, patternId: string): string {
 }
 
 /** Rename a pattern. */
+export function insertPatternBlock(
+  lane: LaneId,
+  source: Pattern,
+  after: number,
+  reuse = false,
+): string {
+  const doc = docStore.getState().doc;
+  if ((lane === "drums") !== (source.kind === "drums"))
+    throw new Error("Choose a pattern from the same instrument type.");
+  const chain = [...(doc.songChain[lane] ?? [])];
+  const index = Math.max(0, Math.min(chain.length, after + 1));
+  const exists = (doc.patterns[lane] ?? []).some((p) => p.id === source.id);
+  if (reuse && !exists)
+    throw new Error("This pattern is no longer in this lane.");
+  const id = reuse ? source.id : newPatternId(lane);
+  const copy = {
+    ...deepClone(source),
+    id,
+    name: `${source.name.slice(0, 7)}+`,
+  };
+  const oldIndices: (number | null)[] = chain.map((_, i) => i);
+  oldIndices.splice(index, 0, null);
+  chain.splice(index, 0, id);
+  commit(
+    withChain(
+      reuse
+        ? doc
+        : {
+            ...doc,
+            patterns: {
+              ...doc.patterns,
+              [lane]: [...(doc.patterns[lane] ?? []), copy],
+            },
+          },
+      lane,
+      chain,
+      (old) => {
+        const next = [...old];
+        next.splice(index, 0, null);
+        return next;
+      },
+      (old) => {
+        const next = [...old];
+        next.splice(index, 0, "next");
+        return next;
+      },
+      oldIndices,
+    ),
+  );
+  return id;
+}
+
+export function doublePattern(lane: LaneId, patternId: string): boolean {
+  const doc = docStore.getState().doc;
+  const source = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
+  if (!source || source.bars > 64) return false;
+  const bars = source.bars * 2;
+  const copy: Pattern =
+    source.kind === "drums"
+      ? {
+          ...source,
+          bars,
+          steps: Object.fromEntries(
+            DRUM_PIECES.map((piece) => [
+              piece,
+              [...source.steps[piece], ...source.steps[piece]],
+            ]),
+          ) as Record<DrumPiece, boolean[]>,
+        }
+      : {
+          ...source,
+          bars,
+          notes: [
+            ...source.notes,
+            ...source.notes.map((note) => ({
+              ...note,
+              start: note.start + source.bars * 16,
+            })),
+          ].sort((a, b) => a.degree - b.degree || a.start - b.start),
+        };
+  commit({
+    ...doc,
+    patterns: {
+      ...doc.patterns,
+      [lane]: (doc.patterns[lane] ?? []).map((p) =>
+        p.id === patternId ? copy : p,
+      ),
+    },
+  });
+  return true;
+}
+
+export function setPlaybackRule(
+  lane: LaneId,
+  slot: number,
+  rule: PlaybackRule | null,
+): void {
+  const doc = docStore.getState().doc;
+  const chain = doc.songChain[lane] ?? [];
+  if (slot < 0 || slot >= chain.length) return;
+  const rules = chain.map((_, i) =>
+    i === slot ? rule : (doc.playbackRules?.[lane]?.[i] ?? null),
+  );
+  commit({ ...doc, playbackRules: { ...doc.playbackRules, [lane]: rules } });
+}
+
+export function setSongSection(index: number, section: SongSection): void {
+  const doc = docStore.getState().doc;
+  const count = Math.max(
+    ...doc.lanes.map(({ id }) => (doc.songChain[id] ?? []).length),
+  );
+  if (index < 0 || index >= count) return;
+  if (section.next !== undefined && section.next >= count)
+    throw new Error("Choose an existing section.");
+  if (section.next !== undefined && section.next >= count)
+    throw new Error("Choose an existing section.");
+  const sections = Array.from(
+    { length: Math.max(count, doc.sections?.length ?? 0) },
+    (_, i) => (i === index ? section : (doc.sections?.[i] ?? null)),
+  );
+  commit({ ...doc, sections });
+}
+
+/** Rename a pattern. */
 export function renamePattern(
   lane: LaneId,
   patternId: string,
@@ -1019,7 +1150,32 @@ function withChain(
   // ⟲/→ slot modes ride the rewrite the same way (positional by default —
   // slot i keeps its mode; new slots start "next").
   modes: (old: readonly SlotMode[]) => SlotMode[] = (old) => [...old],
+  oldIndices: readonly (number | null)[] = chain.map((_, i) => i),
 ): ProjectDocument {
+  if (doc.playbackRules) {
+    const remap = (index: number) => oldIndices.indexOf(index);
+    const rules = oldIndices.map((oldIndex) => {
+      const rule =
+        oldIndex === null
+          ? null
+          : (doc.playbackRules?.[lane]?.[oldIndex] ?? null);
+      if (!rule) return null;
+      const target = rule.target === undefined ? undefined : remap(rule.target);
+      const { target: _target, ...rest } = rule;
+      void _target;
+      return {
+        ...rest,
+        ...(target !== undefined && target >= 0 ? { target } : {}),
+        ...(rule.action === "goto" && (target === undefined || target < 0)
+          ? { action: "next" as const }
+          : {}),
+        ...(rule.choices
+          ? { choices: rule.choices.map(remap).filter((i) => i >= 0) }
+          : {}),
+      };
+    });
+    doc = { ...doc, playbackRules: { ...doc.playbackRules, [lane]: rules } };
+  }
   const oldModes = padModes(
     doc.chainModes?.[lane] ?? [],
     (doc.songChain[lane] ?? []).length,
@@ -1090,10 +1246,25 @@ export function setChainSlotMode(
 ): void {
   const doc = docStore.getState().doc;
   if (index < 0 || index >= (doc.songChain[lane] ?? []).length) return;
-  if ((doc.chainModes?.[lane]?.[index] ?? "next") === mode) return;
+  if (
+    (doc.chainModes?.[lane]?.[index] ?? "next") === mode &&
+    !doc.playbackRules?.[lane]?.[index]
+  )
+    return;
+  const base = doc.playbackRules?.[lane]?.[index]
+    ? {
+        ...doc,
+        playbackRules: {
+          ...doc.playbackRules,
+          [lane]: doc.playbackRules[lane]!.map((r, i) =>
+            i === index ? null : r,
+          ),
+        },
+      }
+    : doc;
   commit(
     withChain(
-      doc,
+      base,
       lane,
       [...(doc.songChain[lane] ?? [])],
       (old) => [...old],
@@ -1130,6 +1301,7 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
   const kept = (doc.songChain[lane] ?? [])
     .map((id, i) => ({
       id,
+      index: i,
       cue: cues[i] ?? null,
       mode: modes[i] ?? ("next" as SlotMode),
     }))
@@ -1142,6 +1314,7 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
         [nextPatterns[0]!.id],
         () => [null],
         () => ["next"],
+        [null],
       ),
     );
     return true;
@@ -1157,6 +1330,7 @@ export function removePattern(lane: LaneId, patternId: string): boolean {
       kept.map((s) => s.id),
       () => kept.map((s) => s.cue),
       () => kept.map((s) => s.mode),
+      kept.map((s) => s.index),
     ),
   );
   return true;
@@ -1237,7 +1411,10 @@ export interface ResizeBlockingNote {
 
 export type ResizePatternResult =
   | { readonly ok: true; readonly bars: PatternBars }
-  | { readonly ok: false; readonly reason: "not-found" | "no-op" | "invalid-length" }
+  | {
+      readonly ok: false;
+      readonly reason: "not-found" | "no-op" | "invalid-length";
+    }
   | {
       readonly ok: false;
       readonly reason: "blocked";
@@ -1346,6 +1523,7 @@ export function removeChainSlot(lane: LaneId, index: number): boolean {
       chain.filter((_, i) => i !== index),
       (old) => old.filter((_, i) => i !== index),
       (old) => old.filter((_, i) => i !== index),
+      chain.map((_, i) => i).filter((i) => i !== index),
     ),
   );
   return true;

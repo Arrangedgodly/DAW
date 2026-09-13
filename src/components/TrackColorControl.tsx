@@ -1,4 +1,5 @@
 import { For, createSignal, createUniqueId } from "solid-js";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 import type { LaneId } from "../document/schema";
 import { setTrackColor, trackColor } from "../state/trackColors";
 import {
@@ -17,6 +18,7 @@ registerHelp([
 ]);
 
 export default function TrackColorControl(props: { lane: LaneId }) {
+  const laneNames = createLaneAccessibleNames();
   const id = createUniqueId();
   const [open, setOpen] = createSignal(false);
   let panel!: HTMLDivElement;
@@ -47,7 +49,7 @@ export default function TrackColorControl(props: { lane: LaneId }) {
         ref={(el) => (trigger = el)}
         type="button"
         class="track-color-trigger"
-        aria-label={`${props.lane} track color`}
+        aria-label={`${laneNames(props.lane)} track color`}
         aria-expanded={open()}
         aria-controls={id}
         onClick={toggle}
@@ -61,7 +63,7 @@ export default function TrackColorControl(props: { lane: LaneId }) {
         popover="auto"
         class="track-swatch-panel"
         role="dialog"
-        aria-label={`${props.lane} color palette`}
+        aria-label={`${laneNames(props.lane)} color palette`}
         onToggle={() => setOpen(panel.matches(":popover-open"))}
         onKeyDown={(event) => {
           if (
@@ -96,7 +98,7 @@ export default function TrackColorControl(props: { lane: LaneId }) {
           <strong>{props.lane} color</strong>
           <button
             type="button"
-            aria-label={`Close ${props.lane} color palette`}
+            aria-label={`Close ${laneNames(props.lane)} color palette`}
             onClick={() => {
               panel.hidePopover();
               trigger.focus();
@@ -135,7 +137,7 @@ export default function TrackColorControl(props: { lane: LaneId }) {
         <button
           type="button"
           class="swatch-reset"
-          aria-label={`Reset ${props.lane} track color`}
+          aria-label={`Reset ${laneNames(props.lane)} track color`}
           onClick={() => choose(null)}
         >
           Use theme default

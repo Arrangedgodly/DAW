@@ -36,7 +36,6 @@ import {
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { registerWindowStart, selectLane } from "../../src/state/selection";
-import { setHelpMode } from "../../src/state/helpMode";
 
 function mount(): { host: HTMLElement; cleanup: () => void } {
   const host = document.createElement("div");
@@ -176,8 +175,9 @@ describe("RC-1 register controls (real app, demo document)", () => {
         selectLane("drums");
         await waitFor(
           () =>
-            gridOf(host, "drums").getAttribute("aria-label") ===
-            "DRUMS grid · EDITING",
+            gridOf(host, "drums")
+              .getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING · ROWS ") === true,
           4000,
           "demo loaded (drums editing)",
         );
@@ -186,7 +186,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         // 1. EQUAL DEFAULT REGISTER WINDOWS (i3-1) + the i3-1 FILL twin
         // ------------------------------------------------------------------
         // Pitched lanes all project the complete physical MIDI domain while
-        // the drum voice list remains a compact, unwindowed six-row grid.
+        // drums retain all 16 voices behind a window of complete rows.
         const demo = docStore.getState().doc;
         const pitchedWins = Object.fromEntries(
           (["bass", "chords", "lead"] as const).map((lane) => [
@@ -202,10 +202,10 @@ describe("RC-1 register controls (real app, demo document)", () => {
           expect(pitchedWins[lane]).not.toBeNull();
         }
         expect(scrollOf(host, "drums").classList.contains("is-windowed")).toBe(
-          false,
+          true,
         );
         const manifestRows: Record<string, number> = {
-          drums: 6,
+          drums: 16,
           bass: pitchDomain(demo, "bass").degrees.length,
           chords: pitchDomain(demo, "chords").degrees.length,
           lead: pitchDomain(demo, "lead").degrees.length,
@@ -221,9 +221,9 @@ describe("RC-1 register controls (real app, demo document)", () => {
           expect(pitchedWins[lane]!.w).toBe(7);
           expect(visibleRowCount(host, lane)).toBe(7);
         }
-        expect(visibleRowCount(host, "drums")).toBe(6);
+        expect(visibleRowCount(host, "drums")).toBe(7);
         expect(gridOf(host, "bass").getAttribute("aria-label")).toBe(
-          `BASS grid · VIEW ONLY · ROWS ${pitchedWins.bass!.a}–${pitchedWins.bass!.b} OF ${pitchedWins.bass!.n}`,
+          `Bass, track 2 grid · VIEW ONLY · ROWS ${pitchedWins.bass!.a}–${pitchedWins.bass!.b} OF ${pitchedWins.bass!.n}`,
         );
 
         // ------------------------------------------------------------------
@@ -243,7 +243,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         ).toBeNull();
         expect(
           laneHost(host, "drums").querySelector(
-            'button[aria-label="Octave up for DRUMS"]',
+            'button[aria-label="Transpose octave up for Drums, track 1"]',
           ),
           "drums carries no OCT buttons",
         ).toBeNull();
@@ -273,7 +273,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         );
         const leadName = winNameOf(host, "lead");
         expect(
-          leadName.startsWith("LEAD grid · EDITING · ROWS "),
+          leadName.startsWith("Leads, track 4 grid · EDITING · ROWS "),
           "lead editing (windowed name)",
         ).toBe(true);
         key(document.body, "o");
@@ -287,7 +287,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
 
         // --- pointer path on ANOTHER quadrant's strip (always-operable) ---
         const bassUp = laneHost(host, "bass").querySelector<HTMLButtonElement>(
-          'button[aria-label="Octave up for BASS"]',
+          'button[aria-label="Transpose octave up for Bass, track 2"]',
         )!;
         bassUp.click();
         await waitFor(
@@ -355,7 +355,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         await waitFor(
           () =>
             gridOf(host, "drums").getAttribute("aria-label") ===
-            "DRUMS grid · EDITING",
+            "Drums, track 1 grid · EDITING · ROWS 0–6 OF 15",
           2000,
           "drums selected",
         );
@@ -420,7 +420,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
         await waitFor(
           () =>
             gridOf(host, "lead").getAttribute("aria-label") ===
-            `LEAD grid · EDITING · ROWS ${newA}–${newA + win.w - 1} OF ${win.n}`,
+            `Leads, track 4 grid · EDITING · ROWS ${newA}–${newA + win.w - 1} OF ${win.n}`,
           2000,
           "window scrolled one octave (anchor-clamped)",
         );
@@ -491,10 +491,12 @@ describe("RC-1 register controls (real app, demo document)", () => {
             return (
               gridOf(host, "bass")
                 .getAttribute("aria-label")
-                ?.startsWith("BASS grid · VIEW ONLY · ROWS ") === true &&
+                ?.startsWith("Bass, track 2 grid · VIEW ONLY · ROWS ") ===
+                true &&
               gridOf(host, "lead")
                 .getAttribute("aria-label")
-                ?.startsWith("LEAD grid · EDITING · ROWS ") === true &&
+                ?.startsWith("Leads, track 4 grid · EDITING · ROWS ") ===
+                true &&
               b !== null &&
               l !== null
             );
@@ -570,7 +572,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
           () =>
             gridOf(host, "lead")
               .getAttribute("aria-label")
-              ?.startsWith("LEAD grid · EDITING · ROWS ") === true,
+              ?.startsWith("Leads, track 4 grid · EDITING · ROWS ") === true,
           4000,
           "lead editing on the phone stage (M-5 one-octave window readout)",
         );
@@ -656,7 +658,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
           expect(cs.fontFamily).toContain("Segoe UI");
           expect(cs.color).toBe(getComputedStyle(document.body).color);
           expect(fence.textContent).toBe(
-            "Changes what you HEAR, not what you SEE — clamped at −3 and +3. The OCT/SEMI row scrolls the view.",
+            "Changes playback and exports by one octave, from −3 to +3. View Oct and View Semi beside the grid move the visible rows without changing the music.",
           );
         }
         const drawerOctReadout = (): string =>
@@ -664,7 +666,7 @@ describe("RC-1 register controls (real app, demo document)", () => {
             .querySelector(`[data-help="lane.lead.oct"] .head-oct-value`)
             ?.textContent?.trim() ?? "";
         const octUp = drawer.querySelector<HTMLButtonElement>(
-          'button[aria-label="Octave up for LEAD"]',
+          'button[aria-label="Transpose octave up for Leads, track 4"]',
         )!;
         expect(octUp).toBeTruthy();
         expect(octUp.getClientRects().length).toBeGreaterThan(0);
@@ -702,37 +704,29 @@ describe("RC-1 register controls (real app, demo document)", () => {
           "ROWS",
         );
 
-        // PX-4 (phone tap-to-inspect): with info mode ON, TAPPING the OCT
-        // group shows its refined entry — the KL-1 fence readable on the
-        // phone path (title says OCTAVE; text says SOUND vs SEE/HEAR).
-        // i7 N-2: at phone the group lives in the OPTIONS drawer.
-        setHelpMode(true);
-        await waitFor(() => host.querySelector(".info-view") !== null);
+        // Phone help is opened explicitly inside Options and remains scrollable.
         optionsToggle.click();
-        await waitFor(
-          () => host.querySelector(".phone-options-drawer") !== null,
-          2000,
-          "options drawer open (tap-to-inspect)",
-        );
-        (
-          host
-            .querySelector(".phone-options-drawer")!
-            .querySelector('[data-help="lane.lead.oct"]') as HTMLElement
-        ).dispatchEvent(
-          new MouseEvent("click", { bubbles: true, cancelable: true }),
-        );
+        await waitFor(() => host.querySelector(".phone-help-toggle") !== null);
+        (host.querySelector(".phone-help-toggle") as HTMLButtonElement).click();
+        const topic = host.querySelector(
+          "#phone-help-topic",
+        ) as HTMLSelectElement;
+        topic.value = "lane.lead.oct";
+        topic.dispatchEvent(new Event("change", { bubbles: true }));
         await waitFor(
           () =>
-            host.querySelector(".info-view-title")?.textContent?.trim() ===
-            "LEAD OCTAVE",
-          2000,
-          "tap-to-inspect shows the LEAD OCTAVE entry",
+            host
+              .querySelector(".phone-help-copy")
+              ?.textContent?.includes("Transpose changes") === true,
         );
-        const octInfo = host.querySelector(".info-view")?.textContent ?? "";
+        const octInfo = host.querySelector(".phone-help-copy")!.textContent!;
         expect(octInfo).toContain("SOUND");
-        expect(octInfo).toContain("HEAR");
-        setHelpMode(false);
-        await waitFor(() => host.querySelector(".info-view") === null);
+        expect(octInfo).toContain("SEE");
+        key(topic, "Escape");
+        await waitFor(() => host.querySelector(".phone-help") === null);
+        expect(document.activeElement).toBe(
+          host.querySelector(".phone-help-toggle"),
+        );
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

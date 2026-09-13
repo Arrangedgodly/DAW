@@ -38,8 +38,7 @@ import { For, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import AgentAccess from "./AgentAccess";
 import { docStore, loadDocument, setProjectName } from "../state/store";
 import { exportProjectFile, importProjectFile } from "../persist/fileIO";
-// TH-2 code-splitting: the export pipelines (offline render + WAV encoder,
-// MIDI encoder + midi-file framing) are loaded ON DEMAND via dynamic import
+// TH-2 code-splitting: offline rendering and WAV encoding load on demand
 // — the initial bundle never pays for them (CI gate: check:bundle). Both
 // modules are pure/typed-result, so a load failure surfaces as the same
 // error toast shape as any export failure.
@@ -116,12 +115,7 @@ registerHelp([
   {
     id: "projects.wav",
     title: "EXPORT WAV",
-    text: "Renders the song offline to a stereo WAV — exactly ONE FULL CYCLE of what you hear: every lane's chain has come round once (the longest lane, when lanes differ), seam-free. Playback is never interrupted.",
-  },
-  {
-    id: "projects.midi",
-    title: "EXPORT MIDI",
-    text: "Saves the notes and section cues as a Standard MIDI File, one track per lane, spanning the same ONE FULL CYCLE as the WAV — shorter lanes repeat within it. It carries no sounds — other apps play it with their own instruments.",
+    text: "Renders a stereo WAV in left-to-right block order. Each block uses its configured bars or repeats; held blocks play once. Shorter lanes finish naturally. The song ends after the longest lane, with its effects tail retained. Live jumps, random actions, and section launches are excluded. Playback is never interrupted.",
   },
   {
     id: "projects.save",
@@ -497,18 +491,7 @@ export default function Projects(): JSX.Element {
     exportProjectFile(docStore.getState().doc);
   };
 
-  /**
-   * WAV export (MF-4): offline render (own OfflineAudioContext — playback is
-   * untouched even while playing) → loop-tight stereo file download. Typed
-   * result → success or error toast; busy flag keeps the action one-shot.
-   * XP-1 (i3-5): the render is EXACTLY one LCM cycle — up to ~4.3 min of
-   * audio at a 128-bar worst case (12-15 s wall), so the busy-guard must
-   * span the whole render: the RENDERING WAV… toast is STICKY (dismissed
-   * here when the render lands) and the buttons stay disabled throughout.
-   * PX-4 final toast wording (XP-1 deferred it here): the success toast
-   * names WHAT the file is in cycle vocabulary — `· 32-BAR CYCLE` — the
-   * bars being the LCM of the lane chain totals (the longest lane).
-   */
+  /** Render a finite song offline; keep the busy guard active until download finishes. */
   const handleExportWav = async () => {
     if (busy()) return;
     setBusy(true);
@@ -517,7 +500,7 @@ export default function Projects(): JSX.Element {
       const { exportWav } = await import("../audio/exportWav");
       const result = await exportWav(docStore.getState().doc);
       if (result.ok) {
-        showSuccess(`WAV EXPORTED · ${result.bars}-BAR CYCLE`);
+        showSuccess(`WAV EXPORTED · ${result.bars}-BAR SONG`);
       } else {
         showError(result.message, { suggestion: result.suggestion });
       }
@@ -535,38 +518,6 @@ export default function Projects(): JSX.Element {
       });
     } finally {
       dismissToast(renderingId);
-      setBusy(false);
-    }
-  };
-
-  /**
-   * MIDI export (MF-5): pure synchronous encode → typed result → download.
-   * Same one-shot busy flag as WAV so the two exports can't interleave.
-   * XP-1 (i3-5): the file spans EXACTLY one LCM cycle (shorter chains
-   * repeat within it); PX-4 final toast wording — the CYCLE word closes
-   * the line, same vocabulary as the WAV toast.
-   */
-  const handleExportMidi = async (): Promise<void> => {
-    if (busy()) return;
-    setBusy(true);
-    try {
-      const { exportMidi } = await import("../audio/exportMidi");
-      const result = exportMidi(docStore.getState().doc);
-      if (result.ok) {
-        showSuccess(
-          `MIDI EXPORTED \u00b7 ${result.trackCount} TRACKS \u00b7 ${result.noteCount} NOTES \u00b7 ${result.bars}-BAR CYCLE`,
-        );
-      } else {
-        showError(result.message, { suggestion: result.suggestion });
-      }
-    } catch {
-      // Same class as the WAV twin above (HL-1): a chunk that fails to LOAD
-      // gets the same honest toast as one that fails inside.
-      showError("MIDI export could not start.", {
-        suggestion:
-          "The app may have been updated — reload the page, then try again.",
-      });
-    } finally {
       setBusy(false);
     }
   };
@@ -735,15 +686,6 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
-              data-help="projects.midi"
-              disabled={busy()}
-              onClick={() => void handleExportMidi()}
-            >
-              EXPORT MIDI
-            </button>
-            <button
-              type="button"
-              class="booth-btn projects-action"
               data-help="projects.save"
               onClick={handleSave}
             >
@@ -759,12 +701,9 @@ export default function Projects(): JSX.Element {
               OPEN FILE
             </button>
           </div>
-          {/* R3 (DES-7): the MIDI-limitation note, in-world silkscreen copy —
-              GM programs are hint-only, so the same file sounds different in
-              any other DAW's instruments. Lives with the button it qualifies. */}
           <p class="projects-note">
-            MIDI CARRIES NOTES + CUES, NOT THIS SYNTH — SOUNDS VARY IN OTHER
-            DAWS
+            WAV follows blocks left to right. Export a single pattern’s MIDI
+            from its block options or PAT menu.
           </p>
         </div>
       )}

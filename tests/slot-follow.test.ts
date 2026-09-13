@@ -23,7 +23,7 @@ import {
 import { getDrumKit } from "../src/audio/presets";
 import { EventOutbox, type VoiceEngineHost } from "../src/audio/voiceEngine";
 import type { AudioContextLike } from "../src/audio/context";
-import type { DrumPattern, LaneId } from "../src/document/schema";
+import type { DrumPattern, LaneId, PlaybackRule } from "../src/document/schema";
 import {
   appendChainSlot,
   createFreshProjectDocument,
@@ -67,11 +67,19 @@ const C = drumPattern("C", [4]); // kick at pattern step 4 only
 
 /** Chain schedule with slot identity + ⟲ flags (the engineBridge shape). */
 function chainOf(
-  entries: readonly { pattern: DrumPattern; loop?: boolean }[],
+  entries: readonly {
+    pattern: DrumPattern;
+    loop?: boolean;
+    rule?: PlaybackRule;
+  }[],
 ): LaneSchedule {
   return compileLaneSchedule({
     chain: entries.map((e) => e.pattern),
-    slots: entries.map((e, slot) => ({ slot, loop: e.loop === true })),
+    slots: entries.map((e, slot) => ({
+      slot,
+      loop: e.loop === true,
+      rule: e.rule,
+    })),
     preset: KIT,
     gate: GATE,
     groove: GROOVE,
@@ -136,6 +144,227 @@ async function makeHarness(
     sent.filter((s) => s.lane === 0 && s.step === step).length;
   return { session, deliverUpTo, hitsAt };
 }
+
+describe("timed block playback and section launches", () => {
+  it("applies queued edits even when go-to never reaches the chain wrap", async () => {
+    const rule = {
+      unit: "bars",
+      amount: 1,
+      action: "goto",
+      target: 1,
+    } as const;
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, rule },
+        { pattern: A, rule },
+        { pattern: A },
+      ]),
+    });
+    await h.deliverUpTo(20);
+    h.session.setLaneSchedule(
+      "drums",
+      chainOf([
+        { pattern: A, rule },
+        { pattern: B, rule },
+        { pattern: A },
+        { pattern: B },
+      ]),
+    );
+    await h.deliverUpTo(40);
+    expect(h.session.hasPendingSchedule("drums")).toBe(false);
+    expect(h.hitsAt(40)).toBe(1);
+  });
+  it("Previous wraps from the first block to the final block", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, rule: { unit: "bars", amount: 1, action: "previous" } },
+        { pattern: A },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(24);
+    expect(h.hitsAt(24)).toBe(1);
+    expect(h.session.getSoundingSlot("drums")).toBe(2);
+  });
+  it("section stop silences all lanes at the configured boundary", async () => {
+    const h = await makeHarness({
+      drums: chainOf([{ pattern: A, loop: true }]),
+      bass: chainOf([{ pattern: A, loop: true }]),
+    });
+    h.session.setSections([{ name: "Ending", bars: 1, stop: true }]);
+    h.session.cueSection(0);
+    await h.deliverUpTo(40);
+    expect(h.hitsAt(16)).toBe(1);
+    expect(h.hitsAt(32)).toBe(0);
+    expect(h.session.getPlaybackProgress("bass").stopped).toBe(true);
+  });
+  it("section launch leaves a lane without that column alone", async () => {
+    const h = await makeHarness({
+      drums: chainOf([{ pattern: A }, { pattern: B }]),
+      bass: chainOf([{ pattern: A }]),
+    });
+    await h.deliverUpTo(4);
+    h.session.cueSection(1);
+    expect(h.session.getPendingSwitch("bass")).toBeNull();
+    await h.deliverUpTo(24);
+    expect(h.session.getSoundingSlot("bass")).toBe(0);
+  });
+  it("plays exactly three repeats before advancing", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, rule: { unit: "repeats", amount: 3, action: "next" } },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(56);
+    for (const s of [0, 16, 32, 48, 56]) expect(h.hitsAt(s)).toBe(1);
+    for (const s of [8, 24, 40]) expect(h.hitsAt(s)).toBe(0);
+  });
+  it("transitions after an exact bar count inside a longer pattern", async () => {
+    const longA = {
+      ...A,
+      bars: 3,
+      steps: Object.fromEntries(
+        Object.entries(A.steps).map(([piece, row]) => [
+          piece,
+          [...row, ...row, ...row],
+        ]),
+      ),
+    } as DrumPattern;
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: longA, rule: { unit: "bars", amount: 2, action: "next" } },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(40);
+    expect(h.hitsAt(24)).toBe(0);
+    expect(h.hitsAt(32)).toBe(1);
+    expect(h.hitsAt(40)).toBe(1);
+  });
+  it("a manual cue overrides a longer timed block", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, rule: { unit: "bars", amount: 8, action: "next" } },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(4);
+    h.session.cueSlot("drums", 1);
+    await h.deliverUpTo(24);
+    expect(h.hitsAt(24)).toBe(1);
+  });
+  it("go-to skips an intermediate block and resets its destination's timer", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        {
+          pattern: A,
+          rule: { unit: "bars", amount: 1, action: "goto", target: 2 },
+        },
+        { pattern: B },
+        { pattern: A, rule: { unit: "bars", amount: 2, action: "next" } },
+      ]),
+    });
+    await h.deliverUpTo(56);
+    expect(h.hitsAt(24)).toBe(0);
+    expect(h.hitsAt(40)).toBe(0);
+    expect(h.session.getSoundingSlot("drums")).toBe(0);
+  });
+  it("a fill returns to the block that launched it", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, loop: true },
+        { pattern: B, rule: { unit: "repeats", amount: 1, action: "return" } },
+      ]),
+    });
+    await h.deliverUpTo(4);
+    h.session.cueSlot("drums", 1);
+    await h.deliverUpTo(40);
+    expect(h.hitsAt(24)).toBe(1);
+    expect(h.hitsAt(32)).toBe(1);
+    expect(h.hitsAt(40)).toBe(0);
+  });
+  it("random follows only the selected alternative", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        {
+          pattern: A,
+          rule: { unit: "bars", amount: 1, action: "random", choices: [2] },
+        },
+        { pattern: A },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(24);
+    expect(h.hitsAt(24)).toBe(1);
+    expect(h.session.getSoundingSlot("drums")).toBe(2);
+  });
+  it("stops a lane and resumes it with a manual cue", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, rule: { unit: "bars", amount: 1, action: "stop" } },
+        { pattern: B },
+      ]),
+    });
+    await h.deliverUpTo(24);
+    expect(h.hitsAt(16)).toBe(0);
+    expect(h.hitsAt(24)).toBe(0);
+    h.session.cueSlot("drums", 1);
+    await h.deliverUpTo(40);
+    expect(h.hitsAt(32)).toBe(1);
+    expect(h.hitsAt(40)).toBe(1);
+  });
+  it("holds progression while still allowing manual launches", async () => {
+    const h = await makeHarness({
+      drums: chainOf([{ pattern: A }, { pattern: B }]),
+    });
+    h.session.setFollowHeld(true);
+    await h.deliverUpTo(24);
+    expect(h.hitsAt(16)).toBe(1);
+    expect(h.hitsAt(24)).toBe(0);
+    h.session.cueSlot("drums", 1);
+    await h.deliverUpTo(40);
+    expect(h.hitsAt(40)).toBe(1);
+    h.session.setFollowHeld(false);
+  });
+  it("launches different-length lanes on one bar boundary", async () => {
+    const longA = {
+      ...A,
+      bars: 3,
+      steps: Object.fromEntries(
+        Object.entries(A.steps).map(([piece, row]) => [
+          piece,
+          [...row, ...row, ...row],
+        ]),
+      ),
+    } as DrumPattern;
+    const h = await makeHarness({
+      drums: chainOf([{ pattern: longA }, { pattern: B }]),
+      bass: chainOf([{ pattern: A }, { pattern: B }]),
+    });
+    await h.deliverUpTo(4);
+    h.session.cueSection(1);
+    expect(h.session.getPendingSwitch("drums")?.appliesAtStep).toBe(16);
+    expect(h.session.getPendingSwitch("bass")?.appliesAtStep).toBe(16);
+    await h.deliverUpTo(24);
+    expect(h.session.getSoundingSlot("drums")).toBe(1);
+    expect(h.session.getSoundingSlot("bass")).toBe(1);
+    expect(h.hitsAt(24)).toBe(1);
+  });
+  it("automatically launches a configured section after its duration", async () => {
+    const h = await makeHarness({
+      drums: chainOf([
+        { pattern: A, loop: true },
+        { pattern: B, loop: true },
+      ]),
+    });
+    h.session.setSections([{ name: "Verse", bars: 2, next: 1 }, null]);
+    h.session.cueSection(0);
+    await h.deliverUpTo(56);
+    expect(h.hitsAt(24)).toBe(0);
+    expect(h.hitsAt(56)).toBe(1);
+  });
+});
 
 describe("⟲ LOOP / → NEXT slot follow (session)", () => {
   it("a ⟲ slot replays its pattern instead of advancing", async () => {
@@ -228,7 +457,10 @@ describe("⟲ LOOP / → NEXT slot follow (session)", () => {
     });
     await h.deliverUpTo(20);
     expect(h.hitsAt(16)).toBe(1); // held once
-    h.session.setLaneSchedule("drums", chainOf([{ pattern: A }, { pattern: B }]));
+    h.session.setLaneSchedule(
+      "drums",
+      chainOf([{ pattern: A }, { pattern: B }]),
+    );
     expect(h.session.hasPendingSchedule("drums")).toBe(false); // not deferred
     await h.deliverUpTo(40);
     expect(h.hitsAt(32)).toBe(1); // B's step 0 (advanced at 32)

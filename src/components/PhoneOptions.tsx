@@ -20,7 +20,14 @@
  * stays interactive; focus returns to the OPTIONS toggle.
  */
 
-import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { BoothOptions } from "./Booth";
 import {
   closeOptions,
@@ -34,9 +41,9 @@ import {
   type PitchedLaneId,
 } from "../state/selection";
 import { docStore } from "../state/store";
-import { LANE_NAMES } from "./laneMeta";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 import RollValue from "./RollValue";
-import { registerHelp } from "../help/registry";
+import { getHelp, registerHelp } from "../help/registry";
 
 // HP-2 help content (same registry): the drawer's own affordance.
 registerHelp([
@@ -44,6 +51,11 @@ registerHelp([
     id: "phone.options",
     title: "OPTIONS",
     text: "Opens and closes the options drawer on the phone: loop, metronome, viz, tempo, scale, swing and master volume live inside. Escape or a tap outside closes it.",
+  },
+  {
+    id: "phone.help",
+    title: "HELP",
+    text: "Read about drawing, grid navigation and effects without changing your music. Choose a topic, then close Help to return to Options.",
   },
 ]);
 
@@ -117,6 +129,7 @@ export function OptionsBackdrop() {
  * drums never renders the group.
  */
 function LaneOctaveGroup() {
+  const laneNames = createLaneAccessibleNames();
   // The document store is zustand/vanilla (the LaneHeader law): mirror doc
   // identity into a signal so the value re-derives on octave writes.
   const [docVersion, setDocVersion] = createSignal(0);
@@ -144,17 +157,17 @@ function LaneOctaveGroup() {
         <div
           class="booth-group phone-oct-group"
           role="group"
-          aria-label={`${LANE_NAMES[l]} octave (sound)`}
+          aria-label={`${laneNames(l)} transpose octave`}
           data-help={`lane.${l}.oct`}
         >
           <span class="booth-label" aria-hidden="true">
-            {LANE_NAMES[l]} OCTAVE
+            {laneNames(l)} · Transpose (Oct)
           </span>
           <div class="head-stepper">
             <button
               type="button"
               class="head-step-btn"
-              aria-label={`Octave down for ${LANE_NAMES[l]}`}
+              aria-label={`Transpose octave down for ${laneNames(l)}`}
               onClick={() => stepLaneOctave(l, -1)}
             >
               –
@@ -165,7 +178,7 @@ function LaneOctaveGroup() {
             <button
               type="button"
               class="head-step-btn"
-              aria-label={`Octave up for ${LANE_NAMES[l]}`}
+              aria-label={`Transpose octave up for ${laneNames(l)}`}
               onClick={() => stepLaneOctave(l, 1)}
             >
               +
@@ -174,8 +187,9 @@ function LaneOctaveGroup() {
           {/* The E9 fence, spoken where the control lives: OCT transposes
               the SOUND; the register row scrolls the VIEW. */}
           <span class="phone-oct-fence">
-            Changes what you HEAR, not what you SEE — clamped at −3 and +3. The
-            OCT/SEMI row scrolls the view.
+            Changes playback and exports by one octave, from −3 to +3. View Oct
+            and View Semi beside the grid move the visible rows without changing
+            the music.
           </span>
         </div>
       )}
@@ -184,6 +198,32 @@ function LaneOctaveGroup() {
 }
 
 export function OptionsDrawerPanel() {
+  const [helpExpanded, setHelpExpanded] = createSignal(false);
+  const [topic, setTopic] = createSignal("grid.draw");
+  const topics = createMemo(() => [
+    { id: "grid.draw", label: "Draw notes" },
+    { id: "grid.scroll", label: "Scroll the grid" },
+    { id: "grid.navigation", label: "Back / Forward" },
+    ...(activeLane() !== "drums"
+      ? [
+          {
+            id: `lane.${activeLane()}.regshift`,
+            label: "View Oct / View Semi",
+          },
+          { id: `lane.${activeLane()}.oct`, label: "Transpose (Oct)" },
+        ]
+      : []),
+    { id: "fx.device.filter", label: "Filter: LP / HP / BP / Q" },
+    { id: "fx.bypass", label: "BYP: bypass an effect" },
+    { id: "fx.param", label: "Adjust an effect" },
+  ]);
+  const selectedTopic = () =>
+    topics().find((item) => item.id === topic()) ?? topics()[0]!;
+  let helpButton: HTMLButtonElement | undefined;
+  const closeHelp = () => {
+    setHelpExpanded(false);
+    helpButton?.focus();
+  };
   // Focus lands INSIDE the drawer on open (the APG dialog expectation);
   // closeOptions() returns it to the opener. A macrotask, not a microtask:
   // the initiating click is still bubbling when the panel mounts, and a
@@ -209,9 +249,58 @@ export function OptionsDrawerPanel() {
       class="booth phone-options-drawer"
       role="group"
       aria-label="Options"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && helpExpanded()) {
+          event.preventDefault();
+          event.stopPropagation();
+          closeHelp();
+        }
+      }}
     >
-      <LaneOctaveGroup />
-      <BoothOptions compact />
+      <button
+        ref={(element) => {
+          helpButton = element;
+        }}
+        type="button"
+        class="booth-btn phone-help-toggle"
+        aria-expanded={helpExpanded()}
+        aria-controls={helpExpanded() ? "phone-help" : undefined}
+        data-help="phone.help"
+        onClick={() => (helpExpanded() ? closeHelp() : setHelpExpanded(true))}
+      >
+        {helpExpanded() ? "Close help" : "Help"}
+      </button>
+      <Show
+        when={helpExpanded()}
+        fallback={
+          <>
+            <LaneOctaveGroup />
+            <BoothOptions compact />
+          </>
+        }
+      >
+        <section id="phone-help" class="phone-help" aria-label="Phone help">
+          <label for="phone-help-topic">Help topic</label>
+          <select
+            id="phone-help-topic"
+            data-help="phone.help"
+            value={selectedTopic().id}
+            onChange={(event) => setTopic(event.currentTarget.value)}
+          >
+            <For each={topics()}>
+              {(item) => <option value={item.id}>{item.label}</option>}
+            </For>
+          </select>
+          <div
+            class="phone-help-copy"
+            role="region"
+            aria-label="Help explanation"
+            tabIndex={0}
+          >
+            <p>{getHelp(selectedTopic().id)?.text}</p>
+          </div>
+        </section>
+      </Show>
     </div>
   );
 }

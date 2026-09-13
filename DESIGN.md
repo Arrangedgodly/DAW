@@ -25,7 +25,9 @@ The implementation is `src/styles/membrane.css`, imported after the older compon
 
 ## Instrument surface
 
-Desktop has one continuous instrument with a rounded top transport, four connected quadrants and fine dividing seams. EDIT and SONG remain separate pages. The arrangement inherits the same material and control language. Use the available viewport; keep internal grid scrolling inside the instrument. At 1280 by 800 and 1440 by 1000 the editor fits without page scrolling.
+Desktop has one continuous instrument with a rounded top transport, four connected quadrants and fine dividing seams. Instruments 1–4 and Instruments 5–8 are separate editor pages, followed by Song arrangement. The arrangement inherits the same material and control language. Use the available viewport; keep internal grid scrolling inside the instrument. The existing layout target is an editor that fits without page scrolling at 1280 by 800 and 1440 by 1000; the finishing critique checks current behavior against that target.
+
+At desktop heights up to 850px, reclaim space from transport padding, header gaps and register padding while preserving control sizes and the aligned instrument tools tier. Grid fitting includes instrument borders and refreshes after selection changes. The R1 matrix verified complete rows and reachable footers at the two desktop targets, including touch-enabled 1280 by 800 layouts.
 
 Dark mode uses a charcoal blue-green surface, pale text and subdued track colors. Light mode retains a pale silver-green surface with darker track defaults. The theme remains a local preference under `bitbounce.theme.v1`.
 
@@ -55,9 +57,11 @@ The grid navigation occupies one 44px row above the notes. Labeled chevrons move
 
 One selected instrument occupies the phone stage. The sticky top area holds the brand, Projects, theme, instrument tabs, Options, Play and page navigation. The track-color control sits beside the instrument title.
 
-Autosave has one fixed bottom-center status strip displaying the complete status text. The top transport does not contain a duplicate. The status retains its accessible label and saved timestamp. Reserve bottom space through `--mobile-bottom-reserve` and safe-area padding so the musical footer remains reachable. Hide this status while the dedicated VIZ page is open.
+Autosave has one fixed bottom-center status strip displaying the complete status text. The top transport does not contain a duplicate. Saved projects retain the accessible status label and saved timestamp. Untouched built-in demos display Built-in demo instead of implying that a project has been saved. Reserve bottom space through `--mobile-bottom-reserve` and safe-area padding so the musical footer remains reachable. Hide this status while the dedicated VIZ page is open.
 
 Pitched grids retain complete scale-octave rows with a 44px base row floor. Fit whole rows between the real control stack and reserved bottom area. Short phones scroll rather than compressing editing targets. View changes preserve pitch identity and do not transpose notes or create undo entries. The full MIDI 0 through 127 scale-note range remains vertically virtualized.
+
+Phone Options includes optional Help. A native topic picker reveals one registered explanation at a time for drawing, navigation, pitch controls and effects. Help and the picker retain 44px targets; long explanations scroll inside a bounded text region. Close help returns to Options; Escape closes Help first and restores its trigger, then closes Options on the next press. Reading help does not require touching a musical control or changing the song. Pitched help topics follow the active instrument, including extra tracks; drums omit them.
 
 ## Effects and visualizer
 
@@ -67,7 +71,9 @@ VIZ retains all 24 effects, lane-local MIDI phrasing, Fluid folds / Flowing trai
 
 ## Verification
 
-See `docs/dev/membrane-review/verification.md` for the completed checks and the older register tests with obsolete expectations. No deployment is implied by local verification.
+See `docs/dev/membrane-review/verification.md` for the earlier completed checks and older register tests with obsolete expectations. The ultron-impeccable refresh checked current source for tokens, navigation, instrument naming, drum navigation and demo copy. This documentation refresh does not rerun or extend those historical test results. Fresh critique evidence is recorded separately under `.impeccable/critique/`. No deployment is implied by local verification.
+
+The finishing refinements have separate fresh evidence in `docs/dev/r1-desktop-fit/`, `r2-control-labels/`, `r3-phone-help/` and `r4-instrument-names/`. Each records its focused checks, independent verification and finish review. R1's legacy phone no-scroll test failed identically with the original files; phone scrolling remains permitted. The full regression suite and physical screen-reader speech have not been established by these focused passes. A constrained CSS viewport capture does not establish actual browser-zoom behavior.
 
 ## Optional instrument workspace
 
@@ -75,6 +81,18 @@ Bars is a compact disclosure in the selected instrument's tools row. Its field a
 
 Desktop tabs are Instruments 1–4, Instruments 5–8, then Song arrangement. The second instrument page uses the same four-quadrant MIDI editor, with a fixed slot per quadrant and an Add instrument action in empty slots. All lane headers use two consistent rows: name and mute/solo, then sound and mix controls. The selected instrument title takes its lane color; redundant Edit/View labels are omitted. On phones, the sticky header shows default instrument tabs followed by up to four added track tabs and an Add new instrument button until all slots are occupied. One SONG/NOTES button switches views and preserves track selection. Phone Song sections have discreet centered titles and wrapping pattern tiles with content-sized spacing.
 
-Preset names are native grouped selects with the existing minus/plus steppers. Families organize the shared pitched library. Extra track colors follow the existing user swatches; defaults are lavender, warm sand, pale blue and yellow green. The default four-grid editor and four-layer visualizer retain their roles.
+Preset names are native grouped selects with the existing minus/plus steppers. Families organize the shared pitched library. Every pitched instrument title follows the selected preset's category, including the original three pitched lanes. Pads and Chords are distinct categories; long category names shorten to Plucks and FX in instrument titles. Track identity and saved IDs stay stable when the title changes. Extra track colors follow the existing user swatches; defaults are lavender, warm sand, pale blue and yellow green. The default four-grid editor and four-layer visualizer retain their roles.
+
+Runtime accessible names use the visible category first, followed by the stable track number, such as Keys, track 4. Apply the same identity to instrument regions, presets, mix controls, grid navigation, phone controls and arrangement chains. Names update when presets change. Update the grid's accessible label in place; do not rebuild it merely to change its name. Existing preset changes that alter the pitch domain retain their normal grid behavior. Static help entries keep stable registry IDs.
 
 During playback, note grids follow the sounding column horizontally, including longer virtualized patterns. Follow pauses while a note or pinch gesture is active and stops with transport. The desktop activity meter bank includes every existing lane and uses the selected track colors.
+
+Sound-changing octave controls read Transpose (Oct), both beside desktop presets and in phone Options. Grid navigation reads View Oct and View Semi. Keep these labels and their accessible action names distinct: Transpose changes playback and exports; View only changes the visible register. Help uses the same terms.
+
+## Drum sound window
+
+The drum editor exposes 16 percussion voices through a scrollable row window. Its register strip shows Percussion, the voice count and the visible row range. Previous drum sounds and Next drum sounds move the window and disable at the boundaries. Navigation changes the visible voices without changing the pattern. Keep the row labels, editing targets and Euclidean fill controls aligned with the visible sounds.
+
+## Demo previews
+
+Projects contains a Built-in demos disclosure with named examples and descriptions. Opening a demo starts a temporary preview. Playback, navigation and appearance changes leave it temporary; the first document edit creates a local copy and starts normal autosave. Explain that behavior beside the demo choices and preserve the Built-in demo status until editing begins. Welcome Song remains the first-run demo. Glass Arcade and After Hours demonstrate eight-bar, eight-lane arrangements.

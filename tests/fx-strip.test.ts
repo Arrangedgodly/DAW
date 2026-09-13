@@ -273,6 +273,7 @@ interface FakeSession {
   chains: Map<LaneId, readonly unknown[]>;
   setLaneEvents(): void;
   setLaneSchedule(): void;
+  setSections(): void;
   setLaneSound(): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
   setLaneScale(): void;
@@ -281,7 +282,10 @@ interface FakeSession {
   setBpm(): void;
   setSwingAmount(): void;
   setMetronome(): void;
-  transport: { setCycleSteps(): void; snapshot: { bpm: number; swing: number } };
+  transport: {
+    setCycleSteps(): void;
+    snapshot: { bpm: number; swing: number };
+  };
 }
 
 function fakeSession(): FakeSession {
@@ -289,6 +293,7 @@ function fakeSession(): FakeSession {
     chains: new Map(),
     setLaneEvents() {},
     setLaneSchedule() {},
+    setSections() {},
     setLaneSound() {},
     setLaneChain(lane, devices) {
       s.chains.set(lane, devices);

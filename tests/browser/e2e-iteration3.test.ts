@@ -1,79 +1,15 @@
+import { patternExportControl } from "./patternExportControl";
 import { pitchDomain } from "../../src/document/pitchWindow";
 import { WORKSPACE_TOGGLE } from "./workspace";
 /**
- * HW-6 — THE iteration-3 definition-of-done e2e: ONE ordered journey through
- * the REAL BUILT APP (dist/ bundle served by the browser project's publicDir,
- * exactly as deployed), starting from a wiped IndexedDB (first run boots the
- * PX-4 POLY-LOOP demo), driving REAL UI input (clicks, synthetic pointers
- * for the drag gestures, keydowns for every keyboard twin the v3 ledger
- * demands — Daredevil's spec is the contract):
- *
- *   1. BOOT — the poly-loop demo: UNEQUAL lane cycles visible in the rail
- *      (chords 4×2B → 8-BAR CYCLE vs the 4-BAR rhythm lanes; per-tile 2B/1B
- *      badges) + i3-1 equal default register windows (lead windowed
- *      ROWS 6–12 OF 14, fitting manifests byte-identical names, full
- *      manifests in the DOM) + the one-page law at 1440×900.
- *   2. PLAY — the poly-loop audibly-adjacent/visible: `p` announces
- *      POSITION BAR n OF 8 · LEAD BAR m OF 4 (the LCM basis — denominators
- *      differ, cross-checked against the booth BAR digit); the four
- *      playheads sweep UNSYNCED (the 1-bar-grid lanes wrap strictly more
- *      often than the 2-bar chords grid); the booth reaches BAR 5+ (past
- *      every 4-bar lane's own cycle — only the 8-bar LCM explains it).
- *   3. RAIL `+` TWINS (i3-3, the ledger's one deliberate journey change):
- *      the row button → PATTERN E CREATED · 1 BAR · APPENDED (next letter
- *      after the demo's A–D); the rail-local `=` key on a focused tile →
- *      PATTERN F (focus lands on the new tile — the DA-3 law); PAT-menu RM
- *      removes F (back to a 5-slot chain — the cycle badge follows).
- *   4. EDIT the blank: drag-create a 4-step note on the E grid.
- *   5. LENGTH LADDER (i3-4): `b` grows 1→2 (PATTERN E · 2 BARS, extent
- *      remount, tile badge, the lane's cycle badge 4→5→6-BAR); a note at
- *      bar 2 makes Shift+b REFUSE with the exact E10 text naming it; the
- *      PAT stepper refuses with the IDENTICAL text and STAYS OPEN (own
- *      lifecycle); after the blocking note is removed the shrink proceeds
- *      clean; a rapid b×3 burst reverts with ONE Ctrl+Z (the resize
- *      coalescing family); the settled ladder re-climbs to 8 BARS where
- *      the grid renders through the virtualized column window while the
- *      scroll extent stays pattern-wide — and the rail now reads
- *      12-BAR CYCLE (lane cycle = chain total, i3-4/I3-e).
- *   6. OCT TRANSPOSE (i3-2): global `o` → LEAD OCTAVE +1; the pointer twin
- *      on ANOTHER quadrant's strip (always-operable); Shift+`o` down;
- *      undo; then the EXPORT-REFLECTED proof the gate matrix was missing
- *      on the real app: baseline WAV at octave 0, +1 changes the bytes
- *      (same frame count — timing untouched), the difference is audible
- *      by metric (diff-RMS + high-band energy ratio up — the established
- *      acoustic-metric pattern), and undo restores a byte-identical
- *      export (canonical-empty at 0).
- *   7. WINDOW SCROLL (i3-1 reachability + E9): Shift+↓ on a focused cell —
- *      VIEW DOWN ONE OCTAVE · ROWS <a>–<b> (computed against the live
- *      manifest), focus never moves, the grid name flips; the second press
- *      clamps VIEW AT BOTTOM; arrows walk the FULL manifest back to row 0
- *      (the window follows), Shift+↑ clamps VIEW AT TOP.
- *   8. EXPORTS at the journey's own LCM (i3-5): the editing above moved
- *      the export cycle to 24 bars (chords 8 · lead 12 · 4/4) — EXPORT WAV
- *      double-tapped mid-busy produces exactly ONE blob (the busy-guard
- *      swallow), the RENDERING WAV… toast is observed, the success toast
- *      reports the CYCLE (`WAV EXPORTED · 24-BAR CYCLE`), parse-back:
- *      16-bit stereo, frames = 24 bars exactly; EXPORT MIDI toast carries
- *      TRACKS · NOTES · CYCLE; parse-back (@tonejs/midi, the independent
- *      parser): lead (channel 2) carries E's note at ticks 7,680 AND
- *      30,720 — the 12-bar chain repeating INSIDE the 24-bar LCM cycle
- *      (XP-1's repeat law), pitch = the row label's own, all inside the
- *      cycle bound.
- *   9. RELOAD/AUTOSAVE — the whole edited document survives (E with its
- *      note at 8 bars, 5-slot chain, 12-BAR CYCLE badge); the post-reload
- *      export is byte-identical (save/load determinism).
- *  10. FV-1 WIDE PROBE (i3-6) — the same document rebooted at 1920×1080:
- *      ≥95% width utilization on both widest surfaces, no centered
- *      vacancy, the one-page law, the lead quadrant > 900 px (the
- *      densified stage — the retired 1400 px cap would leave ~660).
- *
- * Follows the HW-4/HW-5 conventions: download-seam capture, deterministic
- * first-run IDB wipe, R14 teardown wipe, poll-based waits. Synthetic-input
- * honesty is the established law (synthetic keydowns/pointers run every app
- * handler but carry no browser defaults); trusted-pointer parity is pinned
- * by the IN-2/IN-3/IN-4 trusted gates. The per-clause standing gates live in
- * the i3 AC matrix (docs/dev/definition-of-done.md §7); this journey is the
- * one ordered user story that runs them end to end.
+ * Built-app arrangement journey, starting from a wiped IndexedDB.
+ * Covers block bar totals and accessible labels, unequal live lane cycles,
+ * add/remove via pointer and keyboard, note drawing, safe resize and undo,
+ * octave changes reflected in audio, register scrolling and focus,
+ * linear WAV plus selected-pattern MIDI, save/reload byte determinism,
+ * and the 1920px layout. Downloads use the app's real lazy export modules.
+ * Synthetic input drives app handlers; dedicated trusted-input tests cover
+ * browser-default pointer and keyboard behavior separately.
  */
 
 import { describe, expect, it } from "vitest";
@@ -100,9 +36,12 @@ const T = {
 const DEMO_BPM = 112;
 /** One beat @112 BPM = 23,625 samples (integer); a bar = 4 beats. */
 const SAMPLES_PER_BEAT = (44100 * 60) / DEMO_BPM;
-/** The journey's export cycle: LCM(chords 8, lead 12, drums 4, bass 4) bars. */
-const CYCLE_BARS = 24;
+/** The longest linear lane is lead: four 1-bar blocks and the new 8-bar E. */
+const SONG_BARS = 12;
 const FRAMES_PER_BAR = 4 * SAMPLES_PER_BEAT;
+// The demo's three-step delay gets six repeats of tail. It exceeds both
+// reverbs; E's only note ends well before the 12-bar song boundary.
+const EXPECTED_TAIL_FRAMES = Math.ceil((6 * 3 * SAMPLES_PER_BEAT) / 4);
 
 function poll(
   cond: () => boolean | Promise<boolean>,
@@ -217,7 +156,7 @@ function leadDegreeMidi(degree: number): number {
 
 describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
   it(
-    "poly-loop boot → play (LCM/unsynced sweeps) → + twins → edit → resize ladder + refusal → OCT (export-reflected) → window scroll → LCM exports → reload → 1920 probe",
+    "poly-loop boot → play (LCM/unsynced sweeps) → + twins → edit → resize ladder + refusal → OCT (export-reflected) → window scroll → linear WAV and pattern MIDI → reload → 1920 probe",
     { timeout: 300_000 },
     async () => {
       const bundleKey = Object.keys(bundleGlob)[0];
@@ -309,10 +248,15 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         $(
           `.rail-row[data-lane="${lane}"] > .head-sr[role="status"]`,
         ).textContent?.trim() ?? "";
-      const chainCycleName = (lane: string) =>
-        $(
-          `.rail-row[data-lane="${lane}"] .rail-tiles[role="group"]`,
-        ).getAttribute("aria-label") ?? "";
+      const chainBars = (lane: string) =>
+        tiles(lane).reduce(
+          (sum, tile) =>
+            sum +
+            Number.parseInt(
+              tile.querySelector(".rail-tile-bars")!.textContent!,
+            ),
+          0,
+        );
       const tiles = (lane: string): HTMLButtonElement[] =>
         Array.from(
           $(
@@ -376,6 +320,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
       const actionByLabel = async (
         label: string,
       ): Promise<HTMLButtonElement> => {
+        if (label === "EXPORT MIDI") return patternExportControl(idoc());
         for (let i = 0; i < 60; i++) {
           const b = $$(".projects-action").find(
             (x) => x.textContent?.trim() === label,
@@ -436,8 +381,11 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -469,11 +417,14 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             ),
           ).toEqual(["1B", "1B", "1B", "1B"]);
         }
-        expect(chainCycleName("chords")).toBe(
-          "CHORDS song chain · 8-BAR CYCLE",
-        );
-        expect(chainCycleName("lead")).toBe("LEAD song chain · 4-BAR CYCLE");
-        expect(chainCycleName("drums")).toBe("DRUMS song chain · 4-BAR CYCLE");
+        expect(chainBars("chords")).toBe(8);
+        expect(chainBars("lead")).toBe(4);
+        expect(chainBars("drums")).toBe(4);
+        expect(
+          $('.rail-row[data-lane="chords"] .rail-tiles').getAttribute(
+            "aria-label",
+          ),
+        ).toBe("Chords, track 3 song chain · 4 blocks");
         await openEdit(); // the register/geometry checks below read the grid
         // i3-1: equal default register windows + the VERTICAL FILL twin. The
         // lead (15-row manifest) windows — GROWN by the 1440×900 budget
@@ -504,17 +455,17 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             lane + " retains the full MIDI domain",
           ).toBeGreaterThan(7);
         }
-        expect(rowCount("drums")).toBe(6);
-        expect(visibleRows("drums")).toBe(6);
+        expect(rowCount("drums")).toBe(16);
+        expect(visibleRows("drums")).toBe(8);
         expect(
           floor("drums")
             .querySelector(".lane-grid-scroll")!
             .classList.contains("is-windowed"),
-        ).toBe(false);
+        ).toBe(true);
         // Select LEAD (the journey's lane) — the click-selects law.
         floor("lead").click();
         await poll(
-          () => gridName("lead").startsWith("LEAD grid · EDITING"),
+          () => gridName("lead").startsWith("Leads, track 4 grid · EDITING"),
           T.ui,
           "lead selected (edit name)",
         );
@@ -638,7 +589,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         const leadPlus = () =>
           $<HTMLButtonElement>('.rail-row[data-lane="lead"] .rail-append');
         expect(leadPlus().getAttribute("aria-label")).toBe(
-          "Append new blank pattern to LEAD chain",
+          "Append new blank pattern to Leads, track 4 chain",
         );
         leadPlus().click();
         await poll(
@@ -659,7 +610,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect(
           tiles("lead")[4]!.querySelector(".rail-tile-bars")!.textContent,
         ).toBe("1B");
-        expect(chainCycleName("lead")).toBe("LEAD song chain · 5-BAR CYCLE");
+        expect(chainBars("lead")).toBe(5);
         // Keyboard twin: `=` on a focused tile (the ledger's rail-local key).
         const lastTile = tiles("lead")[4]!;
         lastTile.focus();
@@ -671,7 +622,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         );
         await poll(() => tiles("lead").length === 6, T.ui, "F appended");
         expect(idoc().activeElement).toBe(tiles("lead")[5]!); // DA-3 focus law
-        expect(chainCycleName("lead")).toBe("LEAD song chain · 6-BAR CYCLE");
+        expect(chainBars("lead")).toBe(6);
         // RM the scratch tile through the PAT menu (the v0 remove path).
         $<HTMLElement>(
           '.rail-row[data-lane="lead"] .rail-tools-trigger',
@@ -679,18 +630,16 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         await poll(
           () =>
             !!idoc().querySelector(
-              '.rail-row[data-lane="lead"] button[aria-label="Remove LEAD selected pattern"]',
+              '.rail-row[data-lane="lead"] button[aria-label^="Remove "][aria-label$=", track 4 selected pattern"]',
             ),
           T.ui,
           "PAT menu open (RM)",
         );
         $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] button[aria-label="Remove LEAD selected pattern"]',
+          '.rail-row[data-lane="lead"] button[aria-label^="Remove "][aria-label$=", track 4 selected pattern"]',
         ).click();
         await poll(
-          () =>
-            tiles("lead").length === 5 &&
-            chainCycleName("lead") === "LEAD song chain · 5-BAR CYCLE",
+          () => tiles("lead").length === 5 && chainBars("lead") === 5,
           T.ui,
           "F removed; chain back to 5 slots",
         );
@@ -720,7 +669,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         noteRow = Number(rovingCell.dataset.row);
         // The blank pattern's manifest is degrees 0..n-1 (store.blankPattern
         // law), so the dragged note's degree === its row index.
-        noteMidi = leadDegreeMidi(pitchDomain(createDemoProject(), "lead").degrees[noteRow]!);
+        noteMidi = leadDegreeMidi(
+          pitchDomain(createDemoProject(), "lead").degrees[noteRow]!,
+        );
         const eCells = laneCells("lead", noteRow);
         const a4 = center(eCells[0]!);
         const m4 = center(eCells[2]!);
@@ -760,7 +711,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         expect(
           tiles("lead")[4]!.querySelector(".rail-tile-bars")!.textContent,
         ).toBe("2B");
-        expect(chainCycleName("lead")).toBe("LEAD song chain · 6-BAR CYCLE");
+        expect(chainBars("lead")).toBe(6);
         // A note at bar 2 will block the shrink back to 1.
         await openEdit(); // drawing the blocking note needs grid geometry
         const e2Cells = laneCells("lead", noteRow);
@@ -796,13 +747,13 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         await poll(
           () =>
             !!idoc().querySelector(
-              '.rail-row[data-lane="lead"] button[aria-label^="Shrink LEAD selected pattern"]',
+              '.rail-row[data-lane="lead"] button[aria-label^="Shrink "][aria-label*="track 4 selected pattern"]',
             ),
           T.ui,
           "PAT menu open (LENGTH stepper)",
         );
         $<HTMLButtonElement>(
-          '.rail-row[data-lane="lead"] button[aria-label^="Shrink LEAD selected pattern"]',
+          '.rail-row[data-lane="lead"] button[aria-label^="Shrink "][aria-label*="track 4 selected pattern"]',
         ).click();
         await poll(
           () => railAnnounce("lead") === refusal,
@@ -900,7 +851,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             `settled ladder step to ${bars} bars`,
           );
         }
-        expect(chainCycleName("lead")).toBe("LEAD song chain · 12-BAR CYCLE");
+        expect(chainBars("lead")).toBe(12);
         // The 8-bar grid renders through the virtualized column window:
         // DOM cells ≪ the eager 128/row, while the dedicated h-scroller's
         // SIZER carries the pattern-wide extent (the LP-1 law — the sticky
@@ -950,7 +901,9 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         );
         expect(octReadout("lead")).toBe("+1");
         // Pointer twin on ANOTHER quadrant's strip (always-operable law).
-        $<HTMLButtonElement>('button[aria-label="Octave up for BASS"]').click();
+        $<HTMLButtonElement>(
+          'button[aria-label^="Transpose octave up for "][aria-label$=", track 2"]',
+        ).click();
         await poll(
           () => octLive("bass") === "BASS OCTAVE +1",
           T.ui,
@@ -967,7 +920,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         // baseline/down/up sequence around the export-diff proof.
         floor("lead").click();
         await poll(
-          () => gridName("lead").startsWith("LEAD grid · EDITING"),
+          () => gridName("lead").startsWith("Leads, track 4 grid · EDITING"),
           T.ui,
           "lead re-selected",
         );
@@ -1079,7 +1032,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           await poll(
             () =>
               gridName("lead") ===
-              `LEAD grid · EDITING · ROWS ${newA}–${newA + w0 - 1} OF ${n}`,
+              `Leads, track 4 grid · EDITING · ROWS ${newA}–${newA + w0 - 1} OF ${n}`,
             T.ui,
             "the grid name carries the new window",
           );
@@ -1105,7 +1058,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           await poll(
             () =>
               gridName("lead") ===
-              `LEAD grid · EDITING · ROWS 0–${w0 - 1} OF ${n}`,
+              `Leads, track 4 grid · EDITING · ROWS 0–${w0 - 1} OF ${n}`,
             T.ui,
             "the window followed focus to the top",
           );
@@ -1164,10 +1117,10 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
         await poll(
           () =>
             $$(".toast-message").some(
-              (t) => t.textContent === `WAV EXPORTED · ${CYCLE_BARS}-BAR CYCLE`,
+              (t) => t.textContent === `WAV EXPORTED · ${SONG_BARS}-BAR SONG`,
             ),
           T.ui,
-          "WAV toast reports the CYCLE bars",
+          "WAV toast reports the linear song length",
         );
         wavCycle = app.blobs
           .filter((b) => b.type === "audio/wav")
@@ -1177,20 +1130,20 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           const h = decodeWav16(wavBytes);
           expect(
             h.frames,
-            "one full LCM cycle exactly (24 bars @112 BPM)",
-          ).toBe(CYCLE_BARS * FRAMES_PER_BAR);
+            "12 linear bars plus the exact effects tail at 112 BPM",
+          ).toBe(SONG_BARS * FRAMES_PER_BAR + EXPECTED_TAIL_FRAMES);
           expect(rms(h.mono)).toBeGreaterThan(1e-3); // not silence
         }
         const midiBytes = await exportVia("EXPORT MIDI");
         await poll(
           () =>
             $$(".toast-message").some((t) =>
-              /^MIDI EXPORTED · 5 TRACKS · \d+ NOTES · 24-BAR CYCLE$/.test(
+              /^PATTERN MIDI EXPORTED · 8 BARS · \d+ NOTES$/.test(
                 t.textContent ?? "",
               ),
             ),
           T.ui,
-          "MIDI toast reports TRACKS · NOTES · CYCLE",
+          "MIDI toast reports the selected pattern length and note count",
         );
         {
           const midi = new Midi(
@@ -1199,27 +1152,27 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             }).arrayBuffer(),
           );
           expect(midi.header.ppq).toBe(480);
+          expect(midi.tracks).toHaveLength(1);
           const lead = midi.tracks.find((t) => t.channel === 2);
           expect(lead, "the lead track (channel 2) exists").toBeTruthy();
-          // E sits at chain offset 4 bars (step 64 → tick 7,680) and the
-          // 12-bar lead chain repeats INSIDE the 24-bar cycle → the same
-          // note again at tick 30,720 (XP-1's repeat law).
+          // E exports at its own origin, without the preceding four blocks.
+          expect(lead!.notes).toHaveLength(1);
           const at = (tick: number) =>
             lead!.notes.filter(
               (nt) => nt.ticks === tick && nt.midi === noteMidi,
             );
           expect(
-            at(7680).length,
-            `E's note at tick 7,680 (pitch ${noteMidi})`,
-          ).toBeGreaterThanOrEqual(1);
+            at(0).length,
+            `E's note at tick zero (pitch ${noteMidi})`,
+          ).toBe(1);
           expect(
             at(30720).length,
-            "E's note repeated at tick 30,720 (chain repeat in the cycle)",
-          ).toBeGreaterThanOrEqual(1);
-          expect(at(7680)[0]!.durationTicks).toBe(480); // 4 steps × 120
+            "pattern MIDI does not repeat the song chain",
+          ).toBe(0);
+          expect(at(0)[0]!.durationTicks).toBe(480); // 4 steps × 120
           const lastTick = Math.max(...lead!.notes.map((nt) => nt.ticks));
-          expect(lastTick, "every note inside the 24-bar cycle").toBeLessThan(
-            46080,
+          expect(lastTick, "every note inside the 8-bar pattern").toBeLessThan(
+            15360,
           );
         }
 
@@ -1233,8 +1186,11 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored cues after reload",
@@ -1245,7 +1201,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
             tiles("lead").length === 5 &&
             tiles("lead")[4]!.querySelector(".rail-tile-bars")!.textContent ===
               "8B" &&
-            chainCycleName("lead") === "LEAD song chain · 12-BAR CYCLE",
+            chainBars("lead") === 12,
           T.ui,
           "E (8 bars, 5-slot chain, 12-BAR CYCLE) survived the reload",
         );
@@ -1282,8 +1238,11 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "journey doc at 1920",
@@ -1320,12 +1279,18 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           ).toBeGreaterThanOrEqual(0.95);
           await openEdit(); // the quadrant probes below read the grid stage
           expect(
-            Math.abs(floors.left - Number.parseFloat(idoc().defaultView!.getComputedStyle($(".app")).paddingLeft)),
+            Math.abs(
+              floors.left -
+                Number.parseFloat(
+                  idoc().defaultView!.getComputedStyle($(".app")).paddingLeft,
+                ),
+            ),
             "floors respect the app gutter",
           ).toBeLessThanOrEqual(0.5);
-          expect(Math.abs(rail.left - (1920 - rail.right)), "symmetric rail gutters").toBeLessThanOrEqual(
-            0.5,
-          );
+          expect(
+            Math.abs(rail.left - (1920 - rail.right)),
+            "symmetric rail gutters",
+          ).toBeLessThanOrEqual(0.5);
           const de = idoc().documentElement;
           expect(
             de.scrollWidth <= 1920 && de.scrollHeight <= 1080,

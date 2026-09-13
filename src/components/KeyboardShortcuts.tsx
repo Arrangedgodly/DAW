@@ -15,13 +15,14 @@ import { getSession } from "../engine/session";
 import {
   addPattern,
   docStore,
-  duplicatePattern,
+  insertPatternBlock,
   redo,
   undo,
 } from "../state/store";
 import {
   activeLane,
   activePatterns,
+  activeSlots,
   announceDrumsNoOctave,
   announceStage,
   selectPattern,
@@ -223,8 +224,16 @@ export default function KeyboardShortcuts(): JSX.Element {
       stepPatternLength(lane, e.shiftKey ? -1 : 1);
     } else if (e.key === "d") {
       e.preventDefault();
-      const id = duplicatePattern(lane, activePatterns()[lane]);
-      if (id) selectPattern(lane, id);
+      const doc = docStore.getState().doc;
+      const source = doc.patterns[lane]?.find(
+        (p) => p.id === activePatterns()[lane],
+      );
+      if (source) {
+        const after =
+          activeSlots()[lane] ?? doc.songChain[lane]?.indexOf(source.id) ?? -1;
+        const id = insertPatternBlock(lane, source, after);
+        selectPattern(lane, id, after + 1);
+      }
     } else if (e.key === "r") {
       // Rename via rail focus (spec): focus the active lane's REN control;
       // the inline field takes over from there. Refinement-6: REN lives in

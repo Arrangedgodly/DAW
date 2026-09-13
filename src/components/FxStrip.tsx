@@ -57,7 +57,7 @@ import {
   sliderToParam,
 } from "../state/fxStrip";
 import { registerHelp } from "../help/registry";
-import { LANE_NAMES } from "./laneMeta";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 
 const FLASH_MS = 180; // D9 one-shot cap
 
@@ -87,7 +87,7 @@ registerHelp([
     title: FX_DEVICE_LABELS[type],
     text:
       type === "filter"
-        ? "FILTER — a tone control. Everything around CUTOFF survives, the rest rolls away; TYPE picks which neighborhood (low, high or a band), Q sharpens the peak."
+        ? "Filter shapes the tone around the cutoff frequency. LP (low-pass) keeps lower frequencies; HP (high-pass) keeps higher frequencies; BP (band-pass) keeps a band around the cutoff. Q controls resonance: higher Q makes a sharper peak near the cutoff."
         : type === "drive"
           ? "DRIVE — saturation: more AMOUNT means a denser, louder, rougher tone. At the top it starts to squash."
           : type === "bitcrusher"
@@ -99,7 +99,7 @@ registerHelp([
   {
     id: "fx.bypass",
     title: "BYPASS",
-    text: "Switches this device out of the signal path without removing it — the click-free way to compare with and without.",
+    text: "BYP means bypass. It switches this effect out of the signal path without removing it or its settings, so you can compare the sound with and without the effect.",
   },
   {
     id: "fx.move",
@@ -127,6 +127,7 @@ function readChain(lane: LaneId) {
 }
 
 export default function FxStrip(props: { lane: LaneId }): JSX.Element {
+  const laneNames = createLaneAccessibleNames();
   const [chain, setChain] = createSignal(readChain(props.lane));
   const [flashIndex, setFlashIndex] = createSignal(-1);
   const [addOpen, setAddOpen] = createSignal(false);
@@ -192,12 +193,12 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
     <div
       class="fx-strip"
       data-lane={props.lane}
-      aria-label={`${LANE_NAMES[props.lane]} FX chain`}
+      aria-label={`${laneNames(props.lane)} FX chain`}
     >
       <div
         class="fx-strip-modules"
         role="list"
-        aria-label={`${LANE_NAMES[props.lane]} FX modules`}
+        aria-label={`${laneNames(props.lane)} FX modules`}
       >
         {/* DES-7: Index (position-keyed), not For — modules() mints fresh
             objects on every store commit, so reference-keyed For tore down and
@@ -275,7 +276,7 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
               }}
               class="fx-add-menu"
               role="menu"
-              aria-label={`Add FX device to ${LANE_NAMES[props.lane]}`}
+              aria-label={`Add FX device to ${laneNames(props.lane)}`}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.stopPropagation();
@@ -452,6 +453,7 @@ function FxSliderControl(props: {
   mod: FxModule;
   slider: FxSliderSpec;
 }): JSX.Element {
+  const laneNames = createLaneAccessibleNames();
   const s = () => props.slider;
   const value = () =>
     (props.mod.device.params as Record<string, number | string>)[
@@ -471,7 +473,7 @@ function FxSliderControl(props: {
         max={s().log ? 1000 : s().max}
         step={s().log ? 1 : s().step}
         value={paramToSlider(s(), value())}
-        aria-label={`${s().label} of ${props.mod.spec.label} on ${LANE_NAMES[props.lane]}`}
+        aria-label={`${s().label} of ${props.mod.spec.label} on ${laneNames(props.lane)}`}
         aria-valuetext={readout()}
         onInput={(e) =>
           setFxParam(
@@ -494,6 +496,7 @@ function FxChoiceControl(props: {
   mod: FxModule;
   choice: FxChoiceSpec;
 }): JSX.Element {
+  const laneNames = createLaneAccessibleNames();
   const c = () => props.choice;
   const value = () =>
     (props.mod.device.params as Record<string, number | string>)[c().key];
@@ -509,7 +512,7 @@ function FxChoiceControl(props: {
       <select
         class="fx-param-select"
         value={String(current())}
-        aria-label={`${c().label} of ${props.mod.spec.label} on ${LANE_NAMES[props.lane]}`}
+        aria-label={`${c().label} of ${props.mod.spec.label} on ${laneNames(props.lane)}`}
         onChange={(e) => {
           const opt = c().options.find(
             (o) => String(o.value) === e.currentTarget.value,

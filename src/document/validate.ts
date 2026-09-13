@@ -142,6 +142,27 @@ export function validateProject(input: unknown): ProjectDocument {
 
 function semanticIssues(doc: ProjectDocument): string[] {
   const issues: string[] = [];
+  for (const [lane, rules] of Object.entries(doc.playbackRules ?? {})) {
+    const chain = doc.songChain[lane as LaneId];
+    if (!chain || rules.length !== chain.length) {
+      issues.push(`playbackRules.${lane}: must match the lane's chain`);
+      continue;
+    }
+    rules.forEach((rule, slot) => {
+      if (!rule) return;
+      if (
+        rule.action === "goto" &&
+        (rule.target === undefined || rule.target >= chain.length)
+      )
+        issues.push(
+          `playbackRules.${lane}.${slot}: choose an existing destination`,
+        );
+      if (rule.choices?.some((target) => target >= chain.length))
+        issues.push(
+          `playbackRules.${lane}.${slot}: random destination does not exist`,
+        );
+    });
+  }
 
   // Lanes: fixed order, exact set.
   doc.lanes.forEach((lane, i) => {

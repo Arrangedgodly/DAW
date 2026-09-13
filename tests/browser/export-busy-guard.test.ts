@@ -1,3 +1,4 @@
+import { patternExportControl } from "./patternExportControl";
 /**
  * XP-1 browser gate (i3-5) — the busy-guard UX spans the LONG render.
  *
@@ -25,7 +26,10 @@
 import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
 import App from "../../src/App";
-import { createDefaultProject, type ProjectDocument } from "../../src/document/schema";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../../src/document/schema";
 import { loadDocument } from "../../src/state/store";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
@@ -169,7 +173,7 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
         // SAVE FILE is a pure synchronous encode and stays operable by
         // design) are one-shot while rendering, the RENDERING toast still
         // present.
-        const asyncActions = ["NEW", "EXPORT WAV", "EXPORT MIDI", "OPEN FILE"];
+        const asyncActions = ["NEW", "EXPORT WAV", "OPEN FILE"];
         await waitFor(
           () =>
             asyncActions.every(
@@ -186,7 +190,7 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
         // and a synthetic bubbling click at the button — the guard's RED
         // tooth (guard removed) fails on exactly these.
         actionByLabel("EXPORT WAV")!.click();
-        actionByLabel("EXPORT MIDI")!.click();
+        expect(actionByLabel("EXPORT MIDI")).toBeUndefined();
         for (const tap of [0, 1]) {
           actionByLabel("EXPORT WAV")!.dispatchEvent(
             new MouseEvent("click", { bubbles: true, cancelable: true }),
@@ -210,7 +214,7 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
           `[xp1] busy-guard gate: RENDERING visible after ${Math.round(busyVisibleAt)} ms; render+download busy window ${Math.round(busyMs)} ms (64-bar cycle)`,
         );
         const success = toastTexts().find((t) => t.includes("WAV EXPORTED"))!;
-        expect(success).toBe("WAV EXPORTED · 64-BAR CYCLE");
+        expect(success).toBe("WAV EXPORTED · 64-BAR SONG");
         await waitFor(
           () => !toastTexts().some((t) => t === "RENDERING WAV…"),
           2000,
@@ -222,13 +226,9 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
         // real): at least 750 ms of busy time observed.
         expect(busyMs).toBeGreaterThan(750);
 
-        // --- MIDI through the same popover: cycle bars on this toast too --
-        await waitFor(
-          () => actionByLabel("EXPORT MIDI") !== undefined && !actionByLabel("EXPORT MIDI")!.disabled,
-          10_000,
-          "popover actions re-enabled (busy cleared)",
-        );
-        actionByLabel("EXPORT MIDI")!.click();
+        // Pattern MIDI is independent of the project export controls.
+        expect(actionByLabel("EXPORT MIDI")).toBeUndefined();
+        (await patternExportControl(host)).click();
         await waitFor(
           () => toastTexts().some((t) => t.includes("MIDI EXPORTED")),
           10_000,
@@ -238,7 +238,7 @@ describe("XP-1 export busy-guard (real app, long render)", () => {
           t.includes("MIDI EXPORTED"),
         )!;
         expect(midiToast).toMatch(
-          /^MIDI EXPORTED · 5 TRACKS · \d+ NOTES · 64-BAR CYCLE$/,
+          /^PATTERN MIDI EXPORTED · 1 BAR · \d+ NOTES$/,
         );
         expect(blobs.filter((b) => b.type === "audio/midi")).toHaveLength(1);
         expect(blobs).toHaveLength(2); // no stray double renders anywhere

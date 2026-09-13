@@ -683,6 +683,112 @@ export function encodeMidi(doc: ProjectDocument): Uint8Array {
   return Uint8Array.from(writeMidi(buildMidiData(doc, doc.transport.swing)));
 }
 
+/** One pattern, one note track and a tempo track. Arrangement rules are excluded. */
+export function buildPatternMidiData(
+  doc: ProjectDocument,
+  lane: LaneId,
+  patternId: string,
+): MidiData {
+  const pattern = doc.patterns[lane]?.find((p) => p.id === patternId);
+  const config = doc.lanes.find((l) => l.id === lane);
+  if (!pattern || !config)
+    throw new Error("The selected pattern no longer exists.");
+  const data = buildMidiData(
+    {
+      ...doc,
+      lanes: [config],
+      patterns: { ...doc.patterns, [lane]: [pattern] },
+      songChain: { ...doc.songChain, [lane]: [pattern.id] },
+      chainCues: null,
+    },
+    doc.transport.swing,
+  );
+  const end = pattern.bars * 16 * TICKS_PER_STEP;
+  const tracks = data.tracks.map((track, index) => {
+    let tick = 0;
+    const pending: PendingEvent[] = [];
+    for (const event of track) {
+      tick += event.deltaTime;
+      if (event.type === "endOfTrack") continue;
+      if (event.type === "noteOn" && tick >= end) continue;
+      pending.push({
+        tick: Math.min(tick, end),
+        event:
+          event.type === "trackName" && index === 1
+            ? { ...event, text: `${TRACK_NAMES[lane]} · ${pattern.name}` }
+            : event,
+      });
+    }
+    const events = deltaEncode(pending);
+    const lastTick = events.reduce((sum, event) => sum + event.deltaTime, 0);
+    return [
+      ...events,
+      { deltaTime: end - lastTick, type: "endOfTrack", meta: true } as const,
+    ];
+  });
+  return { ...data, tracks };
+}
+
+export function encodePatternMidi(
+  doc: ProjectDocument,
+  lane: LaneId,
+  patternId: string,
+): Uint8Array {
+  return Uint8Array.from(writeMidi(buildPatternMidiData(doc, lane, patternId)));
+}
+
+export function exportPatternMidi(
+  project: ProjectDocument,
+  lane: LaneId,
+  patternId: string,
+  opts: ExportMidiOptions = {},
+): ExportMidiResult {
+  let data: MidiData;
+  let bytes: Uint8Array;
+  const pattern = project.patterns[lane]?.find((p) => p.id === patternId);
+  try {
+    data = buildPatternMidiData(project, lane, patternId);
+    bytes = Uint8Array.from(writeMidi(data));
+  } catch {
+    return {
+      ok: false,
+      kind: "encode",
+      message: "Pattern MIDI could not be encoded.",
+      suggestion: "Select an existing pattern and try again.",
+    };
+  }
+  const filename = `${safeFileStem(project.name)}-${lane}-${safeFileStem(pattern!.name)}${MIDI_EXTENSION}`;
+  const seam = opts.seam ?? defaultSeam();
+  try {
+    const url = seam.createObjectURL(
+      new Blob([bytes.slice()], { type: MIDI_MIME }),
+    );
+    try {
+      const anchor = seam.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+    } finally {
+      seam.revokeObjectURL(url);
+    }
+  } catch {
+    return {
+      ok: false,
+      kind: "io",
+      message: "Pattern MIDI could not be saved.",
+      suggestion: "Check your browser's download settings and try again.",
+    };
+  }
+  return {
+    ok: true,
+    filename,
+    trackCount: data.header.numTracks,
+    noteCount: data.tracks.flat().filter((e) => e.type === "noteOn").length,
+    bars: pattern!.bars,
+    byteLength: bytes.byteLength,
+  };
+}
+
 /**
  * Total note count across lane tracks (display + tests). XP-1: counts the
  * FILLED cycle — shorter chains repeat within the export LCM, so the toast's
@@ -715,12 +821,11 @@ export function noteCount(doc: ProjectDocument): number {
 export interface ExportMidiSuccess {
   readonly ok: true;
   readonly filename: string;
-  /** Always 5: tempo/cue track + 4 lanes. */
+  /** Tempo track plus exported note tracks (two tracks for one pattern). */
   readonly trackCount: number;
   readonly noteCount: number;
   /**
-   * XP-1 (i3-5): bars in the export cycle (exportCycleSteps / 16) — the
-   * same LCM cycle the WAV render exports. Display (toast) + assertions.
+   * Musical bar length of the exported pattern or legacy cycle.
    */
   readonly bars: number;
   readonly byteLength: number;
@@ -728,7 +833,7 @@ export interface ExportMidiSuccess {
 
 export interface ExportMidiFailure {
   readonly ok: false;
-  readonly kind: "encode";
+  readonly kind: "encode" | "io";
   readonly message: string;
   readonly suggestion: string;
 }

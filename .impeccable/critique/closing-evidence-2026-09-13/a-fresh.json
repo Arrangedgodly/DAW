@@ -1,0 +1,42 @@
+[
+  {
+    "width": 1280,
+    "height": 800,
+    "page": "Instruments 1–4",
+    "theme": "dark",
+    "geometry": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "page": "Instruments 5–8",
+    "theme": "light",
+    "geometry": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  {
+    "width": 390,
+    "height": 667,
+    "help": "Filter shapes the tone around the cutoff frequency. LP (low-pass) keeps lower frequencies; HP (high-pass) keeps higher frequencies; BP (band-pass) keeps a band around the cutoff. Q controls resonance: higher Q makes a sharper peak near the cutoff.",
+    "geometry": {
+      "width": 390,
+      "bottom": 399
+    },
+    "closed": "false"
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "help": "Filter shapes the tone around the cutoff frequency. LP (low-pass) keeps lower frequencies; HP (high-pass) keeps higher frequencies; BP (band-pass) keeps a band around the cutoff. Q controls resonance: higher Q makes a sharper peak near the cutoff.",
+    "geometry": {
+      "width": 390,
+      "bottom": 399
+    },
+    "closed": "false"
+  }
+]

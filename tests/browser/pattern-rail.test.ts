@@ -102,7 +102,7 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed names append the ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (demo loaded)",
         );
@@ -143,7 +143,7 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
           '.rail-row[data-lane="bass"] .rail-append',
         );
         expect(plus.getAttribute("aria-label")).toBe(
-          "Append new blank pattern to BASS chain",
+          "Append new blank pattern to Bass, track 2 chain",
         );
         const helpText = getHelp("rail.append")!.text;
         expect(helpText, "registry entry says NEW").toContain("NEW blank");
@@ -151,7 +151,7 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
           helpText,
           "no stale duplication-by-+ wording survives (E11 — the v2 entry said 'another slot playing the lane's selected pattern')",
         ).not.toContain("slot playing");
-        expect(helpText).toContain("only duplicator");
+        expect(helpText).toContain("independent copy");
 
         // --- 2. BUTTON PATH: click + → new blank E, appended + selected ----
         expect(poolSize()).toBe(4);
@@ -276,7 +276,7 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
           2000,
           "global d duplicates the selected pattern into the pool",
         );
-        expect(chainLen()).toBe(chainBeforeDup); // duplication never chains
+        expect(chainLen()).toBe(chainBeforeDup + 1); // independent copy is inserted
         expect(
           docStore
             .getState()
@@ -291,21 +291,21 @@ describe("BC-1 rail + = new blank clip (real app)", () => {
         await waitFor(
           () =>
             host.querySelector(
-              '.rail-row[data-lane="bass"] button[aria-label="Duplicate BASS selected pattern"]',
+              '.rail-row[data-lane="bass"] button[aria-label="Duplicate Bass, track 2 selected pattern"]',
             ) !== null,
           2000,
           "PAT menu open for DUP",
         );
         const poolBeforeMenuDup = poolSize();
         $<HTMLButtonElement>(
-          '.rail-row[data-lane="bass"] button[aria-label="Duplicate BASS selected pattern"]',
+          '.rail-row[data-lane="bass"] button[aria-label="Duplicate Bass, track 2 selected pattern"]',
         ).click();
         await waitFor(
           () => poolSize() === poolBeforeMenuDup + 1,
           2000,
           "menu DUP duplicates too",
         );
-        expect(chainLen()).toBe(chainBeforeDup);
+        expect(chainLen()).toBe(chainBeforeDup + 2);
       } finally {
         void import("../../src/engine/session")
           .then(({ getSession }) => getSession().transport.stop?.())

@@ -1,4 +1,7 @@
-import { createLaneDisplayNames } from "../state/laneDisplayNames";
+import {
+  createLaneDisplayNames,
+  createLaneAccessibleNames,
+} from "../state/laneDisplayNames";
 /**
  * StageFloor (DES-4, DES-6, LY-1): the four lane QUADRANTS in the committed
  * 2×2 arrangement (town-hall I2-1 — user synthesis, not re-derived here):
@@ -80,6 +83,7 @@ registerHelp([
  */
 export function LaneSwitcher(): JSX.Element {
   const displayName = createLaneDisplayNames();
+  const laneNames = createLaneAccessibleNames();
   const [lanes, setLanes] = createSignal(
     docStore.getState().doc.lanes.map((lane) => lane.id),
   );
@@ -145,6 +149,7 @@ export function LaneSwitcher(): JSX.Element {
               data-lane={lane}
               id={`lane-tab-${lane}`}
               aria-controls="lane-stage"
+              aria-label={laneNames(lane)}
               aria-selected={activeLane() === lane}
               tabindex={activeLane() === lane ? 0 : -1}
               data-help="stage.switcher"

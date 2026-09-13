@@ -58,6 +58,7 @@ import {
   type DrumPiece,
   type LaneId,
   type LaneMix,
+  type SongSection,
   laneMixGain,
 } from "../document/schema";
 import {
@@ -151,6 +152,8 @@ function sameStructure(a: LaneSchedule, b: LaneSchedule): boolean {
  * and schedule-build semantics are untouched.
  */
 interface SoundingEntry {
+  readonly bar?: number;
+  readonly stopped?: boolean;
   readonly at: number;
   readonly patternId: string;
   /**
@@ -392,12 +395,18 @@ export class Session {
         if (!pb) continue;
         pb.anchorStep = 0;
         pb.lastStep = -1;
+        pb.visitSlot = undefined;
+        pb.visitStep = 0;
+        pb.stopped = false;
+        pb.returnSlot = undefined;
         // A slot cue left pending by the previous pass waits for play: it
         // lands at the first boundary of this one (the lane starts there).
         if (pb.pendingSwitch?.mode === "jump")
           pb.pendingSwitch = { ...pb.pendingSwitch, appliesAtStep: null };
       }
       this.lastDeliveredStep = -1;
+      this.activeSection = null;
+      if (this.pendingSection) this.pendingSection.step = 0;
       // Refinement-7: the sounding ledger is per-play too — a fresh play's
       // follow starts at the chain's slot 0 (imminent entry), never parked on
       // the previous play's last-sounded slot.
@@ -546,6 +555,10 @@ export class Session {
      * ⟲ hold only fires on a boundary the lane actually crossed.
      */
     lastStep: number;
+    visitSlot?: number;
+    visitStep?: number;
+    returnSlot?: number;
+    stopped?: boolean;
   }[] = [];
 
   /** Engine-side pending switch (observable for the DES-6 pending indicator). */
@@ -557,6 +570,78 @@ export class Session {
   private readonly noteOnListeners = new Set<(noteOn: VizNoteOn) => void>();
   /** Highest global step already handed to the voice engines. */
   private lastDeliveredStep = -1;
+  private sections: readonly (SongSection | null)[] = [];
+  private activeSection: { slot: number; start: number } | null = null;
+  private pendingSection: { slot: number; step: number } | null = null;
+  private followHeld = false;
+
+  setSections(sections: readonly (SongSection | null)[]): void {
+    this.sections = sections;
+  }
+  setFollowHeld(held: boolean): void {
+    this.followHeld = held;
+  }
+  getFollowHeld(): boolean {
+    return this.followHeld;
+  }
+  getPlaybackProgress(lane: LaneId): { bar: number; stopped: boolean } {
+    const entry = this.soundingEntry(lane);
+    return { bar: entry?.bar ?? 1, stopped: entry?.stopped ?? false };
+  }
+
+  cueSection(slot: number, timing: "bar" | "pattern" = "bar"): void {
+    const lanes = LANE_IDS.filter((_, i) =>
+      this.lanePlayback[i]?.schedule.segments.some((s) => s.slot === slot),
+    );
+    if (!lanes.length) return;
+    const from = this.transport.snapshot.playing ? this.lastDeliveredStep : -1;
+    let at = from < 0 ? 0 : (Math.floor(from / 16) + 1) * 16;
+    if (timing === "pattern" && from >= 0) {
+      at = Math.max(
+        ...lanes.map((lane) => {
+          const pb = this.lanePlayback[LANE_IDS.indexOf(lane)]!;
+          const local =
+            (((from - pb.anchorStep) % pb.schedule.chainSteps) +
+              pb.schedule.chainSteps) %
+            pb.schedule.chainSteps;
+          const current = pb.schedule.segments.find(
+            (s) => local >= s.startStep && local < s.startStep + s.steps,
+          )!;
+          return from - local + current.startStep + current.steps;
+        }),
+      );
+    }
+    this.pendingSection = { slot, step: at };
+    for (const lane of lanes) this.cueSlot(lane, slot, at);
+  }
+
+  private applySectionFollow(step: number): void {
+    if (this.pendingSection && step >= this.pendingSection.step) {
+      this.activeSection = { slot: this.pendingSection.slot, start: step };
+      this.pendingSection = null;
+      return;
+    }
+    if (this.activeSection && this.followHeld) this.activeSection.start++;
+    if (!this.activeSection || this.followHeld || this.pendingSection) return;
+    const rule = this.sections[this.activeSection.slot];
+    if (
+      !rule?.bars ||
+      step - this.activeSection.start < rule.bars * 16 ||
+      step % 16 !== 0
+    )
+      return;
+    this.activeSection = null;
+    if (rule.stop) {
+      for (const pb of this.lanePlayback) if (pb) pb.stopped = true;
+    } else if (rule.next !== undefined) {
+      this.activeSection = { slot: rule.next, start: step };
+      for (const lane of LANE_IDS) {
+        const pb = this.lanePlayback[LANE_IDS.indexOf(lane)];
+        // A manual lane cue wins over automatic section progression.
+        if (pb && !pb.pendingSwitch) this.cueSlot(lane, rule.next, step);
+      }
+    }
+  }
   /**
    * Refinement-7: per-lane sounding ledger (see SoundingEntry). Appended in
    * deliverLaneEvents whenever the lane's delivery crosses into a different
@@ -804,7 +889,7 @@ export class Session {
    * holding cancels any pending cue (it simply keeps looping). While stopped
    * the cue waits for play (the lane starts at the cued slot).
    */
-  cueSlot(laneId: LaneId, slot: number): void {
+  cueSlot(laneId: LaneId, slot: number, atStep?: number): void {
     const pb = this.lanePlayback[LANE_IDS.indexOf(laneId)];
     if (!pb) return;
     const { chainSteps, segments } = pb.schedule;
@@ -827,7 +912,13 @@ export class Session {
         ),
       );
       const current = segments[segmentIndex]!;
-      if (current === target && current.loop === true) {
+      if (
+        atStep === undefined &&
+        current === target &&
+        current.loop === true &&
+        !current.rule &&
+        !pb.stopped
+      ) {
         pb.pendingSwitch = null;
         this.emitSwitch(laneId);
         return;
@@ -838,7 +929,7 @@ export class Session {
       laneId,
       toPatternId: target.patternId,
       schedule: pb.schedule,
-      appliesAtStep,
+      appliesAtStep: atStep ?? appliesAtStep,
       segmentIndex,
       mode: "jump",
       toSlot: slot,
@@ -866,7 +957,6 @@ export class Session {
     if (chainSteps <= 0 || segments.length === 0) return;
     const local =
       (((step - pb.anchorStep) % chainSteps) + chainSteps) % chainSteps;
-    if (!segments.some((s) => s.startStep === local)) return;
     const lane = LANE_IDS[laneIndex];
     const pending = pb.pendingSwitch;
     if (
@@ -876,12 +966,93 @@ export class Session {
       pb.pendingSwitch = null;
       const target = segments.find((s) => s.slot === pending.toSlot);
       if (target) {
+        pb.returnSlot = pb.visitSlot;
+        pb.visitSlot = target.slot;
+        pb.visitStep = step;
+        pb.stopped = false;
         pb.anchorStep = step - target.startStep;
         pb.activePatternId = target.patternId;
       }
       this.emitSwitch(lane);
       return;
     }
+    if (pb.stopped) return;
+    const current = segments.find(
+      (s) => (s.slot ?? segments.indexOf(s)) === pb.visitSlot,
+    );
+    if (current && (current.rule || this.followHeld)) {
+      if (this.followHeld && pb.visitStep !== undefined) pb.visitStep++;
+      const rule = current.rule;
+      const elapsed = step - (pb.visitStep ?? step);
+      const duration =
+        rule?.unit === "bars"
+          ? rule.amount * 16
+          : (rule?.amount ?? 1) * current.steps;
+      const boundary =
+        pb.lastStep >= 0 &&
+        local === (current.startStep + current.steps) % chainSteps;
+      if (boundary && pb.pendingSchedule) {
+        const queued = pb.pendingSchedule;
+        const mapped =
+          queued.segments.find(
+            (s) => s.patternId === current.patternId && s.slot === current.slot,
+          ) ??
+          queued.segments.find((s) => s.patternId === current.patternId) ??
+          queued.segments[0];
+        pb.schedule = queued;
+        pb.pendingSchedule = null;
+        if (mapped) {
+          pb.anchorStep = step - mapped.startStep;
+          pb.visitSlot = mapped.slot ?? queued.segments.indexOf(mapped);
+          // Re-evaluate the rule with its new destinations on this boundary.
+          this.applyChainFollow(pb, step, laneIndex);
+        }
+        this.emitSwitch(lane);
+        return;
+      }
+      if (
+        !this.followHeld &&
+        rule?.unit !== "hold" &&
+        elapsed >= duration &&
+        step % 16 === 0
+      ) {
+        if (rule?.action === "stop") {
+          pb.stopped = true;
+          return;
+        }
+        const index = segments.indexOf(current);
+        let targetIndex = (index + 1) % segments.length;
+        if (rule?.action === "previous")
+          targetIndex = (index - 1 + segments.length) % segments.length;
+        if (rule?.action === "goto")
+          targetIndex = segments.findIndex((s) => s.slot === rule.target);
+        if (rule?.action === "return")
+          targetIndex = segments.findIndex((s) => s.slot === pb.returnSlot);
+        if (rule?.action === "random") {
+          const choices = segments
+            .map((s, i) => ({ s, i }))
+            .filter(
+              ({ s, i }) =>
+                i !== index &&
+                (!rule.choices?.length || rule.choices.includes(s.slot ?? i)),
+            );
+          targetIndex = choices.length
+            ? choices[Math.floor(Math.random() * choices.length)]!.i
+            : index;
+        }
+        const target =
+          segments[targetIndex] ?? segments[(index + 1) % segments.length]!;
+        pb.returnSlot = pb.visitSlot;
+        pb.visitSlot = target.slot ?? segments.indexOf(target);
+        pb.visitStep = step;
+        pb.anchorStep = step - target.startStep;
+        pb.activePatternId = target.patternId;
+        return;
+      }
+      if (boundary) pb.anchorStep = step - current.startStep;
+      return;
+    }
+    if (!segments.some((s) => s.startStep === local)) return;
     // Only a boundary the lane actually crossed: at play start (lastStep -1)
     // nothing has ended yet, so a ⟲ on the LAST slot must not pull step 0.
     if (pb.lastStep < 0 || pb.lastStep !== step - 1) return;
@@ -1074,11 +1245,26 @@ export class Session {
     this.lastDeliveredStep = Math.max(this.lastDeliveredStep, step);
     void this.ensureVoiceEngine().then((host) => {
       if (!host) return;
+      this.applySectionFollow(step);
       const laneCount = LANE_IDS.length;
       for (let i = 0; i < laneCount; i++) {
         const pb = this.lanePlayback[i];
         if (!pb) continue;
         this.applyChainFollow(pb, step, i); // ⟲ hold / slot-cue jump
+        if (pb.stopped) {
+          const ledger = (this.soundingLedger[i] ??= []);
+          if (!ledger.at(-1)?.stopped)
+            ledger.push({
+              at: when,
+              patternId: pb.activePatternId,
+              slot: pb.visitSlot ?? 0,
+              stopped: true,
+            });
+          const now = this.engine.getContext().currentTime;
+          while (ledger.length > 1 && ledger[1]!.at <= now) ledger.shift();
+          pb.lastStep = step;
+          continue;
+        }
         let local = step - pb.anchorStep;
         // A deferred structure swap lands exactly on an iteration boundary.
         if (
@@ -1118,12 +1304,24 @@ export class Session {
           // `slot` is optional on LaneSegment; for a schedule built without
           // explicit slots the segment INDEX is the chain position.
           const slot = seg.slot ?? segIndex;
+          if (pb.visitSlot !== slot) {
+            pb.returnSlot = pb.visitSlot;
+            pb.visitSlot = slot;
+            pb.visitStep = step;
+          }
+          const bar = Math.floor((step - (pb.visitStep ?? step)) / 16) + 1;
           // Dedupe on the SLOT: A(slot 0) → A(slot 1) is a real section
           // change even though the pattern id never moves (the 2026-09-11
           // slot-identity fix — a patternId-only compare swallowed it and
           // left the old section reading active).
-          if (!last || last.slot !== slot || last.patternId !== seg.patternId)
-            ledger.push({ at: when, patternId: seg.patternId, slot });
+          if (
+            !last ||
+            last.slot !== slot ||
+            last.patternId !== seg.patternId ||
+            last.bar !== bar ||
+            last.stopped
+          )
+            ledger.push({ at: when, patternId: seg.patternId, slot, bar });
           // Prune: one audible-past anchor + the audible future is all the
           // lookup ever needs (bounded across arbitrarily long playback).
           const now = this.engine.getContext().currentTime;

@@ -39,11 +39,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "solid-js/web";
 import App from "../../src/App";
-import { createDefaultProject, type ProjectDocument } from "../../src/document/schema";
+import {
+  createDefaultProject,
+  type ProjectDocument,
+} from "../../src/document/schema";
 import { decode } from "../../src/document/codec";
 import { addNote, docStore, loadDocument } from "../../src/state/store";
 import { clearToasts } from "../../src/state/toasts";
-import { getActiveProjectId, getAutosaveController } from "../../src/persist/boot";
+import {
+  getActiveProjectId,
+  getAutosaveController,
+} from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 // Token sheet exactly as deployed (the export-busy-guard precedent).
 import "../../src/styles/base.css";
@@ -131,7 +137,10 @@ function unequalChainDoc(bars: 64 | 128): ProjectDocument {
   if (drums.kind !== "drums") throw new Error("expected drums");
   drums.bars = bars;
   const len = bars * 16;
+  for (const piece of Object.keys(drums.steps) as (keyof typeof drums.steps)[])
+    drums.steps[piece] = new Array<boolean>(len).fill(false);
   drums.steps = {
+    ...drums.steps,
     kick: Array.from({ length: len }, (_, i) => i % 4 === 0),
     snare: Array.from({ length: len }, (_, i) => i % 16 === 4),
     hat: Array.from({ length: len }, (_, i) => i % 2 === 0),
@@ -189,9 +198,9 @@ async function setup(): Promise<Harness> {
         (t) => t.textContent ?? "",
       ),
     actionByLabel: (label: string) =>
-      Array.from(host.querySelectorAll<HTMLButtonElement>(".projects-action")).find(
-        (b) => b.textContent?.trim() === label,
-      ),
+      Array.from(
+        host.querySelectorAll<HTMLButtonElement>(".projects-action"),
+      ).find((b) => b.textContent?.trim() === label),
     openPopover: async () => {
       (host.querySelector(".projects-btn") as HTMLButtonElement).click();
       await waitFor(
@@ -222,7 +231,8 @@ describe("HL-1 long-render failure modes (real app)", () => {
         return origCreateObjectURL(blob);
       }) as typeof URL.createObjectURL;
       const rejections: unknown[] = [];
-      const onUnhandled = (e: PromiseRejectionEvent) => rejections.push(e.reason);
+      const onUnhandled = (e: PromiseRejectionEvent) =>
+        rejections.push(e.reason);
       window.addEventListener("unhandledrejection", onUnhandled);
       try {
         loadDocument(createDefaultProject());
@@ -294,17 +304,17 @@ describe("HL-1 long-render failure modes (real app)", () => {
         return origCreateObjectURL(blob);
       }) as typeof URL.createObjectURL;
       // Inject ONE failing render through the real offline pipeline seam.
-      const origStartRendering =
-        OfflineAudioContext.prototype.startRendering;
+      const origStartRendering = OfflineAudioContext.prototype.startRendering;
       let failedOnce = false;
-      OfflineAudioContext.prototype.startRendering =
-        function (this: OfflineAudioContext) {
-          if (!failedOnce) {
-            failedOnce = true;
-            return Promise.reject(new Error("HL-1 injected render failure"));
-          }
-          return origStartRendering.call(this);
-        };
+      OfflineAudioContext.prototype.startRendering = function (
+        this: OfflineAudioContext,
+      ) {
+        if (!failedOnce) {
+          failedOnce = true;
+          return Promise.reject(new Error("HL-1 injected render failure"));
+        }
+        return origStartRendering.call(this);
+      };
       try {
         loadDocument(unequalChainDoc(64));
         const docBefore = docStore.getState().doc;
@@ -323,9 +333,11 @@ describe("HL-1 long-render failure modes (real app)", () => {
         );
         await waitFor(
           () =>
-            h.toastFullText().some((t) =>
-              t.includes("Playback is untouched — try exporting again."),
-            ),
+            h
+              .toastFullText()
+              .some((t) =>
+                t.includes("Playback is untouched — try exporting again."),
+              ),
           2000,
           "recovery suggestion",
         );
@@ -363,7 +375,7 @@ describe("HL-1 long-render failure modes (real app)", () => {
         // Retry: the second render goes through the REAL pipeline.
         h.actionByLabel("EXPORT WAV")!.click();
         await waitFor(
-          () => h.toastTexts().some((t) => t === "WAV EXPORTED · 64-BAR CYCLE"),
+          () => h.toastTexts().some((t) => t === "WAV EXPORTED · 64-BAR SONG"),
           60_000,
           "retry succeeds (fresh offline context — the WeakSet discipline)",
         );
@@ -400,15 +412,16 @@ describe("HL-1 long-render failure modes (real app)", () => {
 
         h.actionByLabel("EXPORT WAV")!.click();
         await waitFor(
-          () => h.toastTexts().some((t) => t === "WAV file could not be saved."),
+          () =>
+            h.toastTexts().some((t) => t === "WAV file could not be saved."),
           20_000,
           "typed io-failure toast",
         );
         await waitFor(
           () =>
-            h.toastFullText().some((t) =>
-              t.includes("Check the browser's download settings"),
-            ),
+            h
+              .toastFullText()
+              .some((t) => t.includes("Check the browser's download settings")),
           2000,
           "io recovery suggestion",
         );
@@ -461,7 +474,7 @@ describe("HL-1 long-render failure modes (real app)", () => {
         setVisibility("hidden");
         // …and race it: second taps direct + synthetic bubbling.
         h.actionByLabel("EXPORT WAV")!.click();
-        h.actionByLabel("EXPORT MIDI")!.click();
+        expect(h.actionByLabel("EXPORT MIDI")).toBeUndefined();
         h.actionByLabel("EXPORT WAV")!.dispatchEvent(
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
@@ -496,7 +509,7 @@ describe("HL-1 long-render failure modes (real app)", () => {
         // Back to visible; the render was never interrupted.
         setVisibility("visible");
         await waitFor(
-          () => h.toastTexts().some((t) => t === "WAV EXPORTED · 128-BAR CYCLE"),
+          () => h.toastTexts().some((t) => t === "WAV EXPORTED · 128-BAR SONG"),
           90_000,
           "render completes across the hidden window",
         );
@@ -514,7 +527,7 @@ describe("HL-1 long-render failure modes (real app)", () => {
           2000,
           "popover opens after completion",
         );
-        const asyncActions = ["NEW", "EXPORT WAV", "EXPORT MIDI", "OPEN FILE"];
+        const asyncActions = ["NEW", "EXPORT WAV", "OPEN FILE"];
         expect(
           asyncActions.every(
             (label) => h.actionByLabel(label)?.disabled === false,

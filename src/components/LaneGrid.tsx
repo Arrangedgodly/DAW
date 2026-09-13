@@ -95,6 +95,7 @@ import LaneMeter from "./LaneMeter";
 import LaneFollow from "./LaneFollow";
 import EuclidFill from "./EuclidFill";
 import { LANE_NAMES } from "./laneMeta";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 
 const session = getSession();
 
@@ -130,7 +131,7 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       text:
         lane === "drums"
           ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
-          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, with higher notes above lower notes, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the OCT/SEMI steppers move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
+          : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, with higher notes above lower notes, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the View Oct/View Semi controls move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use Transpose (Oct) — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -156,13 +157,21 @@ for (const lane of ["bass", "chords", "lead"] as const) {
  * the strip reference is amended — on the phone the SOUND-transpose OCT
  * lives in the OPTIONS drawer (the E9 fence ledger entry).
  */
-for (const lane of ["bass", "chords", "lead"] as const) {
+for (const lane of [
+  "bass",
+  "chords",
+  "lead",
+  "extra1",
+  "extra2",
+  "extra3",
+  "extra4",
+] as const) {
   registerHelp([
     {
       id: `lane.${lane}.regshift`,
       title: `${LANE_NAMES[lane]} REGISTER SHIFT`,
 
-      text: `Moves the pitch window of the ${LANE_NAMES[lane]} grid without transposing notes. OCT moves twelve semitones; SEMI moves one semitone. Only notes in your selected scale appear. A semitone step across a scale gap may keep the same rows until the next scale note enters view. The pitch readout shows the window, and controls stop at MIDI pitch limits. Place notes in any visible register; existing notes keep their pitches. To change the octave ${LANE_NAMES[lane]} SOUNDS, use OCT — the strip on desktop, the OPTIONS drawer on phone.`,
+      text: `Moves the pitch window of the ${LANE_NAMES[lane]} grid without transposing notes. View Oct moves twelve semitones; View Semi moves one semitone. Only notes in your selected scale appear. A semitone step across a scale gap may keep the same rows until the next scale note enters view. The pitch readout shows the window, and controls stop at MIDI pitch limits. Place notes in any visible register; existing notes keep their pitches. To change the octave ${LANE_NAMES[lane]} SOUNDS, use Transpose (Oct) — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
 }
@@ -812,6 +821,8 @@ function fitQuadrantRows(): void {
   const chrome =
     Number.parseFloat(floorsStyle.paddingTop) +
     Number.parseFloat(floorsStyle.paddingBottom) +
+    Number.parseFloat(floorsStyle.borderTopWidth) +
+    Number.parseFloat(floorsStyle.borderBottomWidth) +
     Number.parseFloat(floorsStyle.rowGap);
   const rowsBudget = stageH - railH - chrome;
   const rowH = Math.floor(rowsBudget / 2);
@@ -1100,6 +1111,7 @@ function GridSurface(props: {
   /** i7 N-4: the chip's reset command (a monotonically rising tick). */
   zoomReset?: () => number;
 }) {
+  const laneNames = createLaneAccessibleNames();
   let container: HTMLDivElement | undefined;
   let navigationRenderer: DomGridRenderer | undefined;
   const [panMode, setPanMode] = createSignal(false);
@@ -1273,7 +1285,7 @@ function GridSurface(props: {
     const renderer = new DomGridRenderer({
       container,
       laneId: lane,
-      laneLabel: LANE_NAMES[lane],
+      laneLabel: laneNames(lane),
       rowLabels,
       steps,
       pitched,
@@ -1609,6 +1621,11 @@ function GridSurface(props: {
     // the renderer (tab stop + names); the rAF loop never restarts.
     createEffect(() => {
       rendererRef?.setEditable(activeLane() === lane);
+      rendererRef?.setLaneLabel(laneNames(lane));
+      // Selection changes row spacing even when the aligned header keeps its
+      // height. Refit after the renderer re-pins that spacing; ResizeObserver
+      // alone cannot detect this change in the note area's required height.
+      scheduleFit();
     });
 
     // MB-2 (mobile slice): the fill-rails reveal — the drums grid's overlay
@@ -1998,7 +2015,8 @@ function RegisterShiftControls(props: {
     if (cueTimer !== undefined) clearTimeout(cueTimer);
   });
 
-  const n = LANE_NAMES[props.lane];
+  const laneNames = createLaneAccessibleNames();
+  const n = () => laneNames(props.lane);
   /** i7 N-4: the chip's factor text — two decimals, the ×1 fill at rest. */
   const zoomText = (): string => `${props.zoom().toFixed(2)}×`;
   return (
@@ -2006,24 +2024,24 @@ function RegisterShiftControls(props: {
       <div
         class="register-shift"
         role="group"
-        aria-label={`${n} register window shift`}
+        aria-label={`${n()} register window shift`}
         data-cue={cue() ? (cue()!.dir === 1 ? "up" : "down") : undefined}
         data-cue-parity={cue() ? String(cue()!.key % 2) : undefined}
       >
         <div
           class="register-stepper"
           role="group"
-          aria-label={`${n} octave view`}
+          aria-label={`${n()} octave view`}
           data-help={`lane.${props.lane}.regshift`}
         >
           <span class="register-stepper-label" aria-hidden="true">
-            OCT
+            View Oct
           </span>
           <div class="register-stepper-btns">
             <button
               type="button"
               class="register-shift-btn"
-              aria-label={`${n} octave view down`}
+              aria-label={`${n()} octave view down`}
 
               disabled={origin() <= 0}
 
@@ -2034,7 +2052,7 @@ function RegisterShiftControls(props: {
             <button
               type="button"
               class="register-shift-btn"
-              aria-label={`${n} octave view up`}
+              aria-label={`${n()} octave view up`}
 
               disabled={origin() >= bounds().maxOrigin}
 
@@ -2047,17 +2065,17 @@ function RegisterShiftControls(props: {
         <div
           class="register-stepper"
           role="group"
-          aria-label={`${n} semitone view`}
+          aria-label={`${n()} semitone view`}
           data-help={`lane.${props.lane}.regshift`}
         >
           <span class="register-stepper-label" aria-hidden="true">
-            SEMI
+            View Semi
           </span>
           <div class="register-stepper-btns">
             <button
               type="button"
               class="register-shift-btn"
-              aria-label={`${n} semitone view down`}
+              aria-label={`${n()} semitone view down`}
 
               disabled={origin() <= 0}
 
@@ -2068,7 +2086,7 @@ function RegisterShiftControls(props: {
             <button
               type="button"
               class="register-shift-btn"
-              aria-label={`${n} semitone view up`}
+              aria-label={`${n()} semitone view up`}
 
               disabled={origin() >= bounds().maxOrigin}
 
@@ -2092,7 +2110,7 @@ function RegisterShiftControls(props: {
           type="button"
           class="register-zoom-chip"
           data-help={`lane.${props.lane}.zoom`}
-          aria-label={`${n} grid zoom ${zoomText()} — tap to reset`}
+          aria-label={`${n()} grid zoom ${zoomText()} — tap to reset`}
           onClick={() => props.onResetZoom()}
         >
           <span class="register-zoom-factor" aria-hidden="true">
@@ -2108,6 +2126,7 @@ function RegisterShiftControls(props: {
 }
 
 export default function LaneGrid(props: { lane: LaneId }) {
+  const laneNames = createLaneAccessibleNames();
   // Store writes (e.g. the selected pattern being removed) re-derive the
   // pattern; the selection signal drives pattern switches.
   const [docVersion, setDocVersion] = createSignal(0);
@@ -2180,7 +2199,7 @@ export default function LaneGrid(props: { lane: LaneId }) {
       class="lane-floor"
       data-lane={props.lane}
       data-editing={activeLane() === props.lane}
-      aria-label={LANE_NAMES[props.lane]}
+      aria-label={laneNames(props.lane)}
       onClick={onQuadrantClick}
     >
       <LaneHeader lane={props.lane} />

@@ -1,25 +1,8 @@
 /**
- * WAV export pipeline (MF-4): render → trim to EXACT loopSamples → encode →
- * Blob download `<name>.bitbounce.wav`.
- *
- * The exported file IS the loop: renderProjectToBuffer (IM-5) already folds
- * the FX tail into the loop start, so `channels` is the loop-tight buffer of
- * length loopSamples. We still slice defensively to loopSamples — the file
- * length is the product's core promise (sample-exact
- * bars×beats×samples-per-beat), so the encoder must never see one sample
- * more or fewer.
- *
- * Playback isolation (verified): the render builds its OWN
- * OfflineAudioContext and its own worklet/voice-engine/FX instances; the only
- * module-level state in the engine path is a per-context WeakSet of loaded
- * worklet modules (voiceEngine.ts). Exporting while playing cannot touch the
- * live graph — no shared mutable state exists between the two.
- *
- * Error taxonomy (Hulk law, mirrors fileIO.ts): typed results, never
- * exceptions across the API boundary. render-failure is the one failure kind
- * an offline render can produce in practice (context/worklet construction);
- * encode throws are a programmer error (stereo contract is structural) and
- * surface as the same typed failure with the cause message.
+ * WAV download: render one finite linear arrangement, retain its release/FX
+ * tail, encode 16-bit stereo PCM, then download <name>.bitbounce.wav.
+ * Rendering owns an independent audio graph and cannot interrupt playback.
+ * Legacy injected cycle renders retain their exact loop-tight frame count.
  */
 
 import { renderProjectToBuffer, type RenderedLoop } from "./render";
@@ -41,7 +24,7 @@ export interface ExportWavFailure {
 export interface ExportWavSuccess {
   readonly ok: true;
   readonly filename: string;
-  /** bars in the exported loop (loopSteps / 16 — display only). */
+  /** Bars in the arranged song, excluding the release tail. */
   readonly bars: number;
   readonly loopSamples: number;
   readonly sampleRate: number;
@@ -77,7 +60,7 @@ function downloadBytes(
 }
 
 /**
- * Export the project's loop as a loop-tight 16-bit stereo WAV download.
+ * Export the project's linear song as a 16-bit stereo WAV download.
  * Returns a typed result; throws nothing.
  */
 export async function exportWav(
@@ -85,7 +68,9 @@ export async function exportWav(
   opts: ExportWavOptions = {},
 ): Promise<ExportWavResult> {
   const render =
-    opts.render ?? ((doc: ProjectDocument) => renderProjectToBuffer(doc));
+    opts.render ??
+    ((doc: ProjectDocument) =>
+      renderProjectToBuffer(doc, { arrangement: "linear" }));
 
   let rendered: RenderedLoop;
   try {
@@ -99,12 +84,10 @@ export async function exportWav(
     };
   }
 
-  // Trim to EXACTLY the loop region (defensive: the folded buffer's channel
-  // length is the contract, the file length is the promise).
+  // Honor the renderer's exact output length, including linear release tails.
+  const outputSamples = rendered.outputSamples ?? rendered.loopSamples;
   const loop = rendered.channels.map((ch) =>
-    ch.length === rendered.loopSamples
-      ? ch
-      : ch.subarray(0, rendered.loopSamples),
+    ch.length === outputSamples ? ch : ch.subarray(0, outputSamples),
   );
 
   let bytes: Uint8Array;

@@ -24,8 +24,9 @@ import {
   soundingSlot,
 } from "../state/soundingFollow";
 import { docStore, toggleChainSlotMode } from "../state/store";
-import { LANE_NAMES } from "./laneMeta";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 import ModeIcon from "./ModeIcon";
+import { playbackSummary } from "./BlockPlaybackPanel";
 import { getSession } from "../engine/session";
 
 registerHelp([
@@ -37,6 +38,7 @@ registerHelp([
 ]);
 
 export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
+  const laneNames = createLaneAccessibleNames();
   const session = getSession();
   const [playing, setPlaying] = createSignal(
     session.transport.snapshot.playing,
@@ -70,6 +72,7 @@ export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
     return index >= 0 ? index : 0;
   });
   const mode = () => doc().chainModes?.[props.lane]?.[slot()] ?? "next";
+  const rule = () => doc().playbackRules?.[props.lane]?.[slot()];
   const name = () => {
     const d = doc();
     const id = (d.songChain[props.lane] ?? [])[slot()];
@@ -83,12 +86,16 @@ export default function LaneFollow(props: { lane: LaneId }): JSX.Element {
         class="lane-follow-btn"
         data-help="lane.follow"
         aria-pressed={mode() === "loop"}
-        aria-label={`${LANE_NAMES[props.lane]} slot ${slot() + 1}, pattern ${name()}: ${mode() === "loop" ? "loops" : "plays once, then next"}`}
+        aria-label={`${laneNames(props.lane)} slot ${slot() + 1}, pattern ${name()}: ${rule() ? playbackSummary(rule(), 1) + ". Click to replace with a simple loop or next rule." : mode() === "loop" ? "loops" : "plays once, then next"}`}
         onClick={() => toggleChainSlotMode(props.lane, slot())}
       >
         <ModeIcon mode={mode()} />
         <span class="lane-follow-mode">
-          {mode() === "loop" ? "LOOP" : "NEXT"}
+          {rule()
+            ? playbackSummary(rule(), 1)
+            : mode() === "loop"
+              ? "LOOP"
+              : "NEXT"}
         </span>
       </button>
       <span class="lane-follow-slot" aria-hidden="true">

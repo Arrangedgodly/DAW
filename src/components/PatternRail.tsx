@@ -1,4 +1,7 @@
-import { createLaneDisplayNames } from "../state/laneDisplayNames";
+import {
+  createLaneDisplayNames,
+  createLaneAccessibleNames,
+} from "../state/laneDisplayNames";
 /**
  * PatternRail (DES-6 + IN-3): the song arrangement rail under the booth. Per
  * lane, one row of pattern TILES — chain instances in the lane's chain order
@@ -14,11 +17,10 @@ import { createLaneDisplayNames } from "../state/laneDisplayNames";
  * creates a NEW blank next-letter pattern (1 bar), appends it to the lane's
  * chain and selects it (immediately editable), announcing
  * `PATTERN B CREATED · 1 BAR · APPENDED` through the lane's rail status
- * region. DUP (PAT menu + global `d`) is unchanged and is the ONLY
- * duplication path.
+ * region. Duplicate (PAT menu + global `d`) inserts an independent copy
+ * after the selected block. Block playback panels also expose Copy/Paste.
  *
- * LL-1 (i3-4, keyboard.md v3 §"Pattern resize"): pattern LENGTH is the only
- * length control — the PAT menu's LENGTH stepper and the global `b`/
+ * The PAT menu's LENGTH stepper and the global `b`/
  * Shift+`b` ladder resize the SELECTED pattern across
  * 1·2·4·8·16·32·64·128 bars (grow always proceeds; shrink refuses by
  * default when any note would be lost — the E10 refusal names the blocking
@@ -80,7 +82,7 @@ import {
   type JSX,
 } from "solid-js";
 import { CUE_MAX_CHARS, type LaneId } from "../document/schema";
-import { LANE_NAMES } from "./laneMeta";
+
 import { getSession } from "../engine/session";
 import { requestSlotCue } from "../state/engineBridge";
 import {
@@ -89,11 +91,16 @@ import {
   soundingSlot,
 } from "../state/soundingFollow";
 import ModeIcon from "./ModeIcon";
+import PatternMidiExport from "./PatternMidiExport";
+import BlockPlaybackPanel, { playbackSummary } from "./BlockPlaybackPanel";
+import SectionHeaders, { SectionControls } from "./SectionHeaders";
+import { copyPattern, patternClipboard } from "../state/patternClipboard";
+import "../styles/arrangement-playback.css";
 import {
   appendBlankPattern,
   docStore,
   toggleChainSlotMode,
-  duplicatePattern,
+  insertPatternBlock,
   removeChainSlot,
   removePattern,
   renamePattern,
@@ -148,6 +155,11 @@ import {
 import { registerHelp } from "../help/registry";
 
 const session = getSession();
+const [playbackEditor, setPlaybackEditor] = createSignal<{
+  lane: LaneId;
+  slot: number;
+} | null>(null);
+let playbackTrigger: HTMLButtonElement | undefined;
 
 /**
  * HP-2 help content for the rail (Professor X voice on HP-1's registry;
@@ -156,6 +168,16 @@ const session = getSession();
  */
 registerHelp([
   {
+    id: "rail.playback",
+    title: "BLOCK PLAYBACK",
+    text: "Open a block's playback settings without launching it. Copy snapshots its notes; Paste after and Duplicate block create independent patterns. Choose a duration in bars or repeats, then Next, Previous, Go to, Random other, Return, or Stop lane. Until triggered keeps looping. Return plays a fill and goes back to the block that led here. Ctrl/Cmd+C and Ctrl/Cmd+V copy and paste when a block has keyboard focus.",
+  },
+  {
+    id: "rail.sections",
+    title: "SECTION LAUNCHES",
+    text: "Section headers group the blocks vertically beneath them. Launch a whole column together on the next bar or after all current patterns finish. A lane without a block in that column keeps playing. Set progression names the section and optionally launches another section or stops all lanes after a chosen number of bars. Hold progression suspends automatic changes; manual launches still work.",
+  },
+  {
     id: "rail.tile",
     title: "CHAIN TILE",
     text: "One slot in this lane's song chain. The lit tile is the slot sounding right now — it walks the chain as the song plays. The tile's number is its pattern's BARS; the tiles added together are the lane's CYCLE — how long it plays before coming round again, and lanes with different cycles weave against each other. Click — or Enter — while playing to jump the lane to this tile; the jump waits (PENDING) and lands when the pattern playing now ends. The arrow in the corner says what the tile does when it ends: ⟲ loops it until you pick another tile, → plays it once and moves to the next (click the arrow, or press M, to flip it). Drag across several tiles, or Shift+arrows then Enter, to cue a whole section; double-click the name to rename, the top line to label the section.",
@@ -163,7 +185,7 @@ registerHelp([
   {
     id: "rail.append",
     title: "NEW BLANK CLIP",
-    text: "Creates a NEW blank pattern — next letter, one bar — appends it to the end of this lane's chain and selects it for editing. The + key on a focused tile does the same. To copy the selected pattern instead, use DUP: it is the only duplicator.",
+    text: "Creates a NEW blank pattern — next letter, one bar — appends it to the end of this lane's chain and selects it for editing. The + key on a focused tile does the same. Use Duplicate block for an independent copy next to the original, or open a block playback panel for Copy and Paste after.",
   },
   {
     id: "rail.length",
@@ -173,7 +195,7 @@ registerHelp([
   {
     id: "rail.duplicate",
     title: "DUPLICATE",
-    text: "Copies the lane's selected pattern and switches editing to the copy — the safe way to vary a section. Shortcut: D.",
+    text: "Creates an independent copy after the selected arrangement block and opens it for editing. Shortcut: D. Double ×2, beside Bars, doubles the current pattern and repeats its notes.",
   },
   {
     id: "rail.rename",
@@ -500,6 +522,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     railTiles(docStore.getState().doc, props.lane),
   );
   const displayName = createLaneDisplayNames();
+  const laneNames = createLaneAccessibleNames();
   const [pool, setPool] = createSignal(
     patternPool(docStore.getState().doc, props.lane),
   );
@@ -513,16 +536,26 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     { kind: "cue"; slot: number } | { kind: "name" } | null
   >(null);
   const [announce, setAnnounce] = createSignal("");
+  const [playbackBar, setPlaybackBar] = createSignal(1);
+  const [playbackStopped, setPlaybackStopped] = createSignal(false);
   let railRowEl: HTMLDivElement | undefined;
 
   onMount(() => {
+    const progressTimer = window.setInterval(() => {
+      if (!session.transport.snapshot.playing) return;
+      const progress = session.getPlaybackProgress(props.lane);
+      setPlaybackBar(progress.bar);
+      setPlaybackStopped(progress.stopped);
+    }, 125);
+    onCleanup(() => window.clearInterval(progressTimer));
     const unsubDoc = docStore.subscribe((state, prev) => {
       if (
         (state.doc.songChain[props.lane] ?? []) !==
           (prev.doc.songChain[props.lane] ?? []) ||
         (state.doc.patterns[props.lane] ?? []) !==
           (prev.doc.patterns[props.lane] ?? []) ||
-        state.doc.chainCues !== prev.doc.chainCues
+        state.doc.chainCues !== prev.doc.chainCues ||
+        state.doc.playbackRules !== prev.doc.playbackRules
       ) {
         setTiles(railTiles(state.doc, props.lane));
         setPool(patternPool(state.doc, props.lane));
@@ -620,12 +653,12 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     }
     const pending = session.getPendingSwitch(props.lane);
     if (pending)
-      setAnnounce(pendingAnnouncement(LANE_NAMES[props.lane], pending));
+      setAnnounce(pendingAnnouncement(laneNames(props.lane), pending));
     else if (session.hasPendingSchedule(props.lane)) {
-      setAnnounce(structurePendingAnnouncement(LANE_NAMES[props.lane]));
+      setAnnounce(structurePendingAnnouncement(laneNames(props.lane)));
     } else {
       const active = activeFollow();
-      setAnnounce(active ? `${LANE_NAMES[props.lane]}: now ${active}` : "");
+      setAnnounce(active ? `${laneNames(props.lane)}: now ${active}` : "");
     }
   });
 
@@ -736,8 +769,15 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
   };
 
   const handleDuplicate = () => {
-    const id = duplicatePattern(props.lane, selectedId());
-    selectPattern(props.lane, id);
+    const source = docStore
+      .getState()
+      .doc.patterns[props.lane]?.find((p) => p.id === selectedId());
+    if (!source) return;
+    const after =
+      selectedSlot() ?? tiles().findIndex((t) => t.patternId === source.id);
+    const id = insertPatternBlock(props.lane, source, after);
+    selectPattern(props.lane, id, after + 1);
+    focusSlotAfterEdit(after + 1);
   };
 
   const handleRemovePattern = () => {
@@ -851,6 +891,35 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
     const count = tiles().length;
     // Text-entry guard (spec law): no rail keys fire from the inline edits.
     const inTextEntry = (e.target as HTMLElement).tagName === "INPUT";
+    if (
+      !inTextEntry &&
+      (e.ctrlKey || e.metaKey) &&
+      ["c", "v"].includes(e.key.toLowerCase())
+    ) {
+      const source = docStore
+        .getState()
+        .doc.patterns[props.lane]?.find((p) => p.id === tile.patternId);
+      if (e.key.toLowerCase() === "c" && source) {
+        e.preventDefault();
+        e.stopPropagation();
+        copyPattern(props.lane, source);
+        setAnnounce(`Copied pattern ${source.name}.`);
+      } else if (
+        e.key.toLowerCase() === "v" &&
+        patternClipboard()?.lane === props.lane
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = insertPatternBlock(
+          props.lane,
+          patternClipboard()!.pattern,
+          tile.slot,
+        );
+        selectPattern(props.lane, id, tile.slot + 1);
+        focusSlotAfterEdit(tile.slot + 1);
+      }
+      return;
+    }
     // IN-3: Shift+arrows extend the multi-clip range (anchor = where the
     // shift began; focus edge moves, carried + clamped across rows).
     if (
@@ -905,7 +974,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       setRailRange(null); // plain roving collapses the range (cancel-extend)
       const next = clampSlot(count, tile.slot, e.key === "ArrowRight" ? 1 : -1);
       setFocusedSlot(next);
-      const row = (e.currentTarget as HTMLElement).parentElement;
+      const row = (e.currentTarget as HTMLElement).closest(".rail-tiles");
       const tileButtons = row
         ? row.querySelectorAll<HTMLButtonElement>(".rail-tile")
         : [];
@@ -914,7 +983,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       e.preventDefault();
       if (removeChainSlot(props.lane, tile.slot)) {
         setAnnounce(
-          `${LANE_NAMES[props.lane]}: removed chain slot ${tile.slot + 1}`,
+          `${laneNames(props.lane)}: removed chain slot ${tile.slot + 1}`,
         );
         // DA-3: the tile row rebuilds on chain edits — move focus to the tile
         // now occupying this slot (or the new last tile) instead of stranding
@@ -995,95 +1064,135 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       <div
         class="rail-tiles"
         role="group"
-        aria-label={`${LANE_NAMES[props.lane]} song chain · ${tiles().reduce((sum, tile) => sum + tile.bars, 0)}-BAR CYCLE`}
+        aria-label={`${laneNames(props.lane)} song chain · ${tiles().length} blocks`}
       >
         <For each={tiles()}>
           {(tile) => (
-            <button
-              type="button"
-              class="rail-tile"
-              data-state={stateFor(tile)}
-              data-sounding={isSounding(tile) ? "true" : undefined}
-              data-cue-preview={sweepPreview(tile)}
-              data-in-range={inRange(tile) ? "true" : undefined}
-              data-help="rail.tile"
-              tabindex={tile.slot === focusedSlot() ? 0 : -1}
-              aria-label={`${LANE_NAMES[props.lane]} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.mode === "loop" ? ", loops" : ""}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" || isSounding(tile) ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
-              onFocus={() => setFocusedSlot(tile.slot)}
-              onPointerUp={(e) => onTileTapUp(e, tile)}
-              onClick={() => {
-                // IN-3: pointer-driven commits swallow their trailing click.
-                if (suppressTileClick) return;
-                triggerTile(tile);
-              }}
-              onDblClick={() => beginRename()}
-              onKeyDown={(e) => tileKeyDown(e, tile)}
-            >
-              <Show
-                when={
-                  editing()?.kind === "cue" &&
-                  (editing() as { slot: number }).slot === tile.slot
-                }
-              >
-                <InlineEdit
-                  initial={tile.cue ?? ""}
-                  maxChars={CUE_MAX_CHARS}
-                  label={`Section label for ${LANE_NAMES[props.lane]} slot ${tile.slot + 1}`}
-                  onCommit={(v) => commitCue(tile.slot, v)}
-                  onCancel={() => setEditing(null)}
-                />
-              </Show>
-              <span
-                class="rail-tile-cue"
-                classList={{ "is-empty": !tile.cue }}
-                onDblClick={(e) => {
-                  e.stopPropagation();
-                  setEditing({ kind: "cue", slot: tile.slot });
+            <div class="rail-cell">
+              <button
+                type="button"
+                class="rail-tile"
+                data-state={stateFor(tile)}
+                data-sounding={isSounding(tile) ? "true" : undefined}
+                data-cue-preview={sweepPreview(tile)}
+                data-in-range={inRange(tile) ? "true" : undefined}
+                data-help="rail.tile"
+                tabindex={tile.slot === focusedSlot() ? 0 : -1}
+                aria-label={`${laneNames(props.lane)} chain slot ${tile.slot + 1}: pattern ${tile.name}, ${tile.bars} bar${tile.bars === 1 ? "" : "s"}${tile.mode === "loop" ? ", loops" : ""}${tile.cue ? `, section ${tile.cue}` : ""}${stateFor(tile) === "pending" ? ", switch pending" : stateFor(tile) === "active" || isSounding(tile) ? ", playing" : ""}${inRange(tile) ? ", in cue range" : ""}`}
+                onFocus={() => setFocusedSlot(tile.slot)}
+                onPointerUp={(e) => onTileTapUp(e, tile)}
+                onClick={() => {
+                  // IN-3: pointer-driven commits swallow their trailing click.
+                  if (suppressTileClick) return;
+                  triggerTile(tile);
                 }}
-                title="Double-click to label this section"
+                onDblClick={() => beginRename()}
+                onKeyDown={(e) => tileKeyDown(e, tile)}
               >
-                {tile.cue ?? "—"}
-              </span>
-              <span class="rail-tile-name">{tile.name}</span>
-              <span class="rail-tile-bars">{tile.bars}B</span>
-              {/* ⟲/→ slot follow: a click here flips the slot's mode and
-                  never reaches the tile's cue/select/sweep/rename paths. */}
-              <span
-                class="rail-tile-mode"
-                data-mode={tile.mode}
-                title={
-                  tile.mode === "loop"
-                    ? "⟲ Loops until you pick another tile — click for → next"
-                    : "→ Plays once, then the next tile — click for ⟲ loop"
-                }
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onDblClick={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  flipMode(tile);
-                }}
-              >
-                <ModeIcon mode={tile.mode} />
-              </span>
-              <Show when={stateFor(tile) === "pending"}>
-                <span class="rail-tile-flag" aria-hidden="true">
-                  ◆
+                <Show
+                  when={
+                    editing()?.kind === "cue" &&
+                    (editing() as { slot: number }).slot === tile.slot
+                  }
+                >
+                  <InlineEdit
+                    initial={tile.cue ?? ""}
+                    maxChars={CUE_MAX_CHARS}
+                    label={`Section label for ${laneNames(props.lane)} slot ${tile.slot + 1}`}
+                    onCommit={(v) => commitCue(tile.slot, v)}
+                    onCancel={() => setEditing(null)}
+                  />
+                </Show>
+                <span
+                  class="rail-tile-cue"
+                  classList={{ "is-empty": !tile.cue }}
+                  onDblClick={(e) => {
+                    e.stopPropagation();
+                    setEditing({ kind: "cue", slot: tile.slot });
+                  }}
+                  title="Double-click to label this section"
+                >
+                  {tile.cue ?? "—"}
                 </span>
-              </Show>
-            </button>
+                <span class="rail-tile-name">{tile.name}</span>
+                <span class="rail-tile-bars">{tile.bars}B</span>
+                <Show when={playing() && isSounding(tile)}>
+                  <span class="rail-tile-progress">
+                    {playbackStopped()
+                      ? "Stopped"
+                      : tile.rule && tile.rule.unit !== "hold"
+                        ? `Bar ${playbackBar()} of ${tile.rule.amount * (tile.rule.unit === "repeats" ? tile.bars : 1)}`
+                        : `Bar ${playbackBar()}`}
+                  </span>
+                </Show>
+                {/* ⟲/→ slot follow: a click here flips the slot's mode and
+                  never reaches the tile's cue/select/sweep/rename paths. */}
+                <span
+                  class="rail-tile-mode"
+                  data-mode={tile.mode}
+                  title={
+                    tile.mode === "loop"
+                      ? "⟲ Loops until you pick another tile — click for → next"
+                      : "→ Plays once, then the next tile — click for ⟲ loop"
+                  }
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onPointerUp={(e) => e.stopPropagation()}
+                  onDblClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    flipMode(tile);
+                  }}
+                >
+                  <ModeIcon mode={tile.mode} />
+                </span>
+                <Show when={stateFor(tile) === "pending"}>
+                  <span class="rail-tile-flag" aria-hidden="true">
+                    ◆
+                  </span>
+                </Show>
+              </button>
+              <button
+                type="button"
+                class="rail-playback-trigger"
+                data-help="rail.playback"
+                aria-label={`Playback settings for ${laneNames(props.lane)} block ${tile.slot + 1}`}
+                onClick={(e) => {
+                  playbackTrigger = e.currentTarget;
+                  setPlaybackEditor({ lane: props.lane, slot: tile.slot });
+                }}
+              >
+                {playbackSummary(tile.rule, tile.bars, tile.mode === "loop")}
+              </button>
+            </div>
           )}
         </For>
         <button
           type="button"
           class="rail-append"
           data-help="rail.append"
-          aria-label={`Append new blank pattern to ${LANE_NAMES[props.lane]} chain`}
+          aria-label={`Append new blank pattern to ${laneNames(props.lane)} chain`}
           onClick={() => handleAppendBlank()}
         >
           +
         </button>
+        <Show when={patternClipboard()?.lane === props.lane}>
+          <button
+            type="button"
+            class="rail-paste-end"
+            aria-label={`Paste pattern at end of ${laneNames(props.lane)} chain`}
+            onClick={() => {
+              const clip = patternClipboard();
+              if (!clip) return;
+              const slot = tiles().length;
+              const id = insertPatternBlock(props.lane, clip.pattern, slot - 1);
+              selectPattern(props.lane, id, slot);
+              focusSlotAfterEdit(slot);
+            }}
+          >
+            Paste
+          </button>
+        </Show>
         <Show when={structurePending()}>
           <span class="rail-struct-flag" role="status">
             CHAIN EDIT QUEUED
@@ -1094,7 +1203,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
       <div
         class="rail-tools"
         role="group"
-        aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+        aria-label={`${laneNames(props.lane)} pattern tools`}
       >
         <button
           type="button"
@@ -1102,7 +1211,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
           data-help="rail.tools"
           aria-haspopup="dialog"
           aria-expanded={toolsOpen()}
-          aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+          aria-label={`${laneNames(props.lane)} pattern tools`}
           ref={(el) => {
             toolsBtn = el;
           }}
@@ -1115,7 +1224,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
             class="rail-tools-menu"
             role="dialog"
             aria-modal="false"
-            aria-label={`${LANE_NAMES[props.lane]} pattern tools`}
+            aria-label={`${laneNames(props.lane)} pattern tools`}
             ref={(el) => {
               toolsMenuEl = el;
             }}
@@ -1136,7 +1245,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
                   type="button"
                   class="rail-tool"
                   data-help="rail.rename"
-                  aria-label={`Rename ${LANE_NAMES[props.lane]} selected pattern`}
+                  aria-label={`Rename ${laneNames(props.lane)} selected pattern`}
                   onClick={() => setEditing({ kind: "name" })}
                 >
                   REN
@@ -1148,7 +1257,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
                   pool().find((p) => p.patternId === selectedId())?.name ?? ""
                 }
                 maxChars={8}
-                label={`Name for ${LANE_NAMES[props.lane]} selected pattern`}
+                label={`Name for ${laneNames(props.lane)} selected pattern`}
                 help="rail.rename"
                 onCommit={(v) => {
                   setEditing(null);
@@ -1173,13 +1282,13 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
             <div
               class="rail-length"
               role="group"
-              aria-label={`Pattern length for ${LANE_NAMES[props.lane]} selected pattern`}
+              aria-label={`Pattern length for ${laneNames(props.lane)} selected pattern`}
             >
               <button
                 type="button"
                 class="rail-tool"
                 data-help="rail.length"
-                aria-label={`Shrink ${LANE_NAMES[props.lane]} selected pattern one length step (Shift+B)`}
+                aria-label={`Shrink ${laneNames(props.lane)} selected pattern one length step (Shift+B)`}
                 onClick={() => stepPatternLength(props.lane, -1)}
               >
                 LENGTH −
@@ -1191,7 +1300,7 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
                 type="button"
                 class="rail-tool"
                 data-help="rail.length"
-                aria-label={`Grow ${LANE_NAMES[props.lane]} selected pattern one length step (B)`}
+                aria-label={`Grow ${laneNames(props.lane)} selected pattern one length step (B)`}
                 onClick={() => stepPatternLength(props.lane, 1)}
               >
                 LENGTH +
@@ -1201,19 +1310,20 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
               type="button"
               class="rail-tool"
               data-help="rail.duplicate"
-              aria-label={`Duplicate ${LANE_NAMES[props.lane]} selected pattern`}
+              aria-label={`Duplicate ${laneNames(props.lane)} selected pattern`}
               onClick={() => {
                 handleDuplicate();
                 closeTools();
               }}
             >
-              DUP
+              Duplicate block
             </button>
+            <PatternMidiExport lane={props.lane} patternId={selectedId()} />
             <button
               type="button"
               class="rail-tool"
               data-help="rail.remove"
-              aria-label={`Remove ${LANE_NAMES[props.lane]} selected pattern`}
+              aria-label={`Remove ${laneNames(props.lane)} selected pattern`}
               disabled={pool().length <= 1}
               onClick={() => {
                 handleRemovePattern();
@@ -1234,6 +1344,24 @@ function LaneRail(props: { lane: LaneId }): JSX.Element {
 }
 
 export default function PatternRail(): JSX.Element {
+  const [sectionCount, setSectionCount] = createSignal(
+    Math.max(
+      ...docStore
+        .getState()
+        .doc.lanes.map(
+          ({ id }) => docStore.getState().doc.songChain[id]?.length ?? 0,
+        ),
+    ),
+  );
+  onCleanup(
+    docStore.subscribe((s) =>
+      setSectionCount(
+        Math.max(
+          ...s.doc.lanes.map(({ id }) => s.doc.songChain[id]?.length ?? 0),
+        ),
+      ),
+    ),
+  );
   const [rows, setRows] = createSignal(
     docStore.getState().doc.lanes.map((l) => l.id),
   );
@@ -1248,6 +1376,7 @@ export default function PatternRail(): JSX.Element {
       setCueSweep(null);
       setRailRange(null);
       setToolsLane(null);
+      setPlaybackEditor(null);
       sweepPointerId = -1;
       sweepCaptured = false;
     });
@@ -1303,7 +1432,29 @@ export default function PatternRail(): JSX.Element {
       */}
       {/* 2026-09-11: the phone rail now lives only on the SONG page, which
           shows every lane (the condensed one-row chrome rail retired). */}
-      <For each={rows()}>{(lane) => <LaneRail lane={lane} />}</For>
+      <SectionControls />
+      <div
+        class="arrangement-matrix"
+        role="region"
+        aria-label="Aligned section columns"
+        tabindex="0"
+        style={{ "--section-count": sectionCount() }}
+      >
+        <SectionHeaders />
+        <For each={rows()}>{(lane) => <LaneRail lane={lane} />}</For>
+      </div>
+      <Show when={playbackEditor()} keyed>
+        {(editor) => (
+          <BlockPlaybackPanel
+            lane={editor.lane}
+            slot={editor.slot}
+            onClose={() => {
+              setPlaybackEditor(null);
+              if (playbackTrigger?.isConnected) playbackTrigger.focus();
+            }}
+          />
+        )}
+      </Show>
     </section>
   );
 }

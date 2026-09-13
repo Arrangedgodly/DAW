@@ -64,6 +64,7 @@ import { helpOpen } from "../state/helpOverlay";
 import RollValue from "./RollValue";
 import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
+import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 import { activeLane, stageMode } from "../state/selection";
 import { fillRailsOpen, toggleFillRails } from "../state/fillRails";
 import { registerHelp, type HelpEntry } from "../help/registry";
@@ -116,8 +117,8 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
       ? [
           {
             id: `lane.${lane}.oct`,
-            title: `${n} OCTAVE`,
-            text: `Moves the octave ${n} plays in — the SOUND transposes one OCTAVE per press, clamped at −3 and +3, and exports follow. The notes stay exactly where you painted them. This is not a view: Shift+arrows on the grid scroll the octave you SEE; OCT changes the octave you HEAR. Keyboard twin: O, Shift+O.`,
+            title: `${n} TRANSPOSE OCTAVE`,
+            text: `Transpose changes the octave ${n} plays in, including playback and exports. Each press moves one OCTAVE, from −3 to +3. Notes stay where you painted them. To move the rows you SEE without changing the SOUND, use View Oct or View Semi beside the grid. Keyboard: O raises the octave; Shift+O lowers it.`,
           },
         ]
       : []),
@@ -189,6 +190,7 @@ function readState(lane: LaneId): HeaderState {
 }
 
 export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
+  const laneNames = createLaneAccessibleNames();
   const initial = readState(props.lane);
   const [soundId, setSoundId] = createSignal(initial.soundId);
   const [gate, setGate] = createSignal(initial.gate);
@@ -345,7 +347,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     setLaneMix(props.lane, { solo: next });
     // keyboard.md v2: solo changes OTHER lanes' audibility — speak it through
     // the stage status region (E1's region).
-    announceStage(next ? `SOLO ${LANE_NAMES[props.lane]}` : `SOLO OFF`);
+    announceStage(next ? `SOLO ${laneNames(props.lane)}` : `SOLO OFF`);
   };
 
   // i7 N-5 (midi-i7-audit §2.5, the HEADER LAW): the compact row's blocks
@@ -369,7 +371,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     <div
       class="head-ctl"
       role="group"
-      aria-label={`${LANE_NAMES[props.lane]} sound`}
+      aria-label={`${laneNames(props.lane)} sound`}
       data-help={`lane.${props.lane}.sound`}
     >
       <span class="head-ctl-label" aria-hidden="true">
@@ -379,14 +381,14 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="head-step-btn"
-          aria-label={`Previous ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
+          aria-label={`Previous ${props.lane === "drums" ? "kit" : "preset"} for ${laneNames(props.lane)}`}
           onClick={() => stepSound(-1)}
         >
           –
         </button>
         <select
           class="head-ctl-value head-sound-select"
-          aria-label={`${LANE_NAMES[props.lane]} ${props.lane === "drums" ? "kit" : "instrument preset"}`}
+          aria-label={`${laneNames(props.lane)} ${props.lane === "drums" ? "kit" : "instrument preset"}`}
           value={soundId()}
           onChange={(e) => chooseSound(e.currentTarget.value)}
         >
@@ -403,7 +405,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         <button
           type="button"
           class="head-step-btn"
-          aria-label={`Next ${props.lane === "drums" ? "kit" : "preset"} for ${LANE_NAMES[props.lane]}`}
+          aria-label={`Next ${props.lane === "drums" ? "kit" : "preset"} for ${laneNames(props.lane)}`}
           onClick={() => stepSound(1)}
         >
           +
@@ -416,7 +418,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     <div
       class="head-ctl head-ctl-vol"
       role="group"
-      aria-label={`${LANE_NAMES[props.lane]} volume`}
+      aria-label={`${laneNames(props.lane)} volume`}
       data-help={`lane.${props.lane}.volume`}
     >
       <span class="head-ctl-label" aria-hidden="true">
@@ -429,7 +431,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         max="100"
         step="1"
         value={volumePct()}
-        aria-label={`${LANE_NAMES[props.lane]} volume`}
+        aria-label={`${laneNames(props.lane)} volume`}
         aria-valuetext={`${volumePct()} percent`}
         onInput={(e) => handleVolume(Number(e.currentTarget.value))}
       />
@@ -447,7 +449,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         classList={{ "is-on": mute() }}
         data-help={`lane.${props.lane}.mute`}
         aria-pressed={mute()}
-        aria-label={`Mute ${LANE_NAMES[props.lane]}`}
+        aria-label={`Mute ${laneNames(props.lane)}`}
         onClick={handleMute}
       >
         MUTE
@@ -458,7 +460,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         classList={{ "is-on": solo() }}
         data-help={`lane.${props.lane}.solo`}
         aria-pressed={solo()}
-        aria-label={`Solo ${LANE_NAMES[props.lane]}`}
+        aria-label={`Solo ${laneNames(props.lane)}`}
         onClick={handleSolo}
       >
         SOLO
@@ -502,7 +504,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
     setAnnounce(
       announceScale(
         laneScaleChipLabel(docStore.getState().doc, props.lane),
-        LANE_NAMES[props.lane],
+        laneNames(props.lane),
       ),
     );
   };
@@ -559,17 +561,17 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
                   <div
                     class="head-ctl"
                     role="group"
-                    aria-label={`${LANE_NAMES[props.lane]} octave`}
+                    aria-label={`${laneNames(props.lane)} transpose octave`}
                     data-help={`lane.${props.lane}.oct`}
                   >
                     <span class="head-ctl-label" aria-hidden="true">
-                      OCT
+                      Transpose (Oct)
                     </span>
                     <div class="head-stepper">
                       <button
                         type="button"
                         class="head-step-btn"
-                        aria-label={`Octave down for ${LANE_NAMES[props.lane]}`}
+                        aria-label={`Transpose octave down for ${laneNames(props.lane)}`}
                         onClick={() => stepOctave(-1)}
                       >
                         –
@@ -582,7 +584,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
                       <button
                         type="button"
                         class="head-step-btn"
-                        aria-label={`Octave up for ${LANE_NAMES[props.lane]}`}
+                        aria-label={`Transpose octave up for ${laneNames(props.lane)}`}
                         onClick={() => stepOctave(1)}
                       >
                         +
@@ -629,7 +631,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             data-help={`lane.${props.lane}.scale`}
             aria-haspopup="dialog"
             aria-expanded={popoverOpen()}
-            aria-label={`${LANE_NAMES[props.lane]} effective scale: ${chip().text}. Open scale selector.`}
+            aria-label={`${laneNames(props.lane)} effective scale: ${chip().text}. Open scale selector.`}
             onClick={() => setPopoverOpen(!popoverOpen())}
           >
             {chip().text}
@@ -651,7 +653,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         <div
           class="head-ctl"
           role="group"
-          aria-label={`${LANE_NAMES[props.lane]} gate length`}
+          aria-label={`${laneNames(props.lane)} gate length`}
           classList={{ "head-gate": true }}
           data-help={`lane.${props.lane}.gate`}
         >
@@ -662,7 +664,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             <button
               type="button"
               class="head-step-btn"
-              aria-label={`Shorter gate for ${LANE_NAMES[props.lane]}`}
+              aria-label={`Shorter gate for ${laneNames(props.lane)}`}
               onClick={() => stepGate(-1)}
             >
               –
@@ -676,7 +678,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             <button
               type="button"
               class="head-step-btn"
-              aria-label={`Longer gate for ${LANE_NAMES[props.lane]}`}
+              aria-label={`Longer gate for ${laneNames(props.lane)}`}
               onClick={() => stepGate(1)}
             >
               +
@@ -694,7 +696,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           data-help={`lane.${props.lane}.fx`}
           aria-expanded={fxOpen()}
           aria-controls={`fx-strip-${props.lane}`}
-          aria-label={`FX chain for ${LANE_NAMES[props.lane]}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}
+          aria-label={`FX chain for ${laneNames(props.lane)}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}
           onClick={() => {
             // Only the SELECTED quadrant's entry is live (the LY-1 focus
             // law: a console never rests on a view-only floor). The guard
@@ -718,7 +720,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           <button
             type="button"
             class="head-fx"
-            aria-label={`Remove ${LANE_NAMES[props.lane].toLowerCase()}`}
+            aria-label={`Remove ${laneNames(props.lane).toLowerCase()}`}
             title="Remove track and its notes. Undo restores them."
             onClick={() => {
               const lane = props.lane;
@@ -751,7 +753,7 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             classList={{ "is-on": fillRailsOpen() }}
             data-help="lane.drums.fill"
             aria-pressed={fillRailsOpen()}
-            aria-label={`Euclidean fill rails over the ${LANE_NAMES[props.lane]} rows`}
+            aria-label={`Euclidean fill rails over the ${laneNames(props.lane)} rows`}
             onClick={() => toggleFillRails()}
           >
             FILL
@@ -802,13 +804,13 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           <div class="lane-fx-title">
             <span class="lane-fx-title-led" aria-hidden="true" />
             <span class="lane-fx-title-name" aria-hidden="true">
-              {LANE_NAMES[props.lane]} FX
+              {laneNames(props.lane)} FX
             </span>
             <button
               type="button"
               class="lane-fx-close"
               data-help="fx.close"
-              aria-label={`Close ${LANE_NAMES[props.lane]} FX console`}
+              aria-label={`Close ${laneNames(props.lane)} FX console`}
               onClick={() => {
                 closeFxConsole();
                 fxBtn?.focus();

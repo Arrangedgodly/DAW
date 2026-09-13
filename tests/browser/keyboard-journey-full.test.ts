@@ -21,7 +21,7 @@ import { WORKSPACE_TOGGLE } from "./workspace";
  *  11. quantized pattern switch (tile Enter while playing → PENDING → lands)
  *  12. stop · duplicate pattern (DUP) + NEW blank pattern via rail `+`
  *      (BC-1/I3-a: the deliberate journey change of iteration 3)
- *  13. EXPORT WAV → EXPORT MIDI via the Projects popover (downloads recorded
+ *  13. Projects WAV → pattern MIDI via PAT (downloads recorded
  *      through a URL.createObjectURL seam)
  *  14. NEW project, then Escape out of the popover (focus trap exit)
  *
@@ -155,7 +155,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
        */
       const openSong = async (): Promise<void> => {
         if (idoc().querySelector(".stage-song .rail")) return;
-        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
+        kbActivate($<HTMLButtonElement>(WORKSPACE_TOGGLE));
         await poll(
           () => !!idoc().querySelector(".stage-song .rail"),
           T.ui,
@@ -164,7 +164,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
       };
       const openEdit = async (): Promise<void> => {
         if (!idoc().querySelector(".stage-song")) return;
-        $<HTMLButtonElement>(WORKSPACE_TOGGLE).click();
+        kbActivate($<HTMLButtonElement>(WORKSPACE_TOGGLE));
         await poll(
           () => !!idoc().querySelector(".stage-floors"),
           T.ui,
@@ -311,14 +311,14 @@ describe("DA-3 full keyboard journey (built app)", () => {
         expect($(".stage-status").textContent).toBe("NOW EDITING BASS");
 
         // --- 8. PRESET + GATE STEPPERS --------------------------------------
-        const bassSound = $('[aria-label="BASS sound"]');
+        const bassSound = $('[data-help="lane.bass.sound"]');
         const presetName = () =>
           bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
             .value;
         const presetBefore = presetName();
         kbActivate(
           bassSound.querySelector<HTMLButtonElement>(
-            'button[aria-label="Next preset for BASS"]',
+            'button[aria-label^="Next preset for "][aria-label$=", track 2"]',
           )!,
         );
         await poll(
@@ -326,13 +326,13 @@ describe("DA-3 full keyboard journey (built app)", () => {
           T.ui,
           "preset stepper",
         );
-        const bassGate = $('[aria-label="BASS gate length"]');
+        const bassGate = $('[data-help="lane.bass.gate"]');
         const gateText = () =>
           bassGate.querySelector(".head-ctl-value")!.textContent ?? "";
         const gateBefore = Number((gateText().match(/(\d+)/) ?? ["", "1"])[1]);
         kbActivate(
           bassGate.querySelector<HTMLButtonElement>(
-            'button[aria-label="Longer gate for BASS"]',
+            'button[aria-label^="Longer gate for "][aria-label$=", track 2"]',
           )!,
         );
         await poll(
@@ -471,14 +471,14 @@ describe("DA-3 full keyboard journey (built app)", () => {
         await poll(
           () =>
             bassRow.querySelector<HTMLButtonElement>(
-              'button[aria-label="Duplicate BASS selected pattern"]',
+              'button[aria-label^="Duplicate "][aria-label$=", track 2 selected pattern"]',
             ) !== null,
           T.ui,
           "BASS pattern tools menu open",
         );
         kbActivate(
           bassRow.querySelector<HTMLButtonElement>(
-            'button[aria-label="Duplicate BASS selected pattern"]',
+            'button[aria-label^="Duplicate "][aria-label$=", track 2 selected pattern"]',
           )!,
         );
         const tilesBefore = tiles().length;
@@ -555,7 +555,16 @@ describe("DA-3 full keyboard journey (built app)", () => {
           T.render,
           "WAV export toast",
         );
-        kbActivate(await actionByLabel("EXPORT MIDI"));
+        // Leave Projects, then open the selected lead pattern's PAT menu.
+        kbActivate($(".projects-btn"));
+        await openSong();
+        kbActivate($('.rail-row[data-lane="lead"] .rail-tools-trigger'));
+        await poll(
+          () => !!idoc().querySelector(".rail-tools-menu .pattern-midi-export"),
+          T.ui,
+          "pattern MIDI control",
+        );
+        kbActivate($(".rail-tools-menu .pattern-midi-export"));
         await poll(
           () =>
             $$(".toast-message").some((t) =>
@@ -568,6 +577,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
         expect(downloads.some((d) => d.startsWith("audio/midi"))).toBe(true);
 
         // --- 14. NEW PROJECT + Escape out of the popover -----------------------
+        kbActivate($(".projects-btn"));
         kbActivate(await actionByLabel("NEW"));
         await poll(
           () =>

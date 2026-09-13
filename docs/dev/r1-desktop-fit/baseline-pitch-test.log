@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 C:/Users/arran/Projects/DAW
+
+stdout | tests/browser/pitch-direction.test.tsx:13:1 > higher notes render above lower notes; octave view and keyboard editing preserve pitch identity
+[failure screenshot] higher notes render above lower notes; octave view and keyboard editing preserve pitch identity: __screenshots__/failures/-139517551_0.png
+ ❯ |browser (chromium)| tests/browser/pitch-direction.test.tsx (1 test | 1 failed) 1653ms
+   × higher notes render above lower notes; octave view and keyboard editing preserve pitch identity 1652ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  22:30:47
+   Duration  5.95s (transform 0ms, setup 9ms, import 1.28s, tests 1.65s, environment 0ms)
+
+10:30:52 PM [vite] (client) [console.error] [failure detail] higher notes render above lower notes; octave view and keyboard editing preserve pitch identity: expected 893 to be less than or equal to 844
+stderr | tests/browser/pitch-direction.test.tsx:13:1 > higher notes render above lower notes; octave view and keyboard editing preserve pitch identity
+[failure detail] higher notes render above lower notes; octave view and keyboard editing preserve pitch identity: expected 893 to be less than or equal to 844
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |browser (chromium)| tests/browser/pitch-direction.test.tsx:13:1 > higher notes render above lower notes; octave view and keyboard editing preserve pitch identity
+AssertionError: expected 893 to be less than or equal to 844
+ ❯ toBeLessThanOrEqual tests/browser/pitch-direction.test.tsx:148:11
+    146|         await expect
+    147|           .poll(() => document.documentElement.scrollHeight)
+    148|           .toBeLessThanOrEqual(844);
+       |           ^
+    149|         const box = laneFloor
+    150|           .querySelector(".lane-grid-scroll")!
+
+Caused by: Error: Matcher did not succeed in time.
+ ❯ tests/browser/pitch-direction.test.tsx:146:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

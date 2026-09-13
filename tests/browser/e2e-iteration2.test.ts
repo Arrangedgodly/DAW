@@ -1,3 +1,4 @@
+import { patternExportControl } from "./patternExportControl";
 import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * HW-5 — THE iteration-2 definition-of-done e2e: one ordered journey through
@@ -22,7 +23,7 @@ import { WORKSPACE_TOGGLE } from "./workspace";
  *      Escape exits first (HP-1, a11y E6)
  *   9. EXPORT WAV + MIDI with a NON-DEFAULT mix — the coordinator
  *      resolution (recorded at LY-1 verification): the WAV APPLIES the mix
- *      (differs from the pre-mix export, lower energy), the MIDI keeps ALL
+ *      (different samples; isolated bass verifies attenuation), MIDI keeps pattern
  *      notes (byte-identical to the pre-mix export); restoring the mix
  *      restores byte-identical exports (canonical-empty determinism)
  *  10. save/reload round-trip: mix state, preset, and the dragged note all
@@ -246,6 +247,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
       const actionByLabel = async (
         label: string,
       ): Promise<HTMLButtonElement> => {
+        if (label === "EXPORT MIDI") return patternExportControl(idoc());
         for (let i = 0; i < 60; i++) {
           const b = $$(".projects-action").find(
             (x) => x.textContent?.trim() === label && !x.disabled,
@@ -294,8 +296,11 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -325,13 +330,13 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           floor("lead")
             .querySelector("[role='grid']")!
             .getAttribute("aria-label")
-            ?.startsWith("LEAD grid · EDITING"),
+            ?.startsWith("Leads, track 4 grid · EDITING"),
         ).toBe(true);
         expect(
           floor("drums")
             .querySelector("[role='grid']")!
             .getAttribute("aria-label"),
-        ).toBe("DRUMS grid · VIEW ONLY");
+        ).toBe("Drums, track 1 grid · VIEW ONLY · ROWS 0–7 OF 15");
         // Keyboard twin: focus the (now editable) lead grid's roving cell,
         // then PageUp selects the previous quadrant (lead → chords).
         const roving = () =>
@@ -358,7 +363,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
             floor("bass")
               .querySelector("[role='grid']")!
               .getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           T.ui,
           "BASS quadrant editable",
         );
@@ -523,15 +528,21 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         await openEdit();
 
         // --- 6. PRESETS: Karplus-Strong, then sample-backed (LAZY path) ---
-        const bassSound = () => $('[aria-label="BASS sound"]');
+        const bassSound = () => $('[data-help="lane.bass.sound"]');
         const presetName = () =>
           bassSound().querySelector<HTMLSelectElement>("select")!
             .selectedOptions[0]!.textContent ?? "";
         const stepPreset = async (target: string) => {
-          for (let i = 0; i < bassSound().querySelector<HTMLSelectElement>("select")!.options.length && presetName() !== target; i++) {
+          for (
+            let i = 0;
+            i <
+              bassSound().querySelector<HTMLSelectElement>("select")!.options
+                .length && presetName() !== target;
+            i++
+          ) {
             bassSound()
               .querySelector<HTMLButtonElement>(
-                'button[aria-label="Next preset for BASS"]',
+                'button[aria-label^="Next preset for "][aria-label$=", track 2"]',
               )!
               .click();
             await new Promise((r) => setTimeout(r, 30));
@@ -565,7 +576,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         expect($(".app").getAttribute("data-help-mode")).toBe("on");
         // Focus-driven info (no pointer events at all).
         const bassVol = floor("bass").querySelector<HTMLInputElement>(
-          'input[aria-label="BASS volume"]',
+          'input[aria-label$=", track 2 volume"]',
         )!;
         bassVol.focus();
         await poll(
@@ -605,21 +616,34 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         midiClean = await exportVia("EXPORT MIDI");
         {
           const h = decodeWav16(wavClean);
-          expect(h.frames % EXPECTED_FRAMES_PER_BAR).toBe(0);
+          expect(h.frames).toBeGreaterThanOrEqual(EXPECTED_FRAMES_PER_BAR);
           expect(rms(h.mono)).toBeGreaterThan(1e-3);
         }
 
         // --- 9. MIX THE LANES (SOLO announced, MUTE, VOLUME) ----------------
+        await openEdit();
         const bassSolo = floor("bass").querySelector<HTMLButtonElement>(
-          'button[aria-label="Solo BASS"]',
+          'button[aria-label^="Solo "][aria-label$=", track 2"]',
         )!;
         bassSolo.click();
         await poll(
-          () => statusText() === "SOLO BASS",
+          () => statusText() === "SOLO Bass, track 2",
           T.ui,
           "SOLO BASS announcement",
         );
         expect(bassSolo.getAttribute("aria-pressed")).toBe("true");
+        // Isolate the volume law: other lanes cannot change cancellation
+        // or mask the bass attenuation in the full mix's RMS measurement.
+        const soloFull = decodeWav16(await exportVia("EXPORT WAV"));
+        bassVol.value = "40";
+        bassVol.dispatchEvent(new Event("input", { bubbles: true }));
+        const soloQuiet = decodeWav16(await exportVia("EXPORT WAV"));
+        expect(soloQuiet.frames).toBe(soloFull.frames);
+        expect(rms(soloFull.mono)).toBeGreaterThan(1e-4);
+        expect(rms(soloQuiet.mono)).toBeGreaterThan(1e-4);
+        expect(rms(soloQuiet.mono)).toBeLessThan(rms(soloFull.mono) * 0.9);
+        bassVol.value = "100";
+        bassVol.dispatchEvent(new Event("input", { bubbles: true }));
         bassSolo.click();
         await poll(
           () => statusText() === "SOLO OFF",
@@ -627,7 +651,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           "SOLO OFF announcement",
         );
         const drumsMute = floor("drums").querySelector<HTMLButtonElement>(
-          'button[aria-label="Mute DRUMS"]',
+          'button[aria-label^="Mute "][aria-label$=", track 1"]',
         )!;
         drumsMute.click();
         await poll(
@@ -646,11 +670,12 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         // --- 10. EXPORTS WITH THE MIX: WAV applies it, MIDI does not -------
         const wavMixed = await exportVia("EXPORT WAV");
         const midiMixed = await exportVia("EXPORT MIDI");
-        // MIDI keeps ALL notes regardless of mix: byte-identical (the
+        // Pattern MIDI keeps its notes regardless of mix: byte-identical (the
         // coordinator resolution's MIDI half).
         expect(midiMixed.byteLength).toBe(midiClean.byteLength);
         expect(firstDiffByte(midiMixed, midiClean)).toBe(-1);
-        // WAV applies the mix: same length, different bytes, less energy.
+        // WAV applies the mix: same length, different samples. The isolated
+        // check above proves attenuation independently of inter-lane phase.
         expect(wavMixed.byteLength).toBe(wavClean.byteLength);
         const diffAt = firstDiffByte(wavMixed, wavClean);
         expect(
@@ -660,7 +685,6 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         const cleanAudio = decodeWav16(wavClean);
         const mixedAudio = decodeWav16(wavMixed);
         expect(mixedAudio.frames).toBe(cleanAudio.frames);
-        expect(rms(mixedAudio.mono)).toBeLessThan(rms(cleanAudio.mono) * 0.9);
         expect(rms(mixedAudio.mono)).toBeGreaterThan(1e-4); // not near-silence
         // Restoring the mix restores byte-identical exports (canonical-empty
         // determinism through the real UI path).
@@ -698,8 +722,11 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored cues after reload",
@@ -708,7 +735,7 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           () =>
             floor("drums")
               .querySelector<HTMLButtonElement>(
-                'button[aria-label="Mute DRUMS"]',
+                'button[aria-label^="Mute "][aria-label$=", track 1"]',
               )!
               .getAttribute("aria-pressed") === "true",
           T.ui,
@@ -716,8 +743,9 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
         );
         await poll(
           () =>
-            $('[aria-label="BASS sound"]')
-              .querySelector<HTMLSelectElement>("select")!.selectedOptions[0]!.textContent?.trim() === "SUB DROP",
+            $('[data-help="lane.bass.sound"]')
+              .querySelector<HTMLSelectElement>("select")!
+              .selectedOptions[0]!.textContent?.trim() === "SUB DROP",
           T.ui,
           "sample preset survived the reload",
         );
@@ -734,10 +762,16 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
             t.click();
             await new Promise((r) => setTimeout(r, 120));
             await openEdit();
-            const pane = floor("bass").querySelector<HTMLElement>(".lane-grid-scroll")!;
-            const row = floor("bass").querySelectorAll<HTMLElement>(".grid-row")[created.row]!;
-            pane.scrollTop += row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
-            await new Promise(r => setTimeout(r, 250));
+            const pane =
+              floor("bass").querySelector<HTMLElement>(".lane-grid-scroll")!;
+            const row =
+              floor("bass").querySelectorAll<HTMLElement>(".grid-row")[
+                created.row
+              ]!;
+            pane.scrollTop +=
+              row.getBoundingClientRect().top -
+              pane.getBoundingClientRect().top;
+            await new Promise((r) => setTimeout(r, 250));
             const e = floor("bass").querySelector(
               `.note-edge[data-row="${created.row}"][data-start="${created.start}"]`,
             );
@@ -788,8 +822,11 @@ describe("HW-5 iteration-2 e2e (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-ctl-value").some((v) =>
-              (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-ctl-value").some(
+              (v) =>
+                (
+                  v as HTMLSelectElement
+                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "migrated demo cues",

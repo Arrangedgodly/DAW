@@ -55,10 +55,10 @@ try {
         // SOUND — and distinguish it from the VIEW-only window scroll.
         expect(text).toContain("SOUND");
         expect(text).toContain("SEE");
-        expect(text).toContain("HEAR");
+        expect(text).toContain("playback and exports");
         expect(text).toContain("−3");
         expect(text).toContain("+3");
-        expect(text).toMatch(/Shift\+arrows/);
+        expect(text).toContain("View Oct or View Semi");
       }
     });
 
@@ -88,7 +88,9 @@ try {
           expect(entry, `${id} registered`).toBeDefined();
           const text = entry!.text;
           expect(text).toContain("SOUNDS");
-          expect(text).toContain("use OCT — the strip on desktop, the OPTIONS drawer on phone");
+          expect(text).toContain(
+            "use Transpose (Oct) — the strip on desktop, the OPTIONS drawer on phone",
+          );
         }
         // The sound-side entry keeps its own side of the fence (the two
         // controls must never share a label — the E9 fence's reason).
@@ -123,8 +125,10 @@ try {
     it("LOOP and the export entries speak in CYCLES (one full cycle = the longest lane)", () => {
       expect(getHelp("booth.loop")!.text).toContain("ONE full song CYCLE");
       expect(getHelp("booth.loop")!.text).toContain("longest lane");
-      expect(getHelp("projects.wav")!.text).toContain("ONE FULL CYCLE");
-      expect(getHelp("projects.midi")!.text).toContain("ONE FULL CYCLE");
+      expect(getHelp("projects.wav")!.text).toContain(
+        "left-to-right block order",
+      );
+      expect(getHelp("pattern.midi")!.text).toContain("this pattern");
     });
 
     it("no audited new-surface entry leans on ambiguous 'size' wording", () => {
@@ -137,7 +141,7 @@ try {
         "rail.tools",
         "booth.loop",
         "projects.wav",
-        "projects.midi",
+        "pattern.midi",
       ];
       for (const id of audited) {
         expect(
@@ -149,14 +153,14 @@ try {
   });
 
   describe("PX-4 language audit — the `+` mental model is NEW BLANK, never duplicate", () => {
-    it("rail.append says NEW blank + names DUP the only duplicator; no stale duplication wording survives", () => {
+    it("rail.append distinguishes new blank patterns from independent copies", () => {
       const entry = getHelp("rail.append")!;
       expect(entry.title).toBe("NEW BLANK CLIP");
       expect(entry.text).toContain("NEW blank");
-      expect(entry.text).toContain("only duplicator");
+      expect(entry.text).toContain("independent copy");
       // The retired v2 mental model (BC-1's E11 audit) must stay dead.
       expect(entry.text).not.toContain("slot playing");
-      expect(entry.text).not.toMatch(/\+ .*duplicate/i);
+      expect(entry.text).not.toMatch(/\+[^.]*duplicat/i);
     });
   });
 
@@ -166,7 +170,10 @@ try {
 
     it("carries the LL-1 LENGTH ladder row in bars vocabulary", () => {
       const row = rows().find((b) => b.keys === "B / SHIFT+B");
-      expect(row, "the B ladder row exists (was missing pre-PX-4)").toBeDefined();
+      expect(
+        row,
+        "the B ladder row exists (was missing pre-PX-4)",
+      ).toBeDefined();
       expect(row!.action).toContain("LENGTH");
       expect(row!.action).toContain("bars");
     });
@@ -178,7 +185,7 @@ try {
       const n = rows().find((b) => b.keys === "N");
       expect(n!.action).toContain("new blank");
       const d = rows().find((b) => b.keys === "D");
-      expect(d!.action).toContain("only duplicator");
+      expect(d!.action).toContain("independent pattern");
     });
 
     it("carries the register-window + octave rows with the view/sound fence", () => {

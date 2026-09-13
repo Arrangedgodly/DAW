@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "idb": "^8.0.3",
+    "mediabunny": "^1.56.2",
     "midi-file": "^1.2.4",
     "solid-js": "^1.9.15",
     "valibot": "^1.4.2",

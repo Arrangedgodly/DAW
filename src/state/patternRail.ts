@@ -20,6 +20,7 @@ import {
   DRUM_PIECES,
   type LaneId,
   type PatternBars,
+  type PlaybackRule,
   type ProjectDocument,
 } from "../document/schema";
 import { midiLabel, pitchDomain } from "../document/pitchWindow";
@@ -27,6 +28,7 @@ import type { PendingSwitchSnapshot } from "../engine/session";
 
 /** One chain slot as the rail renders it. */
 export interface RailTile {
+  readonly rule?: PlaybackRule | null;
   readonly slot: number;
   readonly patternId: string;
   readonly name: string;
@@ -56,6 +58,9 @@ export function railTiles(doc: ProjectDocument, lane: LaneId): RailTile[] {
       bars: pattern?.bars ?? 1,
       cue: cues?.[slot] ?? null,
       mode: modes?.[slot] ?? "next",
+      ...(doc.playbackRules?.[lane]?.[slot]
+        ? { rule: doc.playbackRules[lane]![slot] }
+        : {}),
     };
   });
 }

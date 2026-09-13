@@ -1,0 +1,85 @@
+- main "Song sequencer":
+  - region "Song chain rail":
+    - text: SONG CHAIN
+    - status "Cue queue summary"
+    - button "COLLAPSE TO PATTERN"
+    - text: Drums
+    - group "Drums, track 1 song chain · 8-BAR CYCLE":
+      - 'button "Drums, track 1 chain slot 1: pattern A, 2 bars, section SPARK, playing"': SPARK A 2B
+      - 'button "Drums, track 1 chain slot 2: pattern B, 2 bars, section REPLY"': REPLY B 2B
+      - 'button "Drums, track 1 chain slot 3: pattern C, 2 bars, section LIFT"': LIFT C 2B
+      - 'button "Drums, track 1 chain slot 4: pattern D, 2 bars, section TURN"': TURN D 2B
+      - button "Append new blank pattern to Drums, track 1 chain": +
+    - group "Drums, track 1 pattern tools":
+      - button "Drums, track 1 pattern tools": PAT
+    - status: "Drums, track 1: now drums-1"
+    - text: Keys
+    - group "Keys, track 2 song chain · 8-BAR CYCLE":
+      - 'button "Keys, track 2 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Keys, track 2 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Keys, track 2 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Keys, track 2 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Keys, track 2 chain": +
+    - group "Keys, track 2 pattern tools":
+      - button "Keys, track 2 pattern tools": PAT
+    - status: "Keys, track 2: now bass-1"
+    - text: Chords
+    - group "Chords, track 3 song chain · 8-BAR CYCLE":
+      - 'button "Chords, track 3 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Chords, track 3 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Chords, track 3 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Chords, track 3 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Chords, track 3 chain": +
+    - group "Chords, track 3 pattern tools":
+      - button "Chords, track 3 pattern tools": PAT
+    - status: "Chords, track 3: now chords-1"
+    - text: Keys
+    - group "Keys, track 4 song chain · 8-BAR CYCLE":
+      - 'button "Keys, track 4 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Keys, track 4 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Keys, track 4 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Keys, track 4 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Keys, track 4 chain": +
+    - group "Keys, track 4 pattern tools":
+      - button "Keys, track 4 pattern tools": PAT
+    - status: "Keys, track 4: now lead-1"
+    - text: Keys
+    - group "Keys, track 5 song chain · 8-BAR CYCLE":
+      - 'button "Keys, track 5 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Keys, track 5 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Keys, track 5 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Keys, track 5 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Keys, track 5 chain": +
+    - group "Keys, track 5 pattern tools":
+      - button "Keys, track 5 pattern tools": PAT
+    - status: "Keys, track 5: now extra1-1"
+    - text: Plucks
+    - group "Plucks, track 6 song chain · 8-BAR CYCLE":
+      - 'button "Plucks, track 6 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Plucks, track 6 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Plucks, track 6 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Plucks, track 6 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Plucks, track 6 chain": +
+    - group "Plucks, track 6 pattern tools":
+      - button "Plucks, track 6 pattern tools": PAT
+    - status: "Plucks, track 6: now extra2-1"
+    - text: Brass
+    - group "Brass, track 7 song chain · 8-BAR CYCLE":
+      - 'button "Brass, track 7 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Brass, track 7 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Brass, track 7 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Brass, track 7 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Brass, track 7 chain": +
+    - group "Brass, track 7 pattern tools":
+      - button "Brass, track 7 pattern tools": PAT
+    - status: "Brass, track 7: now extra3-1"
+    - text: Keys
+    - group "Keys, track 8 song chain · 8-BAR CYCLE":
+      - 'button "Keys, track 8 chain slot 1: pattern SPARK, 2 bars, section SPARK, playing"': SPARK SPARK 2B
+      - 'button "Keys, track 8 chain slot 2: pattern REPLY, 2 bars, section REPLY"': REPLY REPLY 2B
+      - 'button "Keys, track 8 chain slot 3: pattern LIFT, 2 bars, section LIFT"': LIFT LIFT 2B
+      - 'button "Keys, track 8 chain slot 4: pattern TURN, 2 bars, section TURN"': TURN TURN 2B
+      - button "Append new blank pattern to Keys, track 8 chain": +
+    - group "Keys, track 8 pattern tools":
+      - button "Keys, track 8 pattern tools": PAT
+    - status: "Keys, track 8: now extra4-1"

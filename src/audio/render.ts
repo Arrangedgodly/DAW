@@ -1,6 +1,10 @@
 /**
  * Offline render pipeline (IM-5, RES-2 parity law).
  *
+ * WAV uses arrangement: "linear": finite block durations, no lane wrapping,
+ * longest-lane duration, and an unfolded release/FX tail. The default cycle
+ * mode remains available for loop rendering and existing audio parity checks.
+ *
  * Renders one loop iteration of the whole project plus the FX tail through an
  * OfflineAudioContext using the SAME graph builders and the SAME song compiler
  * as the live path, then folds the tail into the loop start so the buffer
@@ -52,7 +56,8 @@
  * Float32Array[] channels (interleave + quantize there) + exact metadata.
  */
 
-import { compileLaneSchedule, resolveChainPatterns } from "./song";
+import { compileLaneSchedule, resolveChainSlots } from "./song";
+import { linearizeSchedule } from "./linearArrangement";
 import { type GrooveOptions, timeAtStep, secondsPerStep } from "./time";
 import {
   computeTailSamples,
@@ -83,12 +88,14 @@ export const EXPORT_SAMPLE_RATE = 44100;
 
 /** What MF-4's WAV encoder consumes (documented export contract). */
 export interface RenderedLoop {
-  /** Stereo channels of the loop-tight buffer (length = loopSamples). */
+  /** Linear songs retain the tail; absent for legacy loop-tight renders. */
+  readonly outputSamples?: number;
+  /** Stereo channels: outputSamples frames for linear songs, loopSamples for cycles. */
   readonly channels: readonly Float32Array[];
   readonly loopSamples: number;
   readonly tailSamples: number;
   readonly sampleRate: number;
-  /** Steps in one loop iteration (LCM of lane chain lengths). */
+  /** Musical duration: longest linear lane, or LCM in cycle mode. */
   readonly loopSteps: number;
   readonly bpm: number;
   /**
@@ -99,6 +106,7 @@ export interface RenderedLoop {
 }
 
 export interface RenderProjectOptions {
+  readonly arrangement?: "cycle" | "linear";
   /**
    * Injectable context factory (day-one contract: injected AudioContext
    * factory). Default constructs a real OfflineAudioContext — the single
@@ -202,12 +210,14 @@ function laneScheduleFor(
   lane: LaneId,
   groove: GrooveOptions,
 ) {
-  const chain = resolveChainPatterns(doc, lane);
+  const slots = resolveChainSlots(doc, lane).filter((slot) => slot.pattern);
+  const chain = slots.map((slot) => slot.pattern);
   if (chain.length === 0) return null;
   const laneConf = doc.lanes.find((l) => l.id === lane)!;
   // Same compiler invocation as the live path (state/engineBridge.ts).
   return compileLaneSchedule({
     chain,
+    slots,
     preset:
       lane === "drums"
         ? (getDrumKit((laneConf as { kitId: string }).kitId) ??
@@ -258,18 +268,42 @@ export async function renderProjectToBuffer(
   // 1. Compile every lane with the shared compiler (the only scheduling
   //    authority — the SAME output the live path consumes).
   const LANE_IDS = doc.lanes.map((l) => l.id);
-  const schedules = LANE_IDS.map((lane) => laneScheduleFor(doc, lane, groove));
-  const loopSteps = computeLoopSteps(schedules.map((s) => s?.chainSteps ?? 0));
+  const linear = opts.arrangement === "linear";
+  const schedules = LANE_IDS.map((lane) => {
+    const schedule = laneScheduleFor(doc, lane, groove);
+    return linear && schedule ? linearizeSchedule(schedule) : schedule;
+  });
+  const lengths = schedules.map((s) => s?.chainSteps ?? 0);
+  const loopSteps = linear
+    ? Math.max(16, ...lengths)
+    : computeLoopSteps(lengths);
   const loopSamples = Math.round(
     loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,
   );
 
   // 2. Tail budget from the document's FX chains (IM-4).
-  const tailSamples = computeTailSamples(
+  const fxTailSamples = computeTailSamples(
     LANE_IDS.map((lane) => doc.lanes.find((l) => l.id === lane)?.fxChain ?? []),
     groove.bpm,
     EXPORT_SAMPLE_RATE,
   );
+  let voiceTailSeconds = 0;
+  if (linear) {
+    const end = loopSteps * secondsPerStep(groove.bpm);
+    for (const schedule of schedules) {
+      if (!schedule) continue;
+      for (const [step, events] of schedule.byStep) {
+        for (const event of events) {
+          voiceTailSeconds = Math.max(
+            voiceTailSeconds,
+            timeAtStep(step, groove) + event.holdSeconds + event.release - end,
+          );
+        }
+      }
+    }
+  }
+  const tailSamples =
+    fxTailSamples + Math.ceil(voiceTailSeconds * EXPORT_SAMPLE_RATE);
 
   const createContext =
     opts.createContext ??
@@ -377,7 +411,11 @@ export async function renderProjectToBuffer(
   for (let i = 0; i < LANE_IDS.length; i++) {
     const schedule = schedules[i];
     if (!schedule) continue;
-    const expanded = expandLaneEventsForLoop(schedule, loopSteps, groove);
+    const expanded = expandLaneEventsForLoop(
+      schedule,
+      linear ? schedule.chainSteps : loopSteps,
+      groove,
+    );
     if (!sampleHost) {
       host.sendEvents(i, expanded);
       continue;
@@ -424,11 +462,14 @@ export async function renderProjectToBuffer(
   // export is the folded loop — apply the same committed soft-clip law
   // (pure fn, identical curve) to the final samples so the exported loop is
   // bounded exactly like the live path.
-  const folded = foldTail(raw, loopSamples).map((ch) =>
-    Float32Array.from(ch, (x) => softClip(x)),
-  );
+  const folded = linear
+    ? raw
+    : foldTail(raw, loopSamples).map((ch) =>
+        Float32Array.from(ch, (x) => softClip(x)),
+      );
   return {
     channels: folded,
+    ...(linear ? { outputSamples: loopSamples + tailSamples } : {}),
     ...(opts.includeRaw ? { raw } : {}),
     loopSamples,
     tailSamples,
