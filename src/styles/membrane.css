@@ -120,7 +120,7 @@
   border: 1px solid var(--membrane-seam);
   border-radius: 22px 22px 0 0;
   padding: 15px 22px 10px;
-  gap: 10px 16px;
+  gap: 8px 12px;
 }
 .app.membrane .bitbounce-brand {
   font-family: var(--font-instrument);
@@ -133,48 +133,12 @@
   width: 31px;
   height: 31px;
 }
-.app.membrane .booth-group-position {
-  border-top: 1px solid var(--membrane-seam);
-  padding-top: 9px;
-}
 .app.membrane
-  :is(.booth-led, .booth-led-input, .booth-screen, .register-window-readout) {
+  :is(.booth-led, .booth-led-input, .register-window-readout) {
   box-shadow: none;
   border-color: transparent;
   background: transparent;
   color: var(--display-ink);
-}
-.app.membrane .booth-screen {
-  border: 0;
-  height: 40px;
-}
-.app.membrane .screen-body {
-  padding-left: 0;
-  box-sizing: border-box;
-}
-.app.membrane .screen-meters {
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 6px 12px;
-}
-.app.membrane .screen-meter-tag {
-  width: 39px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: 500 9px/1.1 var(--font-ui);
-  letter-spacing: 0.02em;
-}
-.app.membrane .screen-meters.has-extra-tracks {
-  grid-template-columns: repeat(2, auto);
-  gap: 3px 12px;
-}
-.app.membrane .booth-screen.has-extra-tracks {
-  height: 50px;
-}
-.app.membrane .screen-meter {
-  width: 38px;
-  height: 5px;
 }
 .app.membrane .desktop-page-nav {
   order: 3;
@@ -198,10 +162,6 @@
   background: var(--metal-raised);
   border-color: var(--theme-line);
   box-shadow: inset 0 -2px var(--theme-accent);
-}
-.app.membrane .screen-annun-item {
-  font-weight: 400;
-  letter-spacing: 0.03em;
 }
 .app.membrane .booth-label {
   color: var(--theme-muted);
@@ -258,6 +218,7 @@
     .head-fx.is-on,
     .booth-btn-loop.is-on,
     .booth-btn-metro.is-on,
+    .booth-btn-preview.is-on,
     .phone-options-btn.is-on,
     .phone-page-toggle[aria-pressed="true"]
   ) {

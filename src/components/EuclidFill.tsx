@@ -34,6 +34,7 @@ import {
   stepFillParam,
   type FillSession,
 } from "../state/euclidFill";
+import { notePreview } from "../state/notePreview";
 
 const session = getSession();
 
@@ -100,7 +101,7 @@ export default function EuclidFill(props: EuclidFillProps): JSX.Element {
     applyEuclidFill(props.piece, s.params.pulses, s.params.rotation);
     setSessionState(readFillSession(drumRow(props.piece)));
     props.onPreview(null);
-    void session.audition("drums", props.piece);
+    if (notePreview()) void session.audition("drums", props.piece);
   };
 
   const cancel = () => {

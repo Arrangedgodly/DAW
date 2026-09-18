@@ -223,7 +223,7 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
 
         // --- 2. TOGGLE via the booth corner button ---------------------
         const infoBtn = $<HTMLButtonElement>(".booth-btn-info");
-        expect(infoBtn.textContent?.trim()).toBe("INFO ?");
+        expect(infoBtn.getAttribute("aria-label")).toBe("Info mode");
         expect(infoBtn.getAttribute("aria-pressed")).toBe("false");
         infoBtn.click();
         await waitFor(() => helpMode() === true, 2000, "mode on (button)");

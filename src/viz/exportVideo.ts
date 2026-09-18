@@ -11,6 +11,7 @@ import { renderProjectToBuffer, EXPORT_SAMPLE_RATE } from "../audio/render";
 import type { ProjectDocument, LaneId } from "../document/schema";
 import type { VisualComposition } from "./composition";
 import { createCompositionEngine } from "./compositionEngine";
+import { createTimbreTracker } from "./timbre";
 import {
   createVideoPlan,
   VIDEO_FORMATS,
@@ -56,7 +57,10 @@ export async function exportVideo(
       "This browser cannot encode MP4 video with audio. Try a current version of Chrome, Edge, or Safari on another device.",
     );
   options.onProgress("Rendering track audio…", 0.03);
-  const rendered = await renderProjectToBuffer(doc);
+  // Per-lane stems let the video react to each instrument's actual sound,
+  // through the same analysis the live stage runs on its analyser taps.
+  const rendered = await renderProjectToBuffer(doc, { laneStems: true });
+  const timbre = createTimbreTracker();
   check();
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -85,6 +89,21 @@ export async function exportVideo(
         plan.hits[hitIndex]!.audibleAt <= now
       )
         engine.ignite(plan.hits[hitIndex++]!);
+      const end = Math.round(now * rendered.sampleRate);
+      doc.lanes.forEach((lane, i) => {
+        const stem = rendered.laneStems?.[i];
+        engine.setTimbre(
+          lane.id,
+          stem && end > 0
+            ? timbre.update(
+                lane.id,
+                stem.subarray(Math.max(0, end - timbre.size), end),
+                rendered.sampleRate,
+                1 / VIDEO_FPS,
+              )
+            : null,
+        );
+      });
       ctx.fillStyle = options.ground || "#080b0d";
       ctx.fillRect(0, 0, width, height);
       engine.draw(

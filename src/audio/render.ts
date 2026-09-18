@@ -103,6 +103,12 @@ export interface RenderedLoop {
    * only — MF-4 consumes `channels`. Present when opts.includeRaw is set.
    */
   readonly raw?: readonly Float32Array[];
+  /**
+   * One mono post-FX, post-mix signal per document lane (document order),
+   * the same length and fold as `channels`. Present when opts.laneStems is
+   * set — analysis only (the visualizer's video export), never encoded.
+   */
+  readonly laneStems?: readonly Float32Array[];
 }
 
 export interface RenderProjectOptions {
@@ -126,6 +132,13 @@ export interface RenderProjectOptions {
   readonly settleMs?: number;
   /** Include the un-folded loop+tail render in the result (tests). */
   readonly includeRaw?: boolean;
+  /**
+   * Also capture each lane's own signal (RenderedLoop.laneStems). Widens the
+   * offline destination to 2 + lanes discrete channels; the master pair is
+   * copied through a splitter/merger unchanged. Off for WAV export, whose
+   * graph therefore stays byte-identical.
+   */
+  readonly laneStems?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -309,7 +322,13 @@ export async function renderProjectToBuffer(
     opts.createContext ??
     ((channels: number, length: number, sampleRate: number) =>
       new OfflineAudioContext(channels, length, sampleRate));
-  const ctx = createContext(2, loopSamples + tailSamples, EXPORT_SAMPLE_RATE);
+  const stems = opts.laneStems === true;
+  const outputChannels = stems ? 2 + LANE_IDS.length : 2;
+  const ctx = createContext(
+    outputChannels,
+    loopSamples + tailSamples,
+    EXPORT_SAMPLE_RATE,
+  );
 
   // 3. Identical graph: voice engines (one addModule on THIS context) →
   //    per-lane FX chain → lane gain → master (0.9, session default) → dest.
@@ -346,7 +365,21 @@ export async function renderProjectToBuffer(
   // live session master uses (parity law: identical graph both paths).
   const clip = createSoftClipNode(ctx);
   master.connect(clip);
-  clip.connect(ctx.destination);
+  let stemMerger: ChannelMergerNode | null = null;
+  if (stems) {
+    // Channels 0–1 stay the master pair (copied exactly); 2… carry one mono
+    // lane each. The merger never sums, so the fan-in law below is intact.
+    const destination = ctx.destination;
+    destination.channelCount = outputChannels;
+    destination.channelCountMode = "explicit";
+    destination.channelInterpretation = "discrete";
+    stemMerger = ctx.createChannelMerger(outputChannels);
+    const split = ctx.createChannelSplitter(2);
+    clip.connect(split);
+    split.connect(stemMerger, 0, 0);
+    split.connect(stemMerger, 1, 1);
+    stemMerger.connect(destination);
+  } else clip.connect(ctx.destination);
   const chains: FxChainHost[] = [];
   const laneDevices: (readonly FxDevice[] | null)[] = [];
   // Deterministic fan-in (HW-4 finding, 2026-09-02): OfflineAudioContext
@@ -381,6 +414,7 @@ export async function renderProjectToBuffer(
     const mixGain = ctx.createGain();
     mixGain.gain.value = mixGains[i]!;
     mixGain.connect(laneGain);
+    if (stemMerger) mixGain.connect(stemMerger, 0, 2 + i);
     const laneSeed = (0x5eed ^ ((i + 1) * 0x85ebca6b)) >>> 0;
     const timing = (): FxTiming => ({ bpm: groove.bpm, when: ctx.currentTime });
     const chain = new FxChainHost({
@@ -457,6 +491,12 @@ export async function renderProjectToBuffer(
   const raw = [buffer.getChannelData(0), buffer.getChannelData(1)].map((c) =>
     Float32Array.from(c),
   );
+  const laneStems = stems
+    ? LANE_IDS.map((_, i) => {
+        const stem = Float32Array.from(buffer.getChannelData(2 + i));
+        return linear ? stem : foldTail([stem], loopSamples)[0]!;
+      })
+    : undefined;
   // The tail fold SUMS loop + wrapped tail AFTER the master soft-clip node,
   // so the folded result can exceed the node's ceiling at the seam. The
   // export is the folded loop — apply the same committed soft-clip law
@@ -471,6 +511,7 @@ export async function renderProjectToBuffer(
     channels: folded,
     ...(linear ? { outputSamples: loopSamples + tailSamples } : {}),
     ...(opts.includeRaw ? { raw } : {}),
+    ...(laneStems ? { laneStems } : {}),
     loopSamples,
     tailSamples,
     sampleRate: buffer.sampleRate,

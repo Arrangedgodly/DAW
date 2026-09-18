@@ -1536,6 +1536,55 @@ export class Session {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Visualizer timbre taps: one AnalyserNode per lane, hung off the lane mix
+  // gain (post-FX, post-mix — exactly what the listener hears from that
+  // lane). Observation-only side branches: they feed nothing back into the
+  // graph, are created lazily on the first read, and are removed on release.
+  // -------------------------------------------------------------------------
+
+  private laneTaps: (AnalyserNode | null)[] = [];
+
+  /**
+   * Copy the lane's latest `out.length` output samples into `out`. Returns
+   * false (leaving `out` untouched) while the lane has no audio graph yet or
+   * the context cannot analyse. `out.length` must be a power of two ≥ 32.
+   */
+  readLaneWaveform(laneId: LaneId, out: Float32Array<ArrayBuffer>): boolean {
+    const index = LANE_IDS.indexOf(laneId);
+    const gain = this.laneGains[index];
+    if (!gain) return false;
+    let tap = this.laneTaps[index];
+    if (!tap || tap.fftSize !== out.length) {
+      const ctx = this.engine.getContext() as AudioContextLike &
+        Partial<Pick<BaseAudioContext, "createAnalyser">>;
+      if (typeof ctx.createAnalyser !== "function") return false;
+      if (tap) gain.disconnect(tap);
+      tap = ctx.createAnalyser();
+      tap.fftSize = out.length;
+      tap.smoothingTimeConstant = 0;
+      gain.connect(tap);
+      this.laneTaps[index] = tap;
+    }
+    tap.getFloatTimeDomainData(out);
+    return true;
+  }
+
+  /** Sample rate of the live context (NaN before it exists). */
+  get audioSampleRate(): number {
+    return this.engine.created
+      ? this.engine.getContext().sampleRate
+      : Number.NaN;
+  }
+
+  /** Disconnect every visualizer tap (the visualizer closed). */
+  releaseLaneTaps(): void {
+    this.laneTaps.forEach((tap, index) => {
+      if (tap) this.laneGains[index]?.disconnect(tap);
+    });
+    this.laneTaps = [];
+  }
+
   /** The lane's mix gain node (created once, connected to the master). */
   private ensureLaneGain(laneIndex: number, master: GainNode): GainNode | null {
     if (this.laneGains[laneIndex]) return this.laneGains[laneIndex]!;

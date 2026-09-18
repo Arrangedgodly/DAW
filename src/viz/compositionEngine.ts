@@ -7,6 +7,7 @@ import {
   type VisualLayer,
   type MotionMode,
 } from "./composition";
+import type { LaneTimbre } from "./timbre";
 
 export interface LayerActivity {
   at: number;
@@ -66,6 +67,11 @@ export function createCompositionEngine(
   const audible = Object.fromEntries(
     LANE_IDS.map((id) => [id, true]),
   ) as Record<LaneId, boolean>;
+  // Measured sound of each lane (live analyser taps or offline stems). Null
+  // until a source supplies it — the engine then falls back to MIDI alone.
+  const timbre = Object.fromEntries(
+    LANE_IDS.map((id) => [id, null]),
+  ) as Record<LaneId, LaneTimbre | null>;
   const engine = {
     setMotion(next: MotionMode, blend: boolean) {
       mode = next;
@@ -83,6 +89,10 @@ export function createCompositionEngine(
       mode = next.motion ?? "fluid";
       blended = next.blended ?? true;
     },
+    /** Feed a lane's measured sound for the next draw (null = MIDI only). */
+    setTimbre(id: LaneId, next: LaneTimbre | null) {
+      if (LANE_IDS.includes(id)) timbre[id] = next;
+    },
     setColors(next: Partial<Record<LaneId, string>>) {
       colors = { ...next };
     },
@@ -96,6 +106,7 @@ export function createCompositionEngine(
         for (const id of LANE_IDS) {
           activity[id].velocity = 0;
           voices[id].length = 0;
+          timbre[id] = null;
         }
     },
     ignite(hit: VizNoteOn) {
@@ -174,11 +185,26 @@ export function createCompositionEngine(
             Math.max(level, attackLevel(voice, now)) / voice.velocity,
           );
         }
+        const sound = timbre[id];
+        let impact = attackLevel(a, now);
+        if (sound) {
+          // The measured sound leads; MIDI keeps the lane anchored. Level
+          // follows the real envelope (slow pad swells, fast plucks, FX
+          // tails), and only audibly sharp attacks jolt the shape.
+          energy = Math.max(energy * 0.25, sound.level);
+          impact = Math.max(impact * 0.25, sound.transient * sound.level * 1.4);
+          presence = Math.max(presence, Math.min(1, sound.level * 1.8));
+        }
         if (presence <= 0.01) continue;
-        const impact = attackLevel(a, now);
         if (playing && !reduced)
           laneMotion[id] +=
-            (delta * (0.08 + energy * 3.5 + impact * 2) * bpm) / 112;
+            (delta *
+              (0.08 +
+                energy * 3.5 +
+                impact * 2 +
+                (sound ? sound.high * sound.level * 2.2 : 0)) *
+              bpm) /
+            112;
         // Reduced motion stays fully static. The activity summarizer supplies
         // equivalent MIDI information without flashes or geometric movement.
         drawLayer(
@@ -197,6 +223,8 @@ export function createCompositionEngine(
           motion,
           mode,
           blended,
+          reduced ? null : sound,
+          Math.floor(motion * 24),
         );
       }
       ctx.restore();
@@ -220,6 +248,7 @@ export function createCompositionEngine(
         voices: Object.fromEntries(
           LANE_IDS.map((id) => [id, voices[id].length]),
         ),
+        timbre: structuredClone(timbre),
       };
     },
     dispose() {
@@ -257,10 +286,31 @@ function drawLayer(
   orbitTime: number,
   mode: MotionMode,
   blended: boolean,
+  sound: LaneTimbre | null = null,
+  grainSeed = 0,
 ): void {
-  const r = (Math.min(W, H) * 0.24 * l.scale) / 80;
+  // Sound character. Without a measurement these sit at neutral values, so
+  // MIDI-only drawing is exactly the pre-timbre look.
+  const bright = sound ? sound.brightness : 0.5,
+    level = sound ? sound.level : 0,
+    // Bass weight inflates the form; grain scatters noisy sounds.
+    weight = sound ? sound.low * level : 0,
+    grain = sound ? sound.noisiness * (0.25 + level) : 0;
+  const r = ((Math.min(W, H) * 0.24 * l.scale) / 80) * (1 + weight * 0.3);
   const v = l.variation / 65535,
     lobes = 3 + (l.variation % 5);
+  // Bright sounds ripple at a finer spatial frequency; dark ones fold slowly.
+  const detail = sound ? 0.6 + bright * 1.2 : 1;
+  let grainIndex = grainSeed * 7919;
+  const scatter = (): number => {
+    // Deterministic hash noise (no Math.random: renders must replay exactly).
+    grainIndex = (grainIndex + 0x9e3779b9) | 0;
+    let h = grainIndex;
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296 - 0.5;
+  };
+  const grainAmp = grain * r * 0.09;
   const spin =
     t * (0.3 + v * 0.3) + index + v * 6 + pitch * 0.3 + impact * 0.65;
   ctx.save();
@@ -297,32 +347,31 @@ function drawLayer(
       w = y / r;
     const wave = 0.28 + pulse * 0.38 + impact * 0.22;
     if (mode === "fluid") {
-      const twist = Math.sin(t * 0.8 + Math.hypot(u, w) * 2.4) * wave;
+      const twist =
+        Math.sin(t * 0.8 + Math.hypot(u, w) * 2.4 * detail) * wave;
       return [
         (u * Math.cos(twist) -
           w * Math.sin(twist) +
-          Math.sin(w * 3 + t * 1.1) * wave) *
+          Math.sin(w * 3 * detail + t * 1.1) * wave) *
           r,
         (u * Math.sin(twist) +
           w * Math.cos(twist) +
-          Math.sin(u * 2.7 - t * 0.9) * wave) *
+          Math.sin(u * 2.7 * detail - t * 0.9) * wave) *
           r,
       ];
     }
     // Different parts of the line lag behind the phrase, forming a flowing tail.
-    const lag = u * 1.4 + w * 0.6;
+    const lag = (u * 1.4 + w * 0.6) * detail;
     return [
       (u * (1.3 + pulse * 0.7) + Math.sin(t * 0.8 - lag) * wave) * r,
       (w * 0.65 + Math.sin(t * 1.2 - lag * 1.7) * (0.5 + pulse * 0.5)) * r,
     ];
   };
   const line = (x: number, y: number) => {
-    if (mode === "orbit") {
-      ctx.lineTo(x, y);
-      return;
-    }
-    const p = deform(x, y);
-    ctx.lineTo(p[0], p[1]);
+    const p = mode === "orbit" ? [x, y] : deform(x, y);
+    if (grainAmp > 0.05)
+      ctx.lineTo(p[0]! + scatter() * grainAmp, p[1]! + scatter() * grainAmp);
+    else ctx.lineTo(p[0]!, p[1]!);
   };
   const move = (x: number, y: number) => {
     if (mode === "orbit") {
@@ -364,10 +413,14 @@ function drawLayer(
       (y * 0.8 + depth * (0.24 + pulse * 0.35)) * r,
     );
   };
+  // Dark sounds draw heavier strokes, bright sounds finer ones; loud and
+  // bright sounds burn more vividly than quiet, dull ones.
+  const tone = sound ? 1.3 - bright * 0.6 : 1;
+  const sheen = sound ? (0.85 + bright * 0.3) * (0.8 + level * 0.35) : 1;
   const begin = (alpha = 0.55, width = 0.7): void => {
     ctx.beginPath();
-    ctx.globalAlpha = alpha * opacity;
-    ctx.lineWidth = width * (1 + impact * 0.65);
+    ctx.globalAlpha = Math.min(1, alpha * opacity * sheen);
+    ctx.lineWidth = width * tone * (1 + impact * 0.65);
   };
   const end = (): void => ctx.stroke();
   switch (l.effect) {
@@ -452,7 +505,12 @@ function drawLayer(
         }
         ctx.globalAlpha = (0.45 + (j % 5) / 10) * opacity;
         const particle = deform(x * r, y * r);
-        ctx.fillRect(particle[0], particle[1], 1.2 + pulse, 1.2 + pulse);
+        ctx.fillRect(
+          particle[0] + scatter() * grainAmp * 1.5,
+          particle[1] + scatter() * grainAmp * 1.5,
+          (1.2 + pulse) * tone,
+          (1.2 + pulse) * tone,
+        );
         if (l.effect === "current" && j % 3 === 0) {
           begin(0.5);
           move(x * r, y * r);

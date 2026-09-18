@@ -27,6 +27,9 @@ function makeSession(opts: Partial<SessionOptions> = {}) {
     engine: new AudioEngineContext(() => ctx),
     playTickSound,
     cancelTickSounds,
+    // Pinned: these cases count what one refill delivers (the production
+    // default is the adaptive 0.12 s live / 1.5 s hidden horizon).
+    horizonSeconds: 1.5,
     ...opts,
   });
   return { ctx, session, playTickSound, cancelTickSounds };

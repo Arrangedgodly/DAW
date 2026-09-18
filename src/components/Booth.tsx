@@ -38,12 +38,182 @@ import { registerHelp } from "../help/registry";
 import ScalePopover from "./ScalePopover";
 import SaveIndicator from "./SaveIndicator";
 import Projects from "./Projects";
-import BoothScreen from "./BoothScreen";
 import { DesktopPageNavigation } from "./PhonePageToggle";
+import { notePreview, toggleNotePreview } from "../state/notePreview";
 
 const session = getSession();
 
 const BEAT_LED_COUNT = 4;
+
+/** Playback-group icon glyphs — plain currentColor, 14px, the app's
+ * existing hand-drawn SVG-icon convention (ThemeSelector). */
+function IconMetronome() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        d="M8 2 L13 13 H3 Z"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linejoin="round"
+      />
+      <line
+        x1="8"
+        y1="4.4"
+        x2="10.3"
+        y2="10.6"
+        stroke="currentColor"
+        stroke-width="1.2"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+function IconPreview() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <circle cx="4.5" cy="11.5" r="2" fill="currentColor" />
+      <circle cx="10.5" cy="9.5" r="2" fill="currentColor" />
+      <path
+        d="M6.3 11.5V4l6-1.3v6.8"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+function IconKeys() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <rect
+        x="2"
+        y="4"
+        width="12"
+        height="8"
+        rx="1.3"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.2"
+      />
+      <circle cx="4.6" cy="7" r="0.55" fill="currentColor" />
+      <circle cx="8" cy="7" r="0.55" fill="currentColor" />
+      <circle cx="11.4" cy="7" r="0.55" fill="currentColor" />
+      <line
+        x1="4.5"
+        y1="9.6"
+        x2="11.5"
+        y2="9.6"
+        stroke="currentColor"
+        stroke-width="1.2"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+function IconInfo() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <circle
+        cx="8"
+        cy="8"
+        r="6.2"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.3"
+      />
+      <circle cx="8" cy="5.1" r="0.9" fill="currentColor" />
+      <line
+        x1="8"
+        y1="7.4"
+        x2="8"
+        y2="11.2"
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+function IconViz() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        d="M8 1.5 L9.3 6.2 L14 8 L9.3 9.8 L8 14.5 L6.7 9.8 L2 8 L6.7 6.2 Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+/**
+ * The SWING/MASTER percentage's double-click-to-type editor (the rail
+ * InlineEdit contract — PatternRail.tsx: Enter commits, Escape cancels,
+ * blur commits, both keys stopPropagation ahead of the page's own shortcuts;
+ * the double-focus/select re-assert covers the dblclick focus race).
+ *
+ * `settled` guards a real race the rail twin doesn't have to worry about
+ * here: Escape's onCancel unmounts this (still-focused) input synchronously,
+ * which fires a browser blur — without the guard that blur's onBlur=commit
+ * would re-commit the typed text a moment after "cancel" ran.
+ */
+function BoothPercentEdit(props: {
+  readonly value: number;
+  readonly label: string;
+  readonly help?: string;
+  readonly onCommit: (value: number) => void;
+  readonly onCancel: () => void;
+}) {
+  const [text, setText] = createSignal(String(props.value));
+  let settled = false;
+  const commit = () => {
+    if (settled) return;
+    settled = true;
+    const n = Number.parseInt(text(), 10);
+    props.onCommit(Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : props.value);
+  };
+  const cancel = () => {
+    if (settled) return;
+    settled = true;
+    props.onCancel();
+  };
+  return (
+    <input
+      class="booth-value-input"
+      type="number"
+      inputmode="numeric"
+      min="0"
+      max="100"
+      step="1"
+      value={text()}
+      aria-label={`${props.label}, exact value`}
+      data-help={props.help}
+      ref={(el) => {
+        el.focus();
+        el.select();
+        window.setTimeout(() => {
+          if (el.isConnected) {
+            el.focus();
+            el.select();
+          }
+        }, 0);
+      }}
+      onInput={(e) => setText(e.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.stopPropagation();
+          commit();
+        } else if (e.key === "Escape") {
+          e.stopPropagation();
+          cancel();
+        }
+      }}
+    />
+  );
+}
 
 // HP-2 help content (Professor X voice, riding HP-1's registry): plain
 // language, music-first, every entry says what it is + what happens when you
@@ -65,6 +235,11 @@ registerHelp([
     text: "Clicks on every beat so the tempo is something you can hear while building patterns. The click is for you only — it never reaches the WAV or MIDI exports.",
   },
   {
+    id: "booth.preview",
+    title: "PREVIEW",
+    text: "Sounds each note or drum hit the moment you place it on a grid, playing or stopped — handy for sketching ideas by ear. Turn it off to place notes silently. Remembered on this device.",
+  },
+  {
     id: "booth.keys",
     title: "KEYS ?",
     text: "Opens the keyboard-shortcut reference: every key this instrument knows, on one page. Escape closes it.",
@@ -82,7 +257,7 @@ registerHelp([
   {
     id: "booth.tempo",
     title: "TEMPO",
-    text: "Song speed in beats per minute, 60 to 200. Takes effect immediately — synced delays shift with it so echoes stay on the beat.",
+    text: "Song speed in beats per minute, 60 to 200. Takes effect immediately — synced delays shift with it so echoes stay on the beat. Click the number and type to set it exactly.",
   },
   {
     id: "booth.scale",
@@ -92,12 +267,12 @@ registerHelp([
   {
     id: "booth.swing",
     title: "SWING",
-    text: "Delays every second 16th note so the groove leans — higher means lazier. 0% is dead straight.",
+    text: "Delays every second 16th note so the groove leans — higher means lazier. 0% is dead straight. Double-click the percentage to type an exact value.",
   },
   {
     id: "booth.master",
     title: "MASTER VOLUME",
-    text: "Volume of the whole mix, 0 to 100%. Balance the lanes against each other with the VOLUME strip inside each quadrant.",
+    text: "Volume of the whole mix, 0 to 100%. Balance the lanes against each other with the VOLUME strip inside each quadrant. Double-click the percentage to type an exact value.",
   },
 ]);
 
@@ -173,6 +348,8 @@ export function BoothOptions(props: BoothOptionsProps) {
   const [volPct, setVolPct] = createSignal(
     gainToVolumePercent(session.masterVolume),
   );
+  const [editingSwing, setEditingSwing] = createSignal(false);
+  const [editingMaster, setEditingMaster] = createSignal(false);
 
   onMount(() => {
     const unsubscribe = session.subscribe((snap) => {
@@ -208,11 +385,11 @@ export function BoothOptions(props: BoothOptionsProps) {
 
   return (
     <>
+      {/* PLAY/LOOP stay labeled text (the two controls reached for most);
+          METRONOME/PREVIEW/KEYS ?/INFO ?/VIZ shrink to icon-only squares —
+          full names ride aria-label + title, so nothing is lost for
+          screen readers or hover users, only row width. */}
       <div class="booth-group" role="group" aria-label="Playback">
-        {/* M-3: the play control is the shared PlayStopButton. On the phone
-            stage (`compact`) the in-group copy does not render — the pinned
-            centered `.phone-transport` row at the bottom of the sticky
-            chrome carries the one true button (see PlayStopButton). */}
         <Show when={!props.compact}>
           <PlayStopButton />
         </Show>
@@ -228,13 +405,27 @@ export function BoothOptions(props: BoothOptionsProps) {
         </button>
         <button
           type="button"
-          class="booth-btn booth-btn-metro"
+          class="booth-btn booth-btn-icon booth-btn-metro"
           classList={{ "is-on": metroOn() }}
           data-help="booth.metronome"
           aria-pressed={metroOn()}
+          aria-label="Metronome"
+          title="Metronome"
           onClick={handleToggleMetro}
         >
-          METRONOME
+          <IconMetronome />
+        </button>
+        <button
+          type="button"
+          class="booth-btn booth-btn-icon booth-btn-preview"
+          classList={{ "is-on": notePreview() }}
+          data-help="booth.preview"
+          aria-pressed={notePreview()}
+          aria-label="Preview"
+          title="Preview"
+          onClick={toggleNotePreview}
+        >
+          <IconPreview />
         </button>
         {/* M-2: phone-stage render guard — KEYS ? / INFO ? leave the DOM
             (and the a11y tree) entirely on the phone stage; the `?`/I
@@ -242,44 +433,40 @@ export function BoothOptions(props: BoothOptionsProps) {
         <Show when={!props.compact}>
           <button
             type="button"
-            class="booth-btn booth-btn-help"
+            class="booth-btn booth-btn-icon booth-btn-help"
             data-help="booth.keys"
             aria-haspopup="dialog"
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts"
             onClick={(e) => openHelp(e.currentTarget)}
           >
-            KEYS ?
+            <IconKeys />
           </button>
-          {/* HP-1: the info-mode corner toggle (beside KEYS ?; the keyboard
-              shortcut overlay stays a SEPARATE surface). */}
           <button
             type="button"
-            class="booth-btn booth-btn-info"
+            class="booth-btn booth-btn-icon booth-btn-info"
             classList={{ "is-on": helpMode() }}
             data-help="booth.info"
             aria-pressed={helpMode()}
+            aria-label="Info mode"
+            title="Info mode"
             onClick={toggleHelp}
           >
-            INFO ?
+            <IconInfo />
           </button>
         </Show>
-        {/* VZ-IM-2: the VIZ page entry toggle (the INFO-? row precedent).
-            A stage-global mode, so the lit state is the warm-white chassis
-            fill — booth-btn-info's lamp, not a lane hue. VZ-DD-1: the click
-            opens through openViz(currentTarget) so the exit's focus return
-            lands back HERE (helpOverlay precedent); Escape / `v` / the
-            remote's EXIT are the twins (the booth sits inert under the
-            full-bleed page while on). M-4 (iteration 4): on the phone
-            stage this is the third tool the drawer carries ("similar
-            tools" clause — the audit's displaced-tool call). */}
+        {/* VZ-IM-2: the VIZ page entry toggle. */}
         <button
           type="button"
-          class="booth-btn booth-btn-viz"
+          class="booth-btn booth-btn-icon booth-btn-viz"
           classList={{ "is-on": vizMode() }}
           data-help="booth.viz"
           aria-pressed={vizMode()}
+          aria-label="Visualizer"
+          title="Visualizer"
           onClick={(e) => openViz(e.currentTarget)}
         >
-          VIZ
+          <IconViz />
         </button>
       </div>
 
@@ -310,6 +497,7 @@ export function BoothOptions(props: BoothOptionsProps) {
             step="1"
             value={bpm()}
             aria-label="Tempo in beats per minute"
+            onFocus={(e) => e.currentTarget.select()}
             onInput={(e) => handleBpmInput(e.currentTarget.value)}
             onBlur={(e) => {
               e.currentTarget.value = String(bpm());
@@ -391,10 +579,36 @@ export function BoothOptions(props: BoothOptionsProps) {
           aria-label="Swing amount"
           aria-valuetext={`${swingPct()} percent`}
           onInput={(e) => handleSwing(Number(e.currentTarget.value))}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            setEditingSwing(true);
+          }}
         />
-        <span class="booth-value" aria-hidden="true">
-          {swingPct()}%
-        </span>
+        <Show
+          when={!editingSwing()}
+          fallback={
+            <BoothPercentEdit
+              value={swingPct()}
+              label="Swing amount"
+              help="booth.swing"
+              onCommit={(n) => {
+                handleSwing(n);
+                setEditingSwing(false);
+              }}
+              onCancel={() => setEditingSwing(false)}
+            />
+          }
+        >
+          <span
+            class="booth-value"
+            aria-hidden="true"
+            title="Double-click to type a value"
+            onDblClick={() => setEditingSwing(true)}
+          >
+            {swingPct()}%
+          </span>
+        </Show>
       </div>
 
       <div
@@ -416,10 +630,36 @@ export function BoothOptions(props: BoothOptionsProps) {
           aria-label="Master volume"
           aria-valuetext={`${volPct()} percent`}
           onInput={(e) => handleVolume(Number(e.currentTarget.value))}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            setEditingMaster(true);
+          }}
         />
-        <span class="booth-value" aria-hidden="true">
-          {volPct()}%
-        </span>
+        <Show
+          when={!editingMaster()}
+          fallback={
+            <BoothPercentEdit
+              value={volPct()}
+              label="Master volume"
+              help="booth.master"
+              onCommit={(n) => {
+                handleVolume(n);
+                setEditingMaster(false);
+              }}
+              onCancel={() => setEditingMaster(false)}
+            />
+          }
+        >
+          <span
+            class="booth-value"
+            aria-hidden="true"
+            title="Double-click to type a value"
+            onDblClick={() => setEditingMaster(true)}
+          >
+            {volPct()}%
+          </span>
+        </Show>
       </div>
     </>
   );
@@ -551,27 +791,23 @@ export default function Booth(props: BoothProps) {
         role="group"
         aria-label="Position"
       >
-        {/* THE FULL UNIT: the status screen, set into the status module —
-            it takes only the row's leftover width (zero layout px). */}
-        <Show when={!props.compact}>
-          <BoothScreen />
-        </Show>
         {/* LL-2 (KL-1 position law): this readout is the GLOBAL clock —
             BAR.BEAT.STEP within the FULL LCM cycle of the lane chains (at
             equal cycle lengths it wraps exactly at each lane's wrap, the
             zero-drift shape; mechanism + format byte-identical to v0.1 —
             only the wrap modulus grew from the retired loopBars to the
             LCM). The beat announcement below keeps its on-beat-change-only
-            fence (the spam fence). */}
-        <span class="booth-label" aria-hidden="true">
-          BAR.BEAT.STEP
-        </span>
+            fence (the spam fence). The BAR.BEAT.STEP text label was dropped
+            (visual only — aria-hidden, a sr-only announcement covers screen
+            readers below): the digits read fine on their own next to the
+            beat LEDs, and dropping it was real width back for the row. */}
         <span
           ref={(el) => {
             positionEl = el;
           }}
           class="booth-led"
           aria-hidden="true"
+          title="Bar.Beat.Step position"
         >
           1.1.1
         </span>

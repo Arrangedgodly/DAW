@@ -18,6 +18,7 @@ import { closeViz } from "../state/vizMode";
 import { createVizRenderer } from "../viz/renderer";
 import { createVizPipeline } from "../viz/pipeline";
 import { createCompositionEngine } from "../viz/compositionEngine";
+import { createTimbreTracker } from "../viz/timbre";
 import {
   composition,
   changeComposition,
@@ -132,6 +133,26 @@ export default function VizPage(): JSX.Element {
       session.engine.created
         ? session.engine.getContext().currentTime
         : Number.NaN;
+    // Each lane's measured sound, read from its post-FX output every frame.
+    const timbre = createTimbreTracker();
+    const waveform = new Float32Array(timbre.size);
+    let lastTimbreAt = Number.NaN;
+    const listen = (now: number): void => {
+      const dt = Number.isFinite(lastTimbreAt) ? now - lastTimbreAt : 0;
+      lastTimbreAt = now;
+      const rate = session.audioSampleRate;
+      for (const id of LANE_IDS) {
+        const heard =
+          playing() &&
+          Number.isFinite(rate) &&
+          session.readLaneWaveform(id, waveform);
+        engine?.setTimbre(
+          id,
+          heard ? timbre.update(id, waveform, rate, dt) : null,
+        );
+      }
+      if (!playing()) timbre.reset();
+    };
     const summary = createVizActivitySummarizer();
     const pipeline = createVizPipeline({
       subscribeNoteOns: (listener) => session.subscribeNoteOns(listener),
@@ -160,7 +181,9 @@ export default function VizPage(): JSX.Element {
       canvas,
       onFrame: (ctx, frame) => {
         pipeline.onFrame(ctx, frame);
-        engine?.draw(ctx, frame, clock(), bpm);
+        const now = clock();
+        listen(now);
+        engine?.draw(ctx, frame, now, bpm);
       },
       onReducedMotionChange: (value) => {
         setReduced(value);
@@ -202,6 +225,7 @@ export default function VizPage(): JSX.Element {
       window.removeEventListener("keydown", onKey, true);
       renderer.dispose();
       pipeline.dispose();
+      session.releaseLaneTaps();
       engine?.dispose();
       engine = undefined;
       releaseVizActivitySummarizer(summary);
@@ -317,7 +341,7 @@ export default function VizPage(): JSX.Element {
           <p class="viz-stage-hint" hidden={viewOnly()}>
             {motionMode() === "orbit"
               ? "One shared center. Set each instrument's scale and orbit strength."
-              : "Set the motion and overlap above. Each effect follows its own MIDI notes."}
+              : "Set the motion and overlap above. Each effect follows its own instrument: the notes it plays and how they sound."}
           </p>
           <div
             class="viz-error"

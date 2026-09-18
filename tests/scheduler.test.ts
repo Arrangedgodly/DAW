@@ -234,3 +234,92 @@ describe("AudioEngineContext bootstrap", () => {
     expect(engine.sampleRate).toBe(44100);
   });
 });
+
+describe("LookaheadScheduler adaptive horizon (live edits)", () => {
+  // 16ths at 120 bpm; the compiler starts strictly after `after`.
+  const provide = (after: number, until: number): EngineEvent[] => {
+    const events: EngineEvent[] = [];
+    let k = Math.floor(after / 0.125 + 1e-9) + 1;
+    while (k * 0.125 <= until + 1e-9) {
+      events.push({ type: "tick", time: k * 0.125, step: k });
+      k += 1;
+    }
+    return events;
+  };
+
+  function harness() {
+    const ctx = fakeContext(0);
+    let hidden = false;
+    let onVis: (() => void) | null = null;
+    let tick: (() => void) | null = null;
+    const delivered: number[] = [];
+    const scheduler = new LookaheadScheduler({
+      getContext: () => ctx,
+      scheduleEvent: (e) => delivered.push(e.step),
+      provideEvents: provide,
+      isHidden: () => hidden,
+      onVisibilityChange: (fn) => {
+        onVis = fn;
+        return () => {
+          onVis = null;
+        };
+      },
+      setIntervalFn: (fn) => {
+        tick = fn;
+        return 1 as unknown as ReturnType<typeof setInterval>;
+      },
+      clearIntervalFn: () => {
+        tick = null;
+      },
+    });
+    return {
+      ctx,
+      scheduler,
+      delivered,
+      hide() {
+        hidden = true;
+        onVis?.();
+      },
+      show() {
+        hidden = false;
+        onVis?.();
+      },
+      tick: () => tick?.(),
+      hasVisibilityListener: () => onVis !== null,
+    };
+  }
+
+  it("commits only ~120 ms ahead while visible, so an edit lands almost immediately", () => {
+    const h = harness();
+    h.scheduler.start();
+    // 0.12 s horizon: only the step at 0.125 s is NOT yet committed.
+    expect(h.delivered).toEqual([]);
+    h.ctx.currentTime = 0.1;
+    h.tick();
+    expect(h.delivered).toEqual([1]); // 0.125 s ≤ 0.22 s; 0.25 s is not
+    h.ctx.currentTime = 1;
+    h.tick();
+    expect(Math.max(...h.delivered)).toBe(8); // 1.0 s ≤ 1.12 s < 1.125 s
+  });
+
+  it("widens to the background horizon the moment the page hides", () => {
+    const h = harness();
+    h.scheduler.start();
+    h.hide(); // synchronous refill — before timers get throttled
+    expect(Math.max(...h.delivered)).toBe(12); // 1.5 s / 0.125 s
+    // Back in front: nothing re-delivers, nothing is duplicated.
+    h.show();
+    h.ctx.currentTime = 0.5;
+    h.tick();
+    expect(new Set(h.delivered).size).toBe(h.delivered.length);
+    expect(Math.max(...h.delivered)).toBe(12);
+  });
+
+  it("drops its visibility listener on stop", () => {
+    const h = harness();
+    h.scheduler.start();
+    expect(h.hasVisibilityListener()).toBe(true);
+    h.scheduler.stop();
+    expect(h.hasVisibilityListener()).toBe(false);
+  });
+});

@@ -133,6 +133,29 @@
   color: var(--color-ink);
   min-width: 4ch;
   text-align: right;
+  cursor: text;
+}
+
+/* SWING/MASTER's double-click-to-type editor: same slot, same type scale,
+ * so committing/cancelling never reflows the group next to it. */
+.booth-value-input {
+  width: 4ch;
+  font: var(--text-value);
+  color: var(--color-ink);
+  text-align: right;
+  background: var(--metal-recess);
+  border: 1px solid
+    color-mix(in srgb, var(--color-ink) 40%, var(--metal-recess));
+  border-radius: 3px;
+  padding: 0 2px;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.booth-value-input::-webkit-outer-spin-button,
+.booth-value-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Machined keys: real <button>s on raised metal (--metal-raised + static
@@ -192,6 +215,13 @@
     color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
 }
 
+.booth-btn-preview.is-on {
+  background: var(--color-lane-chords);
+  border-color: var(--color-lane-chords);
+  box-shadow: 0 0 var(--glow-blur)
+    color-mix(in srgb, var(--color-lane-chords) 50%, transparent);
+}
+
 /* HP-1: INFO ? — the info-mode toggle lamp. Lit state is the warm-white
  * chassis fill (a stage-global mode, deliberately NOT a lane hue) + the one
  * sanctioned glow layer over the fill+border coding (D9). */
@@ -235,6 +265,16 @@
 .booth :focus-visible {
   outline: var(--focus-on-metal);
   outline-offset: var(--focus-on-metal-offset);
+}
+
+/* Icon-only playback buttons (METRONOME/PREVIEW/KEYS ?/INFO ?/VIZ): square,
+ * centered glyph, full name carried on aria-label/title instead of text. */
+.booth-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  padding: var(--space-2);
 }
 
 /* TEMPO stepper */
@@ -385,7 +425,7 @@
 .booth-range {
   -webkit-appearance: none;
   appearance: none;
-  width: 96px;
+  width: 64px;
   height: 14px;
   margin: 0;
   background: transparent;

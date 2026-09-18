@@ -61,6 +61,7 @@ describe("Session pattern playback seam", () => {
     const session = new Session({
       engine: { getContext: () => ctx, unlock: async () => {} } as never,
       createVoiceEngineHost: async () => host,
+      horizonSeconds: 1.5, // one refill covers the pattern (fixed horizon)
       setIntervalFn: (cb) => {
         intervalCb = cb as () => void;
         return 0;
@@ -113,6 +114,7 @@ describe("Session pattern playback seam", () => {
     const session = new Session({
       engine: { getContext: () => ctx, unlock: async () => {} } as never,
       createVoiceEngineHost: async () => host,
+      horizonSeconds: 1.5, // one refill covers the pattern (fixed horizon)
       setIntervalFn: (cb) => {
         intervalCb = cb as () => void;
         return 0;
@@ -161,6 +163,7 @@ describe("Session pattern playback seam", () => {
     const session = new Session({
       engine: { getContext: () => ctx, unlock: async () => {} } as never,
       createVoiceEngineHost: async () => host,
+      horizonSeconds: 1.5, // one refill covers the pattern (fixed horizon)
       setIntervalFn: (cb) => {
         intervalCb = cb as () => void;
         return 0;

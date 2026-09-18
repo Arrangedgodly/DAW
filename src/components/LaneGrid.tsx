@@ -94,6 +94,7 @@ import LaneHeader from "./LaneHeader";
 import LaneMeter from "./LaneMeter";
 import LaneFollow from "./LaneFollow";
 import EuclidFill from "./EuclidFill";
+import { notePreview } from "../state/notePreview";
 import { LANE_NAMES } from "./laneMeta";
 import { createLaneAccessibleNames } from "../state/laneDisplayNames";
 
@@ -1371,7 +1372,7 @@ function GridSurface(props: {
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
           const res = toggleDrumStep(piece, step);
-          if (res.turnedOn) void session.audition(lane, piece);
+          if (res.turnedOn && notePreview()) void session.audition(lane, piece);
           return;
         }
         // IN-2 v2 note law (keyboard.md v2): place / remove / trim, scoped to
@@ -1389,7 +1390,8 @@ function GridSurface(props: {
               degree,
               start: step,
               length: placeSteps,
-            })
+            }) &&
+            notePreview()
           )
             void session.audition(lane, degree); // placement auditions (v0 law)
         } else if (decision.kind === "remove") {
@@ -1413,7 +1415,7 @@ function GridSurface(props: {
         const pitchedLane = lane as Exclude<LaneId, "drums">;
         if (addNote(pitchedLane, pattern.id, { degree, start, length })) {
           rememberNoteLength(pitchedLane, length); // the next press copies it
-          void session.audition(lane, degree); // audition on create (plan law)
+          if (notePreview()) void session.audition(lane, degree); // audition on create
         }
       },
       onNoteResize: (row, start, length) => {
@@ -1439,7 +1441,7 @@ function GridSurface(props: {
           const piece = DRUM_PIECES[c.row] as DrumPiece | undefined;
           if (!piece) continue;
           const res = toggleDrumStep(piece, c.step); // cells were off → on
-          if (res.turnedOn && !auditioned) {
+          if (res.turnedOn && !auditioned && notePreview()) {
             // One placement audition per gesture — a hit-per-cell machine
             // gun would fight the one-shot law (I2-4).
             auditioned = true;

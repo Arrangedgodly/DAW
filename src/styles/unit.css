@@ -82,10 +82,6 @@
   background-image: var(--panel-light), var(--metal-brush-v);
 }
 
-.booth-screen {
-  background-image: linear-gradient(165deg, rgb(255 255 255 / 7%), transparent 45%);
-}
-
 .stage-song .rail-lane-name {
   width: 76px;
 }
@@ -114,6 +110,11 @@
 .booth-btn-metro.is-on {
   box-shadow: var(--keycap-lit),
     0 0 var(--glow-blur) color-mix(in srgb, var(--color-lane-bass) 50%, transparent);
+}
+
+.booth-btn-preview.is-on {
+  box-shadow: var(--keycap-lit),
+    0 0 var(--glow-blur) color-mix(in srgb, var(--color-lane-chords) 50%, transparent);
 }
 
 .booth-btn-info.is-on,
@@ -196,8 +197,7 @@
  * this is glass over emitters, not metal) under the split glass glint. */
 .booth-led,
 .booth-led-input,
-.save-indicator,
-.booth-screen {
+.save-indicator {
   background-image:
     linear-gradient(
       180deg,
@@ -321,182 +321,37 @@ textarea {
   }
 }
 
-/* ---- 5. The status screen + channel meters --------------------------------- */
+/* ---- 5. The channel meters -------------------------------------------------- */
 
-/*
- * The screen is set INTO the status module (first child of the position
- * group) and costs ZERO layout px: it contributes no intrinsic width (width
- * 0, flex-basis 0), and on the desktop stage the status module grows into
- * its booth row's free space, handing it to the screen (capped at 600px) —
- * the readouts stay right-aligned behind an auto margin. So the booth wraps
- * exactly as it did without the screen at 1280, 1440 AND 1920 (the one-page
- * and vertical-fill laws measure it). Container queries shed the
- * annunciators, then the meter bank, when the leftover is narrow.
- */
+/* The position/status cluster (BAR.BEAT.STEP LED, beat LEDs, save,
+ * projects, theme) must never cost its own header row — real vertical
+ * space the main console needs. `display: contents` un-boxes the group
+ * (no padding/background/plate of its own) and hands its children
+ * straight to `.booth`'s own flex line, so flex-wrap packs each one
+ * individually alongside PLAY/LOOP/TEMPO/etc instead of wrapping the
+ * whole cluster as one atomic (and much wider) unit. */
 .app[data-stage="desktop"] .booth-group-position {
-  flex-grow: 1;
+  display: contents;
 }
 
-.app[data-stage="desktop"] .booth-group-position > .booth-label {
+.app[data-stage="desktop"] .booth-group-position > .booth-led {
   margin-left: auto;
 }
 
-.booth-screen {
-  flex: 1 1 0;
-  width: 0;
-  min-width: 0;
-  max-width: 600px;
-  height: 28px;
-  box-sizing: border-box;
-  container-type: inline-size;
-  border-radius: 4px;
-  background-color: var(--metal-recess);
-  box-shadow: var(--led-window), 0 0 0 1px var(--metal-edge-lo),
-    0 1px 0 rgb(255 255 255 / 8%);
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Tablet wraps the booth tighter — the screen stays a desktop instrument. */
-.app[data-stage="tablet"] .booth-screen {
+/* SAVED "…AGO" text and the theme name are already carried in full by
+ * title/aria-label (SaveIndicator, ThemeSelector) — icon + dot only on
+ * desktop buys back more of the row without losing any information. */
+.app[data-stage="desktop"] .save-label {
   display: none;
 }
 
-.screen-body {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-4);
-}
-
-@container (max-width: 470px) {
-  .screen-annun {
-    display: none;
-  }
-  .screen-main {
-    padding-left: 0;
-    border-left: 0;
-  }
-}
-
-@container (max-width: 300px) {
-  .screen-meters {
-    display: none;
-  }
-}
-
-.screen-annun {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.screen-annun-item {
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 16%, var(--metal-recess));
-}
-
-.screen-annun-item[data-on="true"] {
-  color: var(--color-ink);
-  text-shadow: 0 0 3px color-mix(in srgb, var(--color-ink) 45%, transparent);
-}
-
-.screen-bpm {
-  font: 400 20px/1 var(--font-led);
-  color: var(--led-on);
-  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 50%, transparent);
-}
-
-.screen-bpm-unit {
-  margin-left: 3px;
-  font: var(--text-label-sm);
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-recess));
-}
-
-.screen-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding-left: var(--space-4);
-  border-left: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
-}
-
-.screen-label {
-  flex: none;
-  font: var(--text-panel-label-sm);
-  line-height: 1;
-  letter-spacing: var(--track-panel-label);
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-recess));
-  white-space: nowrap;
-}
-
-.screen-value {
-  position: relative;
-  isolation: isolate;
-  flex: 1 1 auto;
-  min-width: 0;
-  font: 400 20px/1 var(--font-led);
-  color: var(--led-on);
-  text-shadow: 0 0 2px color-mix(in srgb, var(--color-ink) 55%, transparent);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-/* Left-aligned ghost cells behind the echoed value. */
-.screen-value::before {
-  content: "888888888888888888";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  color: color-mix(in srgb, var(--color-ink) 7%, transparent);
-  text-shadow: none;
-  overflow: hidden;
-}
-
-.screen-meters {
-  flex: none;
-  display: grid;
-  gap: 1px;
-}
-
-.screen-meter-row {
-  --lane-hue: var(--color-ink);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.screen-meter-row[data-lane="drums"] {
-  --lane-hue: var(--color-lane-drums);
-}
-.screen-meter-row[data-lane="bass"] {
-  --lane-hue: var(--color-lane-bass);
-}
-.screen-meter-row[data-lane="chords"] {
-  --lane-hue: var(--color-lane-chords);
-}
-.screen-meter-row[data-lane="lead"] {
-  --lane-hue: var(--color-lane-lead);
-}
-
-.screen-meter-tag {
-  font: 700 8px/1 var(--font-label); /* decorative engraving (the 8px furniture pin) */
-  letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--color-ink) 45%, var(--metal-recess));
+.app[data-stage="desktop"] .theme-selector span {
+  display: none;
 }
 
 /* Meters: an unlit segment row, a lane-hue bar scaled by the meter bus
  * (transform only), and a static gap mask over both so segments stay crisp
  * at any level. */
-.screen-meter,
 .lane-meter {
   position: relative;
   overflow: hidden;
@@ -504,42 +359,16 @@ textarea {
   background: color-mix(in srgb, var(--lane-hue) 14%, var(--metal-recess));
 }
 
-.screen-meter {
-  width: 64px;
-  height: 4px;
-  border-radius: 1px;
-}
-
-.screen-meter-lit,
 .lane-meter-lit {
   position: absolute;
   inset: 0;
   background: var(--lane-hue);
 }
 
-.screen-meter-lit {
-  transform: scaleX(0);
-  transform-origin: left center;
-  background: linear-gradient(
-    to right,
-    var(--lane-hue) 0 72%,
-    color-mix(in srgb, var(--color-ink) 70%, var(--lane-hue)) 100%
-  );
-}
-
-.screen-meter::after,
 .lane-meter::after {
   content: "";
   position: absolute;
   inset: 0;
-}
-
-.screen-meter::after {
-  background: repeating-linear-gradient(
-    to right,
-    transparent 0 5px,
-    var(--metal-recess) 5px 7px
-  );
 }
 
 /* The channel meter: a segmented LED column in the floor's left padding
