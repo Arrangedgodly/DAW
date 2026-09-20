@@ -240,7 +240,7 @@ describe("MB-3 help-mode tap-to-inspect (trusted CDP touch, phone stage)", () =>
         const bassConf = () =>
           docStore.getState().doc.lanes.find((l) => l.id === "bass")!;
         const presetBefore = bassConf().presetId;
-        await tapEl(el('[aria-label="Next preset for BASS"]'));
+        await tapEl(el('[aria-label="Next preset for Bass, track 2"]'));
         await waitFor(
           () => title() === "BASS PRESET",
           2000,

@@ -1,8 +1,8 @@
 /**
  * LL-1 (iteration 3, i3-4) unit laws: the pattern-LENGTH ladder.
  *
- * Covers the store's `resizePattern` (grow/clean-shrink/refuse-by-default,
- * determinism of the blocking note, undo family `resize:<lane>:<pattern>`),
+ * Covers the store's `resizePattern` (grow/shrink with retained overflow,
+ * restoration of hidden notes, undo family `resize:<lane>:<pattern>`),
  * the pure patternRail helpers (ladder navigation + the E10 announcement
  * texts, keyboard.md v3 §"Pattern resize"), a spot check of the LP-1
  * bounded step lookup now living in production (the exhaustive equivalence
@@ -74,10 +74,10 @@ describe("length ladder", () => {
     expect(resizeLimitAnnouncement("B", 128)).toBe(
       "PATTERN B · 128 BARS · AT LIMIT",
     );
-    expect(resizeLimitAnnouncement("B", 1)).toBe("PATTERN B · 1 BAR · AT LIMIT");
-    expect(
-      resizeRefusalAnnouncement("B", 4, "SNARE", 5),
-    ).toBe(
+    expect(resizeLimitAnnouncement("B", 1)).toBe(
+      "PATTERN B · 1 BAR · AT LIMIT",
+    );
+    expect(resizeRefusalAnnouncement("B", 4, "SNARE", 5)).toBe(
       "CANNOT SHRINK PATTERN B TO 4 BARS · SNARE NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
     );
     expect(resizeRefusalAnnouncement("A", 2, "C′", 1)).toBe(
@@ -104,7 +104,7 @@ describe("length ladder", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Store: resizePattern — grow / clean shrink / refusal / undo
+// Store: resizePattern — grow / retained shrink / undo
 // ---------------------------------------------------------------------------
 
 describe("resizePattern (store)", () => {
@@ -145,11 +145,11 @@ describe("resizePattern (store)", () => {
     );
   });
 
-  it("REFUSES a shrink that would lose a drum hit past the new end (store untouched)", () => {
-    resizePattern("drums", "drums-1", 8); // 128 steps
+  it("stashes drum hits past the new end and restores their exact positions", () => {
+    resizePattern("drums", "drums-1", 8);
     const p = doc().patterns.drums[0] as DrumPattern;
     const hat = [...p.steps.hat];
-    hat[100] = true; // bar 7 — past a 4-bar end
+    hat[100] = true;
     loadDocument({
       ...doc(),
       patterns: {
@@ -157,60 +157,36 @@ describe("resizePattern (store)", () => {
         drums: [{ ...p, steps: { ...p.steps, hat } }],
       },
     });
-    const before = doc();
-    const res = resizePattern("drums", "drums-1", 4);
-    expect(res.ok).toBe(false);
-    if (!res.ok && res.reason === "blocked") {
-      expect(res.toBars).toBe(4);
-      expect(res.blocking.row).toBe("hat");
-      expect(res.blocking.start).toBe(100);
-      expect(res.blocking.length).toBe(1);
-    } else {
-      throw new Error("expected a typed refusal");
-    }
-    expect(doc()).toBe(before); // no commit, no history
+    const before = doc().patterns.drums[0];
+    expect(resizePattern("drums", "drums-1", 4)).toEqual({ ok: true, bars: 4 });
+    const short = doc().patterns.drums[0] as DrumPattern;
+    expect(short.steps.hat).toHaveLength(64);
+    expect(short.overflow?.hat?.[36]).toBe(true);
+    expect(resizePattern("drums", "drums-1", 8).ok).toBe(true);
+    expect(doc().patterns.drums[0]).toEqual(before);
   });
 
-  it("REFUSES a shrink that would cut any pitched note extent; blocking note is deterministic (greatest end, ties → latest start)", () => {
-    resizePattern("bass", "bass-1", 8); // 128 steps
-    // Three candidates past a 4-bar (64-step) end: the note with the
-    // GREATEST END blocks (length 8 beats length 6 at a later start; the
-    // equal-end tie resolves to the latest start).
-    addNote("bass", "bass-1", { degree: 1, start: 70, length: 6 }); // end 76
-    addNote("bass", "bass-1", { degree: 2, start: 66, length: 8 }); // end 74
-    addNote("bass", "bass-1", { degree: 3, start: 70, length: 8 }); // end 78 ← blocks
-    const before = doc();
-    const res = resizePattern("bass", "bass-1", 4);
-    expect(res.ok).toBe(false);
-    if (!res.ok && res.reason === "blocked") {
-      expect(res.blocking.row).toBe(3);
-      expect(res.blocking.start).toBe(70);
-      expect(res.blocking.length).toBe(8);
-    } else {
-      throw new Error("expected a typed refusal");
-    }
-    expect(doc()).toBe(before);
+  it("retains every pitched note past the new end, including overlapping tails", () => {
+    resizePattern("bass", "bass-1", 8);
+    addNote("bass", "bass-1", { degree: 1, start: 70, length: 6 });
+    addNote("bass", "bass-1", { degree: 2, start: 66, length: 8 });
+    addNote("bass", "bass-1", { degree: 3, start: 70, length: 8 });
+    const before = doc().patterns.bass[0] as PitchedPattern;
+    expect(resizePattern("bass", "bass-1", 4)).toEqual({ ok: true, bars: 4 });
+    const short = doc().patterns.bass[0] as PitchedPattern;
+    expect(short.notes).toEqual([]);
+    expect(short.overflow).toEqual(before.notes);
+    expect(resizePattern("bass", "bass-1", 8).ok).toBe(true);
+    expect(doc().patterns.bass[0]).toEqual(before);
   });
 
-  it("a tail crossing the new end also refuses (no silent truncation — shorten it first)", () => {
-    resizePattern("bass", "bass-1", 2); // 32 steps
-    addNote("bass", "bass-1", { degree: 0, start: 14, length: 4 }); // end 18 > 16
-    const res = resizePattern("bass", "bass-1", 1);
-    expect(res.ok).toBe(false);
-    // Shorten it (end 16 ≤ 16) → the shrink proceeds.
-    loadDocument({
-      ...doc(),
-      patterns: {
-        ...doc().patterns,
-        bass: [
-          {
-            ...(doc().patterns.bass[0] as PitchedPattern),
-            notes: [{ degree: 0, start: 14, length: 2 }],
-          },
-        ],
-      },
-    });
-    expect(resizePattern("bass", "bass-1", 1).ok).toBe(true);
+  it("keeps a note anchored before the boundary with its full sustain", () => {
+    resizePattern("bass", "bass-1", 2);
+    addNote("bass", "bass-1", { degree: 0, start: 14, length: 4 });
+    expect(resizePattern("bass", "bass-1", 1)).toEqual({ ok: true, bars: 1 });
+    const short = doc().patterns.bass[0] as PitchedPattern;
+    expect(short.notes).toEqual([{ degree: 0, start: 14, length: 4 }]);
+    expect(short.overflow).toBeUndefined();
   });
 
   it("no-op and not-found are typed, silent non-commits", () => {

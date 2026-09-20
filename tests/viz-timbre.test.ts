@@ -42,6 +42,33 @@ describe("timbre analysis", () => {
     expect(Math.hypot(re[6]!, im[6]!)).toBeLessThan(1e-3);
   });
 
+  it("reused FFT coefficients match a direct complex transform across sizes", () => {
+    for (const size of [16, 32, 16, 64, 32]) {
+      const real = Float32Array.from({ length: size }, (_, i) =>
+        Math.sin(i * 0.73),
+      );
+      const imag = Float32Array.from(
+        { length: size },
+        (_, i) => Math.cos(i * 0.31) * 0.4,
+      );
+      const expected = Array.from({ length: size }, (_, bin) => {
+        let re = 0,
+          im = 0;
+        for (let i = 0; i < size; i++) {
+          const angle = (-2 * Math.PI * bin * i) / size;
+          re += real[i]! * Math.cos(angle) - imag[i]! * Math.sin(angle);
+          im += real[i]! * Math.sin(angle) + imag[i]! * Math.cos(angle);
+        }
+        return { re, im };
+      });
+      fft(real, imag);
+      expected.forEach((value, i) => {
+        expect(real[i]).toBeCloseTo(value.re, 4);
+        expect(imag[i]).toBeCloseTo(value.im, 4);
+      });
+    }
+  });
+
   it("reads silence as silent", () => {
     const f = createTimbreAnalyser().analyse(new Float32Array(N), RATE);
     expect(f.level).toBe(0);
@@ -113,7 +140,8 @@ describe("composition engine with timbre", () => {
           key === "save" || key === "restore"
             ? () => undefined
             : typeof key === "string"
-              ? (...args: unknown[]) => void calls.push(key, ...args.map(String))
+              ? (...args: unknown[]) =>
+                  void calls.push(key, ...args.map(String))
               : undefined,
         set: () => true,
       },

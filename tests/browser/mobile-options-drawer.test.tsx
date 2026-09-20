@@ -110,8 +110,10 @@ async function bootIframe(
   // the phone branch's).
   await poll(
     () =>
-      $$(".head-ctl-value").some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo loaded",
@@ -456,7 +458,10 @@ describe("M-4 phone options drawer — collapsible, zero-DOM closed, operable op
         const shiftedRange = initialRange.map((pitch) => pitch + 12);
         const octUp = $$(
           '.lane-floor[data-lane="lead"] .register-shift-btn',
-        ).find((b) => b.getAttribute("aria-label") === "LEAD octave view up");
+        ).find(
+          (b) =>
+            b.getAttribute("aria-label") === "Leads, track 4 octave view up",
+        );
         if (!octUp) throw new Error("missing OCT up shift button");
         (octUp as HTMLButtonElement).click();
         await poll(

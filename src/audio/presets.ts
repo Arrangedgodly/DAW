@@ -174,6 +174,17 @@ export interface SampleNoteData {
   readonly oneShot: boolean;
 }
 
+/**
+ * A drum piece's playback mode when the lane does not override it: recorded
+ * one-shots play their natural length, synth pieces are gated (the pre-mode
+ * behavior — documents without `pieceModes` sound exactly as before).
+ */
+export function naturalDrumMode(preset: VoicePreset): "gate" | "oneshot" {
+  return preset.voiceType === "sample" && preset.baseFreq !== undefined
+    ? "oneshot"
+    : "gate";
+}
+
 /** Playback-rate clamp (±4 octaves), mirroring the synth freq cap's intent. */
 export const SAMPLE_PLAYBACK_RATE_MIN = 1 / 16;
 export const SAMPLE_PLAYBACK_RATE_MAX = 16;
@@ -188,6 +199,12 @@ export function noteParamsFor(
     readonly holdSeconds: number;
     /** Extra per-note seed salt (step index, piece ordinal...). */
     readonly seedSalt?: number;
+    /**
+     * Sample voices: force one-shot (natural length) or gated playback,
+     * overriding the preset's natural mode. Ignored by synth voices — their
+     * one-shot is a compile-time hold (see compile.ts).
+     */
+    readonly oneShot?: boolean;
   },
 ): VoiceNoteOnEvent {
   const base = preset.baseFreq ?? midiToFreq(opts.midi ?? 69);
@@ -217,7 +234,7 @@ export function noteParamsFor(
                   ),
                 )
               : 1,
-          oneShot: preset.baseFreq !== undefined,
+          oneShot: opts.oneShot ?? naturalDrumMode(preset) === "oneshot",
         }
       : undefined;
   return {

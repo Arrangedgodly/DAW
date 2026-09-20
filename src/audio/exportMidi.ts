@@ -66,6 +66,7 @@ import { writeMidi, type MidiData, type MidiEvent } from "midi-file";
 import {
   DRUM_PIECES,
   type DrumPiece,
+  drumHitLength,
   type LaneGate,
   type LaneId,
   type Pattern,
@@ -355,12 +356,15 @@ export function buildDrumNotes(
       const steps = pattern.steps[piece] ?? [];
       for (let step = 0; step < steps.length; step++) {
         if (!steps[step]) continue;
+        const hitLength = drumHitLength(pattern, piece, step);
         notes.push({
           // Same uniform groove shift as pitched lanes (odd 16ths delayed).
           tick: cursor + stepTick(step, swing),
           noteNumber: GM_DRUM_NOTES[piece],
           velocity: GM_DRUM_VELOCITIES[piece],
-          durationTicks: dur,
+          // Authored per-hit length wins; otherwise the lane gate (as before).
+          durationTicks:
+            hitLength !== undefined ? noteLengthTicks(hitLength) : dur,
         });
       }
     }

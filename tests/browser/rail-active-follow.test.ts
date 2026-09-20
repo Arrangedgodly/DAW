@@ -398,12 +398,8 @@ describe("refinement-7 rail active-tile follow + polish (built app)", () => {
           const cs = view.getComputedStyle(group);
           expect(
             Number.parseFloat(cs.paddingTop),
-            "position group separates its second row; other groups stay symmetric",
-          ).toBe(
-            group.classList.contains("booth-group-position")
-              ? 9
-              : Number.parseFloat(cs.paddingBottom),
-          );
+            "single-row booth groups use symmetric vertical insets",
+          ).toBe(Number.parseFloat(cs.paddingBottom));
         }
         const boothBox = $<HTMLElement>(".booth").getBoundingClientRect();
         console.log(

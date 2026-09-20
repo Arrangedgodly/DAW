@@ -56,6 +56,23 @@ export interface TimbreFrame {
 const clamp01 = (x: number): number =>
   Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0;
 
+// Stage coefficients depend only on FFT size, not the lane or audio frame.
+// Keep doubles so cached coefficients preserve the original calculation.
+const fftStages = new Map<number, { real: Float64Array; imag: Float64Array }>();
+function fftStage(size: number) {
+  let stage = fftStages.get(size);
+  if (!stage) {
+    const half = size >> 1;
+    const step = (-2 * Math.PI) / size;
+    stage = {
+      real: Float64Array.from({ length: half }, (_, k) => Math.cos(step * k)),
+      imag: Float64Array.from({ length: half }, (_, k) => Math.sin(step * k)),
+    };
+    fftStages.set(size, stage);
+  }
+  return stage;
+}
+
 /** In-place iterative radix-2 FFT. `re.length` must be a power of two. */
 export function fft(re: Float32Array, im: Float32Array): void {
   const n = re.length;
@@ -64,17 +81,21 @@ export function fft(re: Float32Array, im: Float32Array): void {
     for (; j & bit; bit >>= 1) j ^= bit;
     j ^= bit;
     if (i < j) {
-      [re[i], re[j]] = [re[j]!, re[i]!];
-      [im[i], im[j]] = [im[j]!, im[i]!];
+      const real = re[i]!,
+        imaginary = im[i]!;
+      re[i] = re[j]!;
+      im[i] = im[j]!;
+      re[j] = real;
+      im[j] = imaginary;
     }
   }
   for (let size = 2; size <= n; size <<= 1) {
-    const half = size >> 1,
-      step = (-2 * Math.PI) / size;
+    const half = size >> 1;
+    const stage = fftStage(size);
     for (let start = 0; start < n; start += size)
       for (let k = 0; k < half; k++) {
-        const wr = Math.cos(step * k),
-          wi = Math.sin(step * k);
+        const wr = stage.real[k]!,
+          wi = stage.imag[k]!;
         const a = start + k,
           b = a + half;
         const tr = re[b]! * wr - im[b]! * wi,
@@ -220,8 +241,7 @@ export function createLaneTimbreFollower() {
       );
       // Detuned voices and chorus beat a little every window; only flux past
       // that shimmer floor counts as an attack.
-      const onset =
-        frame.level > 0.08 ? clamp01((frame.flux - 0.12) * 3.2) : 0;
+      const onset = frame.level > 0.08 ? clamp01((frame.flux - 0.12) * 3.2) : 0;
       state.transient = Math.max(onset, state.transient * Math.exp(-step * 12));
       if (frame.level > 0.12) {
         const w = 14;

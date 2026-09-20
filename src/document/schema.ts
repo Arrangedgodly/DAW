@@ -1,3 +1,4 @@
+import { FxDeviceSchema, MAX_FX_PER_LANE, type FxDevice } from "./fx";
 /**
  * Bitbounce project document — versioned, JSON-safe by construction.
  *
@@ -13,6 +14,7 @@
  */
 
 import * as v from "valibot";
+import { MixerSchema } from "./mixer";
 import { MAX_BPM, MIN_BPM, secondsPerStep } from "../audio/time";
 import type { ModeName } from "./scales";
 
@@ -190,90 +192,7 @@ export const TransportSchema = v.strictObject({
 // FX devices (0–3 per lane)
 // ---------------------------------------------------------------------------
 
-export type FxDevice =
-  | {
-      readonly type: "filter";
-      readonly bypassed: boolean;
-      readonly params: {
-        readonly kind?: "lowpass" | "highpass" | "bandpass";
-        readonly cutoffHz: number;
-        readonly q: number;
-      };
-    }
-  | {
-      readonly type: "drive";
-      readonly bypassed: boolean;
-      readonly params: { readonly amount: number };
-    }
-  | {
-      readonly type: "bitcrusher";
-      readonly bypassed: boolean;
-      readonly params: { readonly bits: number; readonly downsample: number };
-    }
-  | {
-      readonly type: "delay";
-      readonly bypassed: boolean;
-      readonly params: {
-        readonly timeSteps: number;
-        readonly feedback: number;
-        readonly mix: number;
-      };
-    }
-  | {
-      readonly type: "reverb";
-      readonly bypassed: boolean;
-      readonly params: { readonly size: number; readonly mix: number };
-    };
-
-export const MAX_FX_PER_LANE = 3;
-
-const UnitInterval = v.pipe(v.number(), v.minValue(0), v.maxValue(1));
-
-export const FxDeviceSchema = v.variant("type", [
-  v.strictObject({
-    type: v.literal("filter"),
-    bypassed: v.boolean(),
-    params: v.strictObject({
-      // IM-4: response kind; omitted = lowpass (v1 documents written before
-      // the field existed stay valid — MF-1 schema stays backward compatible).
-      kind: v.optional(v.picklist(["lowpass", "highpass", "bandpass"])),
-      cutoffHz: v.pipe(v.number(), v.minValue(20), v.maxValue(20000)),
-      q: v.pipe(v.number(), v.minValue(0.1), v.maxValue(18)),
-    }),
-  }),
-  v.strictObject({
-    type: v.literal("drive"),
-    bypassed: v.boolean(),
-    params: v.strictObject({ amount: UnitInterval }),
-  }),
-  v.strictObject({
-    type: v.literal("bitcrusher"),
-    bypassed: v.boolean(),
-    params: v.strictObject({
-      bits: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(16)),
-      downsample: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1),
-        v.maxValue(64),
-      ),
-    }),
-  }),
-  v.strictObject({
-    type: v.literal("delay"),
-    bypassed: v.boolean(),
-    params: v.strictObject({
-      timeSteps: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(64)),
-      feedback: v.pipe(v.number(), v.minValue(0), v.maxValue(0.95)),
-      mix: UnitInterval,
-    }),
-  }),
-  v.strictObject({
-    type: v.literal("reverb"),
-    bypassed: v.boolean(),
-    params: v.strictObject({ size: UnitInterval, mix: UnitInterval }),
-  }),
-]);
+export { FxDeviceSchema, MAX_FX_PER_LANE, type FxDevice } from "./fx";
 
 // ---------------------------------------------------------------------------
 // Lanes
@@ -294,10 +213,25 @@ export const LaneGateSchema = v.variant("unit", [
   }),
 ]);
 
+/**
+ * Drum piece playback mode. `gate` = the hit sounds for its note length
+ * (release lands at the boundary); `oneshot` = the sample/envelope plays all
+ * the way through on trigger, ignoring the hit's length.
+ */
+export type DrumPlaybackMode = "gate" | "oneshot";
+export const DRUM_PLAYBACK_MODES = ["gate", "oneshot"] as const;
+
 export interface DrumsLane {
   readonly id: "drums";
   readonly kitId: string;
   readonly gate: LaneGate;
+  /**
+   * Per-piece playback mode override (optional, canonical-empty: omitted when
+   * no piece is overridden — pre-existing documents stay byte-identical).
+   * Absent piece = the kit's natural mode (recorded samples one-shot, synth
+   * pieces gated), see `naturalDrumMode` in audio/presets.
+   */
+  readonly pieceModes?: Readonly<Partial<Record<DrumPiece, DrumPlaybackMode>>>;
   readonly fxChain: readonly FxDevice[];
   /** LY-1 quadrant mix (optional, canonical-empty when default — see LaneMix). */
   readonly volume?: number;
@@ -424,7 +358,14 @@ export const LaneSchema = v.variant("id", [
       ...LaneCommon,
     }),
   ),
-  v.strictObject({ id: v.literal("drums"), kitId: v.string(), ...LaneCommon }),
+  v.strictObject({
+    id: v.literal("drums"),
+    kitId: v.string(),
+    pieceModes: v.optional(
+      v.record(v.picklist(DRUM_PIECES), v.picklist(DRUM_PLAYBACK_MODES)),
+    ),
+    ...LaneCommon,
+  }),
   v.strictObject({
     id: v.literal("bass"),
     presetId: v.string(),
@@ -541,6 +482,30 @@ export interface DrumPattern {
   readonly bars: PatternBars;
   /** drum piece → on/off per step (length = 16 * bars). */
   readonly steps: Readonly<Record<DrumPiece, readonly boolean[]>>;
+  /**
+   * Hits cut off by shortening the clip, per piece; index 0 is step
+   * `bars * 16`. Growing the clip back restores them; doubling discards them.
+   * Never played or rendered; omitted when empty.
+   */
+  readonly overflow?: Readonly<Partial<Record<DrumPiece, readonly boolean[]>>>;
+  /**
+   * Sparse per-hit note lengths in steps (0.25 grid): piece → { "<step>": len }.
+   * Optional and canonical-empty (omitted when no hit overrides the lane gate).
+   * A hit with no entry sounds for the lane gate (the single-click default,
+   * exactly as before). Only consulted for steps that are on.
+   */
+  readonly lengths?: Readonly<
+    Partial<Record<DrumPiece, Readonly<Record<string, number>>>>
+  >;
+}
+
+/** The stored length override of one drum hit, or undefined (= lane gate). */
+export function drumHitLength(
+  pattern: DrumPattern,
+  piece: DrumPiece,
+  step: number,
+): number | undefined {
+  return pattern.lengths?.[piece]?.[String(step)];
 }
 
 /**
@@ -558,6 +523,12 @@ export interface PitchedPattern {
   readonly bars: PatternBars;
   readonly rowDegrees: readonly number[];
   readonly notes: readonly Note[];
+  /**
+   * Notes cut off by shortening the clip (start ≥ bars × 16), kept so growing
+   * the clip back restores them. Absolute step positions; omitted when empty.
+   * Never played or rendered; doubling the clip discards it.
+   */
+  readonly overflow?: readonly Note[];
 }
 
 export type Pattern = DrumPattern | PitchedPattern;
@@ -569,6 +540,22 @@ export const PatternSchema = v.variant("kind", [
     name: v.string(),
     bars: PatternBarsSchema,
     steps: v.record(v.picklist(DRUM_PIECES), v.array(v.boolean())),
+    overflow: v.optional(
+      v.record(v.picklist(DRUM_PIECES), v.array(v.boolean())),
+    ),
+    lengths: v.optional(
+      v.record(
+        v.picklist(DRUM_PIECES),
+        v.record(
+          v.string(),
+          v.pipe(
+            v.number(),
+            v.minValue(MIN_NOTE_LENGTH),
+            v.maxValue(MAX_NOTE_LENGTH),
+          ),
+        ),
+      ),
+    ),
   }),
   v.strictObject({
     kind: v.literal("pitched"),
@@ -577,6 +564,7 @@ export const PatternSchema = v.variant("kind", [
     bars: PatternBarsSchema,
     rowDegrees: v.array(NoteDegree),
     notes: v.array(NoteSchema),
+    overflow: v.optional(v.array(NoteSchema)),
   }),
 ]);
 
@@ -960,6 +948,7 @@ const SongChainSchema = v.strictObject({
 // ---------------------------------------------------------------------------
 
 export interface ProjectDocument {
+  readonly mixer?: import("./mixer").MixerSettings;
   readonly name: string;
   /** Doc-level schema version — migrate.ts keys off this. */
   readonly version: typeof SCHEMA_VERSION;
@@ -987,6 +976,7 @@ export interface ProjectDocument {
 
 export const ProjectDocumentSchema = v.pipe(
   v.strictObject({
+    mixer: v.optional(MixerSchema),
     name: v.string(),
     version: v.literal(SCHEMA_VERSION),
     transport: TransportSchema,

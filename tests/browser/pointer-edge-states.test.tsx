@@ -274,7 +274,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         snapshotRows = await bootDb.allRecords();
         loadDocument(createFreshProjectDocument());
         selectLane("bass");
-        await waitEditable("bass", "BASS grid · EDITING");
+        await waitEditable("bass", "Bass, track 2 grid · EDITING");
         expect(bassNotes()).toHaveLength(0);
 
         // -- Row 1: pointercancel during create-drag -----------------------
@@ -388,7 +388,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         pe(s14, "pointermove", center(s14).x, center(s14).y);
         expect(previews()).toBe(1);
         selectLane("drums"); // bass flips VIEW-ONLY mid-gesture
-        await waitEditable("bass", "BASS grid · VIEW ONLY");
+        await waitEditable("bass", "Bass, track 2 grid · VIEW ONLY");
         expect(previews()).toBe(1); // gesture still owns its preview
         pe(s14, "pointerup", center(s14).x, center(s14).y);
         expect(bassNotes()).toContainEqual({ degree: 0, start: 12, length: 3 });
@@ -397,7 +397,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         // -- Row 12: external document sync mid-gesture CANCELS --------------
         loadDocument(createFreshProjectDocument()); // deterministic empty grid
         selectLane("bass");
-        await waitEditable("bass", "BASS grid · EDITING");
+        await waitEditable("bass", "Bass, track 2 grid · EDITING");
         const s4 = cellAt("bass", 0, 4);
         const s6 = cellAt("bass", 0, 6);
         pe(s4, "pointerdown", center(s4).x, center(s4).y);
@@ -467,7 +467,12 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         const rectAfter = (
           cellAt("bass", 0, 0).parentElement as HTMLElement
         ).getBoundingClientRect();
-        const expectedEnd = Math.floor((targetX - rectAfter.left) / stepW);
+        // The fresh four-bar document can have a different fitted step pitch.
+        const currentStepWidth =
+          center(cellAt("bass", 0, 1)).x - center(cellAt("bass", 0, 0)).x;
+        const expectedEnd = Math.floor(
+          (targetX - rectAfter.left) / currentStepWidth,
+        );
         pe(t30, "pointermove", targetX, pressAt.y);
         pe(t30, "pointerup", targetX, pressAt.y);
         const dragged = bassNotes().find((n) => n.start === 2);
@@ -476,7 +481,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
 
         // -- Rows 3: pointercancel during drums paint ------------------------
         selectLane("drums");
-        await waitEditable("drums", "DRUMS grid · EDITING");
+        await waitEditable("drums", "Drums, track 1 grid · EDITING");
         const d0 = cellAt("drums", 0, 0);
         const d3 = cellAt("drums", 0, 3);
         const aud1 = auditions.length;
@@ -496,7 +501,7 @@ describe("IN-4 pointer edge states (real app, synthetic pointer events)", () => 
         // (steps past the row-9 dragged note's span AND off the every-4th
         // gate notes: 50..54 are free on the 4-bar bass grid)
         selectLane("bass");
-        await waitEditable("bass", "BASS grid · EDITING");
+        await waitEditable("bass", "Bass, track 2 grid · EDITING");
         const m50 = cellAt("bass", 0, 50);
         const m54 = cellAt("bass", 0, 54);
         const m58 = cellAt("bass", 0, 58);
@@ -781,8 +786,8 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         selectLane("bass");
         await waitFor(
           () =>
-            gridLabel("lead")?.startsWith("LEAD grid · VIEW ONLY") === true &&
-            cellAt("lead", 0, 63) !== null,
+            gridLabel("lead")?.startsWith("Leads, track 4 grid · VIEW ONLY") ===
+              true && cellAt("lead", 0, 63) !== null,
           6000,
           "4-bar view-only lead mounted",
         );
@@ -886,7 +891,7 @@ describe("IN-4 view-only quadrant extremes (LY-1 scroll-within-quadrant, 128-ste
         // overhangs the bar's right edge and never covers the bar's center.
         loadDocument(createFreshProjectDocument());
         selectLane("bass");
-        await waitEditable("bass", "BASS grid · EDITING");
+        await waitEditable("bass", "Bass, track 2 grid · EDITING");
         const b2 = cellAt("bass", 0, 2);
         pe(b2, "pointerdown", center(b2).x, center(b2).y);
         pe(b2, "pointerup", center(b2).x, center(b2).y);

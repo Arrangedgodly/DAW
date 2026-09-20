@@ -10,6 +10,16 @@
  */
 
 import { AudioEngineContext, type AudioContextLike } from "../audio/context";
+import {
+  createChannelProcessing,
+  createMasterProcessing,
+  prepareMixer,
+} from "../audio/mixer";
+import {
+  DEFAULT_CHANNEL,
+  DEFAULT_MIXER,
+  type MixerSettings,
+} from "../document/mixer";
 import { Transport } from "../audio/transport";
 import {
   STEPS_PER_BEAT,
@@ -425,6 +435,7 @@ export class Session {
     this.transport.setBpm(bpm);
     // Tempo-synced devices (delay) glide to the new musical time (τ=15 ms).
     for (const chain of this.chainHosts) chain?.syncBpm(false);
+    this.masterProcessing?.syncBpm();
   }
 
   setSwingAmount(amount: number): void {
@@ -1492,6 +1503,100 @@ export class Session {
 
   private laneMix: LaneMix[] = LANE_IDS.map(() => ({ ...DEFAULT_LANE_MIX }));
   private laneGains: (GainNode | null)[] = [];
+  private mixerSettings: MixerSettings = DEFAULT_MIXER;
+  private mixerReady = false;
+  private laneProcessing: ReturnType<typeof createChannelProcessing>[] = [];
+  private masterProcessing: ReturnType<typeof createMasterProcessing> | null =
+    null;
+  private masterTap: AnalyserNode | null = null;
+  private mixerTaps = new Map<
+    LaneId | "master",
+    {
+      source: AudioNode;
+      split: ChannelSplitterNode;
+      taps: AnalyserNode[];
+      samples: Float32Array<ArrayBuffer>;
+    }
+  >();
+
+  readMixerLevel(lane: LaneId | "master"): { peak: number; rms: number } {
+    const source =
+      lane === "master"
+        ? this.masterProcessing?.output
+        : this.laneGains[LANE_IDS.indexOf(lane)];
+    if (!source || !this.mixerReady) return { peak: 0, rms: 0 };
+    let meter = this.mixerTaps.get(lane);
+    if (!meter) {
+      const ctx = this.engine.getContext() as unknown as BaseAudioContext;
+      const split = ctx.createChannelSplitter(2);
+      source.connect(split);
+      const taps = [ctx.createAnalyser(), ctx.createAnalyser()];
+      taps.forEach((tap, index) => {
+        tap.fftSize = 4096;
+        split.connect(tap, index);
+      });
+      meter = { source, split, taps, samples: new Float32Array(4096) };
+      this.mixerTaps.set(lane, meter);
+    }
+    let peak = 0,
+      sum = 0;
+    for (const tap of meter.taps) {
+      tap.getFloatTimeDomainData(meter.samples);
+      for (const sample of meter.samples) {
+        peak = Math.max(peak, Math.abs(sample));
+        sum += sample * sample;
+      }
+    }
+    return { peak, rms: Math.sqrt(sum / (meter.samples.length * 2)) };
+  }
+
+  setMixer(settings: MixerSettings | undefined): void {
+    this.mixerSettings = settings ?? DEFAULT_MIXER;
+    this.laneProcessing.forEach((node, i) =>
+      node.set(this.mixerSettings.channels[LANE_IDS[i]] ?? DEFAULT_CHANNEL),
+    );
+    this.masterProcessing?.set(this.mixerSettings.master);
+  }
+
+  readMixerReduction(lane: LaneId | "master"): {
+    compressor: number;
+    limiter: number;
+  } {
+    return lane === "master"
+      ? {
+          compressor: this.masterProcessing?.reduction() ?? 0,
+          limiter: this.masterProcessing?.limiterReduction() ?? 0,
+        }
+      : {
+          compressor:
+            this.laneProcessing[LANE_IDS.indexOf(lane)]?.reduction() ?? 0,
+          limiter: 0,
+        };
+  }
+
+  readMasterWaveform(out: Float32Array<ArrayBuffer>): boolean {
+    if (!this.masterProcessing) return false;
+    if (!this.masterTap) {
+      const ctx = this.engine.getContext() as unknown as BaseAudioContext;
+      this.masterTap = ctx.createAnalyser();
+      this.masterTap.fftSize = out.length;
+      this.masterProcessing.output.connect(this.masterTap);
+    }
+    this.masterTap.getFloatTimeDomainData(out);
+    return true;
+  }
+
+  releaseMixerTaps(): void {
+    this.mixerTaps.forEach((meter) => {
+      meter.source.disconnect(meter.split);
+      meter.split.disconnect();
+      meter.taps.forEach((tap) => tap.disconnect());
+    });
+    this.mixerTaps.clear();
+    if (this.masterTap)
+      this.masterProcessing?.output.disconnect(this.masterTap);
+    this.masterTap = null;
+  }
 
   /**
    * Push one lane's mix (document values via the engineBridge). Recomputes
@@ -1592,6 +1697,14 @@ export class Session {
     if (!hasAudioNodes(ctx)) return null;
     const gain = ctx.createGain();
     gain.gain.value = this.effectiveLaneGain(laneIndex);
+    if (this.mixerReady) {
+      const processing = createChannelProcessing(
+        ctx as unknown as BaseAudioContext,
+        this.mixerSettings.channels[LANE_IDS[laneIndex]] ?? DEFAULT_CHANNEL,
+      );
+      processing.output.connect(gain);
+      this.laneProcessing[laneIndex] = processing;
+    }
     gain.connect(master);
     this.laneGains[laneIndex] = gain;
     return gain;
@@ -1653,7 +1766,7 @@ export class Session {
           host.connect(laneIndex, destination as AudioNode),
         disconnect: () => undefined,
       },
-      sink: laneGain,
+      sink: this.laneProcessing[laneIndex]?.input ?? laneGain,
       ramp: rampGain,
       createDevice: createRealFxDeviceFactory(ctx, {
         laneSeed,
@@ -1729,29 +1842,43 @@ export class Session {
       this.engine.getContext(),
     ).then((host) => {
       if (!host) return null;
-      // PS-4: every lane routes through the router — synth events to the
-      // worklet, sample events to the (lazily created) native host.
-      const router = createLaneVoiceRouter(host, () =>
-        this.ensureSampleVoiceHost(),
-      );
-      const master = this.ensureMaster();
-      if (master) {
-        for (let i = 0; i < LANE_IDS.length; i++) {
-          // LY-1: the lane gain (mix node) exists on every path — worklet
-          // graphs sink their FX chain into it; the exotic no-worklet
-          // fallback connects the voice engine through it directly. The mix
-          // law (volume/mute/solo) is therefore identical either way.
-          const laneGain = this.ensureLaneGain(i, master);
-          // IM-4: voice engine → FX chain (chain head = ramp gain) → lane
-          // gain → master. The chain host owns everything between the
-          // worklet node and the lane gain.
-          this.buildLaneChain(router, i, master);
-          // No worklet-graph context (exotic fallback): straight through the
-          // lane gain to master.
-          if (!this.chainHosts[i] && laneGain) router.connect(i, laneGain);
+      const context = this.engine.getContext() as unknown as BaseAudioContext;
+      const connect = () => {
+        // PS-4: every lane routes through the router — synth events to the
+        // worklet, sample events to the (lazily created) native host.
+        const router = createLaneVoiceRouter(host, () =>
+          this.ensureSampleVoiceHost(),
+        );
+        const master = this.ensureMaster();
+        if (master) {
+          for (let i = 0; i < LANE_IDS.length; i++) {
+            // LY-1: the lane gain (mix node) exists on every path — worklet
+            // graphs sink their FX chain into it; the exotic no-worklet
+            // fallback connects the voice engine through it directly. The mix
+            // law (volume/mute/solo) is therefore identical either way.
+            const laneGain = this.ensureLaneGain(i, master);
+            // IM-4: voice engine → FX chain (chain head = ramp gain) → lane
+            // gain → master. The chain host owns everything between the
+            // worklet node and the lane gain.
+            this.buildLaneChain(router, i, master);
+            // No worklet-graph context (exotic fallback): straight through the
+            // lane gain to master.
+            if (!this.chainHosts[i] && laneGain)
+              router.connect(i, this.laneProcessing[i]?.input ?? laneGain);
+          }
         }
+        return router;
+      };
+      if (
+        typeof context.createDynamicsCompressor === "function" &&
+        context.audioWorklet
+      ) {
+        return prepareMixer(context).then(() => {
+          this.mixerReady = true;
+          return connect();
+        });
       }
-      return router;
+      return connect();
     });
     return this.voiceEnginePromise;
   }
@@ -1767,9 +1894,19 @@ export class Session {
     if (!hasAudioNodes(ctx)) return null;
     const gain = ctx.createGain();
     gain.gain.value = this._volume;
-    const clip = createSoftClipNode(ctx);
-    gain.connect(clip);
-    clip.connect(ctx.destination);
+    if (this.mixerReady) {
+      this.masterProcessing = createMasterProcessing(
+        ctx as unknown as BaseAudioContext,
+        this.mixerSettings.master,
+        () => this.transport.snapshot.bpm,
+      );
+      gain.connect(this.masterProcessing.input);
+      this.masterProcessing.output.connect(ctx.destination);
+    } else {
+      const clip = createSoftClipNode(ctx);
+      gain.connect(clip);
+      clip.connect(ctx.destination);
+    }
     this.master = gain;
     return gain;
   }

@@ -122,7 +122,8 @@ describe("refinement-2 euclid fill-rail geometry (real pointers, 1440×900)", ()
           () =>
             host
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
-              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+              ?.getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           4000,
           "drums quadrant editable",
         );

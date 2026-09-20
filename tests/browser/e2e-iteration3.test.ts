@@ -156,7 +156,7 @@ function leadDegreeMidi(degree: number): number {
 
 describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
   it(
-    "poly-loop boot → play (LCM/unsynced sweeps) → + twins → edit → resize ladder + refusal → OCT (export-reflected) → window scroll → linear WAV and pattern MIDI → reload → 1920 probe",
+    "poly-loop boot → play (LCM/unsynced sweeps) → + twins → edit → resize ladder + retained overflow → OCT (export-reflected) → window scroll → linear WAV and pattern MIDI → reload → 1920 probe",
     { timeout: 300_000 },
     async () => {
       const bundleKey = Object.keys(bundleGlob)[0];
@@ -731,14 +731,25 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           "the bar-2 blocking note committed",
         );
         await openSong(); // back to the rail for the refusal + PAT stepper
-        const refusal = `CANNOT SHRINK PATTERN E TO 1 BAR · ${rowLabels("lead")[noteRow]} NOTE AT BAR 2 WOULD BE LOST · MOVE OR SHORTEN IT FIRST`;
+        const shrinkAnnouncement = "PATTERN E · 1 BAR";
         shrinkB();
         await poll(
-          () => railAnnounce("lead") === refusal,
+          () => railAnnounce("lead") === shrinkAnnouncement,
           T.ui,
-          "the exact E10 refusal names the blocking note",
+          "shrink announces its new length",
         );
-        expect(cellsPerRow("lead")).toBe(32); // the store refused
+        expect(cellsPerRow("lead")).toBe(16);
+        key(idoc().body, "b");
+        await poll(
+          () => cellsPerRow("lead") === 32,
+          T.ui,
+          "manual growth restores hidden note",
+        );
+        expect(
+          floor("lead")
+            .querySelector(`.note-edge[data-row="${noteRow}"][data-start="16"]`)
+            ?.getAttribute("data-length"),
+        ).toBe("4");
         // The PAT stepper twin: IDENTICAL text, and the menu OWNS ITS
         // LIFECYCLE (stays open across the refusal press).
         $<HTMLElement>(
@@ -756,15 +767,15 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           '.rail-row[data-lane="lead"] button[aria-label^="Shrink "][aria-label*="track 4 selected pattern"]',
         ).click();
         await poll(
-          () => railAnnounce("lead") === refusal,
+          () => railAnnounce("lead") === shrinkAnnouncement,
           T.ui,
-          "the stepper refuses with the identical text (one funnel)",
+          "the stepper announces the same retained shrink",
         );
-        expect(cellsPerRow("lead")).toBe(32);
+        expect(cellsPerRow("lead")).toBe(16);
         expect(
           $<HTMLElement>('.rail-row[data-lane="lead"] .rail-length-value')
             .textContent,
-        ).toBe("LENGTH 2 BARS");
+        ).toBe("LENGTH 1 BAR");
         expect(
           !!idoc().querySelector(
             '.rail-row[data-lane="lead"] .rail-tools-menu',
@@ -793,6 +804,13 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           $('.rail-row[data-lane="lead"]').contains(idoc().activeElement),
           "Escape exits with focus returned to the rail trigger",
         ).toBe(true);
+        key(idoc().body, "b");
+        await poll(
+          () => cellsPerRow("lead") === 32,
+          T.ui,
+          "pointer shrink also retains the note",
+        );
+        await openEdit();
         // Remove the blocker (focus its anchor cell + Enter — the v0
         // toggle-off keyboard law, the drag-notes §5 precedent), then the
         // same shrink proceeds clean.
@@ -807,6 +825,7 @@ describe("HW-6 iteration-3 e2e (built app, wiped IDB, full i3 journey)", () => {
           T.ui,
           "the blocking note removed (toggle-off)",
         );
+        await openSong();
         shrinkB();
         await poll(
           () => railAnnounce("lead") === "PATTERN E · 1 BAR",

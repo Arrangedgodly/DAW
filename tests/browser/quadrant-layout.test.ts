@@ -217,7 +217,9 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             if (lane === "drums") {
               expect(label).toMatch(
                 new RegExp(
-                  "^DRUMS grid · " + state + " · ROWS \\d+–\\d+ OF 15$",
+                  "^Drums, track 1 grid · " +
+                    state +
+                    " · ROWS \\d+–\\d+ OF 15$",
                 ),
               );
               expect(windowed).toBe(true);
@@ -225,7 +227,17 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
               expect(windowed).toBe(true);
               expect(
                 label.startsWith(
-                  lane.toUpperCase() + " grid · " + state + " · ROWS ",
+                  (
+                    {
+                      drums: "Drums, track 1",
+                      bass: "Bass, track 2",
+                      chords: "Chords, track 3",
+                      lead: "Leads, track 4",
+                    } as Record<string, string>
+                  )[lane] +
+                    " grid · " +
+                    state +
+                    " · ROWS ",
                 ),
               ).toBe(true);
               expect(
@@ -248,12 +260,12 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
             tabbableCells,
             `view-only ${lane} grid must have no cell tab stops`,
           ).toHaveLength(0);
-          // Edit tier is display:none → out of the tab order entirely.
+          // Each instrument keeps direct controls available, even when its grid is not selected.
           const editRow =
             floor(lane).querySelector<HTMLElement>(".lane-strip-edit")!;
-          expect(editRow.classList.contains("is-hidden")).toBe(true);
+          expect(editRow.classList.contains("is-hidden")).toBe(false);
           expect(idoc().defaultView!.getComputedStyle(editRow).visibility).toBe(
-            "hidden",
+            "visible",
           );
         }
         // The selected grid owns exactly one (roving) tab stop.
@@ -320,7 +332,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         // pointer — focus STAYS on the strip control.
         const bassFloor = floor("bass");
         const bassMute = bassFloor.querySelector<HTMLButtonElement>(
-          'button[aria-label="Mute BASS"]',
+          'button[aria-label="Mute Bass, track 2"]',
         )!;
         bassMute.focus();
         floor("chords").querySelector<HTMLElement>(".cell")!.click();
@@ -347,11 +359,11 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
 
         // SOLO on a view-only strip announces through the SAME region.
         const bassSolo = bassFloor.querySelector<HTMLButtonElement>(
-          'button[aria-label="Solo BASS"]',
+          'button[aria-label="Solo Bass, track 2"]',
         )!;
         kbActivate(bassSolo);
         await poll(
-          () => statusText() === "SOLO BASS",
+          () => statusText() === "SOLO Bass, track 2",
           2_000,
           "SOLO BASS announcement",
         );
@@ -365,7 +377,7 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
 
         // VOLUME on a view-only strip: native range stepping commits.
         const bassVol = bassFloor.querySelector<HTMLInputElement>(
-          'input[aria-label="BASS volume"]',
+          'input[aria-label="Bass, track 2 volume"]',
         )!;
         bassVol.focus();
         bassVol.value = "40";
@@ -422,106 +434,25 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
         expect(status.hasAttribute("aria-hidden")).toBe(false);
         expect(status.getAttribute("aria-label")).toBeTruthy();
 
-        // --- 9b. FX CONSOLE AFFORDANCE (refinement-1, critique P1-1) ------
-        // The pointer trap, proven gone ON THE BUILT APP: the console
-        // chassis used to start at top:32px over the strip's edit row, so
-        // its own FX toggle + the scale chip + GATE were pointer-dead and
-        // elementFromPoint at their centers returned `.fx-strip`. Now: the
-        // page still fits with the console open, the chassis starts below
-        // the WHOLE strip, the five centers resolve to their controls, the
-        // EMPTY console paints a visible boundary (demo drums chain is
-        // empty), and Escape / CLOSE close it. Trusted-pointer twins (real
-        // clicks) live in fx-console-trusted.test.tsx.
-        const fxBTN = $<HTMLButtonElement>(
-          '.lane-floor[data-lane="drums"] .head-fx',
-        );
-        fxBTN.click();
+        // Effects now occupy the Mixer screen, leaving the editor unobstructed.
+        expect(idoc().querySelector(".lane-floor .lane-fx-wrap")).toBeNull();
+        expect(
+          idoc().querySelector('.lane-floor button[aria-label^="FX chain"]'),
+        ).toBeNull();
+        $('button[data-page="mixer"]').click();
         await poll(
-          () => !!idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "fx console opens",
+          () => !!idoc().querySelector(".mixer-page"),
+          2000,
+          "mixer opens",
         );
         expect(
-          pageFits(),
-          "page must still fit with the FX console open (overlay never grows the page)",
-        ).toBe(true);
-        const fxWrap = $(".lane-fx-wrap");
-        const stripRect = floor("drums")
-          .querySelector(".lane-head-strip")!
-          .getBoundingClientRect();
-        expect(fxWrap.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-          stripRect.bottom - 0.5,
-        );
-        // Boundary + title chrome paint even with an empty chain (the
-        // invisible empty-state console defect).
-        const fxWin = idoc().defaultView!;
-        const fxStyle = fxWin.getComputedStyle(fxWrap);
-        expect(
-          fxStyle.backgroundColor,
-          "empty console chassis paints (was chassis-on-chassis)",
-        ).not.toBe("rgba(0, 0, 0, 0)");
-        expect(
-          Number.parseFloat(fxStyle.borderTopWidth),
-        ).toBeGreaterThanOrEqual(1);
-        expect($(".lane-fx-title-name").textContent?.trim()).toBe("DRUMS FX");
-        // The five formerly-occluded controls own their centers.
-        const selfHit = (el: Element): boolean => {
-          const r = el.getBoundingClientRect();
-          const hit = idoc().elementFromPoint(
-            r.left + r.width / 2,
-            r.top + r.height / 2,
-          );
-          return hit === el || el.contains(hit);
-        };
-        for (const sel of [
-          ".head-fx",
-          ".scale-chip",
-          'button[aria-label="Shorter gate for DRUMS"]',
-          'button[aria-label="Longer gate for DRUMS"]',
-          '[aria-label="DRUMS gate length"] .head-ctl-label',
-        ]) {
-          const el = floor("drums").querySelector(sel)!;
-          expect(selfHit(el), `${sel} must own its center`).toBe(true);
-        }
-        // Page-level Escape (focus outside the console): closes, focus
-        // stays exactly where it was (help-mode precedent — no trap).
-        const beforeEsc = active();
-        key(idoc().body, "Escape");
+          idoc().querySelector('.fx-strip[data-lane="drums"]'),
+        ).toBeTruthy();
+        $('button[data-page="edit"]').click();
         await poll(
-          () => !idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "page-level Escape closes the console",
-        );
-        expect(active()).toBe(beforeEsc);
-        // Covered-grid Escape: console closes INSTEAD of the region-head
-        // pop — focus stays on the cell (one consumer per keystroke).
-        fxBTN.click();
-        await poll(
-          () => !!idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "reopen",
-        );
-        const drumCell = floor("drums").querySelector<HTMLElement>(".cell")!;
-        drumCell.focus();
-        key(drumCell, "Escape");
-        await poll(
-          () => !idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "covered-grid Escape closes the console",
-        );
-        expect(active()).toBe(drumCell);
-        // The CLOSE affordance (title strip, outside the occluded zone).
-        fxBTN.click();
-        await poll(
-          () => !!idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "reopen for CLOSE",
-        );
-        $(".lane-fx-close").click();
-        await poll(
-          () => !idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "CLOSE button closes the console",
+          () => !idoc().querySelector(".mixer-page"),
+          2000,
+          "return to instruments",
         );
 
         // --- 9c. EUCLID FILL-RAIL GEOMETRY (refinement-2, critique P1-2) ---
@@ -786,53 +717,25 @@ describe("LY-1 quadrant layout (built app, 1440×900)", () => {
           expect(hit === set || set.contains(hit)).toBe(true);
         }
         $(".lane-floor[data-lane='drums'] .head-fill-toggle").click();
-        // --- 1b-4. Entry-1 FX console law at 1280 --------------------------
-        $(".lane-floor[data-lane='drums'] .head-fx").click();
+        // Effects now occupy the Mixer screen, leaving the editor unobstructed.
+        expect(idoc().querySelector(".lane-floor .lane-fx-wrap")).toBeNull();
+        expect(
+          idoc().querySelector('.lane-floor button[aria-label^="FX chain"]'),
+        ).toBeNull();
+        $('button[data-page="mixer"]').click();
         await poll(
-          () => !!idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "fx console opens at 1280",
+          () => !!idoc().querySelector(".mixer-page"),
+          2000,
+          "mixer opens",
         );
         expect(
-          fits(MIN_W, MIN_H),
-          "page fits with the FX console open at 1280 (overlay never grows the page)",
-        ).toBe(true);
-        const fxWrap = $(".lane-fx-wrap");
-        const stripRect = $(
-          `.lane-floor[data-lane="drums"] .lane-head-strip`,
-        ).getBoundingClientRect();
-        expect(fxWrap.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-          stripRect.bottom - 0.5,
-        );
-        for (const sel of [
-          ".head-fx",
-          ".scale-chip",
-          'button[aria-label="Shorter gate for DRUMS"]',
-          'button[aria-label="Longer gate for DRUMS"]',
-          '[aria-label="DRUMS gate length"] .head-ctl-label',
-        ]) {
-          const el = $(`.lane-floor[data-lane="drums"] ${sel}`);
-          const r = el.getBoundingClientRect();
-          const hit = idoc().elementFromPoint(
-            r.left + r.width / 2,
-            r.top + r.height / 2,
-          );
-          expect(
-            hit === el || el.contains(hit!),
-            `${sel} self-hits at 1280`,
-          ).toBe(true);
-        }
-        idoc().body.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: "Escape",
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+          idoc().querySelector('.fx-strip[data-lane="drums"]'),
+        ).toBeTruthy();
+        $('button[data-page="edit"]').click();
         await poll(
-          () => !idoc().querySelector(".lane-fx-wrap"),
-          2_000,
-          "Escape closes the console at 1280",
+          () => !idoc().querySelector(".mixer-page"),
+          2000,
+          "return to instruments",
         );
 
         // --- 1b-5. Mid-session resize: rotation recovery ------------------

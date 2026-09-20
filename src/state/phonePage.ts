@@ -16,7 +16,7 @@ import { isDefaultLane } from "../document/schema";
 
 import { createSignal } from "solid-js";
 
-export type PhonePage = "edit" | "song" | "instruments";
+export type PhonePage = "edit" | "song" | "instruments" | "mixer";
 
 const [phonePage, setPhonePage] = createSignal<PhonePage>("edit");
 

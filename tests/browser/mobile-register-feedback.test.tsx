@@ -132,8 +132,10 @@ async function bootIframe(
   // the phone branch's).
   await poll(
     () =>
-      $$(".head-ctl-value").some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo loaded",
@@ -246,7 +248,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         // --- 1+2+3. SEMI+: label text + readout change within ONE frame,
         // cue stamped "up" with the ▲ shape glyph --------------------------
         const before = visibleLabels()[0];
-        btn("LEAD semitone view up").click();
+        btn("Leads, track 4 semitone view up").click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
         const afterOneFrame = visibleLabels()[0];
         expect(
@@ -264,7 +266,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         const parity1 = shiftRow.getAttribute("data-cue-parity");
 
         // --- 3. A rapid second shift RESTARTS the flash (parity flips) ---
-        btn("LEAD semitone view up").click();
+        btn("Leads, track 4 semitone view up").click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));
         expect(
           shiftRow.getAttribute("data-cue-parity") !== parity1,
@@ -283,7 +285,7 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         expect(arrow.textContent?.trim(), "arrow returns to rest").toBe("■");
 
         // --- 3. Direction is signed: SEMI− codes "down" ------------------
-        btn("LEAD semitone view down").click();
+        btn("Leads, track 4 semitone view down").click();
         await poll(
           () => shiftRow.getAttribute("data-cue") === "down",
           5_000,
@@ -342,7 +344,8 @@ describe("M-6 phone register-change feedback — readout re-anchor + coded trans
         const semiPlus = $$(
           ".lane-floor[data-lane='lead'] .register-shift-btn",
         ).find(
-          (b) => b.getAttribute("aria-label") === "LEAD semitone view up",
+          (b) =>
+            b.getAttribute("aria-label") === "Leads, track 4 semitone view up",
         )! as HTMLButtonElement;
         semiPlus.click();
         await new Promise<void>((r) => win.requestAnimationFrame(() => r()));

@@ -134,8 +134,10 @@ async function bootIframe(w: number, h: number) {
   await poll(
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
-      Array.from(idoc().querySelectorAll(".head-ctl-value")).some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      Array.from(idoc().querySelectorAll(".head-ctl-value")).some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",

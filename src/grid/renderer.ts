@@ -326,6 +326,8 @@ export interface DomGridRendererOptions {
   readonly pinchZoom?: boolean;
   /** Pause automatic scrolling while the host has a pointer held elsewhere. */
   readonly isInteractionHeld?: () => boolean;
+  /** Covered workspaces keep their audio running without painting hidden grids. */
+  readonly isVisible?: () => boolean;
   /**
    * i7 N-4: the zoom factor CHANGED — live during the pinch (each rAF apply,
    * the owner re-fits through setCellWidth/setRowHeight, NEVER a CSS
@@ -1348,7 +1350,11 @@ export class DomGridRenderer implements GridRenderer {
   /** The scrollend twin of the settle fallback (either may run first). */
   private onScrollEnd = (): void => {
     this.clearSnapSettle();
-    this.snapSeatToRow();
+    // Horizontal playback following also emits scrollend. The register
+    // already sits on its row boundary; rebuilding its cells here turns
+    // every horizontal scroll into a full vertical window refresh.
+    if (this.opts.container.scrollTop !== this.seatedScrollTop)
+      this.snapSeatToRow();
   };
 
   private clearSnapSettle(): void {
@@ -2004,8 +2010,10 @@ export class DomGridRenderer implements GridRenderer {
   // -- internals ------------------------------------------------------------
 
   private applyOn(cell: HTMLElement, on: boolean): void {
-    cell.dataset.on = String(on);
-    cell.setAttribute("aria-selected", String(on));
+    const value = String(on);
+    if (cell.dataset.on !== value) cell.dataset.on = value;
+    if (cell.getAttribute("aria-selected") !== value)
+      cell.setAttribute("aria-selected", value);
   }
 
   /**
@@ -2025,8 +2033,11 @@ export class DomGridRenderer implements GridRenderer {
         const state = on ? (on[step] ?? 0) : 0;
         this.applyOn(cell, state !== 0);
         if (pitched) {
-          cell.dataset.sustain = String(state === 2);
-          cell.setAttribute("aria-label", this.cellName(row, step));
+          const sustain = String(state === 2);
+          if (cell.dataset.sustain !== sustain) cell.dataset.sustain = sustain;
+          const name = this.cellName(row, step);
+          if (cell.getAttribute("aria-label") !== name)
+            cell.setAttribute("aria-label", name);
         }
       }
     }
@@ -2873,6 +2884,11 @@ export class DomGridRenderer implements GridRenderer {
   }
 
   private loop = (): void => {
+    if (this.opts.isVisible?.() === false) {
+      this.lastQuantized = null;
+      this.raf = requestAnimationFrame(this.loop);
+      return;
+    }
     // LL-1: the mount may run before first layout (clientWidth 0 → fallback
     // window) — correct it once on the first real frame.
     if (this.mountPending) {

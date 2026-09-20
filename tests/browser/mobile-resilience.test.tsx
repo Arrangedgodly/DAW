@@ -508,7 +508,7 @@ describe("MB-4 mobile resilience (phone stage, trusted CDP touch)", () => {
         const bassConf = () =>
           docStore.getState().doc.lanes.find((l) => l.id === "bass")!;
         const presetBefore = bassConf().presetId;
-        await app.tapEl(app.el('[aria-label="Next preset for BASS"]'));
+        await app.tapEl(app.el('[aria-label="Next preset for Bass, track 2"]'));
         await waitFor(
           () => bassConf().presetId !== presetBefore,
           4000,

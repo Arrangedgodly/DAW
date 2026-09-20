@@ -17,6 +17,8 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-4);
+  max-height: 40vh;
+  overflow-y: auto;
   box-sizing: border-box;
   padding: var(--space-3) var(--space-6);
   background: var(--color-ground);
@@ -35,6 +37,23 @@
  */
 .app[data-viz-mode="on"] .info-view {
   z-index: 56;
+}
+
+/* Narrow screens: title + text take the full row width; the dismissal hint
+ * drops beneath rather than squeezing the explanation. */
+@media (max-width: 640px) {
+  .info-view {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+  }
+  .info-view-text {
+    flex: 1 1 100%;
+    order: 3;
+  }
+  .info-view-hint {
+    order: 2;
+  }
 }
 
 /* The mode's "?" badge — a control-corner (3px) chassis chip. */
@@ -57,7 +76,7 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: var(--theme-muted);
   white-space: nowrap;
 }
 
@@ -67,9 +86,9 @@
   min-width: 0;
   font: var(--text-ui);
   color: var(--color-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Full text always: wrap onto extra lines instead of clipping. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Dismissal hint — right-aligned, dim legend again (decoration; the live
@@ -79,7 +98,7 @@
   margin-left: auto;
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: var(--theme-muted);
   white-space: nowrap;
 }
 
@@ -97,8 +116,7 @@
 }
 
 .app[data-help-mode="on"] [data-help] {
-  outline: 1px dashed
-    color-mix(in srgb, var(--color-ink) 45%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--color-ink) 45%, transparent);
   outline-offset: 1px;
 }
 

@@ -379,7 +379,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
         expect(active()).toBe(chip);
 
         // --- 10. FX DEVICE + PARAM ------------------------------------------
-        kbActivate($(`.lane-floor[data-lane="bass"] .head-fx`));
+        kbActivate($('button[data-page="mixer"]'));
         await poll(
           () => !!idoc().querySelector('.fx-strip[data-lane="bass"]'),
           T.ui,

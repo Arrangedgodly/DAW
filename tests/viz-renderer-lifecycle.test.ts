@@ -216,7 +216,7 @@ describe("module fence (VZ-IM-4 acceptance: rAF law, isolation, R2 context)", ()
   });
 
   it("pins the R2 context laws: opaque context, single layer, setTransform reapply, no shadowBlur", () => {
-    expect(CODE).toMatch(/getContext\("2d", \{ alpha: false \}\)/);
+    expect(CODE).toMatch(/getContext\("2d", \{[^}]*\balpha:\s*false\b/);
     // Exactly ONE context acquisition — no layered/offscreen split.
     expect(CODE.match(/getContext\(/g)?.length).toBe(1);
     expect(CODE.match(/setTransform\(/g)?.length).toBeGreaterThanOrEqual(2);

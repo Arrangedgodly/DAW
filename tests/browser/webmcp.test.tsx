@@ -3,6 +3,7 @@ import { render } from "solid-js/web";
 import AgentAccess from "../../src/components/AgentAccess";
 import {
   agentStatus,
+  startAutomaticAgentAccess,
   confirmCurrentAgentTarget,
   saveAndStartAgentProject,
   agentTargetConfirmed,
@@ -56,7 +57,7 @@ afterEach(async () => {
 });
 
 describe("WebMCP access and recovery in a real browser", () => {
-  it("blocks every edit until the human selects a destination, while reads remain available", async () => {
+  it("blocks every edit until the agent records the confirmed destination, while reads remain available", async () => {
     await enableAgentAccess(context);
     expect(await call("get_project")).toMatchObject({
       editTarget: "awaiting_user_choice",
@@ -69,7 +70,11 @@ describe("WebMCP access and recovery in a real browser", () => {
       call("control_session", { masterVolume: 0.1 }),
     ).rejects.toThrow("destination");
     expect(docStore.getState().doc).toBe(before);
-    confirmCurrentAgentTarget();
+    await call("confirm_edit_target", {
+      destination: "current",
+      userConfirmed: true,
+      revision: 0,
+    });
     await call("set_tempo", { revision: 0, bpm: 150 });
     expect(docStore.getState().doc.transport.bpm).toBe(150);
   });
@@ -111,7 +116,11 @@ describe("WebMCP access and recovery in a real browser", () => {
     setTransport({ bpm: 163 });
     const originalId = getActiveProjectId()!;
     await enableAgentAccess(context);
-    await saveAndStartAgentProject();
+    await call("confirm_edit_target", {
+      destination: "new",
+      userConfirmed: true,
+      revision: 0,
+    });
     expect(getActiveProjectId()).not.toBe(originalId);
     expect(decode((await db.getRecord(originalId))!.json).transport.bpm).toBe(
       163,
@@ -157,12 +166,12 @@ describe("WebMCP access and recovery in a real browser", () => {
     expect(await db.allRecords()).toHaveLength(1);
     fail = false;
   });
-  it("registers tools on opt-in, retains callbacks safely after revocation, and restores a whole agent session", async () => {
+  it("registers tools, retains callbacks safely after revocation, and restores a whole agent session", async () => {
     const before = docStore.getState().doc;
     await enableAgentAccess(context);
     confirmCurrentAgentTarget();
     expect(agentStatus()).toBe("on");
-    expect(tools.size).toBe(13);
+    expect(tools.size).toBe(14);
     await call("set_tempo", { revision: 0, bpm: 130 });
     await call("set_lane", { revision: 1, lane: "bass", mix: { mute: true } });
     expect(canRestoreAgent()).toBe(true);
@@ -236,45 +245,74 @@ describe("WebMCP access and recovery in a real browser", () => {
     expect(agentStatus()).toBe("off");
     expect(tools.size).toBe(0);
   });
-  it("renders the access and restore controls, and unsupported browsers stay usable", async () => {
-    Object.defineProperty(document, "modelContext", {
-      value: context,
-      configurable: true,
-    });
+  it("automatically connects after late detection and requires confirmation after switching projects", async () => {
+    const stop = startAutomaticAgentAccess();
+    try {
+      expect(agentStatus()).toBe("off");
+      Object.defineProperty(document, "modelContext", {
+        value: context,
+        configurable: true,
+      });
+      await expect.poll(agentStatus).toBe("on");
+      await call("confirm_edit_target", {
+        destination: "current",
+        userConfirmed: true,
+        revision: 0,
+      });
+      const oldCallback = tools.get("bitbounce_confirm_edit_target")!;
+      loadDocument(createFreshProjectDocument());
+      await expect.poll(agentStatus).toBe("on");
+      expect(agentTargetConfirmed()).toBe(false);
+      await expect(
+        oldCallback.execute({
+          destination: "current",
+          userConfirmed: true,
+          revision: 0,
+        }),
+      ).rejects.toThrow("off");
+    } finally {
+      stop();
+    }
+  });
+  it("rejects missing consent and stale confirmation without changing the project", async () => {
+    await enableAgentAccess(context);
+    const before = docStore.getState().doc;
+    await expect(
+      call("confirm_edit_target", { destination: "new", revision: 0 }),
+    ).rejects.toThrow("confirmed");
+    await expect(
+      call("confirm_edit_target", {
+        destination: "current",
+        userConfirmed: true,
+        revision: 1,
+      }),
+    ).rejects.toThrow("revision");
+    expect(docStore.getState().doc).toBe(before);
+    expect(agentTargetConfirmed()).toBe(false);
+  });
+  it("shows recovery without access or destination buttons, and hides unsupported access", async () => {
+    await enableAgentAccess(context);
     const host = document.createElement("div");
     document.body.append(host);
     const dispose = render(() => <AgentAccess />, host);
     try {
-      const allow = host.querySelector("button")!;
-      allow.focus();
-      expect(document.activeElement).toBe(allow);
-      allow.click();
-      await expect.poll(agentStatus).toBe("on");
-      expect(allow.getAttribute("aria-pressed")).toBe("true");
-      Array.from(host.querySelectorAll("button"))
-        .find((button) => button.textContent === "Edit this project")!
-        .click();
+      expect(host.querySelectorAll("button")).toHaveLength(0);
+      expect(host.textContent).toContain("agent conversation");
+      await call("confirm_edit_target", {
+        destination: "current",
+        userConfirmed: true,
+        revision: 0,
+      });
       await call("set_tempo", { revision: 0, bpm: 130 });
-      const restore = Array.from(host.querySelectorAll("button")).find(
-        (button) => button.textContent === "Restore before agent",
-      )!;
-      expect(restore).toBeDefined();
+      const restore = host.querySelector("button")!;
+      expect(restore.textContent).toBe("Restore before agent");
       restore.click();
       expect(docStore.getState().doc.transport.bpm).toBe(120);
       expect(agentStatus()).toBe("off");
+      expect(host.querySelector("section")).toBeNull();
     } finally {
       dispose();
       host.remove();
     }
-    Object.defineProperty(document, "modelContext", {
-      value: undefined,
-      configurable: true,
-    });
-    const unsupported = document.createElement("div");
-    document.body.append(unsupported);
-    const disposeUnsupported = render(() => <AgentAccess />, unsupported);
-    expect(unsupported.querySelector("button")!.disabled).toBe(true);
-    disposeUnsupported();
-    unsupported.remove();
   });
 });

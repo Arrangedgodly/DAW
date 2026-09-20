@@ -131,9 +131,7 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
         waitFor(
           () =>
             document
-              .querySelector(
-                `.lane-floor[data-lane="${lane}"] [role="grid"]`,
-              )
+              .querySelector(`.lane-floor[data-lane="${lane}"] [role="grid"]`)
               ?.getAttribute("aria-label")
               ?.startsWith(label) === true,
           4000,
@@ -168,7 +166,7 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
         snapshotRows = await bootDb.allRecords();
         loadDocument(createFreshProjectDocument());
         selectLane("bass");
-        await waitEditable("bass", "BASS grid · EDITING");
+        await waitEditable("bass", "Bass, track 2 grid · EDITING");
         expect(bassNotes()).toHaveLength(0);
         expect(bassAuditions()).toBe(0);
 
@@ -196,11 +194,7 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
 
         // --- place again, grow to 4, then trusted MID-SPAN click trims to 3
         await trustedClick(anchor);
-        await waitFor(
-          () => bassNotes().length === 1,
-          4000,
-          "trusted re-place",
-        );
+        await waitFor(() => bassNotes().length === 1, 4000, "trusted re-place");
         expect(bassAuditions()).toBe(2);
         anchor.focus();
         anchor.dispatchEvent(
@@ -237,7 +231,7 @@ describe("IN-2 fix: single-click activation under TRUSTED pointers (app)", () =>
 
         // --- drums trusted toggle: ON auditions once, OFF never auditions
         selectLane("drums");
-        await waitEditable("drums", "DRUMS grid · EDITING");
+        await waitEditable("drums", "Drums, track 1 grid · EDITING");
         const kickCell = cellAt("drums", 0, 0);
         expect(kickOn(0)).toBe(false);
         expect(drumsAuditions()).toBe(0);

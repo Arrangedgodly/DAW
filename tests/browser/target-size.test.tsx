@@ -155,7 +155,7 @@ function describeHit(el: Element): string {
   const hit = el.tagName.toLowerCase();
   const label =
     el.getAttribute("aria-label") ?? el.getAttribute("data-help") ?? "";
-  return label ? `${hit}[${label.slice(0, 40)}]` : hit;
+  return `${hit}.${el.className}[${label.slice(0, 40)}]`;
 }
 
 /**
@@ -182,7 +182,10 @@ async function auditControl(
   opts: { exempt?: boolean } = {},
 ): Promise<AuditRow> {
   (el as HTMLElement).scrollIntoView({ block: "center", inline: "center" });
-  await raf();
+  await settleValue(() => {
+    const r = el.getBoundingClientRect();
+    return r.top + r.left;
+  });
   const r = el.getBoundingClientRect();
   const painted = `${Math.round(r.width)}×${Math.round(r.height)}`;
   if (r.width === 0 || r.height === 0) {
@@ -475,7 +478,8 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           () =>
             document
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
-              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+              ?.getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           4000,
           "drums stage editable",
         );
@@ -762,19 +766,19 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
         rows.push(
           await auditControl(
-            $('.lane-floor [aria-label="DRUMS volume"]'),
+            $('.lane-floor [aria-label="Drums, track 1 volume"]'),
             "strip VOLUME slider",
           ),
         );
         rows.push(
           await auditControl(
-            $('.lane-floor [aria-label="Mute DRUMS"]'),
+            $('.lane-floor [aria-label="Mute Drums, track 1"]'),
             "strip MUTE",
           ),
         );
         rows.push(
           await auditControl(
-            $('.lane-floor [aria-label="Solo DRUMS"]'),
+            $('.lane-floor [aria-label="Solo Drums, track 1"]'),
             "strip SOLO",
           ),
         );
@@ -786,18 +790,21 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
         rows.push(
           await auditControl(
-            $('[aria-label="Shorter gate for DRUMS"]'),
+            $('[aria-label="Shorter gate for Drums, track 1"]'),
             "strip gate −",
           ),
         );
         rows.push(
           await auditControl(
-            $('[aria-label="Longer gate for DRUMS"]'),
+            $('[aria-label="Longer gate for Drums, track 1"]'),
             "strip gate +",
           ),
         );
         rows.push(
-          await auditControl($('[data-help="lane.drums.fx"]'), "strip FX"),
+          await auditControl(
+            $('.phone-mixer-nav [data-page="mixer"]'),
+            "Mixer navigation",
+          ),
         );
         rows.push(
           await auditControl($(".head-fill-toggle"), "strip FILL toggle"),
@@ -956,7 +963,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed names append the ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           2000,
           "bass stage editable",
         );
@@ -978,7 +985,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
             document
               .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("LEAD grid · EDITING") === true,
+              ?.startsWith("Leads, track 4 grid · EDITING") === true,
           2000,
           "lead stage editable (register row audit)",
         );
@@ -997,17 +1004,22 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed names append the ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           2000,
           "bass stage editable",
         );
-        click('[data-help="lane.bass.fx"]');
+        showPhonePage("mixer");
         await waitFor(
           () => document.querySelector(".fx-strip") !== null,
           2000,
           "fx console open",
         );
-        rows.push(await auditControl($(".lane-fx-close"), "fx CLOSE"));
+        rows.push(
+          await auditControl(
+            $('.phone-mixer-nav [data-page="edit"]'),
+            "Mixer to Instruments",
+          ),
+        );
         await auditSelector(".fx-strip .fx-mod-btn", "fx module button", rows);
         await auditSelector(
           ".fx-strip .fx-param-slider",
@@ -1031,7 +1043,7 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
           2000,
           "fx add menu closed",
         );
-        click('[data-help="lane.bass.fx"]'); // close the console
+        showPhonePage("edit");
 
         // --- projects popover ----------------------------------------------
         // i6 S-4: the walk grew into phoneProjectsWalk — the new management
@@ -1109,8 +1121,19 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         for (let i = 1; i < tabbables.length; i++) {
           const a = tabbables[i - 1]!;
           const b = tabbables[i]!;
-          const ra = a.getBoundingClientRect();
-          const rb = b.getBoundingClientRect();
+          // The fixed footer is reached last in DOM order, independent of
+          // document scroll height. Its viewport anchoring is audited above.
+          if (a.closest(".save-indicator") || b.closest(".save-indicator"))
+            continue;
+          // A windowed grid is one composite tab stop. Its remembered cell
+          // can be outside the scroll window until focus reveals it.
+          const visualBox = (el: HTMLElement) =>
+            (el.classList.contains("cell")
+              ? el.closest(".lane-grid-scroll")!
+              : el
+            ).getBoundingClientRect();
+          const ra = visualBox(a);
+          const rb = visualBox(b);
           const sameRow = rb.top < ra.bottom && ra.top < rb.bottom;
           const what = `${describeHit(a)} → ${describeHit(b)}`;
           if (sameRow) {
@@ -1329,8 +1352,8 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
         rows360.push(
           await auditControl(
-            $('.lane-floor [data-help^="lane."][data-help$=".fx"]'),
-            "strip FX",
+            $('.phone-mixer-nav [data-page="mixer"]'),
+            "Mixer navigation",
           ),
         );
         rows360.push(await auditControl($(".head-fill-toggle"), "strip FILL"));

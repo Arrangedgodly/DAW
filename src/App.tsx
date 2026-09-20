@@ -1,4 +1,6 @@
 import InstrumentsPage from "./components/InstrumentsPage";
+import MixerPage from "./components/MixerPage";
+import "./styles/mixer.css";
 /**
  * App shell — Hybrid Performance Console: the booth (transport) is fixed at
  * the top of the stage; below it the four lane floors render their pad grids.
@@ -50,6 +52,7 @@ import "./styles/song.css";
 import "./styles/unit.css";
 import "./styles/themes.css";
 import "./styles/membrane.css";
+import { startAutomaticAgentAccess } from "./webmcp/access";
 import SaveIndicator from "./components/SaveIndicator";
 
 // Boot restore + autosave (MF-2): fire-and-forget — the store's default
@@ -57,17 +60,22 @@ import SaveIndicator from "./components/SaveIndicator";
 // project (if any) swaps in as soon as IndexedDB answers. A corrupt row is
 // quarantined inside initPersistence (HU-2) with a RECOVER toast; only an
 // outright boot failure (e.g. no storage at all) lands here.
-void initPersistence().catch((error) => {
-  console.warn(
-    "[persist] boot restore failed; starting from default project",
-    error,
-  );
-});
+void initPersistence()
+  .catch((error) => {
+    console.warn(
+      "[persist] boot restore failed; starting from default project",
+      error,
+    );
+  })
+  .then(() => {
+    const stop = startAutomaticAgentAccess();
+    import.meta.hot?.dispose(stop);
+  });
 
 export default function App() {
   createEffect(
     on(stageMode, (mode) => {
-      if (phonePage() === "song") return;
+      if (phonePage() === "song" || phonePage() === "mixer") return;
       showPhonePage(
         mode === "phone" || isDefaultLane(activeLane())
           ? "edit"
@@ -112,7 +120,7 @@ export default function App() {
             <main
               class="stage"
               aria-label="Stage floor"
-              hidden={phonePage() !== "edit"}
+              hidden={phonePage() !== "edit" || vizMode()}
               inert={vizMode() ? true : undefined}
             >
               <StageFloor />
@@ -165,6 +173,33 @@ export default function App() {
             <PlayStopButton />
             <PhonePageToggle />
           </div>
+          <nav
+            class="phone-mixer-nav"
+            aria-label="Workspace view"
+            data-help="workspace.pages"
+          >
+            <button
+              data-page="edit"
+              aria-pressed={phonePage() === "edit"}
+              onClick={() => showPhonePage("edit")}
+            >
+              Instruments
+            </button>
+            <button
+              data-page="song"
+              aria-pressed={phonePage() === "song"}
+              onClick={() => showPhonePage("song")}
+            >
+              Song
+            </button>
+            <button
+              data-page="mixer"
+              aria-pressed={phonePage() === "mixer"}
+              onClick={() => showPhonePage("mixer")}
+            >
+              Mixer
+            </button>
+          </nav>
           {/* M-4: the collapsible options drawer — the Show law: collapsed
               means ZERO drawer DOM (no panel, no backdrop, no listeners).
               The panel grows the sticky chrome BELOW the transport (it
@@ -182,7 +217,7 @@ export default function App() {
         <main
           class="stage"
           aria-label="Stage floor"
-          hidden={phonePage() !== "edit"}
+          hidden={phonePage() !== "edit" || vizMode()}
           inert={vizMode() ? true : undefined}
         >
           <StageFloor />
@@ -203,6 +238,9 @@ export default function App() {
         }
       >
         <InstrumentsPage />
+      </Show>
+      <Show when={phonePage() === "mixer" && !vizMode()}>
+        <MixerPage />
       </Show>
       <AudioStatus />
       <Show when={stageMode() === "phone" && !vizMode()}>

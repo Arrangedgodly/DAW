@@ -1,3 +1,5 @@
+import { vizMode } from "../state/vizMode";
+import { phonePage } from "../state/phonePage";
 import {
   midiLabel,
   pitchDomain,
@@ -44,10 +46,13 @@ import {
   DRUM_PIECES,
   type DrumPiece,
   type DrumPattern,
+  type DrumsLane,
   type LaneId,
   type Pattern,
+  drumHitLength,
   resolveGateSteps,
 } from "../document/schema";
+import { getDrumKit, naturalDrumMode } from "../audio/presets";
 import { effectiveScale, modeSize } from "../document/scales";
 import { getSession } from "../engine/session";
 import { laneCycleSteps } from "../audio/song";
@@ -59,9 +64,11 @@ import {
 import {
   addNote,
   docStore,
+  removeDrumHit,
   removeNote,
+  resizeDrumHit,
   resizeNote,
-  toggleDrumStep,
+  setDrumHit,
 } from "../state/store";
 import {
   activeLane,
@@ -94,6 +101,7 @@ import LaneHeader from "./LaneHeader";
 import LaneMeter from "./LaneMeter";
 import LaneFollow from "./LaneFollow";
 import EuclidFill from "./EuclidFill";
+import DrumSampleMenu, { drumPieceLabel } from "./DrumSampleMenu";
 import { notePreview } from "../state/notePreview";
 import { LANE_NAMES } from "./laneMeta";
 import { createLaneAccessibleNames } from "../state/laneDisplayNames";
@@ -131,7 +139,7 @@ for (const lane of ["drums", "bass", "chords", "lead"] as const) {
       title: `${LANE_NAMES[lane]} GRID`,
       text:
         lane === "drums"
-          ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to toggle a hit; drag to paint several at once. The E rail left of each row spreads hits evenly for you."
+          ? "The drum machine. Click a pad — or walk with the arrows and press Enter — to place or remove a hit; drag right to draw a longer hit, then drag its right edge (or press + / −) to change its length. A hit's length is how long it sounds when its sound is set to GATE; SAMPLE chooses GATE or ONE-SHOT per sound. The E rail left of each row spreads hits evenly for you."
           : `Where ${LANE_NAMES[lane]}'s notes live. Click once for a note of the lane's GATE length; drag right to draw a longer one, then drag its right edge (or press + / −) to resize. Rows follow the lane's scale, with higher notes above lower notes, so everything you place sits in key. The grid shows ONE OCTAVE of rows at a time and always snaps so exactly one octave of complete rows is showing: scrolling or the View Oct/View Semi controls move that window — the rows you SEE, view only, nothing moves — while plain arrows walk the whole manifest and the window follows. To change the octave ${LANE_NAMES[lane]} SOUNDS, use Transpose (Oct) — the strip on desktop, the OPTIONS drawer on phone.`,
     },
   ]);
@@ -870,7 +878,7 @@ function fitQuadrantRows(): void {
     const labelWidth = label?.getBoundingClientRect().width ?? 64;
 
     const width = Math.max(
-      16,
+      11,
       Math.min(48, Math.floor((scroll.clientWidth - labelWidth - 8) / 16) - 2),
     );
 
@@ -1024,12 +1032,7 @@ function currentPattern(lane: LaneId): Pattern | undefined {
 }
 
 function drumLabels(): string[] {
-  return DRUM_PIECES.map((p) =>
-    p
-      .replace(/2$/, " 2")
-      .replace(/^(open|mid|high)(hat|tom)$/, "$1 $2")
-      .toUpperCase(),
-  );
+  return DRUM_PIECES.map(drumPieceLabel);
 }
 
 /** Degree rows for a pitched lane: note names over ~2 octaves (1 for chords). */
@@ -1054,11 +1057,50 @@ function pitchedLabels(
  * cell view (SC-1 bridge) is retired from the UI path.
  */
 
+/** Is this drum piece one-shot right now (lane override, else the kit's own)? */
+function drumPieceIsOneShot(piece: DrumPiece): boolean {
+  const lane = docStore
+    .getState()
+    .doc.lanes.find((l): l is DrumsLane => l.id === "drums");
+  const override = lane?.pieceModes?.[piece];
+  if (override) return override === "oneshot";
+  const preset = (getDrumKit(lane?.kitId ?? "") ?? getDrumKit("kit-default"))
+    ?.pieces[piece];
+  return preset ? naturalDrumMode(preset) === "oneshot" : false;
+}
+
+/**
+ * One drum row's hit spans at the CURRENT document: a gated hit spans its own
+ * length (else the lane gate default); a one-shot piece plays through, so its
+ * hits always draw one step wide (their stored lengths are kept, dormant).
+ */
+function drumRowSpans(pattern: DrumPattern, piece: DrumPiece): Span[] {
+  const gateSteps = laneGateStepsNow("drums");
+  const oneShot = drumPieceIsOneShot(piece);
+  const spans: Span[] = [];
+  const steps = pattern.steps[piece] ?? [];
+  for (let step = 0; step < steps.length; step++) {
+    if (!steps[step]) continue;
+    spans.push({
+      start: step,
+      length: oneShot ? 1 : (drumHitLength(pattern, piece, step) ?? gateSteps),
+    });
+  }
+  return spans;
+}
+
 function syncPatternFor(
   pattern: Pattern,
   degrees?: readonly number[],
-): DrumPattern | PitchedNotesView {
-  if (pattern.kind !== "pitched") return pattern; // drums pass through
+): PitchedNotesView {
+  if (pattern.kind === "drums") {
+    // Drums render through the same note-span view as pitched lanes (a hit is
+    // a note on its piece's row), so length drag / edge resize come for free.
+    return {
+      kind: "pitched",
+      rows: DRUM_PIECES.map((piece) => drumRowSpans(pattern, piece)),
+    };
+  }
   const byDegree = new Map<number, Span[]>();
   for (const note of pattern.notes) {
     const list = byDegree.get(note.degree);
@@ -1097,6 +1139,14 @@ function rowSpansNow(lane: LaneId, patternId: string, degree: number): Span[] {
   return p.notes
     .filter((n) => n.degree === degree)
     .map((n) => ({ start: n.start, length: n.length }));
+}
+
+/** One drum row's rendered hit spans, read from the live document. */
+function drumRowSpansNow(patternId: string, piece: DrumPiece): Span[] {
+  const p = (docStore.getState().doc.patterns.drums ?? []).find(
+    (cand) => cand.id === patternId,
+  );
+  return p?.kind === "drums" ? drumRowSpans(p, piece) : [];
 }
 
 /**
@@ -1289,7 +1339,8 @@ function GridSurface(props: {
       laneLabel: laneNames(lane),
       rowLabels,
       steps,
-      pitched,
+      // Drums draw hits as note spans too (length drag / edge resize).
+      pitched: pitched || lane === "drums",
       cellPx: geo.cellPx,
       gapPx: geo.gapPx,
       labelPx: geo.labelPx,
@@ -1312,6 +1363,8 @@ function GridSurface(props: {
       // The keyboard law is unchanged — only the selected grid has a tab stop.
       pointerEditable: true,
       isInteractionHeld: () => heldPointers > 0,
+      isVisible: () =>
+        !vizMode() && (phonePage() === "edit" || phonePage() === "instruments"),
       host: {
         readFrame,
         prefersReducedMotion: () =>
@@ -1371,8 +1424,24 @@ function GridSurface(props: {
         selectQuadrantFromPointer(lane);
         if (lane === "drums") {
           const piece = DRUM_PIECES[row] as DrumPiece;
-          const res = toggleDrumStep(piece, step);
-          if (res.turnedOn && notePreview()) void session.audition(lane, piece);
+          // Same place / remove / trim law as pitched notes, on the DISPLAYED
+          // pattern. A press places at the lane gate length (no length memory
+          // for drums — a long crash must not lengthen the next kick).
+          const spans = drumRowSpansNow(pattern.id, piece);
+          const decision = noteEditAt(spans, laneGateStepsNow(lane), step);
+          if (decision.kind === "place") {
+            if (setDrumHit(pattern.id, piece, step) && notePreview())
+              void session.audition(lane, piece);
+          } else if (decision.kind === "remove") {
+            removeDrumHit(pattern.id, piece, decision.span.start);
+          } else if (decision.kind === "trim") {
+            resizeDrumHit(
+              pattern.id,
+              piece,
+              decision.span.start,
+              decision.length,
+            );
+          }
           return;
         }
         // IN-2 v2 note law (keyboard.md v2): place / remove / trim, scoped to
@@ -1410,6 +1479,18 @@ function GridSurface(props: {
       // note actions (0.25 snap + clamps live in the store; SC-2).
       onNoteCreate: (row, start, length) => {
         selectLane(lane);
+        if (lane === "drums") {
+          const piece = DRUM_PIECES[row] as DrumPiece;
+          // A one-shot piece plays through: the drawn length is not stored.
+          const placed = setDrumHit(
+            pattern.id,
+            piece,
+            start,
+            drumPieceIsOneShot(piece) ? undefined : length,
+          );
+          if (placed && notePreview()) void session.audition(lane, piece);
+          return;
+        }
         const degree = degrees[row];
         if (degree === undefined) return;
         const pitchedLane = lane as Exclude<LaneId, "drums">;
@@ -1419,6 +1500,17 @@ function GridSurface(props: {
         }
       },
       onNoteResize: (row, start, length) => {
+        if (lane === "drums") {
+          const piece = DRUM_PIECES[row] as DrumPiece;
+          if (drumPieceIsOneShot(piece)) {
+            // Length is inert on a one-shot piece — snap the dragged bar back.
+            const current = currentPatternFor(lane);
+            if (current) rendererRef?.sync(syncPatternFor(current, degrees));
+            return;
+          }
+          resizeDrumHit(pattern.id, piece, start, length);
+          return;
+        }
         const degree = degrees[row];
         if (degree === undefined) return;
         resizeNote(
@@ -1430,24 +1522,13 @@ function GridSurface(props: {
         );
       },
       onNoteRemove: (row, start) => {
+        if (lane === "drums") {
+          removeDrumHit(pattern.id, DRUM_PIECES[row] as DrumPiece, start);
+          return;
+        }
         const degree = degrees[row];
         if (degree === undefined) return;
         removeNote(lane as Exclude<LaneId, "drums">, pattern.id, degree, start);
-      },
-      onDrumsPaint: (cells) => {
-        selectLane(lane);
-        let auditioned = false;
-        for (const c of cells) {
-          const piece = DRUM_PIECES[c.row] as DrumPiece | undefined;
-          if (!piece) continue;
-          const res = toggleDrumStep(piece, c.step); // cells were off → on
-          if (res.turnedOn && !auditioned && notePreview()) {
-            // One placement audition per gesture — a hit-per-cell machine
-            // gun would fight the one-shot law (I2-4).
-            auditioned = true;
-            void session.audition(lane, piece);
-          }
-        }
       },
       // T5: the sounding rim pulse — the beat gate (step % 4) is the ONE
       // toggle per beat per lane law; view-only quadrants pulse too (their
@@ -1638,6 +1719,10 @@ function GridSurface(props: {
       const scrollHost = container;
       createEffect(() => {
         scrollHost?.classList.toggle("fill-rails-open", fillRailsOpen());
+        // Fill controls change row spacing. Re-pin the window to that live
+        // spacing so its final drum rows remain reachable when scrolling.
+        const geometry = renderer.fitGeometry();
+        renderer.setWindow(geometry.windowRows, geometry.windowStart);
       });
     }
 
@@ -1732,9 +1817,21 @@ function GridSurface(props: {
       ) {
         docChainSteps = laneCycleSteps(state.doc, lane);
       }
+      // Drums draw spans from the lane gate + per-piece modes: a change to
+      // either re-syncs the view even when no pattern changed.
+      const drumsConf = (s: typeof state) =>
+        s.doc.lanes.find((l): l is DrumsLane => l.id === "drums");
+      const drumViewChanged =
+        lane === "drums" &&
+        (drumsConf(state)?.gate !== drumsConf(prev)?.gate ||
+          drumsConf(state)?.pieceModes !== drumsConf(prev)?.pieceModes ||
+          drumsConf(state)?.kitId !== drumsConf(prev)?.kitId);
       // Re-sync on pattern-content identity only: IN-2 renders notes
       // natively (no gate/BPM-derived view left to invalidate).
-      if ((state.doc.patterns[lane] ?? []) === (prev.doc.patterns[lane] ?? []))
+      if (
+        !drumViewChanged &&
+        (state.doc.patterns[lane] ?? []) === (prev.doc.patterns[lane] ?? [])
+      )
         return;
       const next = (state.doc.patterns[lane] ?? []).find(
         (p) => p.id === pattern.id,
@@ -1742,11 +1839,8 @@ function GridSurface(props: {
 
       if (next) {
         renderer.sync(syncPatternFor(next, degrees));
-        if (
-          next !==
-          (prev.doc.patterns[lane] ?? []).find((p) => p.id === pattern.id)
-        )
-          focusPlaybackNotes();
+        // Editing during playback preserves the user's register. Playback
+        // start and pattern mounts already focus the sounding notes.
       }
     });
 
@@ -1765,8 +1859,9 @@ function GridSurface(props: {
   return (
     <>
       <Show when={props.lane === "drums"}>
-        <div class="register-shift drum-register-label">
+        <div class="register-shift drum-register-label" data-help="grid.drums">
           <span>Percussion · {DRUM_PIECES.length} voices</span>
+          <DrumSampleMenu />
           <button
             class="head-step-btn"
             type="button"

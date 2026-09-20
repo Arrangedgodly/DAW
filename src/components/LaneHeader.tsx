@@ -10,9 +10,10 @@
  * - COMPACT row, present + operable in ALL FOUR quadrants ("tweak any lane
  *   without switching"): preset/kit stepper (auditions on change), VOLUME
  *   range, MUTE, SOLO. Native tab stops (keyboard.md v2 focus table).
- * - EDIT row, visible only in the SELECTED quadrant (display:none elsewhere
- *   — hidden controls leave the tab order, never traps): effective-scale
- *   chip, gate-length stepper, FX entry (the DES-3 editing controls).
+ * - EDIT row, also visible in every quadrant (no selection needed): effective-
+ *   scale chip, gate-length stepper, FX entry (the DES-3 editing controls).
+ *   The scale chip and FX entry select their quadrant before opening their
+ *   overlay.
  *
  * Quadrant keys: `]` / `[` select the next/previous quadrant FROM THE STRIP
  * (the keyboard escape hatch — keyboard.md v2 key-scope rule; no native
@@ -53,14 +54,6 @@ import {
   octaveText,
   stepLaneOctave,
 } from "../state/selection";
-import { laneFxChain } from "../state/fxStrip";
-import {
-  closeFxConsole,
-  fxConsoleLane,
-  setFxConsoleLane,
-} from "../state/fxConsole";
-import { helpMode } from "../state/helpMode";
-import { helpOpen } from "../state/helpOverlay";
 import RollValue from "./RollValue";
 import { primeSoundContent } from "../state/engineBridge";
 import { adjacentQuadrant, focusLaneRoving } from "../state/gridFocus";
@@ -70,7 +63,6 @@ import { fillRailsOpen, toggleFillRails } from "../state/fillRails";
 import { registerHelp, type HelpEntry } from "../help/registry";
 import { LANE_NAMES, laneDisplayName, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
-import FxStrip from "./FxStrip";
 import TrackColorControl from "./TrackColorControl";
 import ClipLengthControl from "./ClipLengthControl";
 
@@ -131,11 +123,6 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
       id: `lane.${lane}.gate`,
       title: `${n} GATE`,
       text: `How long a NEW note lasts when you click once, counted in 16th steps. Drag a note's right edge — or press + / − — to reshape it afterwards.`,
-    },
-    {
-      id: `lane.${lane}.fx`,
-      title: `${n} FX`,
-      text: `Opens ${n}'s effect rack: up to three devices in a row, reorderable, bypassable in one click.`,
     },
     // MB-2 (mobile slice): the drums-only, narrow-stages-only fill-rails
     // reveal — the touch/mouse twin of the desktop hover reveal.
@@ -200,22 +187,10 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [solo, setSolo] = createSignal(initial.solo);
   const [octave, setOctave] = createSignal(initial.octave);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
-  // Refinement-1 (critique P1-1): the FX console open-state is PAGE-level
-  // (state/fxConsole.ts) so page-level Escape can close it. Only the
-  // selected quadrant can open it — the focus law below still closes it the
-  // instant this quadrant goes view-only.
-  const fxOpen = () => fxConsoleLane() === props.lane;
-  const [fxCount, setFxCount] = createSignal(
-    laneFxChain(docStore.getState().doc, props.lane).length,
-  );
   const [announce, setAnnounce] = createSignal("");
   const editable = () => activeLane() === props.lane;
 
   let chipBtn: HTMLButtonElement | undefined;
-  let stripEl: HTMLDivElement | undefined;
-  let editRowEl: HTMLDivElement | undefined;
-  let fxFocusHost: HTMLDivElement | undefined;
-  let fxBtn: HTMLButtonElement | undefined;
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
@@ -234,58 +209,12 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       setMute(next.mute);
       setSolo(next.solo);
       setOctave(next.octave);
-      setFxCount(laneFxChain(state.doc, props.lane).length);
     });
     onCleanup(unsubscribe);
   });
 
-  // LY-1 focus law: when this quadrant becomes view-only, its edit row hides
-  // and any open FX overlay closes (display:none). If focus rested inside
-  // them it would strand on <body> — land it on the strip's first control
-  // instead (the strip stays visible + operable everywhere). The focus
-  // check runs BEFORE the overlay unmounts so containment is still testable.
   createEffect(() => {
-    if (!editable() && stripEl && typeof document !== "undefined") {
-      const el = document.activeElement;
-      const insideHidden =
-        (editRowEl && el && editRowEl.contains(el) === true) ||
-        (fxFocusHost && el && fxFocusHost.contains(el) === true);
-      if (fxConsoleLane() === props.lane) closeFxConsole();
-      setPopoverOpen(false);
-      if (insideHidden) {
-        stripEl.querySelector<HTMLElement>("button, input")?.focus();
-      }
-    }
-  });
-
-  // Refinement-1 (critique P1-1): PAGE-LEVEL ESCAPE closes the console —
-  // the pointer user's "how do I get my grid back" exit. Ordering law
-  // (keyboard.md v2): the KEYS modal and help mode win FIRST (their
-  // capture-phase handlers consume the keystroke before this bubble
-  // listener; the guards below make the law hold even for window-targeted
-  // dispatches), inline edits/popovers/menus cancel first (they all
-  // stopPropagation — the add menu's second-Escape contract in
-  // help-mode.test), and the region-head pops apply only once the console
-  // is closed. Focus stays where it was (help-mode precedent — nothing was
-  // trapped) UNLESS it rested inside the console, where closing would
-  // strand it on <body>: then it lands on the strip's FX entry, the
-  // control that owns the console.
-  createEffect(() => {
-    if (!fxOpen()) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (helpMode() || helpOpen()) return; // cancel-first surfaces win
-      if (fxConsoleLane() !== props.lane) return; // closed mid-dispatch
-      e.preventDefault();
-      const inside =
-        fxFocusHost !== undefined &&
-        document.activeElement !== null &&
-        fxFocusHost.contains(document.activeElement);
-      closeFxConsole();
-      if (inside) fxBtn?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    onCleanup(() => window.removeEventListener("keydown", onKey));
+    if (!editable()) setPopoverOpen(false);
   });
 
   const store = { setProjectScale, setLaneScaleOverride };
@@ -514,9 +443,6 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       class="lane-head lane-head-strip"
       data-editing={editable()}
       onKeyDown={onStripKeyDown}
-      ref={(el) => {
-        stripEl = el;
-      }}
     >
       {/* ---- compact row: always operable in all four quadrants (LY-1) ---- */}
       <div class="lane-strip-compact">
@@ -608,14 +534,8 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         </Show>
       </div>
 
-      {/* ---- edit row: the SELECTED quadrant only (display:none elsewhere) ---- */}
-      <div
-        class="lane-strip-edit"
-        classList={{ "is-hidden": !editable() }}
-        ref={(el) => {
-          editRowEl = el;
-        }}
-      >
+      {/* ---- edit row: always visible in every quadrant ---- */}
+      <div class="lane-strip-edit">
         <Show when={stageMode() !== "phone"}>
           <TrackColorControl lane={props.lane} />
         </Show>
@@ -632,7 +552,10 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
             aria-haspopup="dialog"
             aria-expanded={popoverOpen()}
             aria-label={`${laneNames(props.lane)} effective scale: ${chip().text}. Open scale selector.`}
-            onClick={() => setPopoverOpen(!popoverOpen())}
+            onClick={() => {
+              if (!editable()) selectLane(props.lane);
+              setPopoverOpen(!popoverOpen());
+            }}
           >
             {chip().text}
           </button>
@@ -686,36 +609,6 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           </div>
         </div>
 
-        <button
-          type="button"
-          class="head-fx"
-          classList={{ "is-open": fxOpen() }}
-          ref={(el) => {
-            fxBtn = el;
-          }}
-          data-help={`lane.${props.lane}.fx`}
-          aria-expanded={fxOpen()}
-          aria-controls={`fx-strip-${props.lane}`}
-          aria-label={`FX chain for ${laneNames(props.lane)}${fxCount() > 0 ? `, ${fxCount()} device${fxCount() === 1 ? "" : "s"}` : ", empty"}. Open FX strip.`}
-          onClick={() => {
-            // Only the SELECTED quadrant's entry is live (the LY-1 focus
-            // law: a console never rests on a view-only floor). The guard
-            // matters now that the open-state is page-level — without it a
-            // synthetic click on a hidden edit row could flash a console
-            // open over a view-only quadrant before the focus law closed it.
-            if (!editable()) return;
-            setFxConsoleLane(fxOpen() ? null : props.lane);
-          }}
-        >
-          FX
-          <Show when={fxCount() > 0}>
-            <span class="head-fx-count" aria-hidden="true">
-              {" "}
-              · {fxCount()}
-            </span>
-          </Show>
-        </button>
-
         <Show when={props.lane.startsWith("extra")}>
           <button
             type="button"
@@ -760,68 +653,6 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
           </button>
         </Show>
       </div>
-
-      {/* FX console overlay: only the selected quadrant can open it (the
-          focus law above closes it the instant the quadrant goes view-only);
-          the overlay chassis floats over the quadrant's GRID (one-page law —
-          opening a strip never grows the page), scrolling internally.
-
-          Refinement-1 (critique P1-1 — the pointer-trap fix): the chassis
-          starts BELOW the whole control strip (measured top pinned inline;
-          the CSS value is the measured fallback), so the strip's edit row —
-          FX toggle, scale chip, GATE — stays clickable while the console is
-          open. The title strip gives the chassis a visible boundary (the
-          empty console used to be invisible: chassis-on-chassis) and carries
-          the CLOSE affordance on the chassis itself — never under it. */}
-      <Show when={fxOpen()}>
-        <div
-          id={`fx-strip-${props.lane}`}
-          class="lane-fx-wrap"
-          ref={(el) => {
-            fxFocusHost = el;
-            // Pin the chassis top to the strip's real bottom edge (the
-            // renderer-pinned-geometry precedent — CSS holds the fallback).
-            // Measure after attachment so wrapped controls remain above the FX panel.
-            const position = () => {
-              const floor = el.closest(".lane-floor");
-              if (!floor || !stripEl || !el.isConnected) return;
-              const below =
-                stripEl.getBoundingClientRect().bottom -
-                floor.getBoundingClientRect().top +
-                4;
-              el.style.top = `${Math.max(0, below)}px`;
-            };
-            // Solid refs run before insertion; measure after attachment.
-            const observer = new ResizeObserver(position);
-            queueMicrotask(() => {
-              if (!el.isConnected) return;
-              position();
-              if (stripEl) observer.observe(stripEl);
-            });
-            onCleanup(() => observer.disconnect());
-          }}
-        >
-          <div class="lane-fx-title">
-            <span class="lane-fx-title-led" aria-hidden="true" />
-            <span class="lane-fx-title-name" aria-hidden="true">
-              {laneNames(props.lane)} FX
-            </span>
-            <button
-              type="button"
-              class="lane-fx-close"
-              data-help="fx.close"
-              aria-label={`Close ${laneNames(props.lane)} FX console`}
-              onClick={() => {
-                closeFxConsole();
-                fxBtn?.focus();
-              }}
-            >
-              CLOSE
-            </button>
-          </div>
-          <FxStrip lane={props.lane} />
-        </div>
-      </Show>
 
       <span class="head-sr" role="status" aria-live="polite">
         {announce()}

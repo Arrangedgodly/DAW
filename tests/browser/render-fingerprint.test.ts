@@ -180,7 +180,11 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
       const bytes = new Uint8Array(await captured!.arrayBuffer());
       expect(captured!.type).toBe("audio/wav");
       // Hard structural floor (full header/length/seam suite is MF-4's).
-      expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+      // Linear WAV retains the reference arrangement's 1.5-second FX tail.
+      expect(bytes.byteLength).toBe(44 + (88200 + 66150) * 4);
+      expect(result.byteLength).toBe(bytes.byteLength);
+      const header = new DataView(bytes.buffer);
+      expect(header.getUint32(40, true)).toBe(bytes.byteLength - 44);
       expect(result.loopSamples).toBe(88200);
 
       // --- Soft canary (same protocol + recorder as the render fp) ---
@@ -253,7 +257,11 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
 
       const bytes = new Uint8Array(await captured!.arrayBuffer());
       expect(captured!.type).toBe("audio/wav");
-      expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+      // Linear WAV retains the reference arrangement's 1.5-second FX tail.
+      expect(bytes.byteLength).toBe(44 + (88200 + 66150) * 4);
+      expect(result.byteLength).toBe(bytes.byteLength);
+      const header = new DataView(bytes.buffer);
+      expect(header.getUint32(40, true)).toBe(bytes.byteLength - 44);
       expect(result.loopSamples).toBe(88200);
 
       // --- Soft canary (same protocol + recorder as the render fp) ---
@@ -321,7 +329,11 @@ describe("HW-2 render fingerprint canary (soft — never blocks)", () => {
       // Hard structural floor: the export cycle is 4 bars (the LCM of
       // 64/32/16/16 chain steps) — NOT any lane-local length.
       expect(result.loopSamples).toBe(4 * 4 * ((44100 * 60) / 120));
+      // This dry fixture has no effect tail beyond its complete LCM cycle.
       expect(bytes.byteLength).toBe(44 + result.loopSamples * 4);
+      expect(result.byteLength).toBe(bytes.byteLength);
+      const header = new DataView(bytes.buffer);
+      expect(header.getUint32(40, true)).toBe(bytes.byteLength - 44);
 
       // --- Soft canary (same protocol + recorder as the siblings) ---
       const hash = await hashBytesHex(bytes);

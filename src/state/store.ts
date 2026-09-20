@@ -1,3 +1,6 @@
+import { MAX_FX_PER_MASTER } from "../document/fx";
+import { DEFAULT_MIXER } from "../document/mixer";
+import { laneFxChain } from "./fxStrip";
 import { pitchDomain } from "../document/pitchWindow";
 /**
  * Document store (IM-6, completed from the DES-4 pull-forward): one
@@ -29,7 +32,9 @@ import {
   ALL_LANE_IDS,
   EXTRA_LANE_IDS,
   DRUM_PIECES,
+  type DrumPattern,
   type DrumPiece,
+  type DrumPlaybackMode,
   type FxDevice,
   type LaneGate,
   type LaneId,
@@ -209,9 +214,41 @@ function withDrumStep(
     if (p.kind !== "drums") return p;
     const steps = [...p.steps[piece]];
     steps[step] = value;
-    return { ...p, steps: { ...p.steps, [piece]: steps } };
+    // A toggled hit starts from the lane-gate default (never inherits a stale
+    // length from an earlier hit at this step).
+    return withDrumLength(
+      { ...p, steps: { ...p.steps, [piece]: steps } },
+      piece,
+      step,
+      undefined,
+    );
   });
   return { ...doc, patterns: { ...doc.patterns, drums: patterns } };
+}
+
+/**
+ * Immutably set (or clear, with undefined) one drum hit's length override.
+ * Canonical-empty: an emptied piece map / `lengths` field is dropped so
+ * default documents keep their exact bytes.
+ */
+function withDrumLength(
+  pattern: DrumPattern,
+  piece: DrumPiece,
+  step: number,
+  length: number | undefined,
+): DrumPattern {
+  const key = String(step);
+  const current = pattern.lengths?.[piece]?.[key];
+  if (current === length) return pattern;
+  const { lengths: _drop, ...rest } = pattern;
+  void _drop;
+  const pieceMap = { ...(pattern.lengths?.[piece] ?? {}) };
+  if (length === undefined) delete pieceMap[key];
+  else pieceMap[key] = length;
+  const lengths = { ...(pattern.lengths ?? {}) };
+  if (Object.keys(pieceMap).length === 0) delete lengths[piece];
+  else lengths[piece] = pieceMap;
+  return Object.keys(lengths).length === 0 ? rest : { ...rest, lengths };
 }
 
 /**
@@ -429,11 +466,148 @@ export function applyEuclidFill(
   const patterns = doc.patterns.drums.map((p) => {
     if (p.kind !== "drums") return p;
     const filled = euclid(pulses, p.steps[piece].length, rotation);
-    return { ...p, steps: { ...p.steps, [piece]: filled } };
+    // Freshly filled hits start at the lane-gate default length.
+    const { [piece]: _old, ...otherLengths } = p.lengths ?? {};
+    void _old;
+    const { lengths: _l, ...rest } = p;
+    void _l;
+    return {
+      ...rest,
+      steps: { ...p.steps, [piece]: filled },
+      ...(Object.keys(otherLengths).length > 0
+        ? { lengths: otherLengths }
+        : {}),
+    };
   });
   commit(
     { ...doc, patterns: { ...doc.patterns, drums: patterns } },
     `fill:${piece}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Drum hit actions — pattern-scoped, like the SC-2 note actions: a drum hit is
+// a (piece, step) with an optional length override, edited on the DISPLAYED
+// pattern and coalesced per `drum:<pattern>` so one gesture = one undo step.
+// ---------------------------------------------------------------------------
+
+function withDrumPattern(
+  doc: ProjectDocument,
+  patternId: string,
+  patch: (pattern: DrumPattern) => DrumPattern,
+): ProjectDocument | null {
+  let changed = false;
+  const patterns = doc.patterns.drums.map((p) => {
+    if (p.kind !== "drums" || p.id !== patternId) return p;
+    const next = patch(p);
+    if (next !== p) changed = true;
+    return next;
+  });
+  return changed
+    ? { ...doc, patterns: { ...doc.patterns, drums: patterns } }
+    : null;
+}
+
+/**
+ * Place (or replace) one drum hit. `length` (steps, snapped to the 0.25 grid)
+ * is stored only when it differs from the lane gate default, so plain
+ * single-click hits keep the canonical bytes they always had.
+ */
+export function setDrumHit(
+  patternId: string,
+  piece: DrumPiece,
+  step: number,
+  length?: number,
+): boolean {
+  const doc = docStore.getState().doc;
+  const gateSteps = laneGateSteps(doc, "drums");
+  const next = withDrumPattern(doc, patternId, (p) => {
+    if (step < 0 || step >= p.steps[piece].length) return p;
+    const steps = [...p.steps[piece]];
+    steps[step] = true;
+    const snapped = length === undefined ? undefined : snapNoteLength(length);
+    return withDrumLength(
+      { ...p, steps: { ...p.steps, [piece]: steps } },
+      piece,
+      step,
+      snapped === gateSteps ? undefined : snapped,
+    );
+  });
+  if (!next) return false;
+  commit(next, `drum:${patternId}`);
+  return true;
+}
+
+/** Remove one drum hit (and its length override). */
+export function removeDrumHit(
+  patternId: string,
+  piece: DrumPiece,
+  step: number,
+): boolean {
+  const doc = docStore.getState().doc;
+  const next = withDrumPattern(doc, patternId, (p) => {
+    if (!p.steps[piece][step]) return p;
+    const steps = [...p.steps[piece]];
+    steps[step] = false;
+    return withDrumLength(
+      { ...p, steps: { ...p.steps, [piece]: steps } },
+      piece,
+      step,
+      undefined,
+    );
+  });
+  if (!next) return false;
+  commit(next, `drum:${patternId}`);
+  return true;
+}
+
+/** Set the length of the drum hit at (piece, step) — edge-drag / key resize. */
+export function resizeDrumHit(
+  patternId: string,
+  piece: DrumPiece,
+  step: number,
+  length: number,
+): boolean {
+  const doc = docStore.getState().doc;
+  const gateSteps = laneGateSteps(doc, "drums");
+  const snapped = snapNoteLength(length);
+  const next = withDrumPattern(doc, patternId, (p) => {
+    if (!p.steps[piece][step]) return p;
+    return withDrumLength(
+      p,
+      piece,
+      step,
+      snapped === gateSteps ? undefined : snapped,
+    );
+  });
+  if (!next) return false;
+  commit(next, `drum:${patternId}`);
+  return true;
+}
+
+/**
+ * Choose how one drum piece plays: `gate` (sounds for the hit's length) or
+ * `oneshot` (plays all the way through on trigger); null clears the override
+ * back to the kit's natural mode. Canonical-empty: the lane's `pieceModes`
+ * field is dropped when no piece is overridden.
+ */
+export function setDrumPieceMode(
+  piece: DrumPiece,
+  mode: DrumPlaybackMode | null,
+): void {
+  commit(
+    withLane(docStore.getState().doc, "drums", (l) => {
+      if (l.id !== "drums") return l;
+      const { pieceModes: _old, ...rest } = l;
+      void _old;
+      const modes = { ...(l.pieceModes ?? {}) };
+      if (mode === null) delete modes[piece];
+      else modes[piece] = mode;
+      return Object.keys(modes).length === 0
+        ? rest
+        : { ...rest, pieceModes: modes };
+    }),
+    "drum-mode",
   );
 }
 
@@ -533,6 +707,10 @@ export function removeInstrumentLane(id: LaneId): void {
   if (chainCues) delete chainCues[id];
   if (chainModes) delete chainModes[id];
   if (playbackRules) delete playbackRules[id];
+  const mixer = doc.mixer
+    ? { ...doc.mixer, channels: { ...doc.mixer.channels } }
+    : undefined;
+  if (mixer) delete mixer.channels[id];
   commit({
     ...doc,
     lanes: doc.lanes.filter((lane) => lane.id !== id),
@@ -542,6 +720,7 @@ export function removeInstrumentLane(id: LaneId): void {
     ...(chainCues !== undefined ? { chainCues } : {}),
     ...(chainModes !== undefined ? { chainModes } : {}),
     ...(playbackRules !== undefined ? { playbackRules } : {}),
+    ...(mixer ? { mixer } : {}),
   });
 }
 
@@ -730,87 +909,91 @@ export function setLaneMix(
 // live (param tweaks ramp on AudioParams, topology edits rebuild glitch-free).
 // ---------------------------------------------------------------------------
 
-/** Append a default device; no-op (returns false) at MAX_FX_PER_LANE. */
-export function addFxDevice(lane: LaneId, type: FxDeviceType): boolean {
+/** Track and master racks share validation, history and parameter coalescing. */
+function withFxChain(
+  doc: ProjectDocument,
+  target: LaneId | "master",
+  fxChain: readonly FxDevice[],
+): ProjectDocument {
+  if (target !== "master")
+    return withLane(doc, target, (lane) => ({ ...lane, fxChain }));
+  const mixer = doc.mixer ?? DEFAULT_MIXER;
+  const master: typeof mixer.master = {
+    ...mixer.master,
+    fxChain: [...fxChain],
+  };
+  if (!fxChain.length) delete master.fxChain;
+  return { ...doc, mixer: { ...mixer, master } };
+}
+export function addFxDevice(
+  lane: LaneId | "master",
+  type: FxDeviceType,
+): boolean {
   const doc = docStore.getState().doc;
-  const conf = doc.lanes.find((l) => l.id === lane)!;
-  if (conf.fxChain.length >= MAX_FX_PER_LANE) return false;
-  commit(
-    withLane(doc, lane, (l) => ({
-      ...l,
-      fxChain: [...l.fxChain, defaultFxDevice(type)],
-    })),
-  );
+  const chain = laneFxChain(doc, lane);
+  if (chain.length >= (lane === "master" ? MAX_FX_PER_MASTER : MAX_FX_PER_LANE))
+    return false;
+  commit(withFxChain(doc, lane, [...chain, defaultFxDevice(type)]));
   return true;
 }
-
-/** Remove the device at `index` (no-op when out of range). */
-export function removeFxDevice(lane: LaneId, index: number): void {
-  const doc = docStore.getState().doc;
-  const conf = doc.lanes.find((l) => l.id === lane)!;
-  if (index < 0 || index >= conf.fxChain.length) return;
+export function removeFxDevice(lane: LaneId | "master", index: number): void {
+  const doc = docStore.getState().doc,
+    chain = laneFxChain(doc, lane);
+  if (index < 0 || index >= chain.length) return;
   commit(
-    withLane(doc, lane, (l) => ({
-      ...l,
-      fxChain: l.fxChain.filter((_, i) => i !== index),
-    })),
+    withFxChain(
+      doc,
+      lane,
+      chain.filter((_, i) => i !== index),
+    ),
   );
 }
-
-/**
- * Move a device (drag drop or keyboard move buttons). Target is clamped;
- * a no-op move keeps the lane identity (nothing re-syncs).
- */
-export function moveFxDevice(lane: LaneId, from: number, to: number): void {
-  const doc = docStore.getState().doc;
-  const conf = doc.lanes.find((l) => l.id === lane)!;
-  const next = reorderChain(conf.fxChain, from, to);
-  if (next === conf.fxChain) return;
-  commit(withLane(doc, lane, (l) => ({ ...l, fxChain: next })));
+export function moveFxDevice(
+  lane: LaneId | "master",
+  from: number,
+  to: number,
+): void {
+  const doc = docStore.getState().doc,
+    chain = laneFxChain(doc, lane);
+  const next = reorderChain(chain, from, to);
+  if (next !== chain) commit(withFxChain(doc, lane, next));
 }
-
-/** Set one device's bypass state (lit/dimmed on the module). */
 export function setFxBypassed(
-  lane: LaneId,
+  lane: LaneId | "master",
   index: number,
   bypassed: boolean,
 ): void {
-  const doc = docStore.getState().doc;
-  const conf = doc.lanes.find((l) => l.id === lane)!;
-  if (index < 0 || index >= conf.fxChain.length) return;
+  const doc = docStore.getState().doc,
+    chain = laneFxChain(doc, lane);
+  if (index < 0 || index >= chain.length) return;
   commit(
-    withLane(doc, lane, (l) => ({
-      ...l,
-      fxChain: l.fxChain.map((d, i) => (i === index ? { ...d, bypassed } : d)),
-    })),
+    withFxChain(
+      doc,
+      lane,
+      chain.map((d, i) => (i === index ? { ...d, bypassed } : d)),
+    ),
   );
 }
-
-/**
- * Set one param on one device (numeric sliders and choice selects). Throws
- * through validation on out-of-range values (store untouched). Rapid slider
- * drags coalesce into one undo step per param (`fxparam:<lane>:<i>:<key>`).
- */
 export function setFxParam(
-  lane: LaneId,
+  lane: LaneId | "master",
   index: number,
   key: string,
   value: number | string,
 ): void {
-  const doc = docStore.getState().doc;
-  const conf = doc.lanes.find((l) => l.id === lane)!;
-  const device = conf.fxChain[index];
-  if (!device)
+  const doc = docStore.getState().doc,
+    chain = laneFxChain(doc, lane);
+  if (!chain[index])
     throw new Error(`setFxParam: no device ${index} in lane '${lane}'`);
   commit(
-    withLane(doc, lane, (l) => ({
-      ...l,
-      fxChain: l.fxChain.map((d, i) =>
+    withFxChain(
+      doc,
+      lane,
+      chain.map((d, i) =>
         i === index
           ? ({ ...d, params: { ...d.params, [key]: value } } as FxDevice)
           : d,
       ),
-    })),
+    ),
     `fxparam:${lane}:${index}:${key}`,
   );
 }
@@ -1012,10 +1195,12 @@ export function doublePattern(lane: LaneId, patternId: string): boolean {
   const source = (doc.patterns[lane] ?? []).find((p) => p.id === patternId);
   if (!source || source.bars > 64) return false;
   const bars = source.bars * 2;
+  const { overflow: _discarded, ...base } = source;
+  void _discarded;
   const copy: Pattern =
     source.kind === "drums"
       ? {
-          ...source,
+          ...(base as typeof source),
           bars,
           steps: Object.fromEntries(
             DRUM_PIECES.map((piece) => [
@@ -1023,9 +1208,27 @@ export function doublePattern(lane: LaneId, patternId: string): boolean {
               [...source.steps[piece], ...source.steps[piece]],
             ]),
           ) as Record<DrumPiece, boolean[]>,
+          ...(source.lengths
+            ? {
+                lengths: Object.fromEntries(
+                  Object.entries(source.lengths).map(([piece, byStep]) => [
+                    piece,
+                    {
+                      ...byStep,
+                      ...Object.fromEntries(
+                        Object.entries(byStep ?? {}).map(([k, len]) => [
+                          String(Number(k) + source.bars * 16),
+                          len,
+                        ]),
+                      ),
+                    },
+                  ]),
+                ),
+              }
+            : {}),
         }
       : {
-          ...source,
+          ...(base as typeof source),
           bars,
           notes: [
             ...source.notes,
@@ -1423,15 +1626,11 @@ export type ResizePatternResult =
     };
 
 /**
- * Resize one pattern to `bars` (vocabulary size). Grow extends drum rows
- * with empty steps (pitched notes never change on grow); a clean shrink
- * truncates drum rows and leaves pitched notes byte-identical — every note
- * fits the new extent. Refuses — store untouched — when any note would be
- * lost past the new end: a drum hit at step ≥ newSteps, or a pitched note
- * whose end (start + length) exceeds newSteps (no silent truncation; the
- * overhang-wrap law never applies to the RESIZE path — the user moves or
- * shortens the note first). Undo family `resize:<lane>:<pattern>` (KL-1:
- * held-key ladder repeats coalesce like the octave family — one gesture).
+ * Resize one pattern to `bars`. Shrinking never refuses: drum hits and pitched
+ * notes starting past the new end move to the pattern's `overflow` stash (not
+ * played or rendered) and come back when the clip grows over them again.
+ * Notes that merely straddle the new end stay put. Undo family
+ * `resize:<lane>:<pattern>` (KL-1: held-key ladder repeats coalesce).
  */
 export function resizePattern(
   lane: LaneId,
@@ -1445,64 +1644,42 @@ export function resizePattern(
   if (!pattern) return { ok: false, reason: "not-found" };
   if (pattern.bars === bars) return { ok: false, reason: "no-op" };
   const newSteps = bars * 16;
-  if (bars < pattern.bars) {
-    // Shrink: scan for anything the truncation would lose.
-    if (pattern.kind === "drums") {
-      let blocking: ResizeBlockingNote | null = null;
-      for (const piece of DRUM_PIECES) {
-        const steps = pattern.steps[piece];
-        for (let step = newSteps; step < steps.length; step++) {
-          if (!steps[step]) continue;
-          // Deterministic: greatest end (a hit's end is step + 1).
-          if (
-            !blocking ||
-            step + 1 > blocking.start + blocking.length ||
-            (step + 1 === blocking.start + blocking.length &&
-              step > blocking.start)
-          ) {
-            blocking = { row: piece, start: step, length: 1 };
-          }
-        }
-      }
-      if (blocking) {
-        return { ok: false, reason: "blocked", toBars: bars, blocking };
-      }
-    } else {
-      let blocking: ResizeBlockingNote | null = null;
-      for (const note of pattern.notes) {
-        if (note.start + note.length <= newSteps) continue;
-        if (
-          !blocking ||
-          note.start + note.length > blocking.start + blocking.length ||
-          (note.start + note.length === blocking.start + blocking.length &&
-            note.start > blocking.start)
-        ) {
-          blocking = {
-            row: note.degree,
-            start: note.start,
-            length: note.length,
-          };
-        }
-      }
-      if (blocking) {
-        return { ok: false, reason: "blocked", toBars: bars, blocking };
-      }
-    }
-  }
   const nextPatterns = (doc.patterns[lane] ?? []).map((p) => {
     if (p.id !== patternId) return p;
     if (p.kind === "drums") {
       const steps = {} as Record<DrumPiece, boolean[]>;
+      const overflow: Partial<Record<DrumPiece, boolean[]>> = {};
+      let hasOverflow = false;
       for (const piece of DRUM_PIECES) {
-        const row = p.steps[piece];
-        steps[piece] =
-          row.length < newSteps
-            ? [...row, ...new Array(newSteps - row.length).fill(false)]
-            : row.slice(0, newSteps);
+        // Steps past the new end are stashed (absolute order: row tail, then
+        // the older overflow) so growing back restores them.
+        const full = [...p.steps[piece], ...(p.overflow?.[piece] ?? [])];
+        const row = full.slice(0, newSteps);
+        while (row.length < newSteps) row.push(false);
+        steps[piece] = row;
+        const rest = full.slice(newSteps);
+        while (rest.length > 0 && !rest[rest.length - 1]) rest.pop();
+        if (rest.length > 0) {
+          overflow[piece] = rest;
+          hasOverflow = true;
+        }
       }
-      return { ...p, bars, steps };
+      const { overflow: _drop, ...rest } = p;
+      void _drop;
+      return hasOverflow
+        ? { ...rest, bars, steps, overflow }
+        : { ...rest, bars, steps };
     }
-    return { ...p, bars };
+    const all = [...p.notes, ...(p.overflow ?? [])];
+    const kept = all.filter((n) => n.start < newSteps);
+    const stashed = all.filter((n) => n.start >= newSteps);
+    const { overflow: _drop, ...rest } = p;
+    void _drop;
+    const sorted = (list: typeof all) =>
+      [...list].sort((x, y) => x.degree - y.degree || x.start - y.start);
+    return stashed.length > 0
+      ? { ...rest, bars, notes: sorted(kept), overflow: sorted(stashed) }
+      : { ...rest, bars, notes: sorted(kept) };
   });
   commit(
     { ...doc, patterns: { ...doc.patterns, [lane]: nextPatterns } },

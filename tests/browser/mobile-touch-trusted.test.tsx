@@ -256,8 +256,8 @@ async function bootPhone(
     // the phone branch's).
     await poll(
       () =>
-        $$(".head-ctl-value").some((v) =>
-          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+        $$(".head-sound-select option:checked").some(
+          (v) => v.textContent?.trim() === "SOFT STEP",
         ),
       5_000,
       "demo loaded",
@@ -662,13 +662,14 @@ describe.skipIf(onLinuxCI)(
 
           // ---- preset stepper + MIX (MUTE/SOLO/volume) ------------------------
           {
-            const valueSel = "[aria-label='BASS sound'] .head-ctl-value";
+            const valueSel =
+              "[aria-label='Bass, track 2 sound'] .head-sound-select option:checked";
             const before = ($(valueSel) as HTMLSelectElement).value;
-            await tapStable($("[aria-label='Next preset for BASS']"), {
+            await tapStable($("[aria-label='Next preset for Bass, track 2']"), {
               effect: () => ($(valueSel) as HTMLSelectElement).value !== before,
               what: "preset stepper advances by touch tap",
             });
-            const mute = $("[aria-label='Mute BASS']");
+            const mute = $("[aria-label='Mute Bass, track 2']");
             await tapStable(mute, {
               effect: () => mute.getAttribute("aria-pressed") === "true",
               what: "MUTE toggles on by touch tap",
@@ -677,7 +678,7 @@ describe.skipIf(onLinuxCI)(
               effect: () => mute.getAttribute("aria-pressed") === "false",
               what: "MUTE toggles back off by touch tap",
             });
-            const solo = $("[aria-label='Solo BASS']");
+            const solo = $("[aria-label='Solo Bass, track 2']");
             await tapStable(solo, {
               effect: () => solo.getAttribute("aria-pressed") === "true",
               what: "SOLO engages by touch tap",
@@ -688,7 +689,7 @@ describe.skipIf(onLinuxCI)(
             // input's own value; drag toward the far end so the change is
             // unambiguous whichever end the demo starts at.
             const vol = $(
-              "[aria-label='BASS volume'] input",
+              "[aria-label='Bass, track 2 volume'] input",
             ) as HTMLInputElement;
             await reveal(vol);
             const vBefore = vol.value;
@@ -722,7 +723,7 @@ describe.skipIf(onLinuxCI)(
 
           // ---- FX console by touch --------------------------------------------
           {
-            await tapStable($("[data-help='lane.bass.fx']"), {
+            await tapStable($(".phone-mixer-nav [data-page='mixer']"), {
               effect: () =>
                 idoc().querySelector(".fx-strip[data-lane='bass']") !== null,
               what: "FX console opens by touch tap",
@@ -746,7 +747,7 @@ describe.skipIf(onLinuxCI)(
               effect: () => modCount() === modsBefore + 1,
               what: "FX device added by touch",
             });
-            await tapStable($(".lane-fx-close"), {
+            await tapStable($(".phone-mixer-nav [data-page='edit']"), {
               effect: () => idoc().querySelector(".fx-strip") === null,
               what: "FX console closes by touch",
             });
@@ -780,9 +781,13 @@ describe.skipIf(onLinuxCI)(
               kickRow().getBoundingClientRect(),
             );
             await poll(
-              () => [1, 2, 3, 4, 5].every(kickOn),
+              () =>
+                kickOn(1) &&
+                !!idoc().querySelector(
+                  '.lane-floor[data-lane="drums"] .note-run[data-start="1"][data-length="5"]',
+                ),
               4_000,
-              "touch drag paints the swept drums range (the demo's own hits at 0/8/10 stay untouched)",
+              "touch drag creates one five-step drum hit",
             );
           }
           // Euclid: FILL reveal → stepper taps arm → SET commits the row.
@@ -882,7 +887,7 @@ describe.skipIf(onLinuxCI)(
             ) as HTMLButtonElement;
           const midiBtn = () =>
             $(
-              ".projects-action[data-help='projects.midi']",
+              ".rail-row[data-lane='lead'] .pattern-midi-export",
             ) as HTMLButtonElement;
           await tapStable(wavBtn(), {
             // The busy guard: while the render runs, the actions are disabled.
@@ -890,10 +895,10 @@ describe.skipIf(onLinuxCI)(
             // so an unmet poll within the budget means the tap missed → the
             // ONE re-measured retry. If the first tap DID land, the retry
             // would fire at a disabled button and be swallowed — harmless.
-            effect: () => midiBtn().disabled,
+            effect: () => wavBtn().disabled,
             what: "export busy guard engages (actions disabled mid-render)",
           });
-          await tapStable(midiBtn()); // swallowed (disabled; no effect to verify)
+          await tapStable(wavBtn()); // a second WAV tap is swallowed while busy
           const toastSays = (text: string): boolean =>
             Array.from(idoc().querySelectorAll(".toast")).some((t) =>
               (t.textContent ?? "").includes(text),
@@ -903,7 +908,7 @@ describe.skipIf(onLinuxCI)(
             60_000,
             "WAV export toast",
           );
-          expect(blobs.length, "the swallowed MIDI tap produced no blob").toBe(
+          expect(blobs.length, "the duplicate WAV tap produced no blob").toBe(
             1,
           );
           expect(blobs[0]!.type).toBe("audio/wav");
@@ -911,6 +916,23 @@ describe.skipIf(onLinuxCI)(
           // The MIDI export's own outcome is the 60s toast poll below; the tap
           // keeps a single attempt (a re-tap mid-render would hit the busy
           // guard's disabled state — the same swallow the law above proves).
+          await tapStable($("[data-help='projects.open']"), {
+            effect: () => idoc().querySelector(".projects-pop") === null,
+            what: "close projects before opening pattern tools",
+          });
+          await tapStable($(WORKSPACE_TOGGLE), {
+            effect: () => idoc().querySelector(".rail") !== null,
+            what: "open song arrangement",
+          });
+          const patternTools = () =>
+            $(".rail-row[data-lane='lead'] .rail-tools-trigger") as HTMLElement;
+          await tapStable(patternTools(), {
+            effect: () =>
+              idoc().querySelector(
+                ".rail-row[data-lane='lead'] .pattern-midi-export",
+              ) !== null,
+            what: "open lead pattern tools",
+          });
           await tapStable(midiBtn());
           await poll(
             () =>
@@ -922,6 +944,21 @@ describe.skipIf(onLinuxCI)(
           );
           expect(blobs.length).toBe(2);
           expect(blobs[1]!.type).toBe("audio/midi");
+          await tapStable(patternTools(), {
+            effect: () =>
+              idoc().querySelector(
+                ".rail-row[data-lane='lead'] .rail-tools-menu",
+              ) === null,
+            what: "close pattern tools",
+          });
+          await tapStable($(WORKSPACE_TOGGLE), {
+            effect: () => idoc().querySelector(".lane-grid-scroll") !== null,
+            what: "return to instruments",
+          });
+          await tapStable($("[data-help='projects.open']"), {
+            effect: () => idoc().querySelector(".projects-pop") !== null,
+            what: "reopen projects",
+          });
           // Projects switch: NEW by touch → the empty-project stage note;
           // then back to the WELCOME SONG row — the demo returns.
           await tapStable($(".projects-action[data-help='projects.new']"), {
@@ -951,8 +988,8 @@ describe.skipIf(onLinuxCI)(
               await tapStable(demoRow!, {
                 effect: () =>
                   idoc().querySelector(".stage-hint") === null &&
-                  $$(".head-ctl-value").some((v) =>
-                    (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+                  $$(".head-sound-select option:checked").some(
+                    (v) => v.textContent?.trim() === "SOFT STEP",
                   ),
                 what: "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo preset returns)",
                 verifyMs: 6_000,
@@ -1067,13 +1104,14 @@ describe.skipIf(onLinuxCI)(
 
           // Preset stepper + MUTE.
           {
-            const valueSel = "[aria-label='BASS sound'] .head-ctl-value";
+            const valueSel =
+              "[aria-label='Bass, track 2 sound'] .head-sound-select option:checked";
             const before = ($(valueSel) as HTMLSelectElement).value;
-            await tapStable($("[aria-label='Next preset for BASS']"), {
+            await tapStable($("[aria-label='Next preset for Bass, track 2']"), {
               effect: () => ($(valueSel) as HTMLSelectElement).value !== before,
               what: "preset stepper at 360",
             });
-            const mute = $("[aria-label='Mute BASS']");
+            const mute = $("[aria-label='Mute Bass, track 2']");
             await tapStable(mute, {
               effect: () => mute.getAttribute("aria-pressed") === "true",
               what: "MUTE at 360",

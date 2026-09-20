@@ -82,6 +82,9 @@ export default defineConfig({
         plugins: [solid()],
         test: {
           name: "unit",
+          // Bound parallel dense-document/fuzz work on high-core hosts.
+          // Keeps the full suite inside the same time budgets as focused runs.
+          maxWorkers: 4,
           environment: "node",
           // zundo reaches for the zustand root entry, which pulls the React
           // binding. We use vanilla only (D1): alias it away and
@@ -138,7 +141,8 @@ export default defineConfig({
               },
             }),
             instances: [{ browser: "chromium" }],
-            headless: !!process.env.CI,
+            // Match CI by default; HEADED=1 opts into an interactive browser.
+            headless: process.env.HEADED !== "1",
             // Refinement-4 (critique P2-5): the browser gate runs at the
             // product's TESTED MINIMUM (DESIGN.md: 1280×800 — the one-page
             // law's floor, asserted by quadrant-layout §1b). vitest's default

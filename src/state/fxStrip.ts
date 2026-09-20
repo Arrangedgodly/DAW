@@ -199,8 +199,9 @@ export function fxModuleList(chain: readonly FxDevice[]): readonly FxModule[] {
 
 export function laneFxChain(
   doc: ProjectDocument,
-  lane: LaneId,
+  lane: LaneId | "master",
 ): readonly FxDevice[] {
+  if (lane === "master") return doc.mixer?.master.fxChain ?? [];
   return doc.lanes.find((l) => l.id === lane)?.fxChain ?? [];
 }
 

@@ -238,7 +238,7 @@ describe("vertical fill with the full MIDI editor", () => {
               return r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
             });
             expect(visible).toHaveLength(
-              floor.dataset.lane === "drums" ? 6 : 7,
+              floor.dataset.lane === "drums" && h >= 850 ? 8 : 7,
             );
             if (floor.dataset.lane !== "drums")
               expect(rows.length).toBeGreaterThan(7);

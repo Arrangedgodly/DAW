@@ -162,7 +162,9 @@ function measurePane(pane: HTMLElement): PaneReport {
   const lane = floor.getAttribute("data-lane") ?? "?";
   const box = pane.getBoundingClientRect();
   const style = pane.ownerDocument.defaultView!.getComputedStyle(pane);
-  const borderY = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth);
+  const borderY =
+    Number.parseFloat(style.borderTopWidth) +
+    Number.parseFloat(style.borderBottomWidth);
   const hsb = Math.max(0, pane.offsetHeight - pane.clientHeight - borderY);
   const bottom = box.bottom - hsb;
   const rows = Array.from(pane.querySelectorAll<HTMLElement>(".grid-row"));
@@ -393,7 +395,7 @@ describe("i3-2 window-edge row quantization (built app, demo state)", () => {
         await poll(
           () =>
             (idoc().activeElement as HTMLElement)?.dataset.row === "0" &&
-            /^LEAD grid · EDITING · ROWS 0–/.test(
+            /^Leads, track 4 grid · EDITING · ROWS 0–/.test(
               idoc()
                 .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
                 ?.getAttribute("aria-label") ?? "",

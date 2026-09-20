@@ -22,7 +22,7 @@
  *   per scheduled tick and mutate the map for quantized live switching.
  */
 
-import { compileLaneEvents } from "./compile";
+import { compileLaneEvents, type LaneCompileInput } from "./compile";
 import { type GrooveOptions, stepOfTimeBounded } from "./time";
 import {
   type DrumKit,
@@ -83,6 +83,8 @@ export interface LaneScheduleInput {
   readonly stackChord?: boolean;
   /** RC-1 (v3): per-lane register offset in octaves (see compile.ts). */
   readonly octaveOffset?: number;
+  /** Drums: per-piece playback mode overrides (see compile.ts). */
+  readonly drumModes?: LaneCompileInput["drumModes"];
   /**
    * Per-chain-entry slot identity + ⟲/→ mode (index-aligned with `chain`).
    * Absent → segments carry neither (legacy callers, standalone switches).
@@ -172,6 +174,7 @@ export function compileLaneSchedule(input: LaneScheduleInput): LaneSchedule {
       scale: input.scale,
       stackChord: input.stackChord,
       octaveOffset: input.octaveOffset,
+      drumModes: input.drumModes,
     });
     for (const event of events) {
       // Compile times are loop-relative seconds; invert to the pattern-local
@@ -217,6 +220,7 @@ export function compileSong(
             preset: getDrumKit(laneConf.kitId) ?? getDrumKit("kit-default")!,
             gate: laneConf.gate,
             groove,
+            drumModes: laneConf.pieceModes,
           })
         : compileLaneSchedule({
             chain,

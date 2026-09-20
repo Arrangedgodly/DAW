@@ -131,6 +131,8 @@ function walkInteractive(scope: string): WalkFinding[] {
       });
     }
   }
+  if (findings.length)
+    console.error("[help findings]", JSON.stringify(findings));
   return findings;
 }
 
@@ -205,7 +207,8 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () =>
             host
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
-              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+              ?.getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           4000,
           "drums quadrant editable (demo loaded)",
         );
@@ -223,11 +226,11 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed names append the ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           2000,
           "bass quadrant editable",
         );
-        click('[data-help="lane.bass.fx"]');
+        showPhonePage("mixer");
         await waitFor(
           () => host.querySelector(".fx-strip") !== null,
           2000,
@@ -257,7 +260,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           2000,
           "add menu closed",
         );
-        click('[data-help="lane.bass.fx"]'); // close the strip
+        showPhonePage("edit");
 
         // --- STATE 4: projects popover ---------------------------------
         // Demo previews become saved projects after the first edit.
@@ -567,7 +570,8 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           () =>
             host
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
-              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+              ?.getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           4000,
           "drums stage editable (demo loaded)",
         );
@@ -630,7 +634,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           2000,
           "bass stage editable",
         );
@@ -639,7 +643,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           findings.map((f) => `${f.scope}: "${f.describe}"`),
           "the phone bass lane must be fully covered",
         ).toEqual([]);
-        click('[data-help="lane.bass.fx"]');
+        showPhonePage("mixer");
         await waitFor(
           () => host.querySelector(".fx-strip") !== null,
           2000,
@@ -650,7 +654,7 @@ describe("HP-2 help coverage — every interactive surface explains itself", () 
           findings.map((f) => `${f.scope}: "${f.describe}"`),
           "the phone fx strip must be fully covered",
         ).toEqual([]);
-        keyAt("Escape"); // closes the console (page-level law)
+        showPhonePage("edit");
         await waitFor(
           () => host.querySelector(".fx-strip") === null,
           2000,

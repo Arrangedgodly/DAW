@@ -273,6 +273,7 @@ interface FakeSession {
   chains: Map<LaneId, readonly unknown[]>;
   setLaneEvents(): void;
   setLaneSchedule(): void;
+  setMixer(): void;
   setSections(): void;
   setLaneSound(): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
@@ -293,6 +294,7 @@ function fakeSession(): FakeSession {
     chains: new Map(),
     setLaneEvents() {},
     setLaneSchedule() {},
+    setMixer() {},
     setSections() {},
     setLaneSound() {},
     setLaneChain(lane, devices) {

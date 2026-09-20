@@ -429,9 +429,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         bassPresetAfter = presetName();
 
         // --- 4. TUNE A CHAIN: FX add + param tweak ---------------------------
-        (
-          $('.lane-floor[data-lane="bass"] .head-fx') as HTMLButtonElement
-        ).click();
+        ($('button[data-page="mixer"]') as HTMLButtonElement).click();
         await poll(
           () => !!idoc().querySelector('.fx-strip[data-lane="bass"]'),
           T.ui,
@@ -466,12 +464,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "fx param readout change",
         );
-        expect(
-          $('.lane-floor[data-lane="bass"] .head-fx').getAttribute(
-            "aria-label",
-          ),
-          "FX after parameter edit",
-        ).toContain("3 devices");
+        expect($$('.fx-strip[data-lane="bass"] .fx-mod').length).toBe(3);
 
         // --- 5. ARRANGE: quantized switch + duplicate + chain append ---------
         // Play again for the quantized switch (it is a PLAYING-transport law).
@@ -558,12 +551,12 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           "appended tile is the NEW blank pattern (not the duplicate)",
         ).toBe("F");
         bassTilesAfter = tiles().length;
-        expect(
-          $('.lane-floor[data-lane="bass"] .head-fx').getAttribute(
-            "aria-label",
-          ),
-          "FX after arranging",
-        ).toContain("3 devices");
+        $('button[data-page="mixer"]').click();
+        await poll(
+          () => $$('.fx-strip[data-lane="bass"] .fx-mod').length === 3,
+          T.ui,
+          "FX retained after arranging",
+        );
 
         await openEdit();
 
@@ -780,13 +773,11 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "bass selected after reload",
         );
-        (
-          $('.lane-floor[data-lane="bass"] .head-fx') as HTMLButtonElement
-        ).click();
+        ($('button[data-page="mixer"]') as HTMLButtonElement).click();
         await poll(
           () => $$('.fx-strip[data-lane="bass"] .fx-mod').length === 3,
           T.ui,
-          `fx chain survived reload (${$('.lane-floor[data-lane="bass"] .head-fx').getAttribute("aria-label")})`,
+          `fx chain survived reload (${$('button[data-page="mixer"]').getAttribute("aria-label")})`,
         );
         await openSong(); // the reloaded app boots on the EDIT page
         const bassRow2 = $('.rail-row[data-lane="bass"]');

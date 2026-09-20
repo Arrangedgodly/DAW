@@ -1,3 +1,4 @@
+import { setTheme, theme } from "../../src/state/theme";
 import { expect, it } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "solid-js/web";
@@ -14,6 +15,7 @@ it("higher notes render above lower notes; octave view and keyboard editing pres
   await page.viewport(1440, 1000);
   const host = document.createElement("div");
   document.body.append(host);
+  const initialTheme = theme();
   const dispose = render(() => <App />, host);
   try {
     await expect
@@ -50,7 +52,7 @@ it("higher notes render above lower notes; octave view and keyboard editing pres
     )!;
     const button = (label: string) =>
       floor.querySelector<HTMLButtonElement>(
-        `button[aria-label="LEAD ${label}"]`,
+        `button[aria-label="Leads, track 4 ${label}"]`,
       )!;
     const initial = registerWindowStart("lead")!;
     button("octave view up").click();
@@ -132,20 +134,21 @@ it("higher notes render above lower notes; octave view and keyboard editing pres
           .click();
         laneFloor
           .querySelector<HTMLButtonElement>(
-            `[aria-label="${lane.toUpperCase()} octave view up"]`,
+            `.lane-floor[data-lane="${lane}"] [aria-label$="octave view up"]`,
           )!
           .click();
+        laneFloor
+          .querySelector(".lane-grid-scroll")!
+          .scrollIntoView({ block: "end" });
         await expect
           .poll(
             () =>
               laneFloor
-                .querySelector(".lane-grid-scroll")
-                ?.getBoundingClientRect().bottom,
+                .querySelector(".lane-grid-scroll")!
+                .getBoundingClientRect().bottom,
           )
           .toBeLessThanOrEqual(844);
-        await expect
-          .poll(() => document.documentElement.scrollHeight)
-          .toBeLessThanOrEqual(844);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
         const box = laneFloor
           .querySelector(".lane-grid-scroll")!
           .getBoundingClientRect();
@@ -156,12 +159,10 @@ it("higher notes render above lower notes; octave view and keyboard editing pres
           },
         );
         expect(rows).toHaveLength(7);
-        expect(laneFloor.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-          844,
-        );
       }
     }
   } finally {
+    setTheme(initialTheme);
     dispose();
     host.remove();
   }

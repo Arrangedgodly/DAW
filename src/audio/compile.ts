@@ -19,9 +19,17 @@ import {
   type DrumKit,
   type VoiceNoteOnEvent,
   type VoicePreset,
+  naturalDrumMode,
   noteParamsFor,
 } from "./presets";
-import { DRUM_PIECES, type LaneGate, type Pattern } from "../document/schema";
+import {
+  DRUM_PIECES,
+  type DrumPiece,
+  type DrumPlaybackMode,
+  type LaneGate,
+  type Pattern,
+  drumHitLength,
+} from "../document/schema";
 import { type EffectiveScale, degreeToMidi } from "../document/scales";
 
 export interface LaneCompileInput {
@@ -50,6 +58,11 @@ export interface LaneCompileInput {
    * number is clamped to 0..127 (the schema's consumer-side pitch law).
    */
   readonly octaveOffset?: number;
+  /**
+   * Drums: per-piece playback mode overrides (DrumsLane.pieceModes). A piece
+   * with no entry plays its natural mode (samples one-shot, synth gated).
+   */
+  readonly drumModes?: Readonly<Partial<Record<DrumPiece, DrumPlaybackMode>>>;
 }
 
 function gateSeconds(gate: LaneGate, groove: GrooveOptions): number {
@@ -82,13 +95,28 @@ export function compileLaneEvents(input: LaneCompileInput): VoiceNoteOnEvent[] {
       if (!piecePreset) continue;
       const steps = pattern.steps[pieceName] ?? [];
       pieceOrdinal++;
+      const mode = input.drumModes?.[pieceName] ?? naturalDrumMode(piecePreset);
+      const oneShot = mode === "oneshot";
+      // One-shot synth pieces run their whole envelope (attack + decay, then
+      // the release tail) regardless of hit length. Samples handle one-shot in
+      // the voice host via `oneShot` and keep the gate hold (inert there), so
+      // default-mode kits compile byte-identically to before.
+      const synthOneShot = oneShot && piecePreset.voiceType !== "sample";
+      const envelopeSeconds =
+        piecePreset.envelope.attack + piecePreset.envelope.decay;
       for (let step = 0; step < steps.length; step++) {
         if (!steps[step]) continue;
+        const length = drumHitLength(pattern, pieceName, step);
         events.push(
           noteParamsFor(piecePreset, {
             time: timeAtStep(step, groove),
-            holdSeconds: gateSec,
+            holdSeconds: synthOneShot
+              ? envelopeSeconds
+              : length !== undefined
+                ? length * stepSec
+                : gateSec,
             seedSalt: step * 8 + pieceOrdinal,
+            oneShot,
           }),
         );
       }

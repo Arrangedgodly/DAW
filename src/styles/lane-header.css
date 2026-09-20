@@ -119,7 +119,7 @@
   line-height: 1;
   letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
+  color: var(--theme-muted);
 }
 
 .head-stepper {
@@ -431,7 +431,7 @@
   line-height: 1;
   letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-panel));
+  color: var(--theme-muted);
 }
 
 .scale-pop-roots {

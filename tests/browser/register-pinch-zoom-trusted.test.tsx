@@ -104,8 +104,10 @@ async function bootIframe(
   await poll(
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
-      $$(".head-ctl-value").some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",
@@ -468,7 +470,9 @@ describe("N-4 trusted pinch — built app, two-pointer CDP streams", () => {
           };
           const before = origin();
           const btn = $$(".register-shift-btn").find(
-            (b) => b.getAttribute("aria-label") === "LEAD semitone view up",
+            (b) =>
+              b.getAttribute("aria-label") ===
+              "Leads, track 4 semitone view up",
           ) as HTMLButtonElement;
           btn.click();
           await poll(

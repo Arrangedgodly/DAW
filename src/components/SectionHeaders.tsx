@@ -195,7 +195,7 @@ export default function SectionHeaders() {
   let trigger: HTMLButtonElement | undefined;
   return (
     <>
-      <div class="section-header-row">
+      <div class="section-header-row" data-help="rail.sections">
         <span class="section-gutter">Sections</span>
         <div class="section-columns">
           <For each={Array.from({ length: count() }, (_, i) => i)}>

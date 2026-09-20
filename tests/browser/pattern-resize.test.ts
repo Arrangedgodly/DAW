@@ -8,9 +8,7 @@
  * - grow ALWAYS proceeds; the grid REMOUNTS at the new extent (the G9 law)
  *   and announces `PATTERN <L> · <n> BARS` through the lane's rail status
  *   region (E10);
- * - shrink REFUSES BY DEFAULT when any note would be lost past the new end:
- *   the exact refusal text names the blocking note; the store is untouched;
- *   after the note moves, the shrink proceeds;
+ * - shrink commits the requested length and retains later notes for growth;
  * - the ladder limits are no-ops that still announce (… · AT LIMIT);
  * - ONE Ctrl+Z reverts a rapid ladder burst (the resize coalescing family);
  * - FOCUS CARRY through the remount: focus in the grid lands on the carried
@@ -26,13 +24,7 @@ import { render } from "solid-js/web";
 import App from "../../src/App";
 import { createDemoProject } from "../../src/document/demoSong";
 import { showPhonePage } from "../../src/state/phonePage";
-import {
-  addNote,
-  docStore,
-  loadDocument,
-  removeNote,
-  undo,
-} from "../../src/state/store";
+import { addNote, docStore, loadDocument, undo } from "../../src/state/store";
 import { activePatterns, selectLane } from "../../src/state/selection";
 import { requestCellFocus } from "../../src/state/gridFocus";
 import { getAutosaveController } from "../../src/persist/boot";
@@ -132,7 +124,7 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (demo loaded)",
         );
@@ -246,7 +238,7 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
   );
 
   it(
-    "PAT menu LENGTH stepper: own lifecycle (stays open), value span, pointer twin announcements; lossy shrink REFUSES with the exact E10 text, clean shrink proceeds",
+    "PAT menu LENGTH stepper: own lifecycle (stays open), value span, pointer twin announcements; shrink retains hidden notes and both input paths restore them",
     { timeout: 90_000 },
     async () => {
       const { host, cleanup } = mount();
@@ -267,7 +259,7 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (demo loaded)",
         );
@@ -299,11 +291,11 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         await waitFor(menuOpen, 2000, "PAT menu open");
         const grow = () =>
           $<HTMLButtonElement>(
-            '.rail-row[data-lane="bass"] button[aria-label^="Grow BASS selected pattern"]',
+            '.rail-row[data-lane="bass"] button[aria-label^="Grow Bass, track 2 selected pattern"]',
           );
         const shrink = () =>
           $<HTMLButtonElement>(
-            '.rail-row[data-lane="bass"] button[aria-label^="Shrink BASS selected pattern"]',
+            '.rail-row[data-lane="bass"] button[aria-label^="Shrink Bass, track 2 selected pattern"]',
           );
         grow().click();
         await waitFor(() => bars() === 2, 2000, "LENGTH + grows 1→2");
@@ -339,38 +331,48 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
         expect(addNote("bass", id, { degree: 0, start: 64, length: 4 })).toBe(
           true,
         );
-        shrinkKey(); // 8→4: must REFUSE
+        const note = { degree: 0, start: 64, length: 4 };
+        const current = () => {
+          const p = selected();
+          if (p.kind !== "pitched") throw new Error("Expected pitched bass");
+          return p;
+        };
+        shrinkKey();
         await waitFor(
-          () =>
-            announce() ===
-            "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+          () => bars() === 4 && announce() === "PATTERN A · 4 BARS",
           2000,
-          "the exact E10 refusal names the blocking note",
+          "keyboard shrink commits",
         );
-        expect(bars()).toBe(8); // store untouched
-        // Every path produces the SAME text (the stepper twin).
+        expect(current().notes).not.toContainEqual(note);
+        expect(current().overflow).toContainEqual(note);
+        key(document.body, "b");
+        await waitFor(
+          () => bars() === 8,
+          2000,
+          "manual growth restores extent",
+        );
+        expect(current().notes).toContainEqual(note);
+        expect(current().overflow).toBeUndefined();
         $<HTMLElement>(
           '.rail-row[data-lane="bass"] .rail-tools-trigger',
         ).click();
-        await waitFor(menuOpen, 2000, "PAT menu open (refusal twin)");
+        await waitFor(menuOpen, 2000, "PAT menu open");
         shrink().click();
         await waitFor(
-          () =>
-            announce() ===
-            "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 5 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+          () => bars() === 4 && announce() === "PATTERN A · 4 BARS",
           2000,
-          "the stepper refuses with the identical text (one funnel)",
+          "pointer shrink matches keyboard",
         );
-        expect(bars()).toBe(8);
-        // Move the note first — then the shrink proceeds.
-        expect(removeNote("bass", id, 0, 64)).toBe(true);
-        shrinkKey();
-        await waitFor(() => bars() === 4, 2000, "clean shrink proceeds");
+        expect(current().overflow).toContainEqual(note);
+        expect(menuOpen()).toBe(true);
+        grow().click();
         await waitFor(
-          () => announce() === "PATTERN A · 4 BARS",
+          () => bars() === 8,
           2000,
-          "clean-shrink success announcement",
+          "pointer growth restores extent",
         );
+        expect(current().notes).toContainEqual(note);
+        expect(current().overflow).toBeUndefined();
       } finally {
         cleanup();
         await restoreDb(snap);
@@ -400,7 +402,7 @@ describe("LL-1 pattern LENGTH ladder (real app)", () => {
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (demo loaded)",
         );

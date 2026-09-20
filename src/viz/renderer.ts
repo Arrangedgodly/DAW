@@ -399,7 +399,9 @@ export function createVizRenderer(opts: VizRendererOptions): VizRenderer {
       if (state !== "idle") return;
       // Opaque context, single layer (R2; the `alpha:false` readback is
       // not introspectable — the token-ground pixel probe pins it).
-      ctx = canvas.getContext("2d", { alpha: false });
+      // Let supporting browsers present this opaque animation without
+      // waiting for the rest of the page's paint. Other browsers ignore it.
+      ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
       if (!ctx) return; // unsupportable in practice; never arm nothing.
       // Token ground, read once (tokens never change at runtime); if the
       // sheet is absent the fallback is the opaque canvas's own default

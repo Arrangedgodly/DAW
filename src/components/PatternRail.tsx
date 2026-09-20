@@ -1435,6 +1435,7 @@ export default function PatternRail(): JSX.Element {
       <SectionControls />
       <div
         class="arrangement-matrix"
+        data-help="rail.sections"
         role="region"
         aria-label="Aligned section columns"
         tabindex="0"

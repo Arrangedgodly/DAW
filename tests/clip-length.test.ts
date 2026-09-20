@@ -28,18 +28,38 @@ it("grows drums and pitched clips to odd lengths and preserves them on validatio
   if (drums.kind === "drums") expect(drums.steps.kick).toHaveLength(80);
 });
 
-it("protects notes beyond an odd boundary and allows undo of a clean shrink", () => {
+it("retains notes beyond an odd boundary through save, grow, and undo", () => {
   const id = docStore.getState().doc.patterns.bass[0]!.id;
   resizePattern("bass", id, 5);
   addNote("bass", id, { degree: 0, start: 64, length: 1 });
   expect(resizePattern("bass", id, 3)).toMatchObject({
-    ok: false,
-    reason: "blocked",
+    ok: true,
+    bars: 3,
   });
-  undo();
-  expect(resizePattern("bass", id, 3).ok).toBe(true);
+  const shrunk = decode(encode(docStore.getState().doc));
+  const pattern = shrunk.patterns.bass[0]!;
+  expect(pattern.kind).toBe("pitched");
+  if (pattern.kind === "pitched") {
+    expect(pattern.notes).not.toContainEqual({
+      degree: 0,
+      start: 64,
+      length: 1,
+    });
+    expect(pattern.overflow).toContainEqual({
+      degree: 0,
+      start: 64,
+      length: 1,
+    });
+  }
   undo();
   expect(docStore.getState().doc.patterns.bass[0]!.bars).toBe(5);
+  loadDocument(shrunk);
+  expect(resizePattern("bass", id, 5).ok).toBe(true);
+  const grown = docStore.getState().doc.patterns.bass[0]!;
+  if (grown.kind === "pitched") {
+    expect(grown.notes).toContainEqual({ degree: 0, start: 64, length: 1 });
+    expect(grown.overflow).toBeUndefined();
+  }
 });
 
 it.each([0, -1, 1.5, 129, NaN, Infinity])(

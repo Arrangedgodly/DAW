@@ -164,11 +164,29 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         const row = $(`.rail-row[data-lane="${lane}"]`);
         const tilesBox = row.querySelector<HTMLElement>(".rail-tiles")!;
         const tile = tilesBox.querySelector<HTMLElement>(".rail-tile")!;
-        expect(
-          tilesBox.getBoundingClientRect().height,
-          `${lane}: ${tilesBox.querySelectorAll(".rail-tile").length} tiles stay single-line ` +
-            `(the distill's horizontal room; a wrap doubles this height)`,
-        ).toBeLessThanOrEqual(tile.getBoundingClientRect().height + 0.5);
+        const firstTop = tile.getBoundingClientRect().top;
+        const cells = Array.from(
+          tilesBox.querySelectorAll<HTMLElement>(".rail-cell"),
+        );
+        expect(cells.length).toBe(
+          tilesBox.querySelectorAll(".rail-tile").length,
+        );
+        // Each section now includes a playback control below its pattern tile.
+        // Assert alignment and one cell-high row, not the old tile-only height.
+        expect(tilesBox.getBoundingClientRect().height).toBeLessThanOrEqual(
+          Math.max(
+            ...cells.map((cell) => cell.getBoundingClientRect().height),
+          ) + 0.5,
+        );
+        for (const cell of cells) {
+          expect(
+            Math.abs(
+              cell.querySelector(".rail-tile")!.getBoundingClientRect().top -
+                firstTop,
+            ),
+          ).toBeLessThanOrEqual(0.5);
+          expect(cell.querySelector(".rail-playback-trigger")).not.toBeNull();
+        }
         for (const t of Array.from(
           tilesBox.querySelectorAll<HTMLElement>(".rail-tile"),
         )) {
@@ -313,9 +331,18 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
           "menu stays a compact two-row popover",
         ).toBeLessThanOrEqual(96);
         expect(
-          menu.querySelectorAll(".rail-tool").length,
-          "all five management tool buttons inside the menu (LL-1: REN + LENGTH −/+ + DUP + RM — the +NB create buttons retired with the LENGTH stepper)",
-        ).toBe(5);
+          Array.from(menu.querySelectorAll(".rail-tool"), (el) =>
+            el.getAttribute("data-help"),
+          ),
+          "pattern options expose rename, length down/up, duplicate, MIDI, and remove",
+        ).toEqual([
+          "rail.rename",
+          "rail.length",
+          "rail.length",
+          "rail.duplicate",
+          "pattern.midi",
+          "rail.remove",
+        ]);
         // Pre-fix equivalent measurement: the tool buttons + their 4px gaps
         // are exactly what the row used to spend (one line, no wrap).
         const toolRects = Array.from(
@@ -410,7 +437,9 @@ describe("refinement-6 rail tools density (built app, 1440×900 + 1280×800)", (
         // BC-1 (I3-a): the long-chain stage above leaves the last BLANK
         // clip selected (`+` selects what it creates), so re-select a demo
         // tile first — §3e's precondition is a pattern WITH content.
-        ($$('.rail-row[data-lane="drums"] .rail-tile')[0] as HTMLElement).click();
+        (
+          $$('.rail-row[data-lane="drums"] .rail-tile')[0] as HTMLElement
+        ).click();
         await poll(
           () =>
             $$('.lane-floor[data-lane="drums"] .cell[data-on="true"]').length >

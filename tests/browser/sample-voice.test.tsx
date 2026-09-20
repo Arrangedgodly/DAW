@@ -263,7 +263,7 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
 
   function nextKitButton(host: HTMLElement): HTMLButtonElement {
     const btn = host.querySelector<HTMLButtonElement>(
-      'button[aria-label="Next kit for DRUMS"]',
+      'button[aria-label="Next kit for Drums, track 1"]',
     );
     if (!btn) throw new Error("next-kit button not found");
     return btn;

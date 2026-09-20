@@ -1,6 +1,6 @@
+import { MAX_FX_PER_MASTER, MAX_FX_PER_LANE } from "../document/fx";
 /**
- * FxStrip (DES-5): the lit console strip opened from the lane header's FX
- * entry. One lit module per device in the lane's chain — reorderable (drag
+ * FxStrip: the creative effects rack in the selected Mixer channel. One lit module per device in the lane's chain — reorderable (drag
  * AND keyboard move buttons), bypassable (lit/dimmed), removable — plus an
  * add-device menu capped at MAX_FX_PER_LANE.
  *
@@ -50,7 +50,6 @@ import {
   canMoveFx,
   cutoffToSlider,
   formatFxParam,
-  fxChainFull,
   fxModuleList,
   laneFxChain,
   paramToSlider,
@@ -69,18 +68,9 @@ const FLASH_MS = 180; // D9 one-shot cap
  */
 registerHelp([
   {
-    // Refinement-1: the console's own CLOSE affordance (title strip). Lives
-    // in this registry block with the other fx.* ids even though the button
-    // itself is stamped by LaneHeader (the console chassis) — one owner per
-    // FX concept.
-    id: "fx.close",
-    title: "FX CONSOLE CLOSE",
-    text: "Shuts this lane's FX console and gives the grid back — the rack itself is untouched, so it reopens exactly as you left it. Escape works from anywhere, and the strip's FX button toggles it too.",
-  },
-  {
     id: "fx.add",
     title: "+ ADD FX",
-    text: "Adds an effect device to this lane's rack — three at most. Order matters: each device feeds the next.",
+    text: "Adds an effect device to this channel’s rack — up to three on a track or eight on Master. Order matters: each device feeds the next.",
   },
   ...FX_DEVICE_TYPES.map((type) => ({
     id: `fx.device.${type}`,
@@ -122,11 +112,13 @@ interface DragState {
   from: number;
 }
 
-function readChain(lane: LaneId) {
+function readChain(lane: LaneId | "master") {
   return laneFxChain(docStore.getState().doc, lane);
 }
 
-export default function FxStrip(props: { lane: LaneId }): JSX.Element {
+export default function FxStrip(props: {
+  lane: LaneId | "master";
+}): JSX.Element {
   const laneNames = createLaneAccessibleNames();
   const [chain, setChain] = createSignal(readChain(props.lane));
   const [flashIndex, setFlashIndex] = createSignal(-1);
@@ -154,7 +146,11 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
 
   onMount(() => {
     const unsubscribe = docStore.subscribe((state, prev) => {
-      if (state.doc.lanes === prev.doc.lanes) return;
+      if (
+        state.doc.lanes === prev.doc.lanes &&
+        state.doc.mixer === prev.doc.mixer
+      )
+        return;
       setChain(readChain(props.lane));
     });
     onCleanup(unsubscribe);
@@ -165,7 +161,9 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
   });
 
   const modules = () => fxModuleList(chain());
-  const full = () => fxChainFull(chain());
+  const capacity = () =>
+    props.lane === "master" ? MAX_FX_PER_MASTER : MAX_FX_PER_LANE;
+  const full = () => chain().length >= capacity();
 
   const reducedMotion = () =>
     typeof window !== "undefined" &&
@@ -193,12 +191,12 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
     <div
       class="fx-strip"
       data-lane={props.lane}
-      aria-label={`${laneNames(props.lane)} FX chain`}
+      aria-label={`${props.lane === "master" ? "Master" : laneNames(props.lane)} FX chain`}
     >
       <div
         class="fx-strip-modules"
         role="list"
-        aria-label={`${laneNames(props.lane)} FX modules`}
+        aria-label={`${props.lane === "master" ? "Master" : laneNames(props.lane)} FX modules`}
       >
         {/* DES-7: Index (position-keyed), not For — modules() mints fresh
             objects on every store commit, so reference-keyed For tore down and
@@ -239,7 +237,7 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
           )}
         </Index>
         <Show when={modules().length === 0}>
-          <p class="fx-strip-empty">NO DEVICES — ADD ONE BELOW</p>
+          <p class="fx-strip-empty">ADD EFFECTS TO THIS CHANNEL</p>
         </Show>
       </div>
 
@@ -247,7 +245,9 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
         <Show
           when={!full()}
           fallback={
-            <span class="fx-strip-cap">CHAIN FULL — 3 DEVICES MAX</span>
+            <span class="fx-strip-cap">
+              CHAIN FULL — {capacity()} DEVICES MAX
+            </span>
           }
         >
           <button
@@ -276,7 +276,7 @@ export default function FxStrip(props: { lane: LaneId }): JSX.Element {
               }}
               class="fx-add-menu"
               role="menu"
-              aria-label={`Add FX device to ${laneNames(props.lane)}`}
+              aria-label={`Add FX device to ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.stopPropagation();
@@ -334,7 +334,7 @@ function moduleMeter(mod: FxModule): number {
 }
 
 function FxModuleView(props: {
-  lane: LaneId;
+  lane: LaneId | "master";
   mod: FxModule;
   count: number;
   flash: boolean;
@@ -350,7 +350,7 @@ function FxModuleView(props: {
   const label = () => m().spec.label;
 
   return (
-    <section
+    <div
       class="fx-mod"
       style={{ "--fx-meter": moduleMeter(m()) }}
       classList={{
@@ -383,20 +383,34 @@ function FxModuleView(props: {
             class="fx-mod-btn fx-move-btn"
             data-help="fx.move"
             disabled={!canMoveFx(m().index, -1, props.count)}
-            aria-label={`Move ${label()} module up`}
+            aria-label={`Move ${label()} module earlier`}
             onClick={() => props.onMove(-1)}
           >
-            ▲
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="m10 3-5 5 5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
           </button>
           <button
             type="button"
             class="fx-mod-btn fx-move-btn"
             data-help="fx.move"
             disabled={!canMoveFx(m().index, 1, props.count)}
-            aria-label={`Move ${label()} module down`}
+            aria-label={`Move ${label()} module later`}
             onClick={() => props.onMove(1)}
           >
-            ▼
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="m6 3 5 5-5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
           </button>
           <button
             type="button"
@@ -440,7 +454,7 @@ function FxModuleView(props: {
           )}
         </For>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -449,7 +463,7 @@ function FxModuleView(props: {
 // ---------------------------------------------------------------------------
 
 function FxSliderControl(props: {
-  lane: LaneId;
+  lane: LaneId | "master";
   mod: FxModule;
   slider: FxSliderSpec;
 }): JSX.Element {
@@ -473,7 +487,7 @@ function FxSliderControl(props: {
         max={s().log ? 1000 : s().max}
         step={s().log ? 1 : s().step}
         value={paramToSlider(s(), value())}
-        aria-label={`${s().label} of ${props.mod.spec.label} on ${laneNames(props.lane)}`}
+        aria-label={`${s().label} of ${props.mod.spec.label} on ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
         aria-valuetext={readout()}
         onInput={(e) =>
           setFxParam(
@@ -492,7 +506,7 @@ function FxSliderControl(props: {
 }
 
 function FxChoiceControl(props: {
-  lane: LaneId;
+  lane: LaneId | "master";
   mod: FxModule;
   choice: FxChoiceSpec;
 }): JSX.Element {
@@ -512,7 +526,7 @@ function FxChoiceControl(props: {
       <select
         class="fx-param-select"
         value={String(current())}
-        aria-label={`${c().label} of ${props.mod.spec.label} on ${laneNames(props.lane)}`}
+        aria-label={`${c().label} of ${props.mod.spec.label} on ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
         onChange={(e) => {
           const opt = c().options.find(
             (o) => String(o.value) === e.currentTarget.value,

@@ -193,7 +193,7 @@ describe("pitch-anchored notes in the full MIDI editor", () => {
           $(".register-window-readout").textContent,
         )[0]!;
         const label =
-          "LEAD " +
+          "Leads, track 4 " +
           (Math.abs(delta) === 12 ? "octave" : "semitone") +
           " view " +
           (delta > 0 ? "up" : "down");
@@ -279,7 +279,12 @@ describe("pitch-anchored notes in the full MIDI editor", () => {
         const frame = window.frameElement as HTMLElement;
         const wheel = async (deltaY: number) => {
           const targetBox = pane().getBoundingClientRect();
-          await page.elementLocator(iframe).hover({ position: { x: targetBox.left + targetBox.width / 2 + 2, y: targetBox.top + targetBox.height / 2 + 2 } });
+          await page.elementLocator(iframe).hover({
+            position: {
+              x: targetBox.left + targetBox.width / 2 + 2,
+              y: targetBox.top + targetBox.height / 2 + 2,
+            },
+          });
           const fr = frame.getBoundingClientRect(),
             ir = iframe.getBoundingClientRect(),
             er = pane().getBoundingClientRect();

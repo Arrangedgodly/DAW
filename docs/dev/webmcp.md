@@ -4,57 +4,60 @@ Bitbounce exposes tools for a connected browser agent to control the open musica
 project. The browser or an extension supplies the agent. Bitbounce includes no
 language model, API key, remote MCP server or chat service.
 
-## Enable access and recover
+## Automatic access and recovery
 
-Open **Projects → Allow agent access**. Access starts off. Reloading or switching
-projects turns it off. Projects still autosave normally.
+Tools register automatically when the browser exposes `document.modelContext` or
+legacy `navigator.modelContext`. Detection starts after project loading and checks
+once a second for late extension injection. API availability is the connection
+signal; it does not prove an agent is actively using the page. No Projects toggle
+or destination buttons are needed. Projects still autosave normally.
 
-Before the first edit, the user must choose **Edit this project** or **Save and
-start a new project** in Projects. Inspection works while the choice is pending;
-mutations, playback changes and exports are blocked. The agent cannot set its own
-destination through a tool argument.
+Before editing, the agent asks in conversation whether the user wants to edit the
+current project or start a new one. It then calls `bitbounce_confirm_edit_target`
+with `destination: "current"` or `"new"`, `userConfirmed: true`, and the latest
+project revision. The agent is responsible for truthfully recording the user's
+answer. The app validates the arguments and blocks mutations, playback changes,
+and exports until confirmation, but cannot verify the conversation itself.
 
-Every tool's guidance tells the agent to verify the destination when a new request
-is ambiguous. `bitbounce_request_edit_target` presents that request to the user and
-revokes edit permission until a human chooses again. Pending asynchronous edits or
-downloads receive cancellation. Read `editTarget` from get_project to check status.
-Recognizing ambiguity is the agent's responsibility; the app enforces the choice
-once requested and always requires the initial choice.
+For an ambiguous later request, `bitbounce_request_edit_target` pauses editing and
+cancels pending edits/downloads while the agent asks again. Inspection remains
+available. Read `editTarget` from `get_project` to check status.
 
-The new-project action flushes current work, creates a separate empty project, and
-requires the final autosave flush to succeed before switching. A storage failure
-keeps the original project open and agent edits paused. The new project receives
-its own checkpoint on the agent's first change. This path explicitly re-enables
-agent tools in the selected new project; ordinary project switches revoke access.
+The new-project action saves current work before switching to a separate empty
+project. Storage failure leaves the original project open and edits paused.
+Project switches and recovery invalidate confirmation and old callbacks. Tools
+reconnect automatically, requiring a fresh destination confirmation. Always read
+`get_project` again after confirmation to obtain the selected project's revision.
 
 Each musical edit tool call creates one validated undo step, including a full
 arrangement rewrite. Use normal Undo for individual edits. Before the first agent
 change, Bitbounce keeps an in-memory project checkpoint. **Restore before agent**
-appears in Projects and on musical-edit notifications. It turns access off, stops
+appears in Projects and on musical-edit notifications. It pauses agent edits, stops
 playback, restores that checkpoint and restores the captured master volume, loop
 mode and selected view. It also removes manual edits made after that checkpoint.
 The project restore itself is undoable.
 
-The checkpoint survives turning access off and on in this page. It does not
+The checkpoint lasts for this page session. It does not
 survive reload or switching projects. Downloads cannot be undone by project Undo.
 
 ## Tools
 
-| Tool                            | Capability                                                               |
-| ------------------------------- | ------------------------------------------------------------------------ |
-| `bitbounce_get_project`         | Summary, revision, active lanes, pattern IDs and arrangement             |
-| `bitbounce_list_sounds`         | Built-in drum kits and pitched preset IDs and names                      |
-| `bitbounce_get_pattern`         | Notes or drum rows and valid pitch degrees                               |
-| `bitbounce_set_tempo`           | Set BPM without moving notes                                             |
-| `bitbounce_set_lane`            | Sound, volume, mute and solo in one edit                                 |
-| `bitbounce_set_pattern`         | Replace pitched notes or selected drum rows                              |
-| `bitbounce_get_document`        | Complete project, scale modes, effect defaults and controls              |
-| `bitbounce_apply_document`      | Complete musical project update in one undo step                         |
-| `bitbounce_get_session`         | Playback, loop, master gain and selected view                            |
-| `bitbounce_control_session`     | Play/stop, loop, master gain, lane/page and visualizer visibility        |
-| `bitbounce_history`             | Undo or redo the most recent project edit                                |
-| `bitbounce_export`              | Dispatch a local WAV, MIDI or project-file download                      |
-| `bitbounce_request_edit_target` | Pause edits and ask the human to choose the current project or a new one |
+| Tool                            | Capability                                                           |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `bitbounce_get_project`         | Summary, revision, active lanes, pattern IDs and arrangement         |
+| `bitbounce_list_sounds`         | Built-in drum kits and pitched preset IDs and names                  |
+| `bitbounce_get_pattern`         | Notes or drum rows and valid pitch degrees                           |
+| `bitbounce_set_tempo`           | Set BPM without moving notes                                         |
+| `bitbounce_set_lane`            | Sound, volume, mute and solo in one edit                             |
+| `bitbounce_set_pattern`         | Replace pitched notes or selected drum rows                          |
+| `bitbounce_get_document`        | Complete project, scale modes, effect defaults and controls          |
+| `bitbounce_apply_document`      | Complete musical project update in one undo step                     |
+| `bitbounce_get_session`         | Playback, loop, master gain and selected view                        |
+| `bitbounce_control_session`     | Play/stop, loop, master gain, lane/page and visualizer visibility    |
+| `bitbounce_history`             | Undo or redo the most recent project edit                            |
+| `bitbounce_export`              | Dispatch a local WAV, MIDI or project-file download                  |
+| `bitbounce_request_edit_target` | Pause edits while the agent asks for a destination in conversation   |
+| `bitbounce_confirm_edit_target` | Record the confirmed choice and prepare the current or a new project |
 
 `apply_document` covers adding/removing optional instruments, creating/duplicating/
 deleting/resizing patterns, chain ordering, repetitions, slot follow modes and cue
@@ -88,7 +91,7 @@ The adapter uses `document.modelContext`, with a legacy `navigator.modelContext`
 fallback. Registration uses an AbortSignal; legacy implementations can also
 unregister by name. Already-discovered callbacks reject after access is revoked.
 Partial registration failure removes only tools registered by this attempt.
-Unsupported browsers retain the normal DAW and show an unavailable explanation.
+Unsupported browsers retain the normal DAW without agent controls.
 
 WebMCP is experimental. Chrome documents the local testing flag
 `chrome://flags/#enable-webmcp-testing` and public origin trial support.
@@ -104,7 +107,7 @@ processing is not a guarantee that an external agent keeps its inputs local.
 
 ## Implementation and verification
 
-The provider loads on opt-in. `src/webmcp/tools.ts` defines musical tools,
+The provider loads when WebMCP is detected. `src/webmcp/tools.ts` defines musical tools,
 `sessionTools.ts` connects transport/view/exports, and `access.ts` owns registration,
 revocation and recovery. Musical edits use the store's `commitDocumentEdit`, with
 validation, an expected-document identity guard and no drag coalescing. Registration

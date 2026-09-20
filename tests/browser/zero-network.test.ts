@@ -1,3 +1,4 @@
+import { patternExportControl } from "./patternExportControl";
 /**
  * CA-1 browser test — ZERO-NETWORK JOURNEY under the full production CSP.
  *
@@ -250,9 +251,7 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
       // (the 24-cell walk above may have moved selection) — click the
       // visible one instead of the first `.head-fx` in document order.
       appDoc
-        .querySelector<HTMLButtonElement>(
-          '.lane-floor[data-editing="true"] .head-fx',
-        )!
+        .querySelector<HTMLButtonElement>('button[data-page="mixer"]')!
         .click();
       const addBtn = await (async () => {
         for (let i = 0; i < 40; i++) {
@@ -294,6 +293,9 @@ describe("CA-1 zero-network journey (built app under full CSP)", () => {
         appDoc.querySelector<HTMLButtonElement>(".projects-btn")!;
       projectsBtn.click();
       const actionByLabel = async (label: string) => {
+        if (label === "EXPORT MIDI") return patternExportControl(appDoc);
+        if (projectsBtn.getAttribute("aria-expanded") !== "true")
+          projectsBtn.click();
         for (let i = 0; i < 60; i++) {
           const b = Array.from(
             appDoc.querySelectorAll<HTMLButtonElement>(".projects-action"),

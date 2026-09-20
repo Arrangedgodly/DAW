@@ -1,3 +1,4 @@
+import { getSession } from "../../src/engine/session";
 import { afterEach, expect, it } from "vitest";
 import { cdp, page } from "vitest/browser";
 import { render } from "solid-js/web";
@@ -176,10 +177,20 @@ it("quick pull draws, edge pull resizes, and cancellation discards the hold", as
 it("trusted touch holds pan over empty cells and notes without changing the document", async () => {
   const { pane, scroll, cell, notes } = await setup();
   const session = cdp();
+  await session.send("Emulation.setTouchEmulationEnabled", {
+    enabled: true,
+    maxTouchPoints: 5,
+  });
   const touch = async (type: string, points: { x: number; y: number }[]) => {
     await session.send("Input.dispatchTouchEvent", {
       type,
-      touchPoints: points,
+      // CDP uses top-level viewport coordinates; Vitest mounts us in a frame.
+      touchPoints: points.map((p) => {
+        const frame = window.frameElement as HTMLElement;
+        const box = frame.getBoundingClientRect();
+        const scale = box.width / frame.offsetWidth;
+        return { x: box.left + p.x * scale, y: box.top + p.y * scale };
+      }),
     });
   };
   const target = cell();
@@ -230,5 +241,50 @@ it("navigation controls fit phone, landscape and desktop", async () => {
       path: `__screenshots__/grid-navigation-${width}.png`,
       element: host,
     });
+  }
+});
+
+it("horizontal scrollend preserves the seated register without rebuilding cells", async () => {
+  const { pane, scroll } = await setup();
+  scroll.scrollLeft = 80;
+  await wait(200);
+  const before = docStore.getState().doc;
+  const top = pane.scrollTop;
+  const mutations: MutationRecord[] = [];
+  const observer = new MutationObserver((records) =>
+    mutations.push(...records),
+  );
+  observer.observe(pane, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["data-step", "aria-colindex", "aria-label"],
+  });
+  pane.dispatchEvent(new Event("scrollend"));
+  await Promise.resolve();
+  observer.disconnect();
+  expect(mutations).toHaveLength(0);
+  expect(pane.scrollTop).toBe(top);
+  expect(docStore.getState().doc).toBe(before);
+});
+
+it("editing during playback preserves a manually scrolled pitch register", async () => {
+  const { pane, cell, notes } = await setup();
+  cell().click();
+  const session = getSession();
+  await session.togglePlay();
+  try {
+    await wait(150);
+    pane.scrollTop = Math.max(0, pane.scrollTop - pane.clientHeight * 2);
+    pane.dispatchEvent(new Event("scroll"));
+    await wait(200);
+    const top = pane.scrollTop;
+    const before = notes().length;
+    cell().click();
+    await wait(100);
+    expect(notes()).toHaveLength(before + 1);
+    expect(pane.scrollTop).toBe(top);
+  } finally {
+    if (session.transport.snapshot.playing) await session.togglePlay();
   }
 });

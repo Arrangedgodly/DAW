@@ -31,9 +31,6 @@ try {
           : [],
       };
     });
-    await page
-      .getByRole("button", { name: "Allow agent access", exact: true })
-      .scrollIntoViewIfNeeded();
     await page.screenshot({
       path: new URL(`before-${viewport.width}.png`, output).pathname.slice(1),
       fullPage: true,
@@ -41,21 +38,11 @@ try {
     let execution = null;
     if (api.available) {
       await page
-        .getByRole("button", { name: "Allow agent access", exact: true })
-        .click();
-      await page
-        .getByRole("button", { name: "Turn agent access off", exact: true })
+        .getByText(
+          "Agent tools connected. Confirm the current project or a new one in your agent conversation.",
+          { exact: true },
+        )
         .waitFor();
-      await page
-        .getByRole("button", { name: "Edit this project", exact: true })
-        .scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: new URL(`choose-${viewport.width}.png`, output).pathname.slice(1),
-        fullPage: true,
-      });
-      await page
-        .getByRole("button", { name: "Edit this project", exact: true })
-        .click();
       execution = await page.evaluate(async () => {
         const context = document.modelContext ?? navigator.modelContext;
         if (!context.getTools || !context.executeTool)
@@ -75,6 +62,14 @@ try {
         );
         const project =
           typeof result === "string" ? JSON.parse(result) : result;
+        await invoke(
+          tools.find((tool) => tool.name === "bitbounce_confirm_edit_target"),
+          {
+            destination: "current",
+            userConfirmed: true,
+            revision: project.revision,
+          },
+        );
         const edited = await invoke(
           tools.find((tool) => tool.name === "bitbounce_set_tempo"),
           { revision: project.revision, bpm: 132 },
@@ -98,7 +93,10 @@ try {
         });
         await restore.click();
         await page
-          .getByRole("button", { name: "Allow agent access", exact: true })
+          .getByText(
+            "Agent tools connected. Confirm the current project or a new one in your agent conversation.",
+            { exact: true },
+          )
           .waitFor();
       }
     }

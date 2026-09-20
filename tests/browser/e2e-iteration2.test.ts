@@ -10,7 +10,7 @@ import { WORKSPACE_TOGGLE } from "./workspace";
  *   1. first-run boot → WELCOME SONG demo (PX-1) + one-page law (LY-1)
  *   2. quadrant selection by CLICK and by KEY (PageUp) — NOW EDITING
  *      announcements + name flips (LY-1, a11y E1/E3)
- *   3. drag-create a multi-segment note on the BASS grid (IN-2)
+ *   3. drag-create a multi-segment note on the Bass, track 2 grid (IN-2)
  *   4. resize it by EDGE-DRAG and by KEYBOARD `+`/`-` — LENGTH announcement
  *      parity (IN-2, a11y E4/E5)
  *   5. multi-clip rail sweep cue while playing: preview → commit →

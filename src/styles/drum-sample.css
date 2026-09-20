@@ -1,0 +1,139 @@
+/*
+ * DrumSampleMenu — the drums lane's per-piece GATE / ONE-SHOT chooser. A
+ * floating machined chassis in the scale-popover vocabulary (panel metal,
+ * machined edge, --elev-3 cast), anchored under the SAMPLE trigger in the drum
+ * register bar. Non-modal; z-index 40 = the popover tier.
+ */
+
+.drum-sample {
+  position: relative;
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.drum-sample-btn {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  border-radius: 3px;
+  padding: 4px 8px;
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.drum-sample-btn[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+
+.drum-sample-panel {
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background-color: var(--metal-panel);
+  background-image: var(--metal-brush);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
+  border-radius: 6px;
+  box-shadow: var(--elev-3);
+}
+
+.drum-sample-note {
+  margin: 0;
+  font: var(--text-ui);
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--metal-panel));
+}
+
+.drum-sample-bulk {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.drum-sample-bulk button,
+.drum-sample-mode button {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, var(--metal-panel));
+  padding: 4px 8px;
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.drum-sample-bulk button {
+  flex: 1 1 0;
+  border-radius: 3px;
+}
+
+.drum-sample-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.drum-sample-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.drum-sample-name {
+  font: var(--text-label-sm);
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--metal-panel));
+  white-space: nowrap;
+}
+
+.drum-sample-mode {
+  display: inline-flex;
+}
+
+.drum-sample-mode button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.drum-sample-mode button:last-child {
+  border-radius: 0 3px 3px 0;
+  border-left-width: 0;
+}
+
+/* The pressed segment is the effective mode — filled, never colour alone
+ * (the label text and aria-pressed carry it too). */
+.drum-sample-mode button[aria-pressed="true"] {
+  color: var(--color-ground);
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.drum-sample button:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .drum-sample-bulk button:hover,
+  .drum-sample-btn:hover,
+  .drum-sample-mode button[aria-pressed="false"]:hover {
+    background: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  }
+}
+
+.app[data-stage="phone"] .drum-sample-btn,
+.app[data-stage="phone"] .drum-sample-bulk button,
+.app[data-stage="phone"] .drum-sample-mode button {
+  min-height: 40px;
+}

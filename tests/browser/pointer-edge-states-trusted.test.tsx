@@ -134,15 +134,12 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
           "dblclick editor opens",
         );
         await waitFor(
-          () =>
-            document.activeElement === document.querySelector(".rail-edit"),
+          () => document.activeElement === document.querySelector(".rail-edit"),
           4000,
           "dblclick editor input focused",
         );
         // Close the editor (Esc) without committing a rename.
-        (
-          document.activeElement as HTMLElement
-        ).dispatchEvent(
+        (document.activeElement as HTMLElement).dispatchEvent(
           new KeyboardEvent("keydown", {
             key: "Escape",
             bubbles: true,
@@ -171,7 +168,7 @@ describe("IN-4 trusted pointer edge states (real capture, real focus)", () => {
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed pitched names append ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable",
         );

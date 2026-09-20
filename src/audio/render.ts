@@ -79,9 +79,16 @@ import {
 import { getDrumKit, getPreset, type VoiceNoteOnEvent } from "./presets";
 import { effectiveScale } from "../document/scales";
 import {
+  createChannelProcessing,
+  createMasterProcessing,
+  prepareMixer,
+  dbToGain,
+} from "./mixer";
+import {
   type LaneId,
   type ProjectDocument,
   documentLaneMixGains,
+  type DrumsLane,
 } from "../document/schema";
 
 export const EXPORT_SAMPLE_RATE = 44100;
@@ -109,9 +116,12 @@ export interface RenderedLoop {
    * set — analysis only (the visualizer's video export), never encoded.
    */
   readonly laneStems?: readonly Float32Array[];
+  readonly stereoLaneStems?: readonly (readonly Float32Array[])[];
 }
 
 export interface RenderProjectOptions {
+  /** Optional analysis resource budget, checked before allocating audio buffers. */
+  readonly maxDurationSeconds?: number;
   readonly arrangement?: "cycle" | "linear";
   /**
    * Injectable context factory (day-one contract: injected AudioContext
@@ -139,6 +149,7 @@ export interface RenderProjectOptions {
    * graph therefore stays byte-identical.
    */
   readonly laneStems?: boolean;
+  readonly stereoLaneStems?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +251,7 @@ function laneScheduleFor(
     gate: laneConf.gate,
     groove,
     ...(lane === "drums"
-      ? {}
+      ? { drumModes: (laneConf as DrumsLane).pieceModes }
       : {
           scale: effectiveScale(doc, lane),
           stackChord: lane === "chords",
@@ -293,13 +304,29 @@ export async function renderProjectToBuffer(
   const loopSamples = Math.round(
     loopSteps * secondsPerStep(groove.bpm) * EXPORT_SAMPLE_RATE,
   );
+  if (
+    opts.maxDurationSeconds !== undefined &&
+    loopSamples / EXPORT_SAMPLE_RATE > opts.maxDurationSeconds
+  ) {
+    throw new Error(
+      `Auto Mix currently supports arrangements up to ${opts.maxDurationSeconds / 60} minutes. The manual mixer works with any arrangement length.`,
+    );
+  }
 
   // 2. Tail budget from the document's FX chains (IM-4).
-  const fxTailSamples = computeTailSamples(
-    LANE_IDS.map((lane) => doc.lanes.find((l) => l.id === lane)?.fxChain ?? []),
-    groove.bpm,
-    EXPORT_SAMPLE_RATE,
-  );
+  const fxTailSamples =
+    computeTailSamples(
+      LANE_IDS.map(
+        (lane) => doc.lanes.find((l) => l.id === lane)?.fxChain ?? [],
+      ),
+      groove.bpm,
+      EXPORT_SAMPLE_RATE,
+    ) +
+    computeTailSamples(
+      [doc.mixer?.master.fxChain ?? []],
+      groove.bpm,
+      EXPORT_SAMPLE_RATE,
+    );
   let voiceTailSeconds = 0;
   if (linear) {
     const end = loopSteps * secondsPerStep(groove.bpm);
@@ -322,8 +349,10 @@ export async function renderProjectToBuffer(
     opts.createContext ??
     ((channels: number, length: number, sampleRate: number) =>
       new OfflineAudioContext(channels, length, sampleRate));
-  const stems = opts.laneStems === true;
-  const outputChannels = stems ? 2 + LANE_IDS.length : 2;
+  const stereoStems = opts.stereoLaneStems === true;
+  const stems = opts.laneStems === true || stereoStems;
+  const stemWidth = stereoStems ? 2 : 1;
+  const outputChannels = stems ? 2 + LANE_IDS.length * stemWidth : 2;
   const ctx = createContext(
     outputChannels,
     loopSamples + tailSamples,
@@ -363,8 +392,20 @@ export async function renderProjectToBuffer(
   master.gain.value = 0.9;
   // Committed master soft-clip (D2–D4; landed with PX-1) — the same node the
   // live session master uses (parity law: identical graph both paths).
-  const clip = createSoftClipNode(ctx);
-  master.connect(clip);
+  let clip: AudioNode;
+  if (doc.mixer) {
+    await prepareMixer(ctx);
+    const processing = createMasterProcessing(
+      ctx,
+      doc.mixer.master,
+      () => groove.bpm,
+    );
+    master.connect(processing.input);
+    clip = processing.output;
+  } else {
+    clip = createSoftClipNode(ctx);
+    master.connect(clip);
+  }
   let stemMerger: ChannelMergerNode | null = null;
   if (stems) {
     // Channels 0–1 stay the master pair (copied exactly); 2… carry one mono
@@ -413,8 +454,18 @@ export async function renderProjectToBuffer(
     // signal (mute = exact zeros into the sum; solo/volume per laneMixGain).
     const mixGain = ctx.createGain();
     mixGain.gain.value = mixGains[i]!;
+    const settings = doc.mixer?.channels[lane];
+    const processing = settings ? createChannelProcessing(ctx, settings) : null;
+    processing?.output.connect(mixGain);
     mixGain.connect(laneGain);
-    if (stemMerger) mixGain.connect(stemMerger, 0, 2 + i);
+    if (stemMerger) {
+      if (stereoStems) {
+        const split = ctx.createChannelSplitter(2);
+        mixGain.connect(split);
+        split.connect(stemMerger, 0, 2 + i * 2);
+        split.connect(stemMerger, 1, 3 + i * 2);
+      } else mixGain.connect(stemMerger, 0, 2 + i);
+    }
     const laneSeed = (0x5eed ^ ((i + 1) * 0x85ebca6b)) >>> 0;
     const timing = (): FxTiming => ({ bpm: groove.bpm, when: ctx.currentTime });
     const chain = new FxChainHost({
@@ -427,7 +478,7 @@ export async function renderProjectToBuffer(
         },
         disconnect: () => undefined,
       },
-      sink: mixGain,
+      sink: processing?.input ?? mixGain,
       ramp: makeRampGain(ctx.createGain()),
       createDevice: createRealFxDeviceFactory(ctx, {
         laneSeed,
@@ -491,11 +542,20 @@ export async function renderProjectToBuffer(
   const raw = [buffer.getChannelData(0), buffer.getChannelData(1)].map((c) =>
     Float32Array.from(c),
   );
-  const laneStems = stems
-    ? LANE_IDS.map((_, i) => {
-        const stem = Float32Array.from(buffer.getChannelData(2 + i));
-        return linear ? stem : foldTail([stem], loopSamples)[0]!;
-      })
+  const laneStems =
+    stems && !stereoStems
+      ? LANE_IDS.map((_, i) => {
+          const stem = Float32Array.from(buffer.getChannelData(2 + i));
+          return linear ? stem : foldTail([stem], loopSamples)[0]!;
+        })
+      : undefined;
+  const stereoLaneStems = stereoStems
+    ? LANE_IDS.map((_, i) =>
+        [0, 1].map((c) => {
+          const stem = Float32Array.from(buffer.getChannelData(2 + i * 2 + c));
+          return linear ? stem : foldTail([stem], loopSamples)[0]!;
+        }),
+      )
     : undefined;
   // The tail fold SUMS loop + wrapped tail AFTER the master soft-clip node,
   // so the folded result can exceed the node's ceiling at the seam. The
@@ -505,13 +565,21 @@ export async function renderProjectToBuffer(
   const folded = linear
     ? raw
     : foldTail(raw, loopSamples).map((ch) =>
-        Float32Array.from(ch, (x) => softClip(x)),
+        Float32Array.from(ch, (x) =>
+          doc.mixer?.master.limiter.enabled
+            ? Math.max(
+                -dbToGain(doc.mixer.master.limiter.ceiling),
+                Math.min(dbToGain(doc.mixer.master.limiter.ceiling), x),
+              )
+            : softClip(x),
+        ),
       );
   return {
     channels: folded,
     ...(linear ? { outputSamples: loopSamples + tailSamples } : {}),
     ...(opts.includeRaw ? { raw } : {}),
     ...(laneStems ? { laneStems } : {}),
+    ...(stereoLaneStems ? { stereoLaneStems } : {}),
     loopSamples,
     tailSamples,
     sampleRate: buffer.sampleRate,

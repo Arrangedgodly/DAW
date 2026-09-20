@@ -49,6 +49,14 @@ export function DesktopPageNavigation(): JSX.Element {
       >
         Song arrangement
       </button>
+      <button
+        type="button"
+        data-page="mixer"
+        aria-pressed={phonePage() === "mixer"}
+        onClick={() => showPhonePage("mixer")}
+      >
+        Mixer
+      </button>
     </nav>
   );
 }
@@ -57,7 +65,7 @@ registerHelp([
   {
     id: "workspace.pages",
     title: "WORKSPACE PAGES",
-    text: "Instruments 1–4 opens the default note editors. Instruments 5–8 opens four optional instrument slots. Song arrangement shows the pattern chains for every instrument in the project. Playback continues when you change pages.",
+    text: "Instruments 1–4 opens the default note editors. Instruments 5–8 opens four optional instrument slots. Song arrangement shows the pattern chains. Mixer holds the levels, EQ, compression and creative effects for every track. Playback continues when you change pages.",
   },
   {
     id: "phone.page",

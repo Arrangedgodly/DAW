@@ -105,10 +105,12 @@ export default function VizPage(): JSX.Element {
     engine.setPlaying(playing());
     let bpm = docStore.getState().doc.transport.bpm;
     let mixGains: number[] = [];
+    let activeLanes: LaneId[] = [];
     const syncMix = () => {
       const doc = docStore.getState().doc;
       bpm = doc.transport.bpm;
       mixGains = documentLaneMixGains(doc);
+      activeLanes = doc.lanes.map((lane) => lane.id);
       for (const id of LANE_IDS)
         if (!doc.lanes.some((lane) => lane.id === id))
           engine?.setAudible(id, false);
@@ -141,7 +143,7 @@ export default function VizPage(): JSX.Element {
       const dt = Number.isFinite(lastTimbreAt) ? now - lastTimbreAt : 0;
       lastTimbreAt = now;
       const rate = session.audioSampleRate;
-      for (const id of LANE_IDS) {
+      for (const id of activeLanes) {
         const heard =
           playing() &&
           Number.isFinite(rate) &&

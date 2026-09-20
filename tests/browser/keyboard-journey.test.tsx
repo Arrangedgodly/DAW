@@ -105,10 +105,14 @@ describe("DA-1 keyboard journey (real app, LY-1 quadrants)", () => {
           floor.querySelector('[role="grid"]')!.getAttribute("aria-label") ??
           "";
         if (lane === "drums") {
-          expect(label).toBe("DRUMS grid · EDITING");
+          expect(label).toMatch(
+            /^Drums, track 1 grid · EDITING · ROWS \d+–\d+ OF 15$/,
+          );
         } else {
           expect(
-            label.startsWith(`${lane.toUpperCase()} grid · VIEW ONLY`),
+            label.startsWith(
+              `${({ drums: "Drums, track 1", bass: "Bass, track 2", chords: "Chords, track 3", lead: "Leads, track 4" } as Record<string, string>)[lane]} grid · VIEW ONLY`,
+            ),
             `${lane} name carries VIEW ONLY`,
           ).toBe(true);
         }

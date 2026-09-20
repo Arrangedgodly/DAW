@@ -1,0 +1,449 @@
+.mixer-page {
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 24px clamp(16px, 3vw, 40px) 60px;
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+.mixer-page *,
+.mixer-page *::before,
+.mixer-page *::after {
+  box-sizing: border-box;
+}
+.mixer-page button,
+.phone-mixer-nav button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  color: var(--color-ink);
+  background: var(--metal-raised);
+  font: inherit;
+  cursor: pointer;
+}
+.mixer-page button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mixer-page button[aria-pressed="true"],
+.phone-mixer-nav button[aria-pressed="true"] {
+  border-color: var(--theme-accent);
+  background: var(--metal-recess);
+  box-shadow: inset 0 -2px var(--theme-accent);
+}
+.mixer-page button:focus-visible,
+.mixer-page input:focus-visible,
+.phone-mixer-nav button:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+.mixer-page h1 {
+  font-family: var(--font-instrument);
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+.mixer-page h2 {
+  font-size: 20px;
+  margin: 0;
+  font-weight: 600;
+}
+.mixer-page h3 {
+  font-size: 17px;
+  margin: 0;
+  font-weight: 600;
+}
+.mixer-page p {
+  margin: 6px 0 0;
+  color: var(--theme-muted);
+  line-height: 1.45;
+  max-width: 70ch;
+}
+.mixer-heading,
+.mixer-inspector-heading {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.mixer-heading > span,
+.mixer-inspector-heading > span {
+  color: var(--theme-muted);
+  font-size: 14px;
+}
+.mixer-auto {
+  padding: 20px 0;
+  border-block: 1px solid var(--theme-line);
+}
+.mixer-auto-options,
+.mixer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+.mixer-auto-options > label:not(.mixer-control) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.mixer-auto-options .mixer-control {
+  width: 180px;
+  margin-left: auto;
+}
+.mixer-page .mixer-primary {
+  background: var(--theme-accent);
+  color: var(--color-ink-on-fill);
+  border-color: var(--theme-accent);
+  font-weight: 600;
+}
+.mixer-status {
+  min-height: 24px;
+  font-size: 14px;
+}
+.mixer-proposal {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--theme-line);
+}
+.mixer-proposal ul {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+.mixer-strips {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(138px, 1fr);
+  overflow-x: auto;
+  margin-top: 28px;
+  border-block: 1px solid var(--theme-line);
+  background: var(--metal-panel);
+}
+.mixer-strip {
+  padding: 12px;
+  min-width: 0;
+  border-right: 1px solid var(--theme-line);
+}
+.mixer-strip.is-selected {
+  background: var(--metal-recess);
+  box-shadow: inset 0 3px var(--track-color);
+}
+.mixer-strip.is-master {
+  border-left: 2px solid var(--theme-line);
+}
+.mixer-page .mixer-channel-name {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px 0;
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.mixer-channel-name span {
+  color: var(--theme-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.mixer-meter {
+  position: relative;
+  height: 112px;
+  width: 24px;
+  margin: 16px auto 12px;
+  background: var(--color-ground);
+  border: 1px solid var(--theme-line);
+  overflow: hidden;
+}
+.mixer-meter i {
+  position: absolute;
+  bottom: 0;
+  inset-inline: 3px;
+  background: var(--track-color);
+}
+.mixer-meter b {
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--color-ink);
+}
+.mixer-peak {
+  display: block;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  min-height: 38px;
+  font-size: 15px;
+}
+.mixer-peak small {
+  display: block;
+  font-size: 11px;
+  color: var(--theme-muted);
+}
+.mixer-peak.is-clipping {
+  text-decoration: underline double;
+}
+.mixer-control {
+  display: block;
+  min-width: 0;
+  font-size: 14px;
+}
+.mixer-control > span {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.mixer-control output {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.mixer-control output,
+.mixer-peak,
+.mixer-strip-note {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+.mixer-control input {
+  width: 100%;
+  min-height: 36px;
+  accent-color: var(--track-color, var(--theme-accent));
+  cursor: pointer;
+  margin: 0;
+}
+.mixer-strip .mixer-control > span {
+  display: block;
+  font-size: 0;
+  text-align: center;
+}
+.mixer-strip .mixer-control output {
+  font-size: 16px;
+}
+.mixer-channel-buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.mixer-page .mixer-channel-buttons button {
+  flex: 1;
+  padding: 6px;
+  min-height: 36px;
+  font-size: 13px;
+}
+.mixer-strip-note {
+  font-size: 13px;
+  text-align: center;
+  min-height: 44px;
+}
+.mixer-inspector {
+  margin-top: 32px;
+}
+.mixer-pan {
+  max-width: 240px;
+  margin-bottom: 20px;
+}
+.mixer-device {
+  border-top: 1px solid var(--theme-line);
+  padding: 20px 0;
+}
+.mixer-device-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.mixer-device-heading > span {
+  color: var(--theme-muted);
+  font-size: 13px;
+}
+.mixer-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 20px;
+}
+.mixer-creative .fx-strip {
+  max-height: none;
+  overflow: visible;
+}
+.mixer-creative .fx-modules {
+  flex-wrap: wrap;
+}
+.phone-mixer-nav {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 8px;
+}
+.phone-mixer-nav button {
+  flex: 1;
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .mixer-page {
+    padding: 20px 16px 48px;
+  }
+  .mixer-heading,
+  .mixer-inspector-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mixer-auto-options {
+    gap: 12px;
+  }
+  .mixer-auto-options .mixer-control {
+    width: 100%;
+    margin: 0;
+  }
+  .mixer-auto-options .mixer-primary {
+    width: 100%;
+  }
+  .mixer-strips {
+    grid-auto-columns: 176px;
+  }
+  .mixer-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .mixer-device-heading > span {
+    max-width: 120px;
+    text-align: right;
+  }
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .mixer-strips {
+    grid-auto-columns: minmax(176px, 1fr);
+  }
+  .mixer-page button,
+  .phone-mixer-nav button,
+  .mixer-page .mixer-channel-buttons button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .mixer-control input,
+  .mixer-auto-options > label:not(.mixer-control) {
+    min-height: 44px;
+  }
+}
+
+/* Device view: signal flow reads left to right, with one contained scroll lane. */
+.mixer-rack {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 12px 4px 16px;
+  border-block: 1px solid var(--theme-line);
+  scrollbar-color: var(--theme-muted) var(--metal-recess);
+  scrollbar-width: thin;
+}
+.mixer-rack:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+.mixer-rack .mixer-device,
+.mixer-rack .fx-mod {
+  flex: 0 0 300px;
+  width: 300px;
+  min-width: 300px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--theme-line);
+  border-radius: 6px;
+  background-color: var(--metal-panel);
+}
+.mixer-rack .mixer-device-heading {
+  min-height: 40px;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--theme-line);
+}
+.mixer-rack h3 {
+  font-size: 14px;
+}
+.mixer-rack .mixer-control-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.mixer-rack .mixer-control {
+  font-size: 12px;
+}
+.mixer-rack .mixer-control > span {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.mixer-rack .mixer-device p {
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.mixer-rack .mixer-pan {
+  flex-basis: 180px;
+  width: 180px;
+  min-width: 180px;
+}
+.mixer-rack .fx-strip,
+.mixer-rack .fx-strip-modules {
+  display: contents;
+}
+.mixer-rack .fx-strip-empty {
+  display: none;
+}
+.mixer-rack .fx-strip-footer {
+  flex: 0 0 180px;
+  width: 180px;
+  padding: 12px;
+  margin: 0;
+  border: 1px dashed var(--theme-line);
+  border-radius: 6px;
+}
+.mixer-rack .fx-add-menu {
+  position: static;
+  margin-top: 8px;
+  width: 100%;
+  box-shadow: none;
+}
+.mixer-rack .fx-mod-head {
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+}
+.mixer-rack .fx-mod-actions {
+  margin-left: auto;
+}
+.mixer-rack .fx-mod-btn {
+  padding: 4px;
+  min-width: 32px;
+  min-height: 32px;
+}
+.mixer-rack .fx-mod-params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mixer-rack .fx-param {
+  min-width: 0;
+}
+.mixer-rack .fx-param-select {
+  max-width: 100%;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .mixer-rack .fx-mod-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .mixer-rack .fx-param-slider,
+  .mixer-rack .fx-param-select {
+    min-height: 44px;
+  }
+}

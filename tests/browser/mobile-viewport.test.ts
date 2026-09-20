@@ -1,3 +1,4 @@
+import { DRUM_PIECES } from "../../src/document/schema";
 import { WORKSPACE_TOGGLE } from "./workspace";
 /**
  * MB-1 browser gate — the responsive stage on the REAL BUILT APP (town-hall
@@ -168,8 +169,10 @@ html { scrollbar-width: none; }
   // the phone branch's).
   await poll(
     () =>
-      $$(".head-ctl-value").some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo loaded",
@@ -336,9 +339,10 @@ describe("MB-1 responsive stage (built app)", () => {
           // drums (unpitched) is always bare.
           const gridName = $(".lane-grid").getAttribute("aria-label");
           expect(
-            gridName === `${lane.toUpperCase()} grid · EDITING` ||
+            gridName ===
+              `${({ drums: "Drums, track 1", bass: "Bass, track 2", chords: "Chords, track 3", lead: "Leads, track 4" } as Record<string, string>)[lane]} grid · EDITING` ||
               gridName?.startsWith(
-                `${lane.toUpperCase()} grid · EDITING · ROWS `,
+                `${({ drums: "Drums, track 1", bass: "Bass, track 2", chords: "Chords, track 3", lead: "Leads, track 4" } as Record<string, string>)[lane]} grid · EDITING · ROWS `,
               ),
             `grid name is the editing name, optionally windowed (got ${gridName})`,
           ).toBe(true);
@@ -389,10 +393,17 @@ describe("MB-1 responsive stage (built app)", () => {
           de().scrollWidth,
           "page never h-scrolls (width)",
         ).toBeLessThanOrEqual(W);
+        // Direct instrument controls and the separate workspace navigation
+        // may need page scroll. The grid keeps its bounded internal window.
+        iframe.contentWindow!.scrollTo(0, de().scrollHeight);
+        await new Promise((r) => setTimeout(r, 150));
+        const reachableGrid = $(".lane-grid-scroll").getBoundingClientRect();
         expect(
-          de().scrollHeight,
-          "windowed lead page fits one viewport (M-5)",
+          reachableGrid.bottom,
+          "grid bottom reachable above the fixed save indicator",
         ).toBeLessThanOrEqual(H);
+        iframe.contentWindow!.scrollTo(0, 0);
+        await new Promise((r) => setTimeout(r, 100));
         const leadSeat = $(".lane-grid-scroll") as HTMLElement;
         expect(
           leadSeat.scrollHeight,
@@ -434,9 +445,10 @@ describe("MB-1 responsive stage (built app)", () => {
         await openAddBars(1);
         await poll(
           () =>
-            $(".lane-grid-scroll").querySelectorAll(".cell").length === 16 * 6,
+            $(".lane-grid-scroll").querySelectorAll(".cell").length ===
+            16 * DRUM_PIECES.length,
           3_000,
-          "fresh 1-bar drums pattern (6 rows × 16 steps)",
+          "fresh 1-bar drums pattern (16 drum rows × 16 steps)",
         );
         const scroll1 = () => $(".lane-grid-scroll") as HTMLElement;
         expect(scroll1().scrollWidth).toBeLessThanOrEqual(
@@ -475,9 +487,10 @@ describe("MB-1 responsive stage (built app)", () => {
         await openAddBars(2);
         await poll(
           () =>
-            $(".lane-grid-scroll").querySelectorAll(".cell").length === 32 * 6,
+            $(".lane-grid-scroll").querySelectorAll(".cell").length ===
+            32 * DRUM_PIECES.length,
           3_000,
-          "fresh 2-bar drums pattern (6 rows × 32 steps)",
+          "fresh 2-bar drums pattern (16 drum rows × 32 steps)",
         );
         const scroll2 = () => $(".lane-grid-scroll") as HTMLElement;
         expect(
@@ -684,6 +697,23 @@ describe("MB-1 responsive stage (built app)", () => {
         const drumsScroll = $(
           '.lane-floor[data-lane="drums"] .lane-grid-scroll',
         ) as HTMLElement;
+        if (drumsScroll.scrollWidth > drumsScroll.clientWidth + 1)
+          console.error(
+            "[tablet width]",
+            JSON.stringify({
+              client: drumsScroll.clientWidth,
+              scroll: drumsScroll.scrollWidth,
+              children: [...drumsScroll.querySelectorAll("*")]
+                .map((el) => ({
+                  cls: el.className,
+                  w: el.getBoundingClientRect().width,
+                  right:
+                    el.getBoundingClientRect().right -
+                    drumsScroll.getBoundingClientRect().right,
+                }))
+                .filter((x) => x.right > 0),
+            }),
+          );
         expect(drumsScroll.scrollWidth).toBeLessThanOrEqual(
           drumsScroll.clientWidth + 1,
           "1-bar drums quadrant needs no internal scroll at 768",
@@ -723,7 +753,7 @@ describe("MB-1 responsive stage (built app)", () => {
           $('.lane-floor[data-lane="drums"] .lane-grid').getAttribute(
             "aria-label",
           ),
-        ).toBe("DRUMS grid · VIEW ONLY");
+        ).toMatch(/^Drums, track 1 grid · VIEW ONLY · ROWS \d+–\d+ OF 15$/);
       } finally {
         await teardown(iframe);
       }

@@ -41,6 +41,7 @@ interface FakeSession {
   setCycleStepsCalls: number;
   compiles: LaneId[];
   setLaneSchedule(lane: LaneId, schedule: LaneSchedule): void;
+  setMixer(): void;
   setSections(sections: readonly unknown[]): void;
   setLaneSound(lane: LaneId, id: string): void;
   setLaneChain(lane: LaneId, devices: readonly unknown[]): void;
@@ -70,6 +71,7 @@ function fakeSession(): FakeSession {
     cycleSteps: -1,
     setCycleStepsCalls: 0,
     compiles: [],
+    setMixer() {},
     setSections() {},
     setLaneSchedule(lane, schedule) {
       s.schedules.set(lane, schedule);

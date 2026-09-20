@@ -306,7 +306,7 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         );
         law("boot 390×844", true);
         const initialOrigin = readoutRange()[0]!;
-        btn("LEAD semitone view up").click();
+        btn("Leads, track 4 semitone view up").click();
         await poll(
           () => readoutRange()[0] === initialOrigin + 1,
           5_000,
@@ -315,7 +315,7 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         law("after SEMI+ 390", false);
         const seated0 = seat().scrollTop;
         seat().scrollTop = seated0 + 20;
-        btn("LEAD semitone view up").click();
+        btn("Leads, track 4 semitone view up").click();
         await poll(
           () => readoutRange()[0] === initialOrigin + 2,
           5_000,
@@ -357,7 +357,12 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         // through the app iframe's box and the tester frame's scale.
         {
           const targetBox = seat().getBoundingClientRect();
-          await page.elementLocator(iframe).hover({ position: { x: targetBox.left + targetBox.width / 2 + 2, y: targetBox.top + targetBox.height / 2 + 2 } });
+          await page.elementLocator(iframe).hover({
+            position: {
+              x: targetBox.left + targetBox.width / 2 + 2,
+              y: targetBox.top + targetBox.height / 2 + 2,
+            },
+          });
           const frame = window.frameElement as HTMLElement;
           const fr = frame.getBoundingClientRect();
           const ir = iframe.getBoundingClientRect();
@@ -402,7 +407,12 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         //         it leaves MUST settle-snap before law() holds --------
         {
           const targetBox = seat().getBoundingClientRect();
-          await page.elementLocator(iframe).hover({ position: { x: targetBox.left + targetBox.width / 2 + 2, y: targetBox.top + targetBox.height / 2 + 2 } });
+          await page.elementLocator(iframe).hover({
+            position: {
+              x: targetBox.left + targetBox.width / 2 + 2,
+              y: targetBox.top + targetBox.height / 2 + 2,
+            },
+          });
           const frame = window.frameElement as HTMLElement;
           const fr = frame.getBoundingClientRect();
           const ir = iframe.getBoundingClientRect();
@@ -448,7 +458,7 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         law("boot 360×800", true);
         {
           const from = readoutRange()[0]!;
-          btn("LEAD octave view up").click();
+          btn("Leads, track 4 octave view up").click();
           await poll(
             () => readoutRange()[0] === from + 12,
             5_000,
@@ -465,7 +475,7 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
         law("boot 430×932", true);
         {
           const from = readoutRange()[0]!;
-          btn("LEAD octave view down").click();
+          btn("Leads, track 4 octave view down").click();
           await poll(
             () => readoutRange()[0] === from - 12,
             5_000,
@@ -486,8 +496,8 @@ describe("N-2 phone register-window snap — exactly one octave, seated at every
           $(
             ".lane-floor[data-lane='drums'] .lane-grid-scroll",
           ).classList.contains("is-windowed"),
-          "drums stays a full-manifest pane (never windowed)",
-        ).toBe(false);
+          "the expanded drum kit uses the same scrollable window",
+        ).toBe(true);
       } finally {
         await teardown(iframe);
       }

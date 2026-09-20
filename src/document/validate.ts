@@ -224,6 +224,28 @@ function semanticIssues(doc: ProjectDocument): string[] {
         issues.push(`songChain.${laneId}.${i}: unknown pattern id '${id}'`);
     });
 
+    // Drum per-hit lengths: keyed by a step index, on the length grid. Steps
+    // past the pattern end are tolerated — hits stashed by a shrink keep their
+    // length so a regrow restores them whole.
+    if (laneId === "drums") {
+      patterns.forEach((p, i) => {
+        if (p.kind !== "drums" || !p.lengths) return;
+        for (const [piece, byStep] of Object.entries(p.lengths)) {
+          for (const [key, length] of Object.entries(byStep ?? {})) {
+            const step = Number(key);
+            if (!Number.isInteger(step) || step < 0)
+              issues.push(
+                `patterns.${laneId}.${i}.lengths.${piece}.${key}: not a step index`,
+              );
+            if (!Number.isInteger(length / NOTE_LENGTH_GRANULARITY))
+              issues.push(
+                `patterns.${laneId}.${i}.lengths.${piece}.${key}: ${length} is off the ${NOTE_LENGTH_GRANULARITY}-step grid`,
+              );
+          }
+        }
+      });
+    }
+
     // SC-1 (v2) note-model invariants valibot shape alone can't express:
     // a note must start inside its pattern and sit on the length grid.
     if (laneId !== "drums") {

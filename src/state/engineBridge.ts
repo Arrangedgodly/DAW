@@ -26,6 +26,7 @@ import {
   ALL_LANE_IDS,
   effectiveLaneMix,
   type ProjectDocument,
+  type DrumsLane,
 } from "../document/schema";
 import { effectiveScale } from "../document/scales";
 import { getSession, type Session } from "../engine/session";
@@ -54,7 +55,7 @@ function laneScheduleFor(doc: ProjectDocument, lane: LaneId, session: Session) {
     gate: laneConf.gate,
     groove,
     ...(lane === "drums"
-      ? {}
+      ? { drumModes: (laneConf as DrumsLane).pieceModes }
       : {
           scale: effectiveScale(doc, lane),
           stackChord: lane === "chords",
@@ -201,6 +202,7 @@ export function connectStoreToEngine(
   session: Session = getSession(),
 ): () => void {
   const pushAll = (doc: ProjectDocument) => {
+    session.setMixer(doc.mixer);
     session.setSections(doc.sections ?? []);
     syncTransport(doc, session);
     syncLaneConfig(doc, session);
@@ -212,6 +214,7 @@ export function connectStoreToEngine(
   return docStore.subscribe((state, prev) => {
     const doc = state.doc;
     if (doc === prev.doc) return;
+    if (doc.mixer !== prev.doc.mixer) session.setMixer(doc.mixer);
     if (doc.sections !== prev.doc.sections)
       session.setSections(doc.sections ?? []);
     // The derived cycle basis follows the CHAIN totals (pattern bars × the

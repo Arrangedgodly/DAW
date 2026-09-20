@@ -490,10 +490,32 @@ describe.skipIf(onLinuxCI)(
             ),
           );
           await waitFor(
-            () => kick().slice(1, 6).every(Boolean) && !kick()[0] && !kick()[6],
+            () => {
+              const pattern = docStore.getState().doc.patterns.drums[0]!;
+              return (
+                pattern.kind === "drums" &&
+                kick()[1] &&
+                pattern.lengths?.kick?.["1"] === 5
+              );
+            },
             4000,
-            "touch drag paints the swept drums range",
+            "touch drag creates a single sustained drum hit",
           );
+          expect(kick().slice(0, 7)).toEqual([
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+          ]);
+          expect(
+            (
+              docStore.getState().doc.patterns
+                .drums[0]! as import("../../src/document/schema").DrumPattern
+            ).lengths?.kick?.["1"],
+          ).toBe(5);
 
           // ---- 4. RAIL TILE CUE (stopped → selection; playing → queued) ------
           // A SECOND pattern for the chain, so a cue's target is
@@ -702,7 +724,7 @@ describe.skipIf(onLinuxCI)(
           const bassLaneConf = () =>
             docStore.getState().doc.lanes.find((l) => l.id === "bass")!;
           const presetBefore = bassLaneConf().presetId;
-          await tapStable(el('[aria-label="Next preset for BASS"]'), {
+          await tapStable(el('[aria-label="Next preset for Bass, track 2"]'), {
             effect: () => bassLaneConf().presetId !== presetBefore,
             what: "preset stepper advances by touch tap",
           });

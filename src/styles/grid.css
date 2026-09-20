@@ -283,6 +283,9 @@
 }
 
 .lane-grid {
+  /* Composite each scrolling note bed independently. Without this, smooth
+     follow repaints the full grid on every frame (dense-128 regression). */
+  transform: translateZ(0);
   position: relative;
   width: max-content;
 }
@@ -303,6 +306,7 @@
 }
 
 .row-label {
+  background-color: var(--metal-recess);
   flex: none;
   width: 72px; /* fallback; the renderer pins the exact gutter inline */
   display: flex;

@@ -1,40 +1,4 @@
-/**
- * HL-1 browser gate (i3-4 edges) — the RESIZE-TRUNCATION edge table's app
- * half: the refusal under pointer AND keyboard at the new edge shapes, the
- * undo journey across a refusal, the limit no-ops, empty-pattern shrink,
- * and the mid-play family (grow/refuse while playing, one-shot parked, the
- * LCM basis swap continuity, the last-in-chain iteration rebuild).
- *
- * The store/pure-layer half of the table is tests/pattern-resize-edges.test.ts.
- * Invariant under every row: nothing stuck, nothing lost — the transport
- * keeps its state across every resize outcome, the store never sees a
- * partial commit, and every outcome announces through the E10 channel.
- *
- * | # | Edge state                                | Law                        |
- * |---|-------------------------------------------|----------------------------|
- * | 1 | spanning-note refusal (tail crossing)     | exact E10 text via BOTH the |
- * |   | under keyboard Shift+b AND the pointer    | Shift+b key and the PAT     |
- * |   | stepper                                   | stepper (one funnel)        |
- * | 2 | grow at the 128 limit                     | no-op that still announces  |
- * |   |                                           | AT LIMIT (both paths)       |
- * | 3 | empty-pattern shrink 128→1 through the    | every step clean + announced|
- * |   | real ladder                               |                             |
- * | 4 | refused → moved → shrunk, then Ctrl+Z     | undo lands on the post-move |
- * |   |                                           | state (refusal invisible)   |
- * | 5 | grow while PLAYING                        | transport keeps playing;    |
- * |   |                                           | announcement lands          |
- * | 6 | refusal while PLAYING                     | transport keeps playing;    |
- * |   |                                           | store untouched             |
- * | 7 | resize while one-shot PARKED              | works; stays parked         |
- * | 8 | grow that changes the LCM mid-play        | the booth BAR readout never |
- * |   | (basis swap)                              | resets to BAR 1 — the       |
- * |   |                                           | absolute-grid continuity    |
- * | 9 | grow of the LAST pattern in a chain       | committed now; the engine's |
- * |   | mid-play                                  | iteration rebuild lands at  |
- * |   |                                           | the boundary; the lane      |
- * |   |                                           | cycle follows               |
- */
-
+/** Real-app resize: pointer/keyboard parity, retained notes, undo, limits, and uninterrupted transport. */
 import { describe, expect, it } from "vitest";
 import { render } from "solid-js/web";
 import App from "../../src/App";
@@ -159,7 +123,7 @@ async function bootBass(): Promise<Ctx & { cleanup: () => void }> {
       host
         .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
         ?.getAttribute("aria-label")
-        ?.startsWith("BASS grid · EDITING") === true,
+        ?.startsWith("Bass, track 2 grid · EDITING") === true,
     4000,
     "bass quadrant editable (demo loaded)",
   );
@@ -177,11 +141,9 @@ async function bootBass(): Promise<Ctx & { cleanup: () => void }> {
     },
     patternId: () => activePatterns().bass,
     announce: (): string =>
-      host
-        .querySelector<HTMLSpanElement>(
-          '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
-        )
-        ?.textContent ?? "",
+      host.querySelector<HTMLSpanElement>(
+        '.rail-row[data-lane="bass"] > .head-sr[role="status"]',
+      )?.textContent ?? "",
     menuOpen: () =>
       host.querySelector('.rail-row[data-lane="bass"] .rail-tools-menu') !==
       null,
@@ -203,7 +165,7 @@ async function bootBass(): Promise<Ctx & { cleanup: () => void }> {
       host.querySelector<HTMLButtonElement>(
         `.rail-row[data-lane="bass"] button[aria-label^="${
           dir === "grow" ? "Grow" : "Shrink"
-        } BASS selected pattern"]`,
+        } Bass, track 2 selected pattern"]`,
       )!,
     closeMenu: async () => {
       host
@@ -231,7 +193,7 @@ async function bootBass(): Promise<Ctx & { cleanup: () => void }> {
 
 describe("HL-1 resize edge table (real app)", () => {
   it(
-    "1-4. refusal twins at the spanning edge, limit no-ops, empty ladder, undo across a refusal",
+    "keyboard and pointer retain spanning notes; undo, limits, and empty ladder",
     { timeout: 120_000 },
     async () => {
       const c = await bootBass();
@@ -243,46 +205,47 @@ describe("HL-1 resize edge table (real app)", () => {
         expect(
           addNote("bass", c.patternId(), { degree: 0, start: 60, length: 10 }),
         ).toBe(true); // end 70: spans the 4-bar edge (anchor bar 4)
-        const refusal =
-          "CANNOT SHRINK PATTERN A TO 4 BARS · C2 NOTE AT BAR 4 WOULD BE LOST · MOVE OR SHORTEN IT FIRST";
+        const original = docStore.getState().doc;
         shrinkKey();
         await waitFor(
-          () => c.announce() === refusal,
+          () => c.bars() === 4 && c.announce() === "PATTERN A · 4 BARS",
           2000,
-          "spanning-note refusal via Shift+b",
+          "spanning-note shrink via keyboard",
         );
-        expect(c.bars()).toBe(8);
+        const current = () => {
+          const p = docStore
+            .getState()
+            .doc.patterns.bass.find((x) => x.id === c.patternId())!;
+          if (p.kind !== "pitched") throw new Error("Expected pitched bass");
+          return p;
+        };
+        expect(current().notes).toContainEqual({
+          degree: 0,
+          start: 60,
+          length: 10,
+        });
         await c.openMenu();
+        c.stepper("grow").click();
+        await waitFor(() => c.bars() === 8, 2000, "grow back");
         c.stepper("shrink").click();
         await waitFor(
-          () => c.announce() === refusal,
+          () => c.bars() === 4 && c.announce() === "PATTERN A · 4 BARS",
           2000,
-          "the identical text via the pointer stepper (one funnel)",
+          "pointer shrink matches keyboard",
         );
-        expect(c.bars()).toBe(8);
+        expect(current().notes).toContainEqual({
+          degree: 0,
+          start: 60,
+          length: 10,
+        });
         await c.closeMenu();
-
-        // --- Row 4: refused → moved → shrunk → Ctrl+Z --------------------
-        expect(removeNote("bass", c.patternId(), 0, 60)).toBe(true);
-        expect(
-          addNote("bass", c.patternId(), { degree: 0, start: 8, length: 2 }),
-        ).toBe(true);
-        shrinkKey();
-        await waitFor(() => c.bars() === 4, 2000, "clean shrink after the move");
         undoKey();
         await waitFor(
           () => c.bars() === 8,
           2000,
-          "Ctrl+Z lands on the post-move state (refusal invisible to history)",
+          "undo restores pre-resize extent",
         );
-        const p = docStore.getState().doc.patterns.bass.find(
-          (x) => x.id === c.patternId(),
-        )!;
-        expect(p.kind === "pitched" ? p.notes : []).toContainEqual({
-          degree: 0,
-          start: 8,
-          length: 2,
-        });
+        expect(docStore.getState().doc).toEqual(original);
 
         // --- Row 2: the 128 limit no-op announces on both paths ------------
         for (let i = 0; i < 4; i++) growKey(); // 8→128
@@ -305,7 +268,7 @@ describe("HL-1 resize edge table (real app)", () => {
         await c.closeMenu();
 
         // --- Row 3: empty-pattern shrink 128→1 on the real ladder ----------
-        expect(removeNote("bass", c.patternId(), 0, 8)).toBe(true);
+        expect(removeNote("bass", c.patternId(), 0, 60)).toBe(true);
         for (let i = 0; i < 7; i++) shrinkKey();
         await waitFor(() => c.bars() === 1, 6000, "empty pattern walks to 1");
         await waitFor(
@@ -321,7 +284,7 @@ describe("HL-1 resize edge table (real app)", () => {
   );
 
   it(
-    "5-7. grow/refuse while PLAYING; resize while one-shot PARKED",
+    "grow and retained shrink while PLAYING; resize while one-shot PARKED",
     { timeout: 120_000 },
     async () => {
       const c = await bootBass();
@@ -337,7 +300,7 @@ describe("HL-1 resize edge table (real app)", () => {
             c.host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (default loaded)",
         );
@@ -366,13 +329,31 @@ describe("HL-1 resize edge table (real app)", () => {
         ).toBe(true); // bar 2 — past the 1-bar end
         shrinkKey();
         await waitFor(
-          () =>
-            c.announce() ===
-            "CANNOT SHRINK PATTERN A TO 1 BAR · C2 NOTE AT BAR 2 WOULD BE LOST · MOVE OR SHORTEN IT FIRST",
+          () => c.announce() === "PATTERN A · 1 BAR",
           2000,
-          "mid-play refusal announces",
+          "mid-play retained shrink announces",
         );
-        expect(c.bars()).toBe(2); // store untouched
+        expect(c.bars()).toBe(1);
+        const shrunk = docStore
+          .getState()
+          .doc.patterns.bass.find((p) => p.id === c.patternId())!;
+        expect(shrunk.kind === "pitched" ? shrunk.overflow : []).toContainEqual(
+          { degree: 0, start: 24, length: 4 },
+        );
+        growKey();
+        await waitFor(
+          () => c.bars() === 2,
+          2000,
+          "mid-play growth restores hidden note",
+        );
+        const grown = docStore
+          .getState()
+          .doc.patterns.bass.find((p) => p.id === c.patternId())!;
+        expect(grown.kind === "pitched" ? grown.notes : []).toContainEqual({
+          degree: 0,
+          start: 24,
+          length: 4,
+        });
         expect(session.transport.snapshot.playing).toBe(true);
 
         // --- Row 7: resize while one-shot PARKED -------------------------
@@ -459,7 +440,7 @@ describe("HL-1 resize edge table (real app)", () => {
             c.host
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("DRUMS grid · EDITING") === true,
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           4000,
           "drums quadrant editable",
         );
@@ -535,7 +516,7 @@ describe("HL-1 resize edge table (real app)", () => {
             c.host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           4000,
           "bass quadrant editable (default loaded)",
         );
@@ -563,11 +544,7 @@ describe("HL-1 resize edge table (real app)", () => {
         selectLane("bass");
         const { selectPattern } = await import("../../src/state/selection");
         selectPattern("bass", bId);
-        await waitFor(
-          () => c.patternId() === bId,
-          2000,
-          "pattern B selected",
-        );
+        await waitFor(() => c.patternId() === bId, 2000, "pattern B selected");
         for (let i = 0; i < 2; i++) growKey(); // B 1→4 bars
         await waitFor(() => c.bars() === 4, 2000, "B committed at 4 bars");
         expect(session.transport.snapshot.playing).toBe(true);

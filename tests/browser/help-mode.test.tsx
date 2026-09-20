@@ -1,3 +1,9 @@
+import vizVideoSrc from "../../src/components/VizVideoExport.tsx?raw";
+import mixerSrc from "../../src/components/MixerPage.tsx?raw";
+import drumSampleSrc from "../../src/components/DrumSampleMenu.tsx?raw";
+import patternMidiSrc from "../../src/components/PatternMidiExport.tsx?raw";
+import sectionHeadersSrc from "../../src/components/SectionHeaders.tsx?raw";
+import { DRUM_PIECES } from "../../src/document/schema";
 import { rowForDegree } from "./pitch-fixture";
 /**
  * HP-1 browser gate — help mode (info view) mechanics on the REAL app,
@@ -334,7 +340,7 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
         setHelpMode(true);
         await waitFor(() => host.querySelector(".info-view") !== null);
         selectLane("bass");
-        const fxBtn = $<HTMLButtonElement>('[data-help="lane.bass.fx"]');
+        const fxBtn = $<HTMLButtonElement>('button[data-page="mixer"]');
         fxBtn.click();
         await waitFor(
           () => !!host.querySelector(".fx-strip"),
@@ -371,19 +377,12 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
           2000,
           "add menu closes",
         );
-        // Refinement-1 (deliberate spec extension, keyboard.md v2 ledger):
-        // with the mode off and the menu closed, the NEXT Escape closes the
-        // FX CONSOLE itself — the full order on one surface: help mode →
-        // add menu → console. Focus rested inside the console (+ ADD FX),
-        // so closing lands it on the strip's FX entry (the owner control).
-        expect(host.querySelector(".lane-fx-wrap")).toBeTruthy();
+        const add = $<HTMLElement>('[data-help="fx.add"]');
+        expect(document.activeElement).toBe(add);
         keyAtActive("Escape");
-        await waitFor(
-          () => host.querySelector(".lane-fx-wrap") === null,
-          2000,
-          "third Escape closes the FX console",
-        );
-        expect(document.activeElement).toBe(fxBtn);
+        expect(host.querySelector(".mixer-page")).toBeTruthy();
+        expect(document.activeElement).toBe(add);
+        $<HTMLButtonElement>('button[data-page="edit"]').click();
 
         // --- 7. HOVER-driven update (pointerover) ----------------------
         setHelpMode(true);
@@ -432,8 +431,8 @@ describe("HP-1 help mode (info view) — mechanics + E6", () => {
             host
               .querySelector('.lane-floor[data-lane="bass"] [role="grid"]')
               // RC-1 journey delta: windowed names append the ROWS range.
-              ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.closest(".lane-floor")
+              ?.getAttribute("data-editing") === "true",
           2000,
           "bass quadrant editable",
         );
@@ -551,6 +550,11 @@ import trackColorControlSrc from "../../src/components/TrackColorControl.tsx?raw
 import agentAccessSrc from "../../src/components/AgentAccess.tsx?raw";
 import clipLengthSrc from "../../src/components/ClipLengthControl.tsx?raw";
 const SOURCES = [
+  vizVideoSrc,
+  mixerSrc,
+  drumSampleSrc,
+  patternMidiSrc,
+  sectionHeadersSrc,
   phonePageToggleSrc,
   themeSelectorSrc,
   trackColorControlSrc,
@@ -615,7 +619,15 @@ function generatedHelpIds(): Set<string> {
   // M-5 (iteration 4): the phone register-window shift row (pitched lanes
   // only — RegisterShiftControls stamps it via a `lane.${lane}.regshift`
   // template literal, so the literal scan can't see it; minted here).
-  for (const lane of ["bass", "chords", "lead"]) {
+  for (const lane of [
+    "bass",
+    "chords",
+    "lead",
+    "extra1",
+    "extra2",
+    "extra3",
+    "extra4",
+  ]) {
     ids.add(`lane.${lane}.regshift`);
     // i7 N-4: the phone zoom chip (same template-literal stamping).
     ids.add(`lane.${lane}.zoom`);
@@ -625,7 +637,7 @@ function generatedHelpIds(): Set<string> {
   // can't see (the regshift precedent).
   ids.add("lane.follow");
   ids.add("phone.page");
-  for (const piece of ["kick", "snare", "hat", "openhat", "clap", "tom"]) {
+  for (const piece of DRUM_PIECES) {
     ids.add(`euclid.${piece}.fill`);
   }
   for (const type of ["filter", "drive", "bitcrusher", "delay", "reverb"]) {
@@ -661,7 +673,8 @@ describe("HP-1 gate finding — drums sync is codec key-order independent", () =
           () =>
             host
               .querySelector('.lane-floor[data-lane="drums"] [role="grid"]')
-              ?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+              ?.closest(".lane-floor")
+              ?.getAttribute("data-editing") === "true",
           2000,
           "drums quadrant editable",
         );

@@ -8,7 +8,11 @@
 .help-backdrop {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--color-ground) 82%, transparent); /* ground hue (tokenized T1) */
+  background: color-mix(
+    in srgb,
+    var(--color-ground) 82%,
+    transparent
+  ); /* ground hue (tokenized T1) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +58,7 @@
   font: var(--text-label-sm);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--color-ground));
+  color: var(--theme-muted);
   margin: 0 0 var(--space-3);
 }
 

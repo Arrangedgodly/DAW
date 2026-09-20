@@ -64,12 +64,13 @@
    * popover cast. Paint-only: geometry byte-identical to the reskin. */
   background-color: var(--metal-panel);
   background-image: var(--metal-brush);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 6px;
   /* + the machined top catch-light: the chassis edge reads as a raised
    * panel sitting on the quadrant floor, not a flat modal (probe note). */
-  box-shadow: var(--elev-3), inset 0 1px 0 var(--metal-edge-hi);
+  box-shadow:
+    var(--elev-3),
+    inset 0 1px 0 var(--metal-edge-hi);
 }
 
 /* Console title strip: the faceplate of the chassis — silkscreened name
@@ -191,8 +192,12 @@
       transparent 70%
     );
   background-repeat: no-repeat;
-  background-size: 6px 6px, 6px 6px;
-  background-position: left 3px top 3px, right 3px top 3px;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-position:
+    left 3px top 3px,
+    right 3px top 3px;
   /* Active = lit: lane-hue rim + the raised fill carry the state (never
    * glow; the rim is the 1px hairline discipline, EMISSION-RAIL). */
   border: 1px solid color-mix(in srgb, var(--lane-hue) 55%, var(--metal-raised));
@@ -422,7 +427,7 @@
   line-height: 1;
   letter-spacing: var(--track-panel-label);
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 62%, var(--metal-raised));
+  color: var(--theme-muted);
 }
 
 .fx-mod.is-bypassed .fx-param-label {
@@ -449,7 +454,9 @@
   border-radius: 2px;
   background: var(--metal-recess);
   border: 1px solid var(--metal-edge-lo);
-  box-shadow: var(--micro-recess); /* 2026-09-05 polish: the milled-slot walls (see booth.css) */
+  box-shadow: var(
+    --micro-recess
+  ); /* 2026-09-05 polish: the milled-slot walls (see booth.css) */
 }
 
 .fx-param-slider::-moz-range-track {
@@ -574,8 +581,7 @@
   text-transform: uppercase;
   color: var(--color-ink);
   background: var(--metal-raised);
-  border: 1px solid
-    color-mix(in srgb, var(--lane-hue) 45%, var(--metal-raised));
+  border: 1px solid color-mix(in srgb, var(--lane-hue) 45%, var(--metal-raised));
   border-radius: 3px;
   box-shadow: var(--keycap);
   padding: 4px 10px;
@@ -611,8 +617,7 @@
   padding: var(--space-2);
   background-color: var(--metal-panel);
   background-image: var(--metal-brush);
-  border: 1px solid
-    color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
+  border: 1px solid color-mix(in srgb, var(--color-ink) 25%, var(--metal-panel));
   border-radius: 4px;
   box-shadow: var(--elev-3);
 }
@@ -791,12 +796,12 @@
  * -------------------------------------------------------------------------
  */
 .fx-mod {
-  background-image:
-    var(--furniture-screw),
-    var(--furniture-screw);
+  background-image: var(--furniture-screw), var(--furniture-screw);
   background-repeat: no-repeat, no-repeat;
   background-size:
     var(--furniture-screw-size) var(--furniture-screw-size),
     var(--furniture-screw-size) var(--furniture-screw-size);
-  background-position: left 3px top 3px, right 3px top 3px;
+  background-position:
+    left 3px top 3px,
+    right 3px top 3px;
 }

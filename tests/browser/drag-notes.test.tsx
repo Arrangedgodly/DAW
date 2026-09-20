@@ -15,7 +15,7 @@ import { rowForDegree } from "./pitch-fixture";
  *    the SAME announcement text as the pointer path (E5 parity).
  * 5. KEYBOARD NOTE LAW: Enter places (gate default) / trims mid-span /
  *    removes at the anchor; Delete removes; cell names carry note state.
- * 6. DRUMS PAINT: drag paints multiple hits (one-shot law); ONE undo reverts
+ * 6. DRUMS: drag draws ONE hit with a length; ONE undo reverts
  *    the whole gesture; single click still toggles.
  * 7. ROUND-TRIP: codec encode→decode AND a real IndexedDB save→load preserve
  *    the dragged note.
@@ -173,7 +173,7 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
             )
               // RC-1 journey delta: windowed pitched names append ROWS range.
               ?.getAttribute("aria-label")
-              ?.startsWith("BASS grid · EDITING") === true,
+              ?.startsWith("Bass, track 2 grid · EDITING") === true,
           2000,
           "bass quadrant editable",
         );
@@ -327,7 +327,9 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
               document.querySelector(
                 '.lane-floor[data-lane="drums"] [role="grid"]',
               ) as HTMLElement
-            )?.getAttribute("aria-label") === "DRUMS grid · EDITING",
+            )
+              ?.getAttribute("aria-label")
+              ?.startsWith("Drums, track 1 grid · EDITING") === true,
           2000,
           "drums quadrant editable",
         );
@@ -343,18 +345,23 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
         expect(kick(0)).toBe(false);
         pe(d0, "pointerdown", c0.x, c0.y);
         pe(d3, "pointermove", c3.x, c3.y);
-        expect(d0.dataset.preview).toBe("true"); // preview during the sweep
         expect(kick(0)).toBe(false); // zero store writes until release
         pe(d3, "pointerup", c3.x, c3.y);
+        // Drums draw like notes: the sweep is ONE hit with a length, not
+        // four painted hits.
+        const drumPattern = () => {
+          const p = docStore.getState().doc.patterns.drums[0];
+          if (p?.kind !== "drums") throw new Error("expected drums pattern");
+          return p;
+        };
         expect([kick(0), kick(1), kick(2), kick(3)]).toEqual([
           true,
-          true,
-          true,
-          true,
+          false,
+          false,
+          false,
         ]);
-        expect(kick(4)).toBe(false);
-        // ONE gesture = ONE undo step (the "toggle" family coalesces the
-        // synchronous release batch).
+        expect(drumPattern().lengths?.kick?.["0"]).toBe(4);
+        // ONE gesture = ONE undo step.
         undo();
         expect([kick(0), kick(1), kick(2), kick(3)]).toEqual([
           false,
@@ -362,6 +369,7 @@ describe("IN-2 drag notes + resize + drums paint (real app, pointer events)", ()
           false,
           false,
         ]);
+        expect(drumPattern().lengths).toBeUndefined();
         // Single click still toggles (v0 law preserved). The gesture's
         // trailing-click suppression expires on the next macrotask — yield
         // one so this is a NEW click, exactly like a real user's next press.

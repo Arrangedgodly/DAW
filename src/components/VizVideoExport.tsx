@@ -11,6 +11,15 @@ import {
   type VideoFormat,
 } from "../viz/videoPlan";
 import "../styles/viz-video-export.css";
+import { registerHelp } from "../help/registry";
+
+registerHelp([
+  {
+    id: "viz.video",
+    title: "EXPORT VIDEO",
+    text: "Render your song and visualizer together as an MP4 in this browser. Choose a desktop or phone frame and the full song or a range of bars. Preview the finished video before saving it. Cancel stops the export after any audio already rendering finishes.",
+  },
+]);
 
 export default function VizVideoExport() {
   let dialog!: HTMLDialogElement;
@@ -107,7 +116,7 @@ export default function VizVideoExport() {
   };
   return (
     <>
-      <button class="viz-btn" onClick={open}>
+      <button class="viz-btn" data-help="viz.video" onClick={open}>
         Export video
       </button>
       <dialog
@@ -115,6 +124,7 @@ export default function VizVideoExport() {
           dialog = element;
         }}
         class="viz-video-dialog"
+        data-help="viz.video"
         aria-labelledby="viz-video-title"
         onKeyDown={(event) => event.stopPropagation()}
         onCancel={(event) => {

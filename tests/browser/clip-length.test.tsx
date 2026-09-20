@@ -45,17 +45,24 @@ it.each([1440, 390])(
     const id = docStore.getState().doc.patterns.bass[0]!.id;
     addNote("bass", id, { degree: 0, start: 48, length: 1 });
     await page.getByRole("button", { name: "Shorten clip by one bar" }).click();
-    expect(docStore.getState().doc.patterns.bass[0]!.bars).toBe(4);
-    expect(host.querySelector(".clip-length-error")?.textContent).toContain(
-      "would be cut off",
-    );
-    undo();
-    await page.getByRole("button", { name: "Shorten clip by one bar" }).click();
     expect(docStore.getState().doc.patterns.bass[0]!.bars).toBe(3);
+    const shrunk = docStore.getState().doc.patterns.bass[0]!;
+    expect(shrunk.kind === "pitched" ? shrunk.overflow : []).toContainEqual({
+      degree: 0,
+      start: 48,
+      length: 1,
+    });
+    expect(host.querySelector(".clip-length-error")?.textContent).toBe("");
     undo();
     expect(
       host.querySelector<HTMLInputElement>(".clip-length input")!.value,
     ).toBe("4");
+    const restored = docStore.getState().doc.patterns.bass[0]!;
+    expect(restored.kind === "pitched" ? restored.notes : []).toContainEqual({
+      degree: 0,
+      start: 48,
+      length: 1,
+    });
     await field.fill("2.5");
     await userEvent.keyboard("{Enter}");
     expect(host.querySelector(".clip-length-error")?.textContent).toContain(

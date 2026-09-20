@@ -22,7 +22,7 @@ registerHelp([
   {
     id: "clip.length",
     title: "CLIP LENGTH",
-    text: "Choose the number of bars in this clip without leaving the instrument. Type any whole number from 1 to 128, or use minus and plus to change one bar at a time. Shortening refuses changes that would cut off notes. Undo restores the previous length.",
+    text: "Choose the number of bars in this clip without leaving the instrument. Type any whole number from 1 to 128, or use minus and plus to change one bar at a time. Shortening hides later notes and retains them for manual growth. Notes anchored before the new end keep their full lengths. Double repeats visible notes and replaces hidden content. Undo restores the previous pattern.",
   },
 ]);
 

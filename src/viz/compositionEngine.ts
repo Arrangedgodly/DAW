@@ -69,9 +69,10 @@ export function createCompositionEngine(
   ) as Record<LaneId, boolean>;
   // Measured sound of each lane (live analyser taps or offline stems). Null
   // until a source supplies it — the engine then falls back to MIDI alone.
-  const timbre = Object.fromEntries(
-    LANE_IDS.map((id) => [id, null]),
-  ) as Record<LaneId, LaneTimbre | null>;
+  const timbre = Object.fromEntries(LANE_IDS.map((id) => [id, null])) as Record<
+    LaneId,
+    LaneTimbre | null
+  >;
   const engine = {
     setMotion(next: MotionMode, blend: boolean) {
       mode = next;
@@ -270,6 +271,15 @@ export const activeCompositionEngines = (): readonly CompositionEngine[] => [
 ];
 
 /** Fixed-cost paths, in CSS pixels. No blur, pixel readbacks, or DOM writes. */
+// Draws are synchronous; one bounded scratch buffer serves all lanes.
+const particlePoints = new Float64Array(600 * 2);
+const contourAngles = Float64Array.from(
+  { length: 129 },
+  (_, k) => (k / 128) * Math.PI * 2,
+);
+const contourCos = contourAngles.map((a) => Math.cos(a));
+const contourSin = contourAngles.map((a) => Math.sin(a));
+
 function drawLayer(
   ctx: CanvasRenderingContext2D,
   l: VisualLayer,
@@ -341,45 +351,47 @@ function drawLayer(
     1 + (drum ? impact * 0.85 : pulse * stretch + impact * 0.12),
     1 + (drum ? impact * 0.85 : pulse * 0.3 - impact * 0.12),
   );
-  const deform = (x: number, y: number): [number, number] => {
-    if (mode === "orbit") return [x, y];
-    const u = x / r,
-      w = y / r;
-    const wave = 0.28 + pulse * 0.38 + impact * 0.22;
-    if (mode === "fluid") {
-      const twist =
-        Math.sin(t * 0.8 + Math.hypot(u, w) * 2.4 * detail) * wave;
-      return [
-        (u * Math.cos(twist) -
-          w * Math.sin(twist) +
-          Math.sin(w * 3 * detail + t * 1.1) * wave) *
-          r,
-        (u * Math.sin(twist) +
-          w * Math.cos(twist) +
-          Math.sin(u * 2.7 * detail - t * 0.9) * wave) *
-          r,
-      ];
-    }
-    // Different parts of the line lag behind the phrase, forming a flowing tail.
-    const lag = (u * 1.4 + w * 0.6) * detail;
-    return [
-      (u * (1.3 + pulse * 0.7) + Math.sin(t * 0.8 - lag) * wave) * r,
-      (w * 0.65 + Math.sin(t * 1.2 - lag * 1.7) * (0.5 + pulse * 0.5)) * r,
-    ];
-  };
-  const line = (x: number, y: number) => {
-    const p = mode === "orbit" ? [x, y] : deform(x, y);
-    if (grainAmp > 0.05)
-      ctx.lineTo(p[0]! + scatter() * grainAmp, p[1]! + scatter() * grainAmp);
-    else ctx.lineTo(p[0]!, p[1]!);
-  };
-  const move = (x: number, y: number) => {
+  // Reuse coordinate scratch rather than allocating a tuple for every point.
+  // Drawing is synchronous, and each caller consumes both values immediately.
+  let deformedX = 0,
+    deformedY = 0;
+  const wave = 0.28 + pulse * 0.38 + impact * 0.22;
+  const deform = (x: number, y: number): void => {
     if (mode === "orbit") {
-      ctx.moveTo(x, y);
+      deformedX = x;
+      deformedY = y;
       return;
     }
-    const p = deform(x, y);
-    ctx.moveTo(p[0], p[1]);
+    const u = x / r,
+      w = y / r;
+    if (mode === "fluid") {
+      const twist = Math.sin(t * 0.8 + Math.hypot(u, w) * 2.4 * detail) * wave;
+      const cosine = Math.cos(twist),
+        sine = Math.sin(twist);
+      deformedX =
+        (u * cosine - w * sine + Math.sin(w * 3 * detail + t * 1.1) * wave) * r;
+      deformedY =
+        (u * sine + w * cosine + Math.sin(u * 2.7 * detail - t * 0.9) * wave) *
+        r;
+      return;
+    }
+    const lag = (u * 1.4 + w * 0.6) * detail;
+    deformedX = (u * (1.3 + pulse * 0.7) + Math.sin(t * 0.8 - lag) * wave) * r;
+    deformedY =
+      (w * 0.65 + Math.sin(t * 1.2 - lag * 1.7) * (0.5 + pulse * 0.5)) * r;
+  };
+  const line = (x: number, y: number) => {
+    deform(x, y);
+    if (grainAmp > 0.05)
+      ctx.lineTo(
+        deformedX + scatter() * grainAmp,
+        deformedY + scatter() * grainAmp,
+      );
+    else ctx.lineTo(deformedX, deformedY);
+  };
+  const move = (x: number, y: number) => {
+    deform(x, y);
+    ctx.moveTo(deformedX, deformedY);
   };
   const ellipse = (
     cx: number,
@@ -394,22 +406,23 @@ function drawLayer(
       ctx.ellipse(cx, cy, rx, ry, rotation, start, end);
       return;
     }
+    const cosine = Math.cos(rotation),
+      sine = Math.sin(rotation);
     const steps = Math.max(4, Math.ceil((end - start) * 18));
     for (let k = 0; k <= steps; k++) {
       const a = start + ((end - start) * k) / steps;
       const x = Math.cos(a) * rx,
         y = Math.sin(a) * ry;
-      line(
-        cx + x * Math.cos(rotation) - y * Math.sin(rotation),
-        cy + x * Math.sin(rotation) + y * Math.cos(rotation),
-      );
+      line(cx + x * cosine - y * sine, cy + x * sine + y * cosine);
     }
   };
+  const projectionAngle = spin * 0.6 + pulse * 0.45;
+  const projectionCos = Math.cos(projectionAngle),
+    projectionSin = Math.sin(projectionAngle);
   const project = (x: number, y: number, z = 0): void => {
-    const a = spin * 0.6 + pulse * 0.45,
-      depth = x * Math.sin(a) + z * Math.cos(a);
+    const depth = x * projectionSin + z * projectionCos;
     line(
-      (x * Math.cos(a) - z * Math.sin(a)) * r,
+      (x * projectionCos - z * projectionSin) * r,
       (y * 0.8 + depth * (0.24 + pulse * 0.35)) * r,
     );
   };
@@ -445,7 +458,7 @@ function drawLayer(
       for (let j = 0; j < 32; j++) {
         begin(0.3 + j / 65);
         for (let k = 0; k <= 128; k++) {
-          const a = (k / 128) * Math.PI * 2,
+          const a = contourAngles[k]!,
             rr = 0.22 + j / 44;
           const form =
             l.effect === "contour"
@@ -457,7 +470,10 @@ function drawLayer(
                     Math.pow(Math.abs(Math.sin((lobes * a) / 4)), 0.6 + v * 2),
                   -0.65,
                 );
-          line(Math.cos(a) * rr * form * r, Math.sin(a) * rr * form * r * 0.78);
+          line(
+            contourCos[k]! * rr * form * r,
+            contourSin[k]! * rr * form * r * 0.78,
+          );
         }
         end();
       }
@@ -488,6 +504,9 @@ function drawLayer(
     case "attractor": {
       let ax = 0.1,
         ay = 0.1;
+      // Particle tails share stroke style. Collect their separate subpaths
+      // and issue one stroke instead of 200 GPU draw calls per lane/frame.
+      if (l.effect === "current") begin(0.5);
       for (let j = 0; j < 600; j++) {
         let x: number, y: number;
         const q = j * 0.371 + t * 0.22,
@@ -503,23 +522,35 @@ function drawLayer(
           x = Math.cos(q) * rr;
           y = Math.sin(q * (1.02 + v * 0.05) + pitch * 0.1) * rr * 0.65;
         }
-        ctx.globalAlpha = (0.45 + (j % 5) / 10) * opacity;
-        const particle = deform(x * r, y * r);
-        ctx.fillRect(
-          particle[0] + scatter() * grainAmp * 1.5,
-          particle[1] + scatter() * grainAmp * 1.5,
-          (1.2 + pulse) * tone,
-          (1.2 + pulse) * tone,
-        );
+        deform(x * r, y * r);
+        particlePoints[j * 2] = deformedX + scatter() * grainAmp * 1.5;
+        particlePoints[j * 2 + 1] = deformedY + scatter() * grainAmp * 1.5;
         if (l.effect === "current" && j % 3 === 0) {
-          begin(0.5);
           move(x * r, y * r);
           line(
             x * r + Math.cos(q + 0.7) * (7 + pulse * 15),
             y * r + Math.sin(q + 0.7) * 8,
           );
-          end();
         }
+      }
+      if (l.effect === "current") {
+        ctx.globalAlpha = Math.min(1, 0.5 * opacity * sheen);
+        end();
+      }
+      // The 600 particles use five opacity levels. Batch each level rather
+      // than issuing a separate fill operation for every particle.
+      const diameter = (1.2 + pulse) * tone;
+      for (let group = 0; group < 5; group++) {
+        ctx.beginPath();
+        ctx.globalAlpha = (0.45 + group / 10) * opacity;
+        for (let j = group; j < 600; j += 5)
+          ctx.rect(
+            particlePoints[j * 2]!,
+            particlePoints[j * 2 + 1]!,
+            diameter,
+            diameter,
+          );
+        ctx.fill();
       }
       break;
     }

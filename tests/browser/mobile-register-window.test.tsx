@@ -110,8 +110,10 @@ async function bootIframe(
   // the phone branch's).
   await poll(
     () =>
-      $$(".head-ctl-value").some((v) =>
-        (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+      $$(".head-ctl-value").some(
+        (v) =>
+          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
+          "SOFT STEP",
       ),
     5_000,
     "demo loaded",
@@ -222,10 +224,10 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
           return el as HTMLButtonElement;
         };
         const LABELS = [
-          "LEAD octave view down",
-          "LEAD octave view up",
-          "LEAD semitone view down",
-          "LEAD semitone view up",
+          "Leads, track 4 octave view down",
+          "Leads, track 4 octave view up",
+          "Leads, track 4 semitone view down",
+          "Leads, track 4 semitone view up",
         ] as const;
         for (const label of LABELS) {
           const r = btn(label).getBoundingClientRect();
@@ -273,8 +275,8 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         };
         const initial = origin();
         const initialRow = Number(rowsLabel());
-        const octPlus = btn("LEAD octave view up");
-        const octMinus = btn("LEAD octave view down");
+        const octPlus = btn("Leads, track 4 octave view up");
+        const octMinus = btn("Leads, track 4 octave view down");
         octPlus.click();
         await poll(
           () => origin() === initial + 12,
@@ -290,13 +292,13 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
           3000,
           "octave down restores pitch",
         );
-        btn("LEAD semitone view up").click();
+        btn("Leads, track 4 semitone view up").click();
         await poll(
           () => origin() === initial + 1,
           3000,
           "semitone up adds one MIDI semitone",
         );
-        btn("LEAD semitone view down").click();
+        btn("Leads, track 4 semitone view down").click();
         await poll(
           () => origin() === initial,
           3000,
@@ -304,14 +306,17 @@ describe("M-5 phone register window — one octave, ±octave/±semitone shifts, 
         );
         for (let i = 0; i < 12 && !octPlus.disabled; i++) octPlus.click();
         await poll(
-          () => octPlus.disabled && btn("LEAD semitone view up").disabled,
+          () =>
+            octPlus.disabled && btn("Leads, track 4 semitone view up").disabled,
           3000,
           "upper MIDI bound disables both up controls",
         );
         expect(origin()).toBeLessThanOrEqual(116);
         for (let i = 0; i < 12 && !octMinus.disabled; i++) octMinus.click();
         await poll(
-          () => octMinus.disabled && btn("LEAD semitone view down").disabled,
+          () =>
+            octMinus.disabled &&
+            btn("Leads, track 4 semitone view down").disabled,
           3000,
           "lower MIDI bound disables both down controls",
         );

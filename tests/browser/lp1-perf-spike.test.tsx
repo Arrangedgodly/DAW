@@ -17,15 +17,8 @@
  *     stage's 2048-step lead grid rides the same column window). Honest
  *     caveat: CI Chromium is desktop-class hardware emulating the viewport
  *     (the MB-5 stance) — a regression catch, not a device-class verdict.
- * (a″) WINDOWED PROTOTYPE — the committed column-window approach
- *     (WindowedGridRenderer, tests/lp1-spike-harness.ts): the four eager
- *     grid DOM trees are detached (their renderer rAF loops keep running
- *     against detached nodes at compat-bars cost ≈ 0) and four windowed
- *     prototypes mount in a 2×2 stage fed by the same real session, playing
- *     the same dense chains. The HARD frame-budget law asserts HERE (the
- *     approach's proof — the number LL-1 builds against), plus the
- *     virtualization law (DOM cells ≪ 100k) and rewindowing during the
- *     scroll sweep.
+ * The retired test-only WindowedGridRenderer remains in the spike harness
+ * as historical evidence. Release gates exercise the shipped renderer above.
  * (b) HORIZONTAL SCROLL — a full programmatic sweep of the 2048-column
  *     grid's scrollport during playback, eager vs windowed.
  * (d) EXPORT — the REAL offline render pipeline (renderProjectToBuffer):
@@ -51,13 +44,7 @@ import { getSession } from "../../src/engine/session";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { renderProjectToBuffer } from "../../src/audio/render";
-import {
-  WindowedGridRenderer,
-  denseLead128Doc,
-  drumRowsFor,
-  longLoopDoc,
-  spansForPattern,
-} from "../lp1-spike-harness";
+import { denseLead128Doc, longLoopDoc } from "../lp1-spike-harness";
 // The committed stylesheet so the measured DOM paints under production CSS.
 import "../../src/styles/base.css";
 
@@ -76,7 +63,7 @@ const FRAME_PASS_RATIO = 0.95;
 // loud log (the measurement still runs and still prints, ungated, for
 // future evidence); the sweep's DOM follow-ups (window re-seat at column
 // 0, the per-toggle < 50 ms guard) and EVERY other ratio in this file —
-// including the (a″) prototype sweep — keep their 0.95 law EVERYWHERE.
+// keep their 0.95 law EVERYWHERE.
 // Local law byte-identical: on every non-Linux-CI host the PRODUCTION
 // sweep ratio keeps the 0.95 law.
 // The condition itself (recorded honestly): browser-mode test code runs
@@ -241,11 +228,13 @@ async function waitForQuietRaf(deadlineMs = 20_000): Promise<void> {
       const intervals: number[] = [];
       let last = performance.now();
       const start = last;
+      let warmed = false;
       const frame = () => {
         const now = performance.now();
         const d = now - last;
         last = now;
-        if (intervals.length > 0) intervals.push(d); // drop the warm-up tick
+        if (warmed) intervals.push(d);
+        warmed = true; // drop only the first tick, then actually measure
         if (now - start < 500) requestAnimationFrame(frame);
         else
           resolve(
@@ -335,7 +324,7 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
             host
               .querySelector('.lane-floor[data-lane="lead"] [role="grid"]')
               ?.getAttribute("aria-label")
-              ?.startsWith("LEAD grid · EDITING") === true,
+              ?.startsWith("Leads, track 4 grid · EDITING") === true,
           8000,
           "lead quadrant editable",
         );
@@ -398,11 +387,42 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         // TH-5 de-flake: quiet-precondition poll first (see waitForQuietRaf
         // — the ratio law itself is unchanged and HARD).
         await waitForQuietRaf();
+        // Manual interaction suspends playback follow, just as a held user drag does.
+        // Otherwise this benchmark makes two owners fight over scrollLeft.
+        leadScroll.querySelector<HTMLElement>(".cell")!.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            pointerId: 91,
+            isPrimary: true,
+            button: 0,
+            pointerType: "mouse",
+          }),
+        );
         const sweepPromise = sweepScroll(leadH, 2000);
         const scrollStats = frameStats(
           (await measureFrames(2000, [playheads[3]!])).intervals,
         );
         await sweepPromise;
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        const firstStep = Number(
+          leadScroll.querySelector<HTMLElement>(".row-cells .cell")!.dataset
+            .step,
+        );
+        expect(
+          firstStep,
+          "the manual sweep materialized the far end of the 2048-step pattern",
+        ).toBeGreaterThan(1900);
+        leadScroll.dispatchEvent(
+          new PointerEvent("pointercancel", {
+            bubbles: true,
+            pointerId: 91,
+            isPrimary: true,
+            pointerType: "mouse",
+          }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
         console.log(
           `[LP-1 (b) PRODUCTION windowed scroll sweep @2048 cols] ${scrollStats.n} frames, median ${scrollStats.median.toFixed(1)} ms, p95 ${scrollStats.p95.toFixed(1)} ms, max ${scrollStats.max.toFixed(1)} ms, ${(scrollStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms${onLinuxCI ? " — ratio law SKIPPED on Linux CI (device class, §10e; measured, not gated)" : ""}`,
         );
@@ -447,155 +467,6 @@ describe("LP-1 (a)(b): production column-window at 128 bars (LL-1)", () => {
         await stopPlay();
       } finally {
         await stopPlay();
-        cleanup();
-        await restoreDb(snap);
-      }
-    },
-  );
-});
-
-// ---------------------------------------------------------------------------
-// (a″) WINDOWED PROTOTYPE — the committed approach, HARD laws.
-// ---------------------------------------------------------------------------
-
-describe("LP-1 (a″)(b): column-windowed prototype at 128 bars (HARD frame law)", () => {
-  it(
-    "four windowed grids on the real session keep ≥95% frames < 33.4 ms; DOM cells ≪ 100k; rewindowing during the sweep",
-    { timeout: 120_000 },
-    async () => {
-      await page.viewport(1440, 900);
-      const { host, cleanup } = mountApp();
-      const snap = await snapshotDb();
-      const prototypes: WindowedGridRenderer[] = [];
-      const scrollers: HTMLElement[] = [];
-      let stage: HTMLElement | null = null;
-      try {
-        await waitFor(() => getAutosaveController() !== null, 10_000, "boot");
-        const doc = denseLead128Doc();
-        loadDocument(doc);
-        selectLane("lead");
-        await waitFor(
-          () => host.querySelectorAll(".lane-grid-scroll").length === 4,
-          8000,
-          "four quadrant scrollers",
-        );
-
-        // Detach the four eager grid DOM trees (their renderer rAF loops
-        // keep running against detached nodes at compat-bars cost ≈ 0 — the
-        // session, booth, rail, and audio stay fully real).
-        for (const lane of ["drums", "bass", "chords", "lead"])
-          quadrantScroll(lane, host).replaceChildren();
-
-        // The prototype stage: 2×2, sized like the quadrant stage.
-        stage = document.createElement("div");
-        stage.style.cssText =
-          "display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;height:720px;padding:8px;box-sizing:border-box;";
-        host.append(stage);
-
-        const geometry = {
-          drums: { cellPx: 20, gapPx: 2, labelPx: 72, rowHeightPx: 20 },
-          bass: { cellPx: 16, gapPx: 1, labelPx: 64, rowHeightPx: 16 },
-          chords: { cellPx: 16, gapPx: 1, labelPx: 64, rowHeightPx: 16 },
-          lead: { cellPx: 16, gapPx: 1, labelPx: 64, rowHeightPx: 16 },
-        } as const;
-        const labels = {
-          drums: ["KICK", "SNARE", "HAT", "OPENHAT", "CLAP", "TOM"],
-          bass: ["a", "b", "c", "d", "e", "f", "g"],
-          chords: ["a", "b", "c", "d", "e", "f", "g"],
-          lead: Array.from({ length: 15 }, (_, i) => `r${i}`),
-        } as const;
-
-        // The prototype's time basis: a wall-clock loop-time at the LANE's
-        // own cycle length (the transport's compat basis wraps at ≤4 bars
-        // until LL-2 lands; the render COST is basis-independent — the same
-        // bounded math runs either way, journaled). Self-arming on the
-        // first playing frame — no transport subscription to leak.
-        let playWallStart = 0;
-
-        for (const lane of ["drums", "bass", "chords", "lead"] as const) {
-          const scroller = document.createElement("div");
-          scroller.className = "lane-grid-scroll";
-          scroller.style.height = "100%";
-          scroller.style.overflowY = "hidden";
-          stage.append(scroller);
-          scrollers.push(scroller);
-          const pattern = doc.patterns[lane][0]!;
-          const steps = pattern.bars * 16;
-          const renderer = new WindowedGridRenderer({
-            container: scroller,
-            laneLabel: lane.toUpperCase(),
-            rowLabels: [...labels[lane]],
-            steps,
-            pitched: lane !== "drums",
-            geometry: geometry[lane],
-            readFrame: () => {
-              const snapT = session.transport.snapshot;
-              if (!snapT.playing) {
-                playWallStart = 0;
-                return null;
-              }
-              if (!playWallStart) playWallStart = performance.now() - 16;
-              const loopSecs = steps * (60 / snapT.bpm / 4);
-              const local =
-                ((performance.now() - playWallStart) / 1000) % loopSecs;
-              return {
-                playing: true,
-                loopTime: local,
-                groove: { bpm: snapT.bpm, swing: snapT.swing },
-                steps,
-              };
-            },
-          });
-          if (lane === "drums")
-            renderer.sync({ drumRows: drumRowsFor(pattern) });
-          else renderer.sync({ pitchedSpans: spansForPattern(pattern) });
-          prototypes.push(renderer);
-        }
-
-        const totalCells = prototypes.reduce((n, r) => n + r.cellCount(), 0);
-        console.log(
-          `[LP-1 (a″) windowed census @dense-128] ${totalCells.toLocaleString()} cells in DOM (vs ${EAGER_CELLS.toLocaleString()} eager) | per-grid windows: ${prototypes.map((r) => r.cellCount()).join("/")}`,
-        );
-        // The virtualization law: bounded by the window, not the pattern.
-        expect(totalCells).toBeLessThan(10_000);
-
-        await clickPlay();
-        const playheads = scrollers.map((s) =>
-          s.querySelector(".grid-playhead")!,
-        );
-        expect(playheads.every(Boolean)).toBe(true);
-        const win = await measureFrames(MEASURE_MS, playheads);
-        const winStats = frameStats(win.intervals);
-        console.log(
-          `[LP-1 (a″) windowed frames @dense-128, 4 s pure rendering] ${winStats.n} frames, median ${winStats.median.toFixed(1)} ms, p95 ${winStats.p95.toFixed(1)} ms, max ${winStats.max.toFixed(1)} ms, ${(winStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms | playhead moves/s: ${win.playheadMovesPerSec.map((m) => m.toFixed(0)).join("/")}`,
-        );
-        // THE LAW (the LL-1 build gate).
-        expect(winStats.ratio).toBeGreaterThanOrEqual(FRAME_PASS_RATIO);
-        win.playheadMovesPerSec.forEach((m) =>
-          expect(m).toBeGreaterThanOrEqual(MIN_PLAYHEAD_MOVES_PER_SEC),
-        );
-
-        // (b) windowed: full 2048-column sweep with rewindowing.
-        // TH-5 de-flake: quiet-precondition poll first (the ratio stays
-        // HARD — see waitForQuietRaf).
-        await waitForQuietRaf();
-        const leadScroller = scrollers[3]!;
-        const sweepPromise = sweepScroll(leadScroller, 2500);
-        const scrollStats = frameStats(
-          (await measureFrames(2500, [playheads[3]!])).intervals,
-        );
-        await sweepPromise;
-        const leadProto = prototypes[3]!;
-        console.log(
-          `[LP-1 (b) windowed scroll sweep @2048 cols] ${scrollStats.n} frames, median ${scrollStats.median.toFixed(1)} ms, p95 ${scrollStats.p95.toFixed(1)} ms, max ${scrollStats.max.toFixed(1)} ms, ${(scrollStats.ratio * 100).toFixed(1)}% < ${FRAME_BUDGET_MS} ms | rewindows ${leadProto.rewindows}, last rebuild ${leadProto.lastRewindowMs.toFixed(1)} ms`,
-        );
-        expect(scrollStats.ratio).toBeGreaterThanOrEqual(FRAME_PASS_RATIO);
-        expect(leadProto.rewindows).toBeGreaterThan(0);
-        await stopPlay();
-      } finally {
-        await stopPlay();
-        for (const r of prototypes) r.dispose();
-        stage?.remove();
         cleanup();
         await restoreDb(snap);
       }

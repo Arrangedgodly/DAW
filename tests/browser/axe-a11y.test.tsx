@@ -1,3 +1,4 @@
+import { setTheme, theme } from "../../src/state/theme";
 /**
  * DA-2 axe gate: run axe-core against the REAL mounted app in four states —
  * (1) the main screen as booted, (2) the booth scale popover open, (3) the
@@ -27,7 +28,6 @@ import { createDemoProject } from "../../src/document/demoSong";
 import { getAutosaveController } from "../../src/persist/boot";
 import { openRawProjectDb, type ProjectDb } from "../../src/persist/db";
 import { activeCompositionEngines } from "../../src/viz/compositionEngine";
-
 
 // DA-3 fix: App imports app.css/grid.css but NOT the token sheet (that is
 // main.tsx's job in the real bundle). Without tokens every var(--color-*)
@@ -138,7 +138,7 @@ function expectClean(violations: axe.Result[], state: string) {
     const detail = blocking
       .map(
         (v) =>
-          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ") + ": " + n.failureSummary).join(", ")}`,
       )
       .join("\n  ");
     throw new Error(`[${state}] critical/serious axe violations:\n  ${detail}`);
@@ -148,7 +148,7 @@ function expectClean(violations: axe.Result[], state: string) {
     const detail = unexpected
       .map(
         (v) =>
-          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+          `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ") + ": " + n.failureSummary).join(", ")}`,
       )
       .join("\n  ");
     throw new Error(
@@ -393,7 +393,10 @@ describe("DA-2 axe-core gate", () => {
         "transport stopped",
       );
       await waitFor(
-        () => host.querySelector(".viz-header p")?.textContent?.includes("Playback stopped") === true,
+        () =>
+          host
+            .querySelector(".viz-header p")
+            ?.textContent?.includes("Playback stopped") === true,
         5000,
         "idle line visible under the surface",
       );
@@ -408,13 +411,15 @@ describe("DA-2 axe-core gate", () => {
       );
       await page.viewport(390, 844);
       await waitFor(
-        () => host.querySelector(".app")?.getAttribute("data-stage") === "phone",
+        () =>
+          host.querySelector(".app")?.getAttribute("data-stage") === "phone",
         5000,
         "phone stage settled",
       );
       // M-4 (iteration 4): at phone width the VIZ toggle lives in the
       // options drawer — open it first (the toggle is the gate's entry).
-      host.querySelector<HTMLButtonElement>('[data-help="phone.options"]')!
+      host
+        .querySelector<HTMLButtonElement>('[data-help="phone.options"]')!
         .click();
       await waitFor(
         () => host.querySelector(".phone-options-drawer") !== null,
@@ -454,4 +459,26 @@ describe("DA-2 axe-core gate", () => {
       }
     }
   });
+});
+
+it("both palettes keep help text readable", async () => {
+  const initialTheme = theme();
+  const { host, cleanup } = mount();
+  try {
+    await settleDesktopStage(host);
+    for (const palette of ["dark", "light"] as const) {
+      setTheme(palette);
+      setHelpMode(true);
+      expectClean((await axe.run(host)).violations, `${palette} help`);
+      setHelpMode(false);
+      openHelp();
+      expectClean((await axe.run(host)).violations, `${palette} shortcuts`);
+      closeHelp();
+    }
+  } finally {
+    setHelpMode(false);
+    closeHelp();
+    setTheme(initialTheme);
+    cleanup();
+  }
 });

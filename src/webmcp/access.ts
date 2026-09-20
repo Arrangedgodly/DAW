@@ -53,7 +53,7 @@ export function confirmCurrentAgentTarget(): void {
   setError("");
 }
 
-/** User-only destination action. The agent tool cannot choose its own target. */
+/** Apply the destination confirmed in the agent conversation. */
 export async function saveAndStartAgentProject(): Promise<void> {
   if (status() !== "on" || targetBusy()) return;
   setTargetBusy(true);
@@ -72,7 +72,7 @@ export async function saveAndStartAgentProject(): Promise<void> {
       throw new Error(
         "Project storage is not ready. Try again after the project finishes loading.",
       );
-    const originalId = boot.getActiveProjectId();
+    const originalDocument = docStore.getState().doc;
     await controller.flush();
     if (controller.getStatus() === "error" || controller.isPending())
       throw new Error(
@@ -80,7 +80,7 @@ export async function saveAndStartAgentProject(): Promise<void> {
       );
     if (token !== generation) return;
     const { record, doc } = await createNewProject(db);
-    if (token !== generation || originalId !== boot.getActiveProjectId())
+    if (token !== generation || originalDocument !== docStore.getState().doc)
       return;
     // The final stop/flush must succeed before autosave is retargeted.
     await boot.switchToProject(record.id, { requireSaved: true });
@@ -179,7 +179,7 @@ export async function enableAgentAccess(
     const destinationTool: AgentTool = {
       name: "bitbounce_request_edit_target",
       description:
-        "Before changing anything, if it is unclear whether the user's current request should modify the open song or create a new one, call this tool and ask the user to choose in Projects. This revokes edit permission until the human chooses Edit this project or Save and start a new project. Do not choose on their behalf. Use get_project to check editTarget afterward; do not repeat this tool while waiting.",
+        "Pause edits while you ask the user in conversation whether to edit the current project or start a new project. After their answer, call bitbounce_confirm_edit_target. Never choose on their behalf.",
       inputSchema: {
         type: "object",
         properties: {
@@ -216,17 +216,68 @@ export async function enableAgentAccess(
         setTargetConfirmed(false);
         setTargetPrompt(input.task);
         showInfo(
-          "Choose where the agent should work in Projects: edit this project, or save it and start a new one.",
+          "Reply to your agent to choose the current project or a new one.",
         );
         return {
           editTarget: "awaiting_user_choice",
           message:
-            "Ask the user to choose the destination in Projects. All edits are blocked until they choose.",
+            "Ask the user in conversation, then call bitbounce_confirm_edit_target with their choice.",
+        };
+      },
+    };
+    const confirmTool: AgentTool = {
+      name: "bitbounce_confirm_edit_target",
+      description:
+        "Record the user's confirmed destination after asking in conversation. current edits the open project; new saves it and opens a separate empty project. Never infer consent. Read get_project for the latest revision first, and again after this call before editing.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          destination: { type: "string", enum: ["current", "new"] },
+          userConfirmed: { type: "boolean", const: true },
+          revision: { type: "integer", minimum: 0 },
+        },
+        required: ["destination", "userConfirmed", "revision"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false },
+      async execute(input, options) {
+        if (!active || status() !== "on")
+          throw new Error("Agent access is off.");
+        options?.signal?.throwIfAborted();
+        if (!input || typeof input !== "object")
+          throw new Error("Supply the user's confirmed destination.");
+        const args = input as Record<string, unknown>;
+        if (
+          Object.keys(args).some(
+            (key) =>
+              !["destination", "userConfirmed", "revision"].includes(key),
+          ) ||
+          args.userConfirmed !== true ||
+          !["current", "new"].includes(args.destination as string) ||
+          !Number.isInteger(args.revision) ||
+          args.revision !== group.revision()
+        )
+          throw new Error(
+            "Supply the user's confirmed destination and latest project revision.",
+          );
+        if (targetBusy())
+          throw new Error("A project switch is already in progress.");
+        if (args.destination === "new") await saveAndStartAgentProject();
+        else confirmCurrentAgentTarget();
+        if (!targetConfirmed())
+          throw new Error(
+            error() ||
+              "Destination confirmation was cancelled. Read the project again.",
+          );
+        return {
+          editTarget: "current_project_confirmed",
+          message:
+            "Read get_project for the selected project and latest revision before editing.",
         };
       },
     };
     const policy =
-      " If this request's destination is unclear, call bitbounce_request_edit_target and wait for the user to choose current or new project. Never assume the open song should be edited.";
+      " Verify with the user in conversation whether to edit the current project or start a new one. Record their choice with bitbounce_confirm_edit_target. If a later request is ambiguous, call bitbounce_request_edit_target and ask again. Never assume consent.";
     for (const tool of allTools) {
       const wrapped: AgentTool = {
         ...tool,
@@ -236,7 +287,7 @@ export async function enableAgentAccess(
             throw new Error("Agent access is off.");
           if (!tool.annotations.readOnlyHint && !targetConfirmed())
             throw new Error(
-              "Choose a work destination first. Ask the user to choose Edit this project or Save and start a new project in Projects.",
+              "Confirm the destination with the user in conversation, then call bitbounce_confirm_edit_target before editing.",
             );
           const signal = tool.annotations.readOnlyHint
             ? options?.signal
@@ -274,6 +325,12 @@ export async function enableAgentAccess(
       stop();
       return;
     }
+    await context.registerTool(confirmTool, { signal: controller.signal });
+    names.push(confirmTool.name);
+    if (generation !== token) {
+      stop();
+      return;
+    }
     setStatus("on");
   } catch (reason) {
     stop();
@@ -298,7 +355,7 @@ export function restoreBeforeAgent(): void {
   resetSession = undefined;
   setCheckpoint(null);
   showInfo(
-    "Restored the project from before the agent's first edit. Agent access is off. Undo reverses this restore.",
+    "Restored the project from before the agent's first edit. Agent edits are paused until you confirm a destination again. Undo reverses this restore.",
   );
 }
 
@@ -307,3 +364,25 @@ onDocumentReplaced(() => {
   setCheckpoint(null);
   resetSession = undefined;
 });
+
+/** Detect native or extension-provided WebMCP, including late injection. */
+export function startAutomaticAgentAccess(): () => void {
+  const detect = () => {
+    const context = modelContext();
+    if (
+      !targetBusy() &&
+      context &&
+      typeof context.registerTool === "function" &&
+      (status() === "off" || context !== registeredContext)
+    ) {
+      if (context !== registeredContext) disableAgentAccess();
+      void enableAgentAccess(context);
+    }
+  };
+  detect();
+  const timer = window.setInterval(detect, 1000);
+  return () => {
+    window.clearInterval(timer);
+    disableAgentAccess();
+  };
+}
