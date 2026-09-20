@@ -58,10 +58,11 @@ describe("CA-2 fuzz: decode parse surface is total (validate or typed-reject)", 
       expect(summary.valid).toBeGreaterThan(0);
       expect(summary.rejected).toBeGreaterThan(0);
     },
-    // Bounded work, but the soak needs wall-room for the awaited
-    // importProjectFile path AND the SV-2 dense 128-bar rotation seeds
-    // (~1.7 s / 2k cases measured; budget scales with case count).
-    Math.max(5_000, Math.ceil(CASES * 3)),
+    // This is a correctness corpus, not a performance benchmark. The current
+    // dense documents take 5-6 s locally alongside the full suite; hosted CI
+    // exceeded the historical 6 s timeout. Keep all cases and operation-count
+    // guards, with bounded wall-room for validation and awaited file imports.
+    Math.max(20_000, Math.ceil(CASES * 10)),
   );
 
   it("is deterministic: same seed replays identically", async () => {
