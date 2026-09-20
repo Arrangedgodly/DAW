@@ -99,3 +99,10 @@ samples. Previously it never recorded any samples and always waited its entire
 preserving the user's pitch register, and accessibility audits cover both themes.
 
 The desktop 200-edit cadence check uses rounded browser rAF timestamps with the same 33.4ms budget as VIZ, while measuring every edit callback separately against the 50ms blocking guard. Mixer coverage includes horizontal card geometry, master effects save/reorder/bypass/remove/undo, output filtering and preserving later FX edits when restoring Auto Mix.
+
+Hosted CI runs general browser checks on Ubuntu and the MP4 export plus three
+trusted-touch files on macOS 15. The Linux browser rejected native MP4 encoding
+on the actual release run; those five success-path tests must run where the
+required codecs exist. The macOS job also covers the four touch journeys that
+previously skipped Linux. Together the jobs execute all 263 browser tests;
+no encoding assertion is mocked or removed.
