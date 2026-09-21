@@ -1,26 +1,9 @@
+import { Portal } from "solid-js/web";
+import MixerParam from "./MixerParam";
+import MixerGraph, { type MixerSpectrum } from "./MixerGraph";
 import { MAX_FX_PER_MASTER, MAX_FX_PER_LANE } from "../document/fx";
-/**
- * FxStrip: the creative effects rack in the selected Mixer channel. One lit module per device in the lane's chain — reorderable (drag
- * AND keyboard move buttons), bypassable (lit/dimmed), removable — plus an
- * add-device menu capped at MAX_FX_PER_LANE.
- *
- * Vocabulary mapping (schema is authority for names): FILTER kind LP/HP/BP ·
- * cutoff Hz · Q — DRIVE amount % — CRUSH bits · decimation — DELAY sync unit
- * (1/8 · 1/8. · 1/4 · 1/2 → 16th steps) · feedback % · mix % — REVERB size
- * (readout in seconds via reverbSeconds) · mix %.
- *
- * Every param is a native range input / select (free a11y: arrow keys,
- * aria-valuetext carries the unit-formatted value) with a live --font-value
- * numeric readout (the variable-font-specimen raise). All writes go through
- * the store's FX actions; engineBridge pushes them to the session on the same
- * commit, so tweaks are audible immediately while looping (IM-4) and param
- * drags never touch the render loop (D1/Thor — the only DOM writes are the
- * readout spans Solid already owns).
- *
- * Glow law (D9): lane-hue border + fill tint code active/bypassed; the one
- * ≤180 ms one-shot flash on module add is decoration layered on top and is
- * suppressed under prefers-reduced-motion (matchMedia AND CSS).
- */
+/** Creative devices in the mixer. Store actions retain undo, persistence and
+ * live audio updates; position-keyed modules keep active controls mounted. */
 
 import {
   createSignal,
@@ -49,11 +32,8 @@ import {
   FX_DEVICE_TYPES,
   canMoveFx,
   cutoffToSlider,
-  formatFxParam,
   fxModuleList,
   laneFxChain,
-  paramToSlider,
-  sliderToParam,
 } from "../state/fxStrip";
 import { registerHelp } from "../help/registry";
 import { createLaneAccessibleNames } from "../state/laneDisplayNames";
@@ -104,7 +84,7 @@ registerHelp([
   {
     id: "fx.param",
     title: "FX PARAMETER",
-    text: "A device setting. Drag the slider, or focus it and use the arrow keys — every change is heard immediately, even mid-play.",
+    text: "A device setting. Drag the dial vertically, type a value, or use the arrow keys — every change is heard immediately, even mid-play.",
   },
 ]);
 
@@ -118,6 +98,7 @@ function readChain(lane: LaneId | "master") {
 
 export default function FxStrip(props: {
   lane: LaneId | "master";
+  spectrum?: MixerSpectrum;
 }): JSX.Element {
   const laneNames = createLaneAccessibleNames();
   const [chain, setChain] = createSignal(readChain(props.lane));
@@ -208,6 +189,7 @@ export default function FxStrip(props: {
           {(mod) => (
             <FxModuleView
               lane={props.lane}
+              spectrum={props.spectrum}
               mod={mod()}
               count={modules().length}
               flash={flashIndex() === mod().index}
@@ -241,66 +223,68 @@ export default function FxStrip(props: {
         </Show>
       </div>
 
-      <div class="fx-strip-footer">
-        <Show
-          when={!full()}
-          fallback={
-            <span class="fx-strip-cap">
-              CHAIN FULL — {capacity()} DEVICES MAX
-            </span>
-          }
-        >
-          <button
-            type="button"
-            ref={(el) => {
-              fxEntry = el;
-            }}
-            class="fx-add-btn"
-            data-help="fx.add"
-            aria-haspopup="menu"
-            aria-expanded={addOpen()}
-            onClick={() => (addOpen() ? closeAddMenu() : openAddMenu())}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                e.preventDefault();
-                if (!addOpen()) openAddMenu();
-              }
-            }}
+      <Portal mount={document.getElementById("mixer-fx-tools")!}>
+        <div class="fx-strip-footer">
+          <Show
+            when={!full()}
+            fallback={
+              <span class="fx-strip-cap">
+                CHAIN FULL — {capacity()} DEVICES MAX
+              </span>
+            }
           >
-            + ADD FX
-          </button>
-          <Show when={addOpen()}>
-            <div
+            <button
+              type="button"
               ref={(el) => {
-                addMenu = el;
+                fxEntry = el;
               }}
-              class="fx-add-menu"
-              role="menu"
-              aria-label={`Add FX device to ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
+              class="fx-add-btn"
+              data-help="fx.add"
+              aria-haspopup="menu"
+              aria-expanded={addOpen()}
+              onClick={() => (addOpen() ? closeAddMenu() : openAddMenu())}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  closeAddMenu();
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  if (!addOpen()) openAddMenu();
                 }
               }}
             >
-              <For each={FX_DEVICE_TYPES}>
-                {(type) => (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    class="fx-add-item"
-                    data-help={`fx.device.${type}`}
-                    onClick={() => handleAdd(type)}
-                  >
-                    {FX_DEVICE_SPECS[type].label}
-                  </button>
-                )}
-              </For>
-            </div>
+              + ADD FX
+            </button>
+            <Show when={addOpen()}>
+              <div
+                ref={(el) => {
+                  addMenu = el;
+                }}
+                class="fx-add-menu"
+                role="menu"
+                aria-label={`Add FX device to ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    closeAddMenu();
+                  }
+                }}
+              >
+                <For each={FX_DEVICE_TYPES}>
+                  {(type) => (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="fx-add-item"
+                      data-help={`fx.device.${type}`}
+                      onClick={() => handleAdd(type)}
+                    >
+                      {FX_DEVICE_SPECS[type].label}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </Show>
           </Show>
-        </Show>
-      </div>
+        </div>
+      </Portal>
     </div>
   );
 }
@@ -336,6 +320,7 @@ function moduleMeter(mod: FxModule): number {
 function FxModuleView(props: {
   lane: LaneId | "master";
   mod: FxModule;
+  spectrum?: MixerSpectrum;
   count: number;
   flash: boolean;
   dropping: boolean;
@@ -352,6 +337,7 @@ function FxModuleView(props: {
   return (
     <div
       class="fx-mod"
+      data-device={m().device.type}
       style={{ "--fx-meter": moduleMeter(m()) }}
       classList={{
         "is-bypassed": m().device.bypassed,
@@ -362,7 +348,17 @@ function FxModuleView(props: {
       aria-label={`${label()} module ${m().index + 1} of ${props.count}${m().device.bypassed ? ", bypassed" : ""}`}
       data-help={`fx.device.${m().device.type}`}
       draggable={true}
-      onDragStart={props.onDragStart}
+      onDragStart={(e) => {
+        if (
+          (e.target as HTMLElement).closest(
+            ".mixer-param, .mixer-graph-wrap, .mixer-segments",
+          )
+        ) {
+          e.preventDefault();
+          return;
+        }
+        props.onDragStart();
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         props.onDragOver();
@@ -433,7 +429,14 @@ function FxModuleView(props: {
             aria-label={`Remove ${label()} module`}
             onClick={props.onRemove}
           >
-            <span aria-hidden="true">×</span>
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="m4 4 8 8M12 4l-8 8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
           </button>
         </span>
       </header>
@@ -448,11 +451,30 @@ function FxModuleView(props: {
             />
           )}
         </For>
-        <For each={m().spec.sliders}>
-          {(slider) => (
-            <FxSliderControl lane={props.lane} mod={m()} slider={slider} />
-          )}
-        </For>
+        <Show when={m().device.type === "filter"}>
+          <MixerGraph
+            filter={
+              m().device.params as {
+                kind: BiquadFilterType;
+                cutoffHz: number;
+                q: number;
+              }
+            }
+            enabled={!m().device.bypassed}
+            spectrum={props.spectrum}
+            set={(values) => {
+              for (const [key, value] of Object.entries(values))
+                setFxParam(props.lane, m().index, key, value);
+            }}
+          />
+        </Show>
+        <div class="fx-dials">
+          <For each={m().spec.sliders}>
+            {(slider) => (
+              <FxSliderControl lane={props.lane} mod={m()} slider={slider} />
+            )}
+          </For>
+        </div>
       </div>
     </div>
   );
@@ -467,41 +489,33 @@ function FxSliderControl(props: {
   mod: FxModule;
   slider: FxSliderSpec;
 }): JSX.Element {
-  const laneNames = createLaneAccessibleNames();
   const s = () => props.slider;
   const value = () =>
     (props.mod.device.params as Record<string, number | string>)[
       s().key
     ] as number;
-  const readout = () => formatFxParam(props.mod.device.type, s().key, value());
-
+  const percent = () => s().max <= 1;
+  const scale = () => (percent() ? 100 : 1);
   return (
-    <label class="fx-param" data-help="fx.param">
-      <span class="fx-param-label" aria-hidden="true">
-        {s().label}
-      </span>
-      <input
-        type="range"
-        class="fx-param-slider"
-        min={s().log ? 0 : s().min}
-        max={s().log ? 1000 : s().max}
-        step={s().log ? 1 : s().step}
-        value={paramToSlider(s(), value())}
-        aria-label={`${s().label} of ${props.mod.spec.label} on ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
-        aria-valuetext={readout()}
-        onInput={(e) =>
-          setFxParam(
-            props.lane,
-            props.mod.index,
-            s().key,
-            sliderToParam(s(), Number(e.currentTarget.value)),
-          )
-        }
-      />
-      <span class="fx-param-readout" data-testid="fx-readout">
-        {readout()}
-      </span>
-    </label>
+    <MixerParam
+      label={`${s().label.charAt(0)}${s().label.slice(1).toLowerCase()}`}
+      value={value() * scale()}
+      min={s().min * scale()}
+      max={s().max * scale()}
+      step={s().step * scale()}
+      log={s().log}
+      compact={props.mod.device.type === "filter"}
+      unit={
+        percent()
+          ? "%"
+          : s().key === "cutoffHz"
+            ? "Hz"
+            : s().key === "q"
+              ? "Q"
+              : ""
+      }
+      set={(v) => setFxParam(props.lane, props.mod.index, s().key, v / scale())}
+    />
   );
 }
 
@@ -519,28 +533,23 @@ function FxChoiceControl(props: {
     c().options[0]!.value;
 
   return (
-    <label class="fx-param fx-param-choice" data-help="fx.param">
-      <span class="fx-param-label" aria-hidden="true">
-        {c().label}
-      </span>
-      <select
-        class="fx-param-select"
-        value={String(current())}
-        aria-label={`${c().label} of ${props.mod.spec.label} on ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
-        onChange={(e) => {
-          const opt = c().options.find(
-            (o) => String(o.value) === e.currentTarget.value,
-          );
-          if (opt) setFxParam(props.lane, props.mod.index, c().key, opt.value);
-        }}
-      >
-        <For each={c().options}>
-          {(opt) => <option value={String(opt.value)}>{opt.label}</option>}
-        </For>
-      </select>
-      <span class="fx-param-readout" data-testid="fx-readout">
-        {formatFxParam(props.mod.device.type, c().key, current())}
-      </span>
-    </label>
+    <div
+      class="mixer-segments"
+      role="group"
+      aria-label={`${c().label} of ${props.mod.spec.label} on ${props.lane === "master" ? "Master" : laneNames(props.lane)}`}
+    >
+      <For each={c().options}>
+        {(opt) => (
+          <button
+            aria-pressed={String(current()) === String(opt.value)}
+            onClick={() =>
+              setFxParam(props.lane, props.mod.index, c().key, opt.value)
+            }
+          >
+            {opt.label}
+          </button>
+        )}
+      </For>
+    </div>
   );
 }

@@ -105,7 +105,9 @@ describe("Mixer and relocated creative effects", () => {
         expect(
           cards.every(
             (rect) =>
-              rect.width <= 320 && Math.abs(rect.top - cards[0].top) < 1,
+              rect.width >= 185 &&
+              rect.height === 308 &&
+              Math.abs(rect.top - cards[0].top) < 1,
           ),
         ).toBe(true);
         expect(

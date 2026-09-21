@@ -1,3 +1,6 @@
+import MixerParam from "./MixerParam";
+import type { MixerSpectrum } from "./MixerGraph";
+import MixerEq from "./MixerEq";
 import {
   createEffect,
   createMemo,
@@ -63,7 +66,7 @@ registerHelp([
   {
     id: "mixer.eq",
     title: "EQUALIZER",
-    text: "Enable the equalizer to shape this track. Low cut removes frequencies below its cutoff. Low and high shelves adjust bass and treble. Mid gain boosts or cuts around Mid frequency. Bypass lets you compare without losing your settings.",
+    text: "Add up to eight EQ bands. Select a numbered node to change its type, frequency, gain or Q. Every band can move across the full frequency range. Drag nodes or use arrow keys; hold Shift to adjust Q. Bypass a band or the whole equalizer to compare without losing settings.",
   },
   {
     id: "mixer.compressor",
@@ -116,7 +119,7 @@ function CompressorControls(props: {
   const set = (key: keyof Compressor, value: number | boolean) =>
     props.set({ ...props.value, [key]: value });
   return (
-    <section class="mixer-device" data-help="mixer.compressor">
+    <section class="mixer-device mixer-compressor" data-help="mixer.compressor">
       <div class="mixer-device-heading">
         <h3>{props.title}</h3>
         <button
@@ -128,7 +131,7 @@ function CompressorControls(props: {
         </button>
       </div>
       <div class="mixer-control-grid">
-        <Slider
+        <MixerParam
           label="Threshold"
           value={props.value.threshold}
           min={-60}
@@ -136,7 +139,7 @@ function CompressorControls(props: {
           unit=" dB"
           set={(v) => set("threshold", v)}
         />
-        <Slider
+        <MixerParam
           label="Ratio"
           value={props.value.ratio}
           min={1}
@@ -145,7 +148,7 @@ function CompressorControls(props: {
           unit=":1"
           set={(v) => set("ratio", v)}
         />
-        <Slider
+        <MixerParam
           label="Attack"
           value={props.value.attack * 1000}
           min={1}
@@ -153,7 +156,7 @@ function CompressorControls(props: {
           unit=" ms"
           set={(v) => set("attack", v / 1000)}
         />
-        <Slider
+        <MixerParam
           label="Release"
           value={props.value.release * 1000}
           min={20}
@@ -161,7 +164,7 @@ function CompressorControls(props: {
           unit=" ms"
           set={(v) => set("release", v / 1000)}
         />
-        <Slider
+        <MixerParam
           label="Makeup"
           value={props.value.makeup}
           min={0}
@@ -197,6 +200,8 @@ export default function MixerPage(): JSX.Element {
       { peak: number; rms: number; reduction: number; limiter: number }
     >
   >({});
+  const [spectrum, setSpectrum] = createSignal<MixerSpectrum>();
+  const [autoOpen, setAutoOpen] = createSignal(false);
   const session = getSession();
   onMount(() => {
     const timer = window.setInterval(() => {
@@ -213,6 +218,9 @@ export default function MixerPage(): JSX.Element {
         };
       }
       setMeters(values);
+      const bins = new Float32Array(2048);
+      const sampleRate = session.readMixerSpectrum(selected(), bins);
+      setSpectrum({ bins, sampleRate });
     }, 80);
     onCleanup(() => {
       clearInterval(timer);
@@ -420,11 +428,25 @@ export default function MixerPage(): JSX.Element {
       <header class="mixer-heading">
         <div>
           <h1>Mixer</h1>
-          <p>Balance your instruments. Shape the sound.</p>
         </div>
-        <span>{ids().length} tracks + master</span>
+        <div class="mixer-heading-actions">
+          <span>{ids().length} tracks + master</span>
+          <button
+            aria-expanded={autoOpen()}
+            aria-controls="mixer-auto-panel"
+            onClick={() => setAutoOpen(!autoOpen())}
+          >
+            Auto Mix
+          </button>
+        </div>
       </header>
-      <section data-help="mixer.auto" class="mixer-auto" aria-label="Auto Mix">
+      <section
+        id="mixer-auto-panel"
+        hidden={!autoOpen()}
+        data-help="mixer.auto"
+        class="mixer-auto"
+        aria-label="Auto Mix"
+      >
         <div>
           <h2>Auto Mix</h2>
           <p>
@@ -560,6 +582,23 @@ export default function MixerPage(): JSX.Element {
             return (
               <section
                 class="mixer-strip"
+                role="group"
+                tabIndex={0}
+                aria-label={`${accessibleTitle()} channel`}
+                onPointerDown={() => {
+                  setSelected(id);
+                  if (id !== "master") selectLane(id);
+                }}
+                onKeyDown={(e) => {
+                  if (
+                    e.target === e.currentTarget &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault();
+                    setSelected(id);
+                    if (id !== "master") selectLane(id);
+                  }
+                }}
                 data-help="mixer.channel"
                 data-lane={id}
                 classList={{
@@ -632,6 +671,25 @@ export default function MixerPage(): JSX.Element {
                       : setLaneMix(id, { volume: v <= -60 ? 0 : dbToGain(v) })
                   }
                 />
+                <Show when={id !== "master"}>
+                  <div class="mixer-channel-pan">
+                    <MixerParam
+                      compact
+                      label="Pan"
+                      min={-100}
+                      max={100}
+                      value={
+                        (doc().mixer?.channels[id as LaneId]?.pan ?? 0) * 100
+                      }
+                      set={(v) =>
+                        setChannelProcessing(id as LaneId, (p) => ({
+                          ...p,
+                          pan: v / 100,
+                        }))
+                      }
+                    />
+                  </div>
+                </Show>
                 <Show
                   when={id !== "master"}
                   fallback={
@@ -693,6 +751,7 @@ export default function MixerPage(): JSX.Element {
             Compression reducing{" "}
             {Math.abs(meters()[selected()]?.reduction ?? 0).toFixed(1)} dB
           </span>
+          <div id="mixer-fx-tools" />
         </header>
         <div
           class="mixer-rack"
@@ -702,7 +761,7 @@ export default function MixerPage(): JSX.Element {
           tabIndex={0}
         >
           <Show when={selected()} keyed>
-            {(id) => <FxStrip lane={id} />}
+            {(id) => <FxStrip lane={id} spectrum={spectrum()} />}
           </Show>
           <Show
             when={selected() !== "master"}
@@ -715,7 +774,10 @@ export default function MixerPage(): JSX.Element {
                     setMasterProcessing((p) => ({ ...p, compressor: value }))
                   }
                 />
-                <section class="mixer-device" data-help="mixer.limiter">
+                <section
+                  class="mixer-device mixer-limiter"
+                  data-help="mixer.limiter"
+                >
                   <div class="mixer-device-heading">
                     <h3>Sample-peak limiter</h3>
                     <button
@@ -734,12 +796,8 @@ export default function MixerPage(): JSX.Element {
                       {master().limiter.enabled ? "On" : "Bypassed"}
                     </button>
                   </div>
-                  <p>
-                    Catches peaks without lookahead. Bypassing returns to
-                    Bitbounce's original output protection.
-                  </p>
                   <div class="mixer-control-grid">
-                    <Slider
+                    <MixerParam
                       label="Ceiling"
                       min={-12}
                       max={-0.1}
@@ -753,7 +811,7 @@ export default function MixerPage(): JSX.Element {
                         }))
                       }
                     />
-                    <Slider
+                    <MixerParam
                       label="Limiter release"
                       min={20}
                       max={500}
@@ -771,88 +829,11 @@ export default function MixerPage(): JSX.Element {
               </>
             }
           >
-            <div class="mixer-pan mixer-device" data-help="mixer.pan">
-              <div class="mixer-device-heading">
-                <h3>Pan</h3>
-              </div>
-              <Slider
-                label="Pan"
-                min={-100}
-                max={100}
-                value={current().pan * 100}
-                unit=" · L / R"
-                set={(v) => patch((p) => ({ ...p, pan: v / 100 }))}
-              />
-            </div>
-            <section class="mixer-device" data-help="mixer.eq">
-              <div class="mixer-device-heading">
-                <h3>Equalizer</h3>
-                <button
-                  aria-label={`${current().eq.enabled ? "Bypass" : "Enable"} equalizer`}
-                  aria-pressed={current().eq.enabled}
-                  onClick={() =>
-                    patch((p) => ({
-                      ...p,
-                      eq: { ...p.eq, enabled: !p.eq.enabled },
-                    }))
-                  }
-                >
-                  {current().eq.enabled ? "On" : "Bypassed"}
-                </button>
-              </div>
-              <div class="mixer-control-grid">
-                <Slider
-                  label="Low cut"
-                  min={20}
-                  max={400}
-                  value={current().eq.lowCut}
-                  unit=" Hz"
-                  set={(v) =>
-                    patch((p) => ({ ...p, eq: { ...p.eq, lowCut: v } }))
-                  }
-                />
-                <Slider
-                  label="Low shelf"
-                  min={-12}
-                  max={12}
-                  step={0.1}
-                  value={current().eq.low}
-                  unit=" dB"
-                  set={(v) => patch((p) => ({ ...p, eq: { ...p.eq, low: v } }))}
-                />
-                <Slider
-                  label="Mid gain"
-                  min={-12}
-                  max={12}
-                  step={0.1}
-                  value={current().eq.mid}
-                  unit=" dB"
-                  set={(v) => patch((p) => ({ ...p, eq: { ...p.eq, mid: v } }))}
-                />
-                <Slider
-                  label="Mid frequency"
-                  min={150}
-                  max={8000}
-                  step={10}
-                  value={current().eq.midHz}
-                  unit=" Hz"
-                  set={(v) =>
-                    patch((p) => ({ ...p, eq: { ...p.eq, midHz: v } }))
-                  }
-                />
-                <Slider
-                  label="High shelf"
-                  min={-12}
-                  max={12}
-                  step={0.1}
-                  value={current().eq.high}
-                  unit=" dB"
-                  set={(v) =>
-                    patch((p) => ({ ...p, eq: { ...p.eq, high: v } }))
-                  }
-                />
-              </div>
-            </section>
+            <MixerEq
+              value={current().eq}
+              spectrum={spectrum()}
+              set={(eq) => patch((p) => ({ ...p, eq }))}
+            />
             <CompressorControls
               title="Channel compressor"
               value={current().compressor}

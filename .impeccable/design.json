@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-13T05:44:57.032Z",
+  "generatedAt": "2026-09-21T21:14:18.737Z",
   "title": "Design System: Bitbounce Membrane",
   "extensions": {
     "source": "src/styles/membrane.css",
@@ -78,7 +78,25 @@
     "phoneHelp": "Phone Options includes optional Help. A native topic picker reveals one registered explanation at a time for drawing, navigation, pitch controls and effects. Help and the picker retain 44px targets; long explanations scroll inside a bounded text region. Close help returns to Options; Escape closes Help first and restores its trigger, then closes Options on the next press. Reading help does not require touching a musical control or changing the song. Pitched help topics follow the active instrument, including extra tracks; drums omit them.",
     "controlTerminology": "Sound-changing octave controls read Transpose (Oct), both beside desktop presets and in phone Options. Grid navigation reads View Oct and View Semi. Keep these labels and their accessible action names distinct: Transpose changes playback and exports; View only changes the visible register. Help uses the same terms.",
     "instrumentAccessibility": "Runtime accessible names use the visible category first, followed by the stable track number, such as Keys, track 4. Apply the same identity to instrument regions, presets, mix controls, grid navigation, phone controls and arrangement chains. Names update when presets change. Update the grid's accessible label in place; do not rebuild it merely to change its name. Existing preset changes that alter the pitch domain retain their normal grid behavior. Static help entries keep stable registry IDs.",
-    "closingCritique": ".impeccable/critique/2026-09-13T05-43-59Z__src-app-tsx.md"
+    "closingCritique": ".impeccable/critique/2026-09-13T05-43-59Z__src-app-tsx.md",
+    "mixer": {
+      "approval": "User approved prototype D and its flexible EQ study for production on 2026-09-21. References are archived under docs/dev/mixer-prototype/ on codex/mixer-design-prototypes at commit bb506b788996120383411ba6e89ce849d4b1588f. Production does not depend on those files. Membrane remains the visual world.",
+      "surface": ".impeccable/surfaces/mixer.md",
+      "source": [
+        "src/components/MixerPage.tsx",
+        "src/components/MixerParam.tsx",
+        "src/components/MixerEq.tsx",
+        "src/components/MixerGraph.tsx",
+        "src/components/FxStrip.tsx",
+        "src/styles/mixer.css",
+        "src/engine/session.ts",
+        "src/document/mixer.ts"
+      ],
+      "layout": "Compact channel cards selectable anywhere; Pan inside track cards. Auto Mix is a heading disclosure. Separate horizontal scroll lanes for channels and equal-height devices. Heights are 308px desktop and 354px phone/coarse pointer. Widths vary by device and grow into available space. EQ has a 390px desktop minimum and flex basis; on phones/coarse pointers both are min(390px, 100vw - 40px), without growing. Numbered band selectors scroll horizontally.",
+      "controls": "Vertical pairs of 76px dials with exact numeric fields; Compressor 56px dials in three columns; Drive 110px dial. Filter has draggable keyboard-adjustable response handles and compact values. EQ has zero to eight stable numbered bands, Add/Remove, seven interchangeable types, Frequency and conditionally enabled Gain/Q fields, individual and global bypass. Handles move through 20 Hz–20 kHz; Shift-drag or Shift-arrow adjusts Q where supported. EQ labels are 10px Barlow and values 11px IBM Plex Mono. Phone buttons and handles have 44px minimum targets.",
+      "plots": "Disconnected biquads calculate the authored response. Existing stereo output meter taps supply a separately labeled Output spectrum · dBFS trace. Bypass retains the response with a dashed line and explicit label. EQ uses a 128px graph with a combined enabled-band response, a muted dashed selected-band curve and heavier selected-node outline.",
+      "verification": "Checked MixerEq, MixerGraph, mixer styles and document schema for this refresh; JSON syntax and scoped diff validated. Final flexible-EQ captures are .impeccable/review/mixer-approved-desktop.png and .impeccable/review/mixer-eq-mobile.png. Runtime verification and release belong to the parent task; this documentation does not claim deployment."
+    }
   },
   "components": [
     {

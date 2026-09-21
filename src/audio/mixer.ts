@@ -1,5 +1,7 @@
 import {
   DEFAULT_CHANNEL,
+  equalizerBands,
+  MAX_EQ_BANDS,
   DEFAULT_MASTER,
   type ChannelProcessing,
   type Compressor,
@@ -83,26 +85,20 @@ export function createChannelProcessing(
     eqDry = ctx.createGain(),
     eqWet = ctx.createGain(),
     eqOut = ctx.createGain();
-  const hp = ctx.createBiquadFilter(),
-    low = ctx.createBiquadFilter(),
-    mid = ctx.createBiquadFilter(),
-    high = ctx.createBiquadFilter();
-  hp.type = "highpass";
-  hp.Q.value = Math.SQRT1_2;
-  low.type = "lowshelf";
-  low.frequency.value = 150;
-  mid.type = "peaking";
-  mid.Q.value = 0.7;
-  high.type = "highshelf";
-  high.frequency.value = 6000;
   input.connect(eqDry).connect(eqOut);
-  input
-    .connect(hp)
-    .connect(low)
-    .connect(mid)
-    .connect(high)
-    .connect(eqWet)
-    .connect(eqOut);
+  // Fixed slots keep the graph connected while bands are added, removed or bypassed.
+  let previous: AudioNode = input;
+  const slots = Array.from({ length: MAX_EQ_BANDS }, () => {
+    const filter = ctx.createBiquadFilter(),
+      dry = ctx.createGain(),
+      wet = ctx.createGain(),
+      out = ctx.createGain();
+    previous.connect(dry).connect(out);
+    previous.connect(filter).connect(wet).connect(out);
+    previous = out;
+    return { filter, dry, wet };
+  });
+  previous.connect(eqWet).connect(eqOut);
   const comp = compressor(ctx),
     pan = ctx.createStereoPanner();
   eqOut.connect(comp.input);
@@ -110,11 +106,19 @@ export function createChannelProcessing(
   const set = (p: ChannelProcessing, initial = false) => {
     ramp(ctx, eqDry.gain, p.eq.enabled ? 0 : 1, initial);
     ramp(ctx, eqWet.gain, p.eq.enabled ? 1 : 0, initial);
-    ramp(ctx, hp.frequency, p.eq.lowCut, initial);
-    ramp(ctx, low.gain, p.eq.low, initial);
-    ramp(ctx, mid.frequency, p.eq.midHz, initial);
-    ramp(ctx, mid.gain, p.eq.mid, initial);
-    ramp(ctx, high.gain, p.eq.high, initial);
+    const bands = equalizerBands(p.eq);
+    slots.forEach((slot, index) => {
+      const band = bands[index],
+        enabled = band?.enabled ?? false;
+      if (band) {
+        slot.filter.type = band.type;
+        ramp(ctx, slot.filter.frequency, band.frequency, initial);
+        ramp(ctx, slot.filter.Q, band.q, initial);
+        ramp(ctx, slot.filter.gain, band.gain, initial);
+      }
+      ramp(ctx, slot.dry.gain, enabled ? 0 : 1, initial);
+      ramp(ctx, slot.wet.gain, enabled ? 1 : 0, initial);
+    });
     ramp(ctx, pan.pan, p.pan, initial);
     comp.set(p.compressor, initial);
   };

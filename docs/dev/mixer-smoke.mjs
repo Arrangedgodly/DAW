@@ -51,13 +51,16 @@ try {
     scrollWidth: el.scrollWidth,
     cards: [...el.querySelectorAll(".fx-mod, .mixer-device")].map((card) => {
       const r = card.getBoundingClientRect();
-      return { width: r.width, top: r.top, left: r.left };
+      return { width: r.width, height: r.height, top: r.top, left: r.left };
     }),
   }));
   assert.equal(rack.cards.length, 4);
   assert.ok(
     rack.cards.every(
-      (card) => card.width <= 320 && Math.abs(card.top - rack.cards[0].top) < 1,
+      (card) =>
+        card.width >= 185 &&
+        card.height === 308 &&
+        Math.abs(card.top - rack.cards[0].top) < 1,
     ),
   );
   assert.ok(
@@ -72,6 +75,7 @@ try {
     () => document.documentElement.scrollWidth > innerWidth,
   );
   assert.equal(overflowDesktop, false);
+  await page.getByRole("button", { name: "Auto Mix", exact: true }).click();
   await page
     .getByRole("button", { name: "Analyze arrangement", exact: true })
     .click();
@@ -99,6 +103,7 @@ try {
       .getByRole("button", { name: "Instruments 1–4", exact: true })
       .click();
     await page.getByRole("button", { name: "Mixer", exact: true }).click();
+    await page.getByRole("button", { name: "Auto Mix", exact: true }).click();
     await page
       .getByRole("button", { name: "Restore before Auto Mix", exact: true })
       .click();

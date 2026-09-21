@@ -8,6 +8,7 @@ import {
 import {
   DEFAULT_CHANNEL,
   DEFAULT_MASTER,
+  equalizerBands,
   type ChannelProcessing,
   type MasterProcessing,
 } from "../../src/document/mixer";
@@ -184,4 +185,60 @@ it("master filter processes the summed output and bypass restores the dry signal
     rms(dry.getChannelData(0)),
     5,
   );
+});
+describe("flexible EQ audio", () => {
+  it("renders converted legacy bands identically to old documents", async () => {
+    const eq = {
+      ...DEFAULT_CHANNEL.eq,
+      enabled: true,
+      lowCut: 65,
+      low: 2,
+      mid: -3,
+      midHz: 750,
+      high: 4,
+    };
+    const legacy = await render({ ...DEFAULT_CHANNEL, eq });
+    const converted = await render({
+      ...DEFAULT_CHANNEL,
+      eq: { ...eq, bands: [...equalizerBands(eq)] },
+    });
+    expect(Array.from(converted.getChannelData(0))).toEqual(
+      Array.from(legacy.getChannelData(0)),
+    );
+  });
+  it("applies changed types and positions, and bypasses individual or removed bands", async () => {
+    const band = {
+      id: 1,
+      type: "notch" as const,
+      frequency: 250,
+      gain: 0,
+      q: 2,
+      enabled: true,
+    };
+    const withBands = (bands: import("../../src/document/mixer").EqBand[]) => ({
+      ...DEFAULT_CHANNEL,
+      eq: { ...DEFAULT_CHANNEL.eq, enabled: true, bands },
+    });
+    const dry = rms((await render(withBands([]))).getChannelData(0));
+    const notch = rms((await render(withBands([band]))).getChannelData(0));
+    const moved = rms(
+      (await render(withBands([{ ...band, frequency: 4000 }]))).getChannelData(
+        0,
+      ),
+    );
+    const bell = rms(
+      (
+        await render(withBands([{ ...band, type: "peaking", gain: 6 }]))
+      ).getChannelData(0),
+    );
+    const bypass = rms(
+      (await render(withBands([{ ...band, enabled: false }]))).getChannelData(
+        0,
+      ),
+    );
+    expect(notch).toBeLessThan(dry * 0.01);
+    expect(moved).toBeGreaterThan(dry * 0.98);
+    expect(bell).toBeGreaterThan(dry * 1.9);
+    expect(bypass).toBeCloseTo(dry, 6);
+  });
 });

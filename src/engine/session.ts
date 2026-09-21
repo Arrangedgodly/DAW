@@ -1550,6 +1550,23 @@ export class Session {
     return { peak, rms: Math.sqrt(sum / (meter.samples.length * 2)) };
   }
 
+  /** Reuses the stereo meter taps without adding audio connections. */
+  readMixerSpectrum(
+    lane: LaneId | "master",
+    out: Float32Array<ArrayBuffer>,
+  ): number {
+    const meter = this.mixerTaps.get(lane);
+    if (!meter) {
+      out.fill(-Infinity);
+      return 48000;
+    }
+    meter.taps[0].getFloatFrequencyData(out);
+    const right = new Float32Array(out.length);
+    meter.taps[1].getFloatFrequencyData(right);
+    for (let i = 0; i < out.length; i++) out[i] = Math.max(out[i], right[i]);
+    return meter.taps[0].context.sampleRate;
+  }
+
   setMixer(settings: MixerSettings | undefined): void {
     this.mixerSettings = settings ?? DEFAULT_MIXER;
     this.laneProcessing.forEach((node, i) =>

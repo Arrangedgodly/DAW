@@ -6,12 +6,10 @@
   "tabletTargetsFit": true,
   "tabletGeometry": {
     "coarse": true,
-    "stripWidth": 176,
+    "stripWidth": 230,
     "buttonHeight": 44,
-    "grid": "minmax(176px, 1fr)",
-    "styles": [
-      "http://127.0.0.1:5195/assets/index-VTprcesy.css"
-    ]
+    "grid": "230px",
+    "styles": []
   },
   "checks": [
     "navigation",

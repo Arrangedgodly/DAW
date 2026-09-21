@@ -3,6 +3,24 @@ import { FxDeviceSchema, MAX_FX_PER_MASTER } from "./fx";
 
 const bounded = (min: number, max: number) =>
   v.pipe(v.number(), v.finite(), v.minValue(min), v.maxValue(max));
+export const EQ_BAND_TYPES = [
+  "peaking",
+  "lowshelf",
+  "highshelf",
+  "highpass",
+  "lowpass",
+  "notch",
+  "bandpass",
+] as const;
+export const MAX_EQ_BANDS = 8;
+export const EqBandSchema = v.strictObject({
+  id: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(MAX_EQ_BANDS)),
+  type: v.picklist(EQ_BAND_TYPES),
+  frequency: bounded(20, 20000),
+  gain: bounded(-18, 18),
+  q: bounded(0.1, 18),
+  enabled: v.boolean(),
+});
 export const EqSchema = v.strictObject({
   enabled: v.boolean(),
   lowCut: bounded(20, 400),
@@ -10,6 +28,17 @@ export const EqSchema = v.strictObject({
   mid: bounded(-12, 12),
   midHz: bounded(150, 8000),
   high: bounded(-12, 12),
+  // Absent on older documents. Explicit bands, including an empty array, take precedence.
+  bands: v.optional(
+    v.pipe(
+      v.array(EqBandSchema),
+      v.maxLength(MAX_EQ_BANDS),
+      v.check(
+        (bands) => new Set(bands.map((b) => b.id)).size === bands.length,
+        "EQ band IDs must be unique",
+      ),
+    ),
+  ),
 });
 export const CompressorSchema = v.strictObject({
   enabled: v.boolean(),
@@ -51,6 +80,50 @@ export const MixerSchema = v.strictObject({
   master: MasterProcessingSchema,
 });
 export type Equalizer = v.InferOutput<typeof EqSchema>;
+export type EqBand = v.InferOutput<typeof EqBandSchema>;
+export const eqBandHasGain = (band: EqBand) =>
+  ["peaking", "lowshelf", "highshelf"].includes(band.type);
+export const eqBandHasQ = (band: EqBand) =>
+  !["lowshelf", "highshelf"].includes(band.type);
+/** Lazy conversion preserves the exact four-filter topology of existing mixes. */
+export function equalizerBands(eq: Equalizer): readonly EqBand[] {
+  return (
+    eq.bands ?? [
+      {
+        id: 1,
+        type: "highpass",
+        frequency: eq.lowCut,
+        gain: 0,
+        q: Math.SQRT1_2,
+        enabled: true,
+      },
+      {
+        id: 2,
+        type: "lowshelf",
+        frequency: 150,
+        gain: eq.low,
+        q: 1,
+        enabled: true,
+      },
+      {
+        id: 3,
+        type: "peaking",
+        frequency: eq.midHz,
+        gain: eq.mid,
+        q: 0.7,
+        enabled: true,
+      },
+      {
+        id: 4,
+        type: "highshelf",
+        frequency: 6000,
+        gain: eq.high,
+        q: 1,
+        enabled: true,
+      },
+    ]
+  );
+}
 export type Compressor = v.InferOutput<typeof CompressorSchema>;
 export type ChannelProcessing = v.InferOutput<typeof ChannelProcessingSchema>;
 export type MasterProcessing = v.InferOutput<typeof MasterProcessingSchema>;

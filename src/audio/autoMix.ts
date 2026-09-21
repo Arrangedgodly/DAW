@@ -134,6 +134,7 @@ export function proposeAutoMix(
     if (
       options.eq &&
       !current.eq.enabled &&
+      current.eq.bands === undefined &&
       s.lowMidRatio > 0.18 &&
       lane.id !== "bass" &&
       lane.id !== "drums"
