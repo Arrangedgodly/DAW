@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Throwaway UI study. Three mixer structures, switchable with ?variant=A/B/C.
+     In-memory demo data only. No imports from the DAW store or audio engine. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bitbounce · Mixer prototypes</title>
+    <link rel="stylesheet" href="./prototype.css" />
+  </head>
+  <body>
+    <header class="transport">
+      <a class="brand" href="?variant=A">Bitbounce<span>.</span></a>
+      <div class="transport-context">
+        <span class="play-symbol" aria-hidden="true">▶</span
+        ><span>112 <small>BPM</small></span
+        ><span>C <small>MINOR</small></span
+        ><span class="position">1.1.1</span>
+      </div>
+      <span class="prototype-mark">INTERACTIVE PROTOTYPE · NO AUDIO</span>
+      <button id="theme" class="quiet">Light</button>
+    </header>
+    <nav class="workspace" aria-label="Workspace context">
+      <span>Instruments 1–4</span><span>Instruments 5–8</span
+      ><span>Song arrangement</span><span class="current">Mixer</span>
+    </nav>
+    <main id="app"></main>
+    <aside class="prototype-bar" aria-label="Prototype comparison">
+      <button id="previous" aria-label="Previous prototype"></button>
+      <div class="variants" role="group" aria-label="Design variants"></div>
+      <button id="next" aria-label="Next prototype"></button>
+      <span class="prototype-note"
+        >Demo values · edits stay in this preview</span
+      >
+      <button id="reset" class="quiet">Reset</button>
+    </aside>
+    <div id="announcement" class="sr-only" aria-live="polite"></div>
+    <script type="module" src="./prototype.js"></script>
+  </body>
+</html>
