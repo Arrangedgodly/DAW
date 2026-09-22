@@ -21,6 +21,7 @@ import type { LaneId, ProjectDocument } from "../document/schema";
 import { ALL_LANE_IDS } from "../document/schema";
 import { dbToGain, gainToDb } from "../audio/mixer";
 import {
+  measureArrangementContext,
   measureStereo,
   proposeAutoMix,
   type AudioStats,
@@ -51,7 +52,7 @@ registerHelp([
   {
     id: "mixer.auto",
     title: "AUTO MIX",
-    text: "Analyze the arrangement on this device, then compare before and after at matched volume. Balance adjusts track levels, EQ makes gentle tone corrections, and Dynamics adds compression and limiting. Amount scales the changes. Locked tracks stay as you set them. Apply makes one undoable edit; Restore returns to the previous mix.",
+    text: "Analyze the arrangement on this device, then compare before and after at matched volume. Balance makes more room for the lead when supporting tracks play alongside it. EQ makes small tone cuts where tracks overlap. Dynamics controls peaks and can add a little level when there is headroom. Amount scales the changes. Locked tracks stay as you set them. Apply makes one undoable edit; Restore returns to the previous mix.",
   },
   {
     id: "mixer.channel",
@@ -298,12 +299,22 @@ export default function MixerPage(): JSX.Element {
           before.sampleRate,
         );
       });
-      const result = proposeAutoMix(snapshot, stats, {
-        amount: amount(),
-        balance: balance(),
-        eq: eq(),
-        dynamics: dynamics(),
-      });
+      const result = proposeAutoMix(
+        snapshot,
+        stats,
+        {
+          amount: amount(),
+          balance: balance(),
+          eq: eq(),
+          dynamics: dynamics(),
+        },
+        measureArrangementContext(
+          before.stereoLaneStems!,
+          snapshot.lanes.map((lane) => lane.id),
+          before.channels,
+          before.sampleRate,
+        ),
+      );
       setStatus("Rendering the proposed mix for comparison…");
       const after =
         result.document === snapshot
@@ -450,8 +461,9 @@ export default function MixerPage(): JSX.Element {
         <div>
           <h2>Auto Mix</h2>
           <p>
-            A gentle starting point. Your effects and locked tracks stay as you
-            set them.
+            Make room where tracks play together, then add a little punch if the
+            mix has headroom. Your effects and locked tracks stay as you set
+            them.
           </p>
         </div>
         <div class="mixer-auto-options">

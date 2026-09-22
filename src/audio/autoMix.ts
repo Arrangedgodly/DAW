@@ -13,6 +13,54 @@ export interface AudioStats {
   lowMidRatio: number;
   active: boolean;
 }
+export interface ArrangementContext {
+  /** Fraction of a track's musical energy that plays alongside another track. */
+  overlap: Partial<Record<LaneId, Partial<Record<LaneId, number>>>>;
+  master: AudioStats;
+}
+
+/** Compare tracks in time, so a pad in a lead break is not treated as masking it. */
+export function measureArrangementContext(
+  stems: readonly (readonly Float32Array[])[],
+  ids: readonly LaneId[],
+  master: readonly Float32Array[],
+  sampleRate: number,
+): ArrangementContext {
+  const block = Math.max(1, Math.round(sampleRate / 10));
+  const length = Math.max(0, ...stems.map((s) => s[0]?.length ?? 0));
+  const windows = stems.map((channels) => {
+    const energy: number[] = [];
+    for (let offset = 0; offset < length; offset += block) {
+      const end = Math.min(length, offset + block);
+      let sum = 0;
+      for (const channel of channels)
+        for (let i = offset; i < end; i++) {
+          const x = channel[i] ?? 0;
+          if (Number.isFinite(x)) sum += x * x;
+        }
+      energy.push(sum / Math.max(1, (end - offset) * channels.length));
+    }
+    const threshold = Math.max(1e-7, Math.max(0, ...energy) / 64);
+    return energy.map((value) => (value >= threshold ? value : 0));
+  });
+  const overlap: ArrangementContext["overlap"] = {};
+  ids.forEach((id, i) => {
+    const primary = windows[i] ?? [];
+    const total = primary.reduce((sum, value) => sum + value, 0);
+    if (!total) return;
+    const others: Partial<Record<LaneId, number>> = {};
+    ids.forEach((other, j) => {
+      if (i === j) return;
+      others[other] =
+        primary.reduce(
+          (sum, value, index) => sum + (windows[j]?.[index] ? value : 0),
+          0,
+        ) / total;
+    });
+    overlap[id] = others;
+  });
+  return { overlap, master: measureStereo(master, sampleRate) };
+}
 /** Active 100 ms windows exclude rests. This is RMS, not an LUFS estimate. */
 export function measureAudio(
   samples: Float32Array,
@@ -94,6 +142,7 @@ export function proposeAutoMix(
   doc: ProjectDocument,
   stats: Partial<Record<LaneId, AudioStats>>,
   options: AutoMixOptions,
+  context?: ArrangementContext,
 ): MixProposal {
   const amount = clamp(options.amount, 0, 1);
   const original = doc.mixer ?? DEFAULT_MIXER;
@@ -119,14 +168,22 @@ export function proposeAutoMix(
     let processing = current;
     let volume = lane.volume ?? 1;
     if (options.balance) {
-      const role = lane.id === "chords" ? -2 : lane.id === "bass" ? -1 : 0;
+      const leadOverlap = context?.overlap.lead?.[lane.id] ?? 0;
+      const role =
+        lane.id === "chords"
+          ? -1 - 1.5 * leadOverlap
+          : lane.id === "bass"
+            ? -1
+            : lane.id.startsWith("extra")
+              ? -1.5 * leadOverlap
+              : 0;
       const adjustment = clamp(reference + role - s.activeDb, -3, 3) * amount;
       const next = clamp(volume * dbToGain(adjustment), 0, 1);
       const actual = gainToDb(next / volume);
       if (Math.abs(actual) >= 0.1) {
         volume = next;
         changes.push(
-          `${lane.id}: level ${actual > 0 ? "+" : ""}${actual.toFixed(1)} dB.`,
+          `${lane.id}: level ${actual > 0 ? "+" : ""}${actual.toFixed(1)} dB${leadOverlap > 0.25 && lane.id !== "lead" ? " because it often plays with lead" : ""}.`,
         );
       }
     }
@@ -137,14 +194,15 @@ export function proposeAutoMix(
       current.eq.bands === undefined &&
       s.lowMidRatio > 0.18 &&
       lane.id !== "bass" &&
-      lane.id !== "drums"
+      lane.id !== "drums" &&
+      (lane.id === "lead" || (context?.overlap.lead?.[lane.id] ?? 0) > 0.25)
     ) {
       processing = {
         ...processing,
         eq: { ...current.eq, enabled: true, midHz: 350, mid: -1.5 * amount },
       };
       changes.push(
-        `${lane.id}: broad cut of ${(1.5 * amount).toFixed(1)} dB at 350 Hz.`,
+        `${lane.id}: broad cut of ${(1.5 * amount).toFixed(1)} dB at 350 Hz${(context?.overlap.lead?.[lane.id] ?? 0) > 0.25 ? " to make room for lead" : ""}.`,
       );
     }
     if (options.dynamics && !current.compressor.enabled && s.crest > 14) {
@@ -166,7 +224,8 @@ export function proposeAutoMix(
     return volume === (lane.volume ?? 1) ? lane : { ...lane, volume };
   });
   if (options.dynamics) {
-    // Use an upper bound on the summed peaks to reserve headroom. Cap trim at 6 dB.
+    // The rendered master gives a useful headroom estimate; the summed stem
+    // bound remains the fallback for callers without an arrangement render.
     const peakBound =
       lanes.reduce((sum, lane) => {
         if (lane.mute) return sum;
@@ -178,17 +237,34 @@ export function proposeAutoMix(
       }, 0) *
       0.9 *
       dbToGain(original.master.gainDb);
-    const trim = clamp(-1 - gainToDb(peakBound), -6, 0) * amount;
+    const observedPeak = context?.master.active
+      ? context.master.peak
+      : peakBound;
+    const trim = clamp(-1 - gainToDb(observedPeak), -6, 0) * amount;
+    const lift =
+      context?.master.active &&
+      !original.master.compressor.enabled &&
+      !original.master.limiter.enabled
+        ? Math.min(
+            clamp(-16 - context.master.activeDb, 0, 2),
+            clamp(-1 - gainToDb(observedPeak), 0, 2),
+          ) * amount
+        : 0;
+    const gainChange = clamp(trim + lift, -6, 2);
     mixer.master = {
       ...original.master,
-      gainDb: clamp(original.master.gainDb + trim, -24, 6),
+      gainDb: clamp(original.master.gainDb + gainChange, -24, 6),
       compressor: original.master.compressor.enabled
         ? original.master.compressor
         : {
             ...original.master.compressor,
             enabled: true,
-            threshold: clamp(reference + 6, -30, -6),
-            ratio: 1 + 0.5 * amount,
+            threshold: clamp(
+              (context?.master.activeDb ?? reference) + 5,
+              -30,
+              -6,
+            ),
+            ratio: 1 + 0.75 * amount,
             attack: 0.03,
             release: 0.2,
             makeup: 0,
@@ -196,7 +272,7 @@ export function proposeAutoMix(
       limiter: { ...original.master.limiter, enabled: true },
     };
     changes.push(
-      `Master: ${trim < -0.1 ? `${trim.toFixed(1)} dB of headroom, ` : ""}gentle glue and sample-peak limiting.`,
+      `Master: ${Math.abs(gainChange) >= 0.1 ? `${gainChange > 0 ? "+" : ""}${gainChange.toFixed(1)} dB input, ` : ""}gentle glue and sample-peak limiting.`,
     );
   }
   const changed = changes.length > 0;

@@ -118,6 +118,11 @@ registerHelp([
     text: "Renders a stereo WAV in left-to-right block order. Each block uses its configured bars or repeats; held blocks play once. Shorter lanes finish naturally. The song ends after the longest lane, with its effects tail retained. Live jumps, random actions, and section launches are excluded. Playback is never interrupted.",
   },
   {
+    id: "projects.midi",
+    title: "EXPORT SONG MIDI",
+    text: "Downloads the complete song cycle as a multi-track MIDI file, including tempo, swing, scale, transposition, chord notes, arrangement cues, and GM drum mapping. MIDI carries notes and timing, not instrument sounds or effects.",
+  },
+  {
     id: "projects.save",
     title: "SAVE FILE",
     text: "Downloads the current project as a .bitbounce.json file — the whole song, openable here on any machine.",
@@ -522,6 +527,28 @@ export default function Projects(): JSX.Element {
     }
   };
 
+  const handleExportMidi = async () => {
+    if (busy()) return;
+    setBusy(true);
+    try {
+      const { exportMidi } = await import("../audio/exportMidi");
+      const result = exportMidi(docStore.getState().doc);
+      if (result.ok) {
+        showSuccess(
+          `MIDI EXPORTED · ${result.trackCount} TRACKS · ${result.noteCount} NOTES · ${result.bars}-BAR SONG`,
+        );
+      } else {
+        showError(result.message, { suggestion: result.suggestion });
+      }
+    } catch {
+      showError("MIDI export could not start.", {
+        suggestion: "The app may have been updated — reload the page, then try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleFile = async (file: File) => {
     const db = getBootDb();
     if (!db) return;
@@ -686,6 +713,15 @@ export default function Projects(): JSX.Element {
             <button
               type="button"
               class="booth-btn projects-action"
+              data-help="projects.midi"
+              disabled={busy()}
+              onClick={() => void handleExportMidi()}
+            >
+              EXPORT SONG MIDI
+            </button>
+            <button
+              type="button"
+              class="booth-btn projects-action"
               data-help="projects.save"
               onClick={handleSave}
             >
@@ -702,8 +738,8 @@ export default function Projects(): JSX.Element {
             </button>
           </div>
           <p class="projects-note">
-            WAV follows blocks left to right. Export a single pattern’s MIDI
-            from its block options or PAT menu.
+            WAV follows blocks left to right. Song MIDI exports the complete
+            cycle; export one pattern’s MIDI from its block options or PAT menu.
           </p>
         </div>
       )}

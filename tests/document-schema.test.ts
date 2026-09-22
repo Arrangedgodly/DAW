@@ -454,6 +454,7 @@ describe("validateProject (strict)", () => {
       expect(error).toBeInstanceOf(ProjectValidationError);
       const issues = (error as ProjectValidationError).issues;
       expect(issues.length).toBeGreaterThan(0);
+      expect(issues.join("\n")).not.toContain("[object Object]");
       expect(issues.every((i) => typeof i === "string" && i.length > 0)).toBe(
         true,
       );
@@ -463,6 +464,22 @@ describe("validateProject (strict)", () => {
   it("rejects non-object input outright", () => {
     for (const bad of [null, 42, "nope", [], true]) {
       expect(() => validateProject(bad)).toThrow(ProjectValidationError);
+    }
+  });
+  it("retains every schema issue path instead of stringifying the issue array", () => {
+    try {
+      validateProject({
+        ...createDefaultProject(),
+        name: 7,
+        transport: { bpm: "120", swing: 0, metronome: false },
+      });
+      expect.fail("Expected document validation to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProjectValidationError);
+      expect((error as ProjectValidationError).issues).toEqual([
+        expect.stringMatching(/^name: /),
+        expect.stringMatching(/^transport\.bpm: /),
+      ]);
     }
   });
 });

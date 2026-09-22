@@ -42,22 +42,23 @@ survive reload or switching projects. Downloads cannot be undone by project Undo
 
 ## Tools
 
-| Tool                            | Capability                                                           |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `bitbounce_get_project`         | Summary, revision, active lanes, pattern IDs and arrangement         |
-| `bitbounce_list_sounds`         | Built-in drum kits and pitched preset IDs and names                  |
-| `bitbounce_get_pattern`         | Notes or drum rows and valid pitch degrees                           |
-| `bitbounce_set_tempo`           | Set BPM without moving notes                                         |
-| `bitbounce_set_lane`            | Sound, volume, mute and solo in one edit                             |
-| `bitbounce_set_pattern`         | Replace pitched notes or selected drum rows                          |
-| `bitbounce_get_document`        | Complete project, scale modes, effect defaults and controls          |
-| `bitbounce_apply_document`      | Complete musical project update in one undo step                     |
-| `bitbounce_get_session`         | Playback, loop, master gain and selected view                        |
-| `bitbounce_control_session`     | Play/stop, loop, master gain, lane/page and visualizer visibility    |
-| `bitbounce_history`             | Undo or redo the most recent project edit                            |
-| `bitbounce_export`              | Dispatch a local WAV, MIDI or project-file download                  |
-| `bitbounce_request_edit_target` | Pause edits while the agent asks for a destination in conversation   |
-| `bitbounce_confirm_edit_target` | Record the confirmed choice and prepare the current or a new project |
+| Tool                            | Capability                                                              |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| `bitbounce_get_project`         | Summary, revision, active lanes, pattern IDs and arrangement            |
+| `bitbounce_list_sounds`         | Built-in drum kits and pitched preset IDs and names                     |
+| `bitbounce_get_pattern`         | Notes or drum rows and valid pitch degrees                              |
+| `bitbounce_set_tempo`           | Set BPM without moving notes                                            |
+| `bitbounce_set_lane`            | Sound, volume, mute and solo in one edit                                |
+| `bitbounce_set_pattern`         | Replace pitched notes or selected drum rows                             |
+| `bitbounce_get_document`        | Complete project, scale modes, effect defaults and controls             |
+| `bitbounce_validate_document`   | Read-only preflight with field paths, repair hints and current revision |
+| `bitbounce_apply_document`      | Complete musical project update in one undo step                        |
+| `bitbounce_get_session`         | Playback, loop, master gain and selected view                           |
+| `bitbounce_control_session`     | Play/stop, loop, master gain, lane/page and visualizer visibility       |
+| `bitbounce_history`             | Undo or redo the most recent project edit                               |
+| `bitbounce_export`              | Dispatch a local WAV, MIDI or project-file download                     |
+| `bitbounce_request_edit_target` | Pause edits while the agent asks for a destination in conversation      |
+| `bitbounce_confirm_edit_target` | Record the confirmed choice and prepare the current or a new project    |
 
 `apply_document` covers adding/removing optional instruments, creating/duplicating/
 deleting/resizing patterns, chain ordering, repetitions, slot follow modes and cue
@@ -65,6 +66,29 @@ labels, all effect types and their order/parameters/bypass, scales and overrides
 octave, gate length, swing, metronome, mix and project naming. Read `get_document`,
 edit its `doc`, then send the edited value as `document` with its `revision`.
 Preserve unrelated fields. The smaller tools are more economical for small edits.
+
+Before applying a complete composition, call `validate_document` with
+`{ document: editedDoc }`. It returns `{ valid, revision, issueCount, issues,
+truncated }` without modifying the project, undo history, checkpoint or edit
+permission. It uses the same schema, musical, sound-ID, pitch and drum-length
+checks as `apply_document`. Fix the reported paths and validate again. Validation
+does not reserve a revision or approve the destination; reread and reconcile
+concurrent edits before applying with the latest revision.
+
+Two document-format details differ from the project summary:
+
+- `chainCues` labels are at most 12 characters after trimming, or `null`.
+  Use short labels such as `VERSE 1` and keep longer titles in `pattern.name`.
+- Document lanes store `volume`, `mute` and `solo` directly on the lane. The
+  nested `mix` object belongs to `get_project` summaries and `set_lane` arguments.
+  Always begin a bulk edit from `get_document.doc`, not a project summary.
+
+`get_document` includes these constraints in `documentRules` and its editing
+instructions. Preflight reports up to 50 issues with the full issue count and an
+explicit truncation flag. Rejected apply calls include up to 12 field-specific
+issues in the error message itself, since browser bridges can discard custom
+Error properties. Invalid drafts remain invalid; labels and mix fields are not
+silently truncated, relocated or ignored.
 
 The tools operate on the open project. They do not manage other saved projects,
 change visualizer effect compositions or appearance preferences, or expose arbitrary

@@ -1,0 +1,25 @@
+{
+  "analysis": "Ready to compare. Preview levels are matched; Apply keeps the proposed output level.",
+  "overflowDesktop": false,
+  "overflowMobile": false,
+  "errors": [],
+  "tabletTargetsFit": true,
+  "tabletGeometry": {
+    "coarse": true,
+    "stripWidth": 176,
+    "buttonHeight": 44,
+    "grid": "minmax(176px, 1fr)",
+    "styles": [
+      "https://bitbounce-d2d.pages.dev/assets/index-VTprcesy.css"
+    ]
+  },
+  "checks": [
+    "navigation",
+    "live audio metering and playback across pages",
+    "FX relocation",
+    "auto analysis",
+    "preview",
+    "apply",
+    "restore"
+  ]
+}

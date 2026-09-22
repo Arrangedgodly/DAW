@@ -15,7 +15,6 @@
  * well-formed grids. Pitched (v2) notes are strict: no repair path.
  */
 
-import { isValiError } from "valibot";
 import * as v from "valibot";
 import {
   DRUM_PIECES,
@@ -41,14 +40,11 @@ export class ProjectValidationError extends Error {
   }
 }
 
-function valibotIssues(error: unknown): string[] {
-  if (isValiError(error)) {
-    return error.issues.map(
-      (issue) =>
-        `${(issue.path ?? []).map((p) => String(p.key)).join(".") || "(root)"}: ${issue.message}`,
-    );
-  }
-  return [String(error)];
+function valibotIssues(issues: readonly v.BaseIssue<unknown>[]): string[] {
+  return issues.map(
+    (issue) =>
+      `${(issue.path ?? []).map((p) => String(p.key)).join(".") || "(root)"}: ${issue.message}`,
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -27,6 +27,197 @@ beforeEach(() => {
 afterEach(() => group.dispose());
 
 describe("WebMCP musical editing", () => {
+  it.each(["Distant thunder", "01 INTRO · ice"])(
+    "reports the offending cue path and limit for the rejected chat label %s",
+    async (label) => {
+      const before = read();
+      const document = {
+        ...before,
+        chainCues: {
+          drums: [label],
+          bass: [null],
+          chords: [null],
+          lead: [null],
+        },
+      };
+      await expect(
+        call("apply_document", { revision: 0, document }),
+      ).rejects.toThrow(/chainCues\.drums\.0.*12/);
+      expect(read()).toBe(before);
+      expect(group.revision()).toBe(0);
+      expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    },
+  );
+  it("explains the trap chat's nested lane mix mistake in the transported error message", async () => {
+    const before = read();
+    const document = {
+      ...before,
+      lanes: before.lanes.map((lane) => ({ ...lane, mix: { volume: 0.5 } })),
+    };
+    await expect(
+      call("apply_document", { revision: 0, document }),
+    ).rejects.toThrow(/lanes\.0\.mix/);
+    expect(read()).toBe(before);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+  });
+  it("publishes the cue limit, canonical lane mix shape and preflight workflow", async () => {
+    expect(await call("get_document")).toMatchObject({
+      documentRules: {
+        chainCues: { maxLength: 12, emptyValue: null },
+        laneMix: { nestedMixAllowed: false, example: { volume: 0.8 } },
+        preflight: "bitbounce_validate_document",
+      },
+    });
+    expect(
+      group.tools.find((tool) => tool.name === "bitbounce_apply_document")
+        ?.description,
+    ).toMatch(/validate_document.*12.*directly/);
+  });
+  it("preflights both chat mistakes, then applies the corrected document as one undo step", async () => {
+    const before = read();
+    const invalid = {
+      ...before,
+      lanes: before.lanes.map((lane) => ({ ...lane, mix: { volume: 0.5 } })),
+      chainCues: {
+        drums: ["Distant thunder"],
+        bass: [null],
+        chords: [null],
+        lead: [null],
+      },
+    };
+    expect(
+      await call("validate_document", { document: invalid }),
+    ).toMatchObject({
+      valid: false,
+      revision: 0,
+      issueCount: 5,
+      truncated: false,
+      issues: expect.arrayContaining([
+        expect.stringMatching(/lanes\.0\.mix:.*directly on the lane/),
+        expect.stringMatching(/chainCues\.drums\.0:.*12.*pattern.name/),
+      ]),
+    });
+    expect(read()).toBe(before);
+    expect(group.revision()).toBe(0);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    const corrected = {
+      ...invalid,
+      lanes: before.lanes.map((lane) => ({ ...lane, volume: 0.5 })),
+      chainCues: { ...invalid.chainCues, drums: ["THUNDER"] },
+    };
+    expect(
+      await call("validate_document", { document: corrected }),
+    ).toMatchObject({
+      valid: true,
+      revision: 0,
+      issues: [],
+    });
+    expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    await call("apply_document", { revision: 0, document: corrected });
+    expect(read().chainCues?.drums).toEqual(["THUNDER"]);
+    expect(read().lanes.every((lane) => lane.volume === 0.5)).toBe(true);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(1);
+    undo();
+    expect(read()).toBe(before);
+  });
+  it("preflight does not reserve a revision or allow a stale apply", async () => {
+    const document = { ...read(), name: "Checked composition" };
+    expect(await call("validate_document", { document })).toMatchObject({
+      valid: true,
+      revision: 0,
+    });
+    setTransport({ bpm: 155 });
+    await expect(
+      call("apply_document", { revision: 0, document }),
+    ).rejects.toThrow("Project changed");
+    expect(read().transport.bpm).toBe(155);
+  });
+  it.each(["sound", "drum row", "pitch degree", "chain reference"])(
+    "uses the same validation for preflight and apply: %s",
+    async (kind) => {
+      const before = read();
+      const document = {
+        ...before,
+        ...(kind === "sound"
+          ? {
+              lanes: before.lanes.map((lane) =>
+                lane.id === "bass"
+                  ? { ...lane, presetId: "missing-preset" }
+                  : lane,
+              ),
+            }
+          : {}),
+        ...(kind === "drum row"
+          ? {
+              patterns: {
+                ...before.patterns,
+                drums: before.patterns.drums.map((p) => ({
+                  ...p,
+                  steps: { ...p.steps, kick: [true] },
+                })),
+              },
+            }
+          : {}),
+        ...(kind === "pitch degree"
+          ? {
+              patterns: {
+                ...before.patterns,
+                bass: before.patterns.bass.map((p) => ({
+                  ...p,
+                  notes: [{ degree: 128, start: 0, length: 1 }],
+                  rowDegrees: [128],
+                })),
+              },
+            }
+          : {}),
+        ...(kind === "chain reference"
+          ? { songChain: { ...before.songChain, bass: ["missing"] } }
+          : {}),
+      };
+      const result = (await call("validate_document", { document })) as {
+        valid: boolean;
+        issues: string[];
+      };
+      expect(result.valid).toBe(false);
+      expect(result.issues.length).toBeGreaterThan(0);
+      expect(result.issues[0]).not.toContain("[object Object]");
+      await expect(
+        call("apply_document", { revision: 0, document }),
+      ).rejects.toThrow(result.issues[0]);
+      expect(read()).toBe(before);
+      expect(group.revision()).toBe(0);
+      expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    },
+  );
+  it("bounds large diagnostic reports without hiding the total issue count", async () => {
+    const before = read();
+    const document = {
+      ...before,
+      songChain: Object.fromEntries(
+        before.lanes.map((lane) => [
+          lane.id,
+          Array(20).fill(before.patterns[lane.id]![0].id),
+        ]),
+      ),
+      chainCues: Object.fromEntries(
+        before.lanes.map((lane) => [
+          lane.id,
+          Array(20).fill("A section name too long"),
+        ]),
+      ),
+    };
+    const result = (await call("validate_document", { document })) as {
+      issueCount: number;
+      issues: string[];
+      truncated: boolean;
+    };
+    expect(result.issueCount).toBe(80);
+    expect(result.issues).toHaveLength(50);
+    expect(result.truncated).toBe(true);
+    await expect(
+      call("apply_document", { revision: 0, document }),
+    ).rejects.toThrow("68 more issues");
+  });
   it("reads actual lanes and exposes only pitched presets", async () => {
     expect(await call("get_project")).toMatchObject({
       revision: 0,

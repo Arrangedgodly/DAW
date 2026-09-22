@@ -14,6 +14,7 @@ import {
 } from "../src/document/mixer";
 import { validateProject } from "../src/document/validate";
 import {
+  measureArrangementContext,
   measureAudio,
   proposeAutoMix,
   type AudioStats,
@@ -90,6 +91,82 @@ describe("mixer persistence and history", () => {
   });
 });
 describe("restrained Auto Mix", () => {
+  it("makes room only when supporting tracks play under the lead", () => {
+    const lead = new Float32Array(1000);
+    const chordsUnderLead = new Float32Array(1000);
+    const chordsInBreak = new Float32Array(1000);
+    lead.fill(0.2, 0, 500);
+    chordsUnderLead.fill(0.2, 0, 500);
+    chordsInBreak.fill(0.2, 500);
+    const master = [new Float32Array(1000), new Float32Array(1000)];
+    const together = measureArrangementContext(
+      [[lead], [chordsUnderLead]],
+      ["lead", "chords"],
+      master,
+      1000,
+    );
+    const apart = measureArrangementContext(
+      [[lead], [chordsInBreak]],
+      ["lead", "chords"],
+      master,
+      1000,
+    );
+    expect(together.overlap.lead?.chords).toBe(1);
+    expect(apart.overlap.lead?.chords).toBe(0);
+    const doc = createDefaultProject();
+    const laneStats = {
+      lead: stats(-12),
+      chords: { ...stats(-12), lowMidRatio: 0.3 },
+    };
+    const under = proposeAutoMix(
+      doc,
+      laneStats,
+      { ...options, dynamics: false },
+      together,
+    );
+    const breakOnly = proposeAutoMix(
+      doc,
+      laneStats,
+      { ...options, dynamics: false },
+      apart,
+    );
+    expect(
+      under.document.lanes.find((lane) => lane.id === "chords")!.volume,
+    ).toBeLessThan(
+      breakOnly.document.lanes.find((lane) => lane.id === "chords")!.volume!,
+    );
+    expect(under.document.mixer?.channels.chords?.eq.enabled).toBe(true);
+    expect(breakOnly.document.mixer?.channels.chords).toBeUndefined();
+  });
+  it("adds bounded master level only when the rendered mix has headroom", () => {
+    const doc = createDefaultProject();
+    const quiet = proposeAutoMix(doc, { lead: stats(-12) }, options, {
+      overlap: {},
+      master: { ...stats(-20), peak: 0.4 },
+    });
+    const hot = proposeAutoMix(doc, { lead: stats(-12) }, options, {
+      overlap: {},
+      master: { ...stats(-20), peak: 1.2 },
+    });
+    expect(quiet.document.mixer?.master.gainDb).toBe(2);
+    expect(hot.document.mixer?.master.gainDb).toBeLessThan(0);
+    const alreadyLimited = proposeAutoMix(
+      {
+        ...doc,
+        mixer: {
+          ...DEFAULT_MIXER,
+          master: {
+            ...DEFAULT_MASTER,
+            limiter: { ...DEFAULT_MASTER.limiter, enabled: true },
+          },
+        },
+      },
+      { lead: stats(-12) },
+      options,
+      { overlap: {}, master: { ...stats(-20), peak: 0.4 } },
+    );
+    expect(alreadyLimited.document.mixer?.master.gainDb).toBe(0);
+  });
   it("ignores silence when measuring active loudness", () => {
     const short = Float32Array.from(
       { length: 1000 },

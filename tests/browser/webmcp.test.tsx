@@ -57,6 +57,58 @@ afterEach(async () => {
 });
 
 describe("WebMCP access and recovery in a real browser", () => {
+  it("allows document preflight before destination confirmation and preserves actionable apply errors", async () => {
+    await enableAgentAccess(context);
+    const before = docStore.getState().doc;
+    const invalid = {
+      ...before,
+      chainCues: {
+        drums: ["Distant thunder"],
+        bass: [null],
+        chords: [null],
+        lead: [null],
+      },
+    };
+    expect(
+      tools.get("bitbounce_validate_document")?.annotations.readOnlyHint,
+    ).toBe(true);
+    expect(
+      await call("validate_document", { document: invalid }),
+    ).toMatchObject({
+      valid: false,
+      revision: 0,
+      issues: [expect.stringMatching(/chainCues\.drums\.0:.*12/)],
+    });
+    expect(agentTargetConfirmed()).toBe(false);
+    expect(canRestoreAgent()).toBe(false);
+    await expect(
+      call("apply_document", { revision: 0, document: invalid }),
+    ).rejects.toThrow("destination");
+    await call("confirm_edit_target", {
+      destination: "current",
+      userConfirmed: true,
+      revision: 0,
+    });
+    await expect(
+      call("apply_document", { revision: 0, document: invalid }),
+    ).rejects.toThrow(/chainCues\.drums\.0:.*12/);
+    expect(docStore.getState().doc).toBe(before);
+    expect(canRestoreAgent()).toBe(false);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    const corrected = {
+      ...invalid,
+      chainCues: { ...invalid.chainCues, drums: ["THUNDER"] },
+    };
+    expect(
+      await call("validate_document", { document: corrected }),
+    ).toMatchObject({ valid: true, revision: 0 });
+    await call("apply_document", { revision: 0, document: corrected });
+    expect(docStore.getState().doc.chainCues?.drums).toEqual(["THUNDER"]);
+    expect(canRestoreAgent()).toBe(true);
+    restoreBeforeAgent();
+    expect(docStore.getState().doc).toEqual(before);
+    disableAgentAccess();
+  });
   it("blocks every edit until the agent records the confirmed destination, while reads remain available", async () => {
     await enableAgentAccess(context);
     expect(await call("get_project")).toMatchObject({
@@ -171,7 +223,7 @@ describe("WebMCP access and recovery in a real browser", () => {
     await enableAgentAccess(context);
     confirmCurrentAgentTarget();
     expect(agentStatus()).toBe("on");
-    expect(tools.size).toBe(14);
+    expect(tools.size).toBe(15);
     await call("set_tempo", { revision: 0, bpm: 130 });
     await call("set_lane", { revision: 1, lane: "bass", mix: { mute: true } });
     expect(canRestoreAgent()).toBe(true);

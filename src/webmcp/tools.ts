@@ -2,7 +2,12 @@ import * as v from "valibot";
 import { DRUM_KITS, PRESET_LIBRARY } from "../audio/presets";
 import { soundFamily } from "../components/laneMeta";
 import { MAX_BPM, MIN_BPM, STEPS_PER_BAR } from "../audio/time";
-import { validateProject } from "../document/validate";
+import { ProjectValidationError } from "../document/validate";
+import {
+  documentDiagnostics,
+  documentErrorMessage,
+  validateAgentDocument,
+} from "./documentValidation";
 import { pitchDomain } from "../document/pitchWindow";
 import { MODE_INTERVALS } from "../document/scales";
 import {
@@ -12,6 +17,7 @@ import {
 } from "../state/fxStrip";
 import {
   ALL_LANE_IDS,
+  CUE_MAX_CHARS,
   DRUM_PIECES,
   LaneIdSchema,
   NoteSchema,
@@ -117,7 +123,13 @@ export function createAgentTools(
             "Agent access is off. The user can enable it in Projects.",
           );
         options?.signal?.throwIfAborted();
-        return structuredClone(run(input));
+        try {
+          return structuredClone(run(input));
+        } catch (error) {
+          if (error instanceof ProjectValidationError)
+            throw new Error(documentErrorMessage(error), { cause: error });
+          throw error;
+        }
       },
     };
   }
@@ -442,20 +454,61 @@ export function createAgentTools(
             defaults: defaultFxDevice(type),
             controls: FX_DEVICE_SPECS[type],
           })),
-          editing:
-            "Keep version and all unrelated fields. Required lanes: drums, bass, chords, lead. Optional pitched lanes: extra1 through extra4. Lane IDs must match pattern and songChain keys. Each lane needs at least one pattern and a nonempty chain of existing pattern IDs. Pattern bars: any whole number from 1 to 128. Drum rows have exactly bars*16 booleans. Pitched notes are {degree,start,length}; include each degree in rowDegrees. FX chains have at most 3 devices. chainModes entries are next or loop; chainCues are per-slot labels. Use list_sounds for valid sound IDs. Octave offsets are integers -3 to 3. Scale roots are pitch classes 0=C through 11=B. Swing is 0 to 1. Do not edit sampleProvenance; it is maintained automatically.",
+          documentRules: {
+            chainCues: {
+              maxLength: CUE_MAX_CHARS,
+              trim: true,
+              emptyValue: null,
+              example: "VERSE 1",
+            },
+            laneMix: {
+              location: "document.lanes[index]",
+              example: { volume: 0.8, mute: false, solo: false },
+              nestedMixAllowed: false,
+            },
+            preflight: "bitbounce_validate_document",
+          },
+          editing: `Edit this response's doc, not the get_project summary. Keep version and all unrelated fields. Required lanes: drums, bass, chords, lead. Optional pitched lanes: extra1 through extra4. Lane IDs must match pattern and songChain keys. Each lane needs at least one pattern and a nonempty chain of existing pattern IDs. Pattern bars: any whole number from 1 to 128. Drum rows have exactly bars*16 booleans. Pitched notes are {degree,start,length}; start is an integer step and length is a multiple of 0.25; include each degree in rowDegrees. FX chains have at most 3 devices. chainModes entries are next or loop; chainCues are null or per-slot labels of at most ${CUE_MAX_CHARS} characters after trimming. Keep longer section names in pattern.name. Lane volume, mute and solo are top-level lane fields, NOT a nested mix object. Use list_sounds for valid sound IDs. Octave offsets are integers -3 to 3. Scale roots are pitch classes 0=C through 11=B. Swing is 0 to 1. Do not edit sampleProvenance; it is maintained automatically. Call bitbounce_validate_document with the edited document before apply_document; fix reported paths and use the latest revision.`,
         };
       },
     ),
     tool(
+      "validate_document",
+      `Check a complete document before apply_document without changing the project, revision, undo history or edit destination. Returns valid, field-specific issues and the current revision. Use get_document.doc as the starting point. Cue labels are at most ${CUE_MAX_CHARS} characters; lane volume/mute/solo are top-level fields. A successful check does not reserve the revision or confirm edit permission.`,
+      object({
+        document: {
+          type: "object",
+          description:
+            "Complete edited get_document.doc to validate without applying.",
+        },
+      }),
+      true,
+      (input) => {
+        const args = v.parse(v.strictObject({ document: v.unknown() }), input);
+        try {
+          validateAgentDocument(args.document);
+          return {
+            valid: true,
+            revision,
+            issueCount: 0,
+            issues: [],
+            truncated: false,
+          };
+        } catch (error) {
+          if (error instanceof ProjectValidationError)
+            return { ...documentDiagnostics(error), revision };
+          throw error;
+        }
+      },
+    ),
+    tool(
       "apply_document",
-      "Apply a complete edited project in ONE undo step. Enables full musical editing: add/remove optional instruments, create/duplicate/delete/resize patterns, arrange chains and cues, configure all effects, scales, octave, gate, swing, metronome, mix and project name. First read get_document; preserve unrelated fields. This replaces the open project's musical content, never the saved-project library. Requires latest revision. User can restore the pre-agent checkpoint.",
+      `Apply a complete edited project in ONE undo step. Enables full musical editing: add/remove optional instruments, create/duplicate/delete/resize patterns, arrange chains and cues, configure all effects, scales, octave, gate, swing, metronome, mix and project name. First read get_document and check edits with validate_document; preserve unrelated fields. Cue labels have at most ${CUE_MAX_CHARS} characters. Lane volume/mute/solo belong directly on each lane, not in mix. This replaces the open project's musical content, never the saved-project library. Requires latest revision. User can restore the pre-agent checkpoint.`,
       object({
         revision: revisionJson,
         document: {
           type: "object",
-          description:
-            "Complete version-3 project document from get_document, with desired edits. Validated against Bitbounce's strict schema and musical constraints.",
+          description: `Complete version-3 get_document.doc, with desired edits. Validate first with bitbounce_validate_document. chainCues labels: max ${CUE_MAX_CHARS} characters after trim, or null. Lane volume/mute/solo are top-level fields, not nested mix. Unknown keys are rejected.`,
         },
       }),
       false,
@@ -465,47 +518,7 @@ export function createAgentTools(
           input,
         );
         const before = current(args.revision);
-        if (JSON.stringify(args.document)?.length > 10 * 1024 * 1024)
-          throw new Error("Project exceeds the 10 MB editing limit.");
-        const next = validateProject(args.document);
-        for (const lane of next.lanes) {
-          if (
-            lane.id === "drums"
-              ? !Object.values(DRUM_KITS).some((p) => p.id === lane.kitId)
-              : !Object.values(PRESET_LIBRARY).some(
-                  (p) => p.id === lane.presetId && p.pitchRange,
-                )
-          )
-            throw new Error(`Unknown sound in ${lane.id}. Call list_sounds.`);
-          for (const pattern of next.patterns[lane.id] ?? []) {
-            if (pattern.kind === "drums") {
-              // validateProject repairs imported drum lengths; agent edits must be exact.
-              const raw = (args.document as ProjectDocument).patterns[
-                lane.id
-              ]?.find((p) => p.id === pattern.id);
-              if (
-                raw?.kind !== "drums" ||
-                DRUM_PIECES.some(
-                  (piece) =>
-                    raw.steps[piece]?.length !== pattern.bars * STEPS_PER_BAR,
-                )
-              )
-                throw new Error("Drum rows must have exactly bars * 16 steps.");
-            } else if (lane.id !== "drums") {
-              const domain = pitchDomain(next, lane.id).degrees;
-              if (
-                pattern.notes.some(
-                  (note) =>
-                    !domain.includes(note.degree) ||
-                    !pattern.rowDegrees.includes(note.degree),
-                )
-              )
-                throw new Error(
-                  "Every note needs an allowed pitch degree and matching rowDegrees entry.",
-                );
-            }
-          }
-        }
+        const next = validateAgentDocument(args.document);
         return write(
           before,
           next,

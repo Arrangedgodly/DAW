@@ -855,8 +855,11 @@ export function exportMidi(
   opts: ExportMidiOptions = {},
 ): ExportMidiResult {
   let bytes: Uint8Array;
+  let trackCount: number;
   try {
-    bytes = encodeMidi(project);
+    const data = buildMidiData(project, project.transport.swing);
+    bytes = Uint8Array.from(writeMidi(data));
+    trackCount = data.header.numTracks;
   } catch {
     return {
       ok: false,
@@ -880,7 +883,7 @@ export function exportMidi(
   return {
     ok: true,
     filename,
-    trackCount: TRACK_COUNT,
+    trackCount,
     noteCount: noteCount(project),
     bars: exportCycleSteps(project) / 16,
     byteLength: bytes.byteLength,
