@@ -311,7 +311,7 @@ describe("FX device graph (real offline renders)", () => {
     expect(maxDiff).toBeLessThan(1e-6);
   });
 
-  it("delay renders the edited time interval at the current tempo", async () => {
+  it("delay renders the configured 7-step interval at 90 BPM", async () => {
     const events = [note(0.05, 72, 0.1)];
     const wet = await renderWithChain(
       {

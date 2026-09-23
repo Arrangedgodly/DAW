@@ -45,9 +45,15 @@ function automationParam() {
 }
 
 function fakeAudioContext() {
-  const allocations: { length: number; channels: Float32Array[] }[] = [];
-  const assignedBuffers: unknown[] = [];
+  interface FakeBuffer {
+    readonly length: number;
+    readonly channels: Float32Array[];
+    copyToChannel(source: Float32Array, channel: number): void;
+  }
+  const allocations: FakeBuffer[] = [];
+  const assignedBuffers: FakeBuffer[] = [];
   const params: Record<string, ReturnType<typeof automationParam>> = {};
+  const gainParams: ReturnType<typeof automationParam>[] = [];
   const node = (name: string) => {
     const result: Record<string, unknown> = {
       connect() {},
@@ -58,7 +64,7 @@ function fakeAudioContext() {
     }
     if (name === "convolver") {
       Object.defineProperty(result, "buffer", {
-        set(value) {
+        set(value: FakeBuffer) {
           assignedBuffers.push(value);
         },
       });
@@ -68,7 +74,13 @@ function fakeAudioContext() {
   const context = {
     currentTime: 1,
     sampleRate: SR,
-    createGain: () => node("gain"),
+    createGain: () => {
+      const result = node("gain");
+      const gain = automationParam();
+      gainParams.push(gain);
+      result.gain = gain;
+      return result;
+    },
     createDelay: () => node("delay"),
     createBiquadFilter: () => node("filter"),
     createConvolver: () => node("convolver"),
@@ -77,7 +89,9 @@ function fakeAudioContext() {
         { length: channels },
         () => new Float32Array(length),
       );
-      const buffer = {
+      const buffer: FakeBuffer = {
+        length,
+        channels: buffers,
         copyToChannel(source: Float32Array, channel: number) {
           buffers[channel]!.set(source);
         },
@@ -86,10 +100,13 @@ function fakeAudioContext() {
       return buffer;
     },
   } as unknown as BaseAudioContext;
-  return { context, allocations, assignedBuffers, params };
+  return { context, allocations, assignedBuffers, params, gainParams };
 }
 
-const reverbDevice = (size: number, mix = 0.4): FxDevice => ({
+const reverbDevice = (
+  size: number,
+  mix = 0.4,
+): Extract<FxDevice, { type: "reverb" }> => ({
   type: "reverb",
   bypassed: false,
   params: { size, mix },
@@ -99,7 +116,7 @@ const delayDevice = (
   timeSteps: number,
   feedback = 0.4,
   mix = 0.3,
-): FxDevice => ({
+): Extract<FxDevice, { type: "delay" }> => ({
   type: "delay",
   bypassed: false,
   params: { timeSteps, feedback, mix },
@@ -108,11 +125,34 @@ const delayDevice = (
 describe("device parameter updates", () => {
   it("allocates and assigns reverb buffers only for actual size changes, including A-B-A", () => {
     const audio = fakeAudioContext();
-    const fx = createReverbDevice(
-      audio.context,
-      reverbDevice(0.2) as Extract<FxDevice, { type: "reverb" }>,
-      { seed: 44 },
-    );
+    const fx = createReverbDevice(audio.context, reverbDevice(0.2), {
+      seed: 44,
+    });
+    const assertBuffer = (index: number, size: number) => {
+      const expected = renderImpulseResponse({
+        seed: 44,
+        size,
+        sampleRate: SR,
+      });
+      const actual = audio.assignedBuffers[index]!;
+      expect(actual.length).toBe(expected.channels[0].length);
+      for (const channel of [0, 1]) {
+        for (const sample of [
+          0,
+          1,
+          32,
+          Math.floor(actual.length / 2),
+          actual.length - 1,
+        ]) {
+          expect(actual.channels[channel]![sample]).toBe(
+            expected.channels[channel]![sample],
+          );
+        }
+      }
+    };
+    expect(audio.allocations).toHaveLength(1);
+    expect(audio.assignedBuffers).toHaveLength(1);
+    assertBuffer(0, 0.2);
     const edits = [
       reverbDevice(0.2, 0.2),
       reverbDevice(0.2, 0.7),
@@ -121,23 +161,32 @@ describe("device parameter updates", () => {
       reverbDevice(0.2, 0.1),
       reverbDevice(0.2, 0.5),
     ];
-    for (const edit of edits) fx.setParams(edit);
-    expect(audio.allocations).toHaveLength(3); // initial + B + restored A
-    expect(audio.assignedBuffers).toHaveLength(3);
-    expect(audio.params["gain.gain"]!.calls).toHaveLength(14); // 2 initial + 2 per edit
+    const expectedAssignedSizes = [0.2, 0.2, 0.8, 0.8, 0.2, 0.2];
+    const expectedBufferCounts = [1, 1, 2, 2, 3, 3];
+    for (const [index, edit] of edits.entries()) {
+      fx.setParams(edit);
+      expect(audio.allocations).toHaveLength(expectedBufferCounts[index]!);
+      expect(audio.assignedBuffers).toHaveLength(expectedBufferCounts[index]!);
+      if (expectedAssignedSizes[index] !== undefined) {
+        assertBuffer(
+          audio.assignedBuffers.length - 1,
+          expectedAssignedSizes[index]!,
+        );
+      }
+    }
+    expect(audio.gainParams.flatMap((param) => param.calls)).toHaveLength(14); // 2 initial + 2 per edit
     fx.setParams(delayDevice(8)); // irrelevant device type is ignored
     expect(audio.allocations).toHaveLength(3);
     expect(audio.assignedBuffers).toHaveLength(3);
-    expect(audio.params["gain.gain"]!.calls).toHaveLength(14);
+    expect(audio.gainParams.flatMap((param) => param.calls)).toHaveLength(14);
   });
 
   it("syncs the edited delay time to a new tempo and ignores other device types", () => {
     const audio = fakeAudioContext();
-    const fx = createDelayDevice(
-      audio.context,
-      delayDevice(4) as Extract<FxDevice, { type: "delay" }>,
-      { bpm: 120, when: 1 },
-    );
+    const fx = createDelayDevice(audio.context, delayDevice(4), {
+      bpm: 120,
+      when: 1,
+    });
     fx.setParams(delayDevice(7, 0.8, 0.6));
     const delayTime = audio.params["delay.delayTime"]!;
     const countBeforeWrongType = delayTime.calls.length;
@@ -145,8 +194,9 @@ describe("device parameter updates", () => {
     expect(delayTime.calls).toHaveLength(countBeforeWrongType);
     fx.syncBpm!({ bpm: 90, when: 2 });
     expect(delayTime.calls.at(-1)!.value).toBeCloseTo(delaySeconds(7, 90), 10);
-    expect(audio.params["gain.gain"]!.calls.at(-2)!.value).toBe(0.6);
-    expect(audio.params["gain.gain"]!.calls.at(-1)!.value).toBe(1);
+    expect(audio.gainParams[2]!.calls.at(-1)!.value).toBe(0.8);
+    expect(audio.gainParams[3]!.calls.at(-1)!.value).toBe(0.6);
+    expect(audio.gainParams[1]!.calls.at(-1)!.value).toBe(1);
   });
 });
 
