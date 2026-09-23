@@ -1,4 +1,4 @@
-﻿# PR orchestration: audio FX performance
+# PR orchestration: audio FX performance
 
 Started 2026-09-23. Preserve sound, saved projects, and live/offline behavior while measuring each effect's cost. Separate control latency, offline throughput, live processing load, and device output latency.
 
@@ -55,4 +55,3 @@ Research uses Sol for analysis and source evaluation. Implementation uses Luna f
 Both PRs target main independently. Review the small production fix in PR 1, then the development benchmark and research in PR 2. No merge or deployment is part of this pass.
 
 The research reports cover all effects. Further implementation candidates remain explicitly unmeasured: meter scratch reuse, param-only graph relink avoidance, lazy mixer node creation, compressor arithmetic, bounded IR reuse, and inactive branch lifecycle. A live Elementary trial requires target-device playback profiling, live/offline parity, bypass/disposal/control checks and listening review. The offline result alone does not select a new production engine.
-
