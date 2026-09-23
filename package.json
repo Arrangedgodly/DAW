@@ -31,6 +31,8 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@elemaudio/core": "^4.0.1",
+    "@elemaudio/offline-renderer": "^4.0.3",
     "@eslint/js": "^10.0.1",
     "@tonejs/midi": "^2.0.28",
     "@vitest/browser": "^4.1.11",
