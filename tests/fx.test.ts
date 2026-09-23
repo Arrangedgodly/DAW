@@ -8,6 +8,8 @@ import {
   DELAY_MAX_SECONDS,
   MUSICAL_DELAY_UNITS,
   computeTailSamples,
+  createDelayDevice,
+  createReverbDevice,
   delaySeconds,
   driveCurve,
   driveShaper,
@@ -23,6 +25,130 @@ import { secondsPerStep } from "../src/audio/time";
 import type { FxDevice } from "../src/document/schema";
 
 const SR = 44100;
+
+function automationParam() {
+  const calls: { method: string; value: number; when: number }[] = [];
+  return {
+    calls,
+    value: 0,
+    setValueAtTime(value: number, when: number) {
+      calls.push({ method: "setValueAtTime", value, when });
+    },
+    setTargetAtTime(value: number, when: number) {
+      calls.push({ method: "setTargetAtTime", value, when });
+    },
+    linearRampToValueAtTime(value: number, when: number) {
+      calls.push({ method: "linearRampToValueAtTime", value, when });
+    },
+    cancelScheduledValues() {},
+  };
+}
+
+function fakeAudioContext() {
+  const allocations: { length: number; channels: Float32Array[] }[] = [];
+  const assignedBuffers: unknown[] = [];
+  const params: Record<string, ReturnType<typeof automationParam>> = {};
+  const node = (name: string) => {
+    const result: Record<string, unknown> = {
+      connect() {},
+      disconnect() {},
+    };
+    for (const key of ["gain", "delayTime", "frequency", "Q"]) {
+      result[key] = params[`${name}.${key}`] ??= automationParam();
+    }
+    if (name === "convolver") {
+      Object.defineProperty(result, "buffer", {
+        set(value) {
+          assignedBuffers.push(value);
+        },
+      });
+    }
+    return result;
+  };
+  const context = {
+    currentTime: 1,
+    sampleRate: SR,
+    createGain: () => node("gain"),
+    createDelay: () => node("delay"),
+    createBiquadFilter: () => node("filter"),
+    createConvolver: () => node("convolver"),
+    createBuffer(channels: number, length: number) {
+      const buffers = Array.from(
+        { length: channels },
+        () => new Float32Array(length),
+      );
+      const buffer = {
+        copyToChannel(source: Float32Array, channel: number) {
+          buffers[channel]!.set(source);
+        },
+      };
+      allocations.push({ length, channels: buffers });
+      return buffer;
+    },
+  } as unknown as BaseAudioContext;
+  return { context, allocations, assignedBuffers, params };
+}
+
+const reverbDevice = (size: number, mix = 0.4): FxDevice => ({
+  type: "reverb",
+  bypassed: false,
+  params: { size, mix },
+});
+
+const delayDevice = (
+  timeSteps: number,
+  feedback = 0.4,
+  mix = 0.3,
+): FxDevice => ({
+  type: "delay",
+  bypassed: false,
+  params: { timeSteps, feedback, mix },
+});
+
+describe("device parameter updates", () => {
+  it("allocates and assigns reverb buffers only for actual size changes, including A-B-A", () => {
+    const audio = fakeAudioContext();
+    const fx = createReverbDevice(
+      audio.context,
+      reverbDevice(0.2) as Extract<FxDevice, { type: "reverb" }>,
+      { seed: 44 },
+    );
+    const edits = [
+      reverbDevice(0.2, 0.2),
+      reverbDevice(0.2, 0.7),
+      reverbDevice(0.8, 0.7),
+      reverbDevice(0.8, 0.1),
+      reverbDevice(0.2, 0.1),
+      reverbDevice(0.2, 0.5),
+    ];
+    for (const edit of edits) fx.setParams(edit);
+    expect(audio.allocations).toHaveLength(3); // initial + B + restored A
+    expect(audio.assignedBuffers).toHaveLength(3);
+    expect(audio.params["gain.gain"]!.calls).toHaveLength(14); // 2 initial + 2 per edit
+    fx.setParams(delayDevice(8)); // irrelevant device type is ignored
+    expect(audio.allocations).toHaveLength(3);
+    expect(audio.assignedBuffers).toHaveLength(3);
+    expect(audio.params["gain.gain"]!.calls).toHaveLength(14);
+  });
+
+  it("syncs the edited delay time to a new tempo and ignores other device types", () => {
+    const audio = fakeAudioContext();
+    const fx = createDelayDevice(
+      audio.context,
+      delayDevice(4) as Extract<FxDevice, { type: "delay" }>,
+      { bpm: 120, when: 1 },
+    );
+    fx.setParams(delayDevice(7, 0.8, 0.6));
+    const delayTime = audio.params["delay.delayTime"]!;
+    const countBeforeWrongType = delayTime.calls.length;
+    fx.setParams(reverbDevice(0.9));
+    expect(delayTime.calls).toHaveLength(countBeforeWrongType);
+    fx.syncBpm!({ bpm: 90, when: 2 });
+    expect(delayTime.calls.at(-1)!.value).toBeCloseTo(delaySeconds(7, 90), 10);
+    expect(audio.params["gain.gain"]!.calls.at(-2)!.value).toBe(0.6);
+    expect(audio.params["gain.gain"]!.calls.at(-1)!.value).toBe(1);
+  });
+});
 
 describe("procedural impulse response", () => {
   it("is deterministic given a seed (identical online/offline contract)", () => {
