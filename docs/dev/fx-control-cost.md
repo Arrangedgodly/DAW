@@ -43,22 +43,24 @@ node node_modules/vitest/vitest.mjs run --project browser tests/browser/fx-contr
 Remove-Item Env:VITE_FX_CONTROL_COST_BENCH
 ```
 
-One run on Windows 10 x64, `HeadlessChrome/151.0.7922.34`, with 16 reported
-logical processors and 44.1 kHz native contexts measured 97 allocations and
-assignments per baseline pass versus 49 fixed. Median setter times were
-1048.00 ms baseline (987.10–1157.70 ms) and 465.00 ms fixed
-(420.50–485.50 ms). Raw samples, order, and per-step counts are recorded in
-`docs/tasks/fx-handoffs/P-02-timing-complete.md`. The benchmark completed and
-printed its report, then Vitest hit its default 15-second timeout; the retained
-benchmark raises its timeout to 60 seconds for later reproductions. That
-verification timeout does not invalidate the printed timing record.
+The initial Windows 10 x64 run on `HeadlessChrome/151.0.7922.34` with 16
+reported logical processors emitted baseline/fixed medians of 1048.00 ms and
+465.00 ms, then hit Vitest's default 15-second timeout. After P-01 released the
+timing slot, the identical run passed under the retained 60-second timeout:
+97 versus 49 allocations and assignments per pass, medians of 1254.30 ms
+(1001.80–1574.80 ms) baseline and 619.00 ms (441.90–703.80 ms) fixed. The
+original raw report and timeout record remain in
+`docs/tasks/fx-handoffs/P-02-timing-complete.md`; the successful rerun's raw
+samples, environment, order, and per-step counts are in
+`docs/tasks/fx-handoffs/P-02-timing-rerun.md` and its JSON sidecar.
 
 The A-B-A edit sequence requires the initial buffer plus one buffer for each
 actual size transition, so mix changes add no buffers and restoring A creates
 the needed replacement buffer. These synthetic timings cover seeded IR
 generation and fake buffer copies on the measured runtime. They do not predict
 render-thread scheduling, device output latency, or an end-to-end user-perceived
-latency improvement.
+latency improvement. Chromium timings likewise measure control updates only;
+they do not measure rendered audio or output latency.
 
 ## Regression coverage
 
