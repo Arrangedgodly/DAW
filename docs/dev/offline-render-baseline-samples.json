@@ -1,0 +1,628 @@
+{
+  "label": "baseline",
+  "revision": "a292f3d733cd32e65fbb0dffb20afdd78686c6ed",
+  "capturedAt": "2026-09-24T12:29:07.464Z",
+  "mode": "Vite development server, headless Chromium, one page, serial passes",
+  "browser": "151.0.7922.34",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "platform": "win32",
+  "arch": "x64",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "samples": [
+    {
+      "pass": 0,
+      "workload": "welcome",
+      "renderMs": 960.2000000029802,
+      "setupMs": 37.600000001490116,
+      "ackAndSettleMs": 65.70000000298023,
+      "preNativeMs": 103.30000000447035,
+      "nativeMs": 855.2999999970198,
+      "copyAndFoldMs": 1.6000000014901161,
+      "encodeMs": 17.399999998509884,
+      "native": {
+        "start": 1875,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 2730.2999999970198
+      },
+      "posts": [
+        {
+          "at": 1809.1000000014901,
+          "count": 51
+        },
+        {
+          "at": 1809.1999999955297,
+          "count": 24
+        },
+        {
+          "at": 1809.2999999970198,
+          "count": 24
+        },
+        {
+          "at": 1809.2999999970198,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 1,
+      "workload": "welcome",
+      "renderMs": 900.2000000029802,
+      "setupMs": 19.100000001490116,
+      "ackAndSettleMs": 50.70000000298023,
+      "preNativeMs": 69.80000000447035,
+      "nativeMs": 828.2999999970198,
+      "copyAndFoldMs": 2.100000001490116,
+      "encodeMs": 16.899999998509884,
+      "native": {
+        "start": 2825,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 3653.2999999970198
+      },
+      "posts": [
+        {
+          "at": 2774.1999999955297,
+          "count": 51
+        },
+        {
+          "at": 2774.2999999970198,
+          "count": 24
+        },
+        {
+          "at": 2774.2999999970198,
+          "count": 24
+        },
+        {
+          "at": 2774.2999999970198,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 2,
+      "workload": "welcome",
+      "renderMs": 928.5,
+      "setupMs": 18.5,
+      "ackAndSettleMs": 56.29999999701977,
+      "preNativeMs": 74.79999999701977,
+      "nativeMs": 850.8999999985099,
+      "copyAndFoldMs": 2.8000000044703484,
+      "encodeMs": 16.899999998509884,
+      "native": {
+        "start": 3752.89999999851,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 4603.79999999702
+      },
+      "posts": [
+        {
+          "at": 3696.39999999851,
+          "count": 51
+        },
+        {
+          "at": 3696.60000000149,
+          "count": 24
+        },
+        {
+          "at": 3696.60000000149,
+          "count": 24
+        },
+        {
+          "at": 3696.60000000149,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 3,
+      "workload": "welcome",
+      "renderMs": 948.5,
+      "setupMs": 22.69999999552965,
+      "ackAndSettleMs": 56,
+      "preNativeMs": 78.69999999552965,
+      "nativeMs": 868.1000000014901,
+      "copyAndFoldMs": 1.7000000029802322,
+      "encodeMs": 16.5,
+      "native": {
+        "start": 4708.19999999553,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 5576.29999999702
+      },
+      "posts": [
+        {
+          "at": 4652,
+          "count": 51
+        },
+        {
+          "at": 4652.10000000149,
+          "count": 24
+        },
+        {
+          "at": 4652.10000000149,
+          "count": 24
+        },
+        {
+          "at": 4652.19999999553,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 4,
+      "workload": "welcome",
+      "renderMs": 894.3000000044703,
+      "setupMs": 20.80000000447035,
+      "ackAndSettleMs": 53.5,
+      "preNativeMs": 74.30000000447035,
+      "nativeMs": 818.5,
+      "copyAndFoldMs": 1.5,
+      "encodeMs": 16.100000001490116,
+      "native": {
+        "start": 5674,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 6492.5
+      },
+      "posts": [
+        {
+          "at": 5620.29999999702,
+          "count": 51
+        },
+        {
+          "at": 5620.5,
+          "count": 24
+        },
+        {
+          "at": 5620.5,
+          "count": 24
+        },
+        {
+          "at": 5620.5,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 5,
+      "workload": "welcome",
+      "renderMs": 902.2000000029802,
+      "setupMs": 21.100000001490116,
+      "ackAndSettleMs": 53.29999999701977,
+      "preNativeMs": 74.39999999850988,
+      "nativeMs": 826.3999999985099,
+      "copyAndFoldMs": 1.4000000059604645,
+      "encodeMs": 23.69999999552965,
+      "native": {
+        "start": 6590.79999999702,
+        "frames": 869637,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 7417.19999999553
+      },
+      "posts": [
+        {
+          "at": 6537.29999999702,
+          "count": 51
+        },
+        {
+          "at": 6537.39999999851,
+          "count": 24
+        },
+        {
+          "at": 6537.5,
+          "count": 24
+        },
+        {
+          "at": 6537.5,
+          "count": 17
+        }
+      ],
+      "frames": 869637,
+      "loopSamples": 756000,
+      "tailSamples": 113637,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3478592,
+      "wavSha256": "f3b0d1396351910c7f9325720053046f9569879666393ce034db609bb90466cd"
+    },
+    {
+      "pass": 0,
+      "workload": "glass-arcade",
+      "renderMs": 2720.7999999970198,
+      "setupMs": 46.79999999701977,
+      "ackAndSettleMs": 61.899999998509884,
+      "preNativeMs": 108.69999999552965,
+      "nativeMs": 2610.2000000029802,
+      "copyAndFoldMs": 1.8999999985098839,
+      "encodeMs": 9.200000002980232,
+      "native": {
+        "start": 7558.69999999553,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 10168.89999999851
+      },
+      "posts": [
+        {
+          "at": 7496.39999999851,
+          "count": 125
+        },
+        {
+          "at": 7496.60000000149,
+          "count": 48
+        },
+        {
+          "at": 7496.60000000149,
+          "count": 72
+        },
+        {
+          "at": 7496.69999999553,
+          "count": 24
+        },
+        {
+          "at": 7496.69999999553,
+          "count": 32
+        },
+        {
+          "at": 7496.69999999553,
+          "count": 18
+        },
+        {
+          "at": 7496.79999999702,
+          "count": 27
+        },
+        {
+          "at": 7496.79999999702,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    },
+    {
+      "pass": 1,
+      "workload": "glass-arcade",
+      "renderMs": 2453.5,
+      "setupMs": 55,
+      "ackAndSettleMs": 53.900000005960464,
+      "preNativeMs": 108.90000000596046,
+      "nativeMs": 2342.6999999955297,
+      "copyAndFoldMs": 1.8999999985098839,
+      "encodeMs": 16.80000000447035,
+      "native": {
+        "start": 10296.10000000149,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 12638.79999999702
+      },
+      "posts": [
+        {
+          "at": 10241.79999999702,
+          "count": 125
+        },
+        {
+          "at": 10241.89999999851,
+          "count": 48
+        },
+        {
+          "at": 10242,
+          "count": 72
+        },
+        {
+          "at": 10242.10000000149,
+          "count": 24
+        },
+        {
+          "at": 10242.10000000149,
+          "count": 32
+        },
+        {
+          "at": 10242.10000000149,
+          "count": 18
+        },
+        {
+          "at": 10242.10000000149,
+          "count": 27
+        },
+        {
+          "at": 10242.19999999553,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    },
+    {
+      "pass": 2,
+      "workload": "glass-arcade",
+      "renderMs": 2403.10000000149,
+      "setupMs": 49.70000000298023,
+      "ackAndSettleMs": 51.099999994039536,
+      "preNativeMs": 100.79999999701977,
+      "nativeMs": 2300.7000000029802,
+      "copyAndFoldMs": 1.6000000014901161,
+      "encodeMs": 16.099999994039536,
+      "native": {
+        "start": 12765.19999999553,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 15065.89999999851
+      },
+      "posts": [
+        {
+          "at": 12713.69999999553,
+          "count": 125
+        },
+        {
+          "at": 12713.79999999702,
+          "count": 48
+        },
+        {
+          "at": 12713.89999999851,
+          "count": 72
+        },
+        {
+          "at": 12714,
+          "count": 24
+        },
+        {
+          "at": 12714,
+          "count": 32
+        },
+        {
+          "at": 12714,
+          "count": 18
+        },
+        {
+          "at": 12714,
+          "count": 27
+        },
+        {
+          "at": 12714.10000000149,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    },
+    {
+      "pass": 3,
+      "workload": "glass-arcade",
+      "renderMs": 2427.3000000044703,
+      "setupMs": 49.80000000447035,
+      "ackAndSettleMs": 64.09999999403954,
+      "preNativeMs": 113.89999999850988,
+      "nativeMs": 2311.60000000149,
+      "copyAndFoldMs": 1.8000000044703484,
+      "encodeMs": 16.299999997019768,
+      "native": {
+        "start": 15205.19999999553,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 17516.79999999702
+      },
+      "posts": [
+        {
+          "at": 15140.79999999702,
+          "count": 125
+        },
+        {
+          "at": 15140.89999999851,
+          "count": 48
+        },
+        {
+          "at": 15141,
+          "count": 72
+        },
+        {
+          "at": 15141,
+          "count": 24
+        },
+        {
+          "at": 15141.10000000149,
+          "count": 32
+        },
+        {
+          "at": 15141.10000000149,
+          "count": 18
+        },
+        {
+          "at": 15141.10000000149,
+          "count": 27
+        },
+        {
+          "at": 15141.10000000149,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    },
+    {
+      "pass": 4,
+      "workload": "glass-arcade",
+      "renderMs": 2921.39999999851,
+      "setupMs": 51,
+      "ackAndSettleMs": 63.80000000447035,
+      "preNativeMs": 114.80000000447035,
+      "nativeMs": 2804.7999999970198,
+      "copyAndFoldMs": 1.7999999970197678,
+      "encodeMs": 17.200000002980232,
+      "native": {
+        "start": 17657.10000000149,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 20461.89999999851
+      },
+      "posts": [
+        {
+          "at": 17592.89999999851,
+          "count": 125
+        },
+        {
+          "at": 17593,
+          "count": 48
+        },
+        {
+          "at": 17593.10000000149,
+          "count": 72
+        },
+        {
+          "at": 17593.10000000149,
+          "count": 24
+        },
+        {
+          "at": 17593.19999999553,
+          "count": 32
+        },
+        {
+          "at": 17593.19999999553,
+          "count": 18
+        },
+        {
+          "at": 17593.29999999702,
+          "count": 27
+        },
+        {
+          "at": 17593.29999999702,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    },
+    {
+      "pass": 5,
+      "workload": "glass-arcade",
+      "renderMs": 2401.0999999940395,
+      "setupMs": 46.099999994039536,
+      "ackAndSettleMs": 57.900000005960464,
+      "preNativeMs": 104,
+      "nativeMs": 2295.2999999970198,
+      "copyAndFoldMs": 1.7999999970197678,
+      "encodeMs": 16.80000000447035,
+      "native": {
+        "start": 20590.60000000149,
+        "frames": 844227,
+        "channels": 2,
+        "sampleRate": 44100,
+        "end": 22885.89999999851
+      },
+      "posts": [
+        {
+          "at": 20532.29999999702,
+          "count": 125
+        },
+        {
+          "at": 20532.5,
+          "count": 48
+        },
+        {
+          "at": 20532.5,
+          "count": 72
+        },
+        {
+          "at": 20532.5,
+          "count": 24
+        },
+        {
+          "at": 20532.69999999553,
+          "count": 32
+        },
+        {
+          "at": 20532.69999999553,
+          "count": 18
+        },
+        {
+          "at": 20532.69999999553,
+          "count": 27
+        },
+        {
+          "at": 20532.69999999553,
+          "count": 2
+        }
+      ],
+      "frames": 844227,
+      "loopSamples": 694033,
+      "tailSamples": 150194,
+      "outputChannels": 2,
+      "sampleRate": 44100,
+      "wavBytes": 3376952,
+      "wavSha256": "5f870ebcf778e9f478ae47f6b9e8c788e04aa0cb03bd8a0a6a3b8e39fd2f6386"
+    }
+  ]
+}
