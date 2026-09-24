@@ -8,7 +8,7 @@ The dedicated [probe](../../tests/perf/viz-frame.mjs) runs five sequential 1.2-s
 
 ## Capture history
 
-The first baseline and contour-cache candidate runs finished while P-05 was also running browser audio verification and a build on the Windows host. They remain in `viz-frame-baseline.json` and `viz-frame-contour-reuse.json` with CPU profiles and representative PNGs, but **are excluded from the speed decision**. The manager then confirmed an idle host. I restored `src/viz/compositionEngine.ts` to the assigned base and ran the baseline, applied one narrow contour second-harmonic scratch reuse, and ran the candidate sequentially:
+The first baseline and contour-cache candidate runs finished while P-05 was also running browser audio verification and a build on the Windows host. Their raw JSON, CPU profiles, and representative PNGs are retained locally at `C:\Users\arran\Projects\DAW-perf-viz-frame-traces\overlapping`, but **are excluded from the PR's speed decision**. The manager then confirmed an idle host. I restored `src/viz/compositionEngine.ts` to the assigned base and ran the baseline, applied one narrow contour second-harmonic scratch reuse, and ran the candidate sequentially:
 
 ```powershell
 git diff --exit-code -- src/viz/compositionEngine.ts
@@ -19,7 +19,13 @@ $env:GIT_COMMIT = (git rev-parse HEAD)
 node tests/perf/viz-frame.mjs --out docs/dev/viz-frame-contour-reuse-clear.json
 ```
 
-Both commands exited 0 in 23.5 and 23.1 seconds. The raw JSON records browser 151.0.7922.34, HeadlessChrome user agent, `win32/x64`, 1280 × 720 viewport, base commit `a292f3d733cd32e65fbb0dffb20afdd78686c6ed`, every callback, and every posted event batch. The candidate was uncommitted during capture and has since been reverted.
+Both commands exited 0 in 23.5 and 23.1 seconds. Their outputs were then losslessly compressed to `viz-frame-baseline-clear.json.gz` and `viz-frame-contour-reuse-clear.json.gz` for review. The decoded raw JSON records browser 151.0.7922.34, HeadlessChrome user agent, `win32/x64`, 1280 × 720 viewport, base commit `a292f3d733cd32e65fbb0dffb20afdd78686c6ed`, every callback, and every posted event batch. To decode both from the repository root in PowerShell:
+
+```powershell
+node -e "const fs=require('node:fs'); const z=require('node:zlib'); for (const n of ['viz-frame-baseline-clear','viz-frame-contour-reuse-clear']) { const p='docs/dev/'+n+'.json.gz'; fs.writeFileSync(p.slice(0,-3), z.gunzipSync(fs.readFileSync(p))); }"
+```
+
+The candidate was uncommitted during capture and has since been reverted. The decoded JSON files are local review copies; the committed `.json.gz` files preserve the original bytes.
 
 | Idle-host measure, five visualizer windows | Baseline | Contour cache |
 | --- | ---: | ---: |
@@ -35,6 +41,6 @@ The median p95 difference is about 3.6%, far below the 25% gate. The observed dr
 
 The initial sampled visualizer profile had 263 samples under `compositionEngine.ts`, 32 under timbre/listening, and three under other visualizer code. Thus draw code is a material share of sampled visualizer CPU work. This is stack sampling, not an exact wall-time split. The trace includes layout, paint, and raster events, but the headless trace does not establish target-device GPU time. The fixed eight-lane pixel hashes were `3372253067`, `3672592734`, `2858053307`, and `3234583933` before and after the candidate; the browser test passed both times. Playing PNGs are representative only and are not pixel comparisons because their song times differ.
 
-The clear-run DevTools traces are committed as `viz-frame-baseline-clear-attribution-trace.json.gz` and `viz-frame-contour-reuse-clear-attribution-trace.json.gz` (about 1.1 MB each). Decompress either with `gzip -d -k` or any gzip tool, then open the JSON in Chrome tracing or Perfetto. The four original uncompressed trace JSON files are retained locally at `C:\Users\arran\Projects\DAW-perf-viz-frame-traces`; they are not part of the PR. Small `.cpuprofile` files, raw comparison JSON, and representative PNGs are committed for both histories.
+The clear-run DevTools traces are committed as `viz-frame-baseline-clear-attribution-trace.json.gz` and `viz-frame-contour-reuse-clear-attribution-trace.json.gz` (about 1.1 MB each). Decompress either with the same Node `gunzipSync` approach, then open the JSON in Chrome tracing or Perfetto. The four original uncompressed trace JSON files are retained locally at `C:\Users\arran\Projects\DAW-perf-viz-frame-traces`; they are not part of the PR. Only the two decisive clear-host histories have committed raw samples, CPU profiles, and representative PNGs.
 
 No phone, physical GPU, audible-onset, or audio render-deadline improvement follows from headless rAF timing. Event posts show control-side delivery, not worklet consumption or speaker output. No manual device or listening check was performed.
