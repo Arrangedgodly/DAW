@@ -447,22 +447,25 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           T.ui,
           "third fx module on bass",
         );
-        // Param tweak: native range stepping + input event (module DOM is
-        // rebuilt per commit, so re-query fresh each press).
-        const readout = () =>
-          $<HTMLInputElement>(".fx-param-slider")
-            .closest("label")
-            ?.querySelector(".fx-param-readout")?.textContent ?? "";
-        const readoutBefore = readout();
+        // The compact filter parameter is an exact numeric input. Commit each
+        // native step through its change handler; the module DOM is rebuilt
+        // per commit, so re-query the field after every step.
+        const parameterValue = () =>
+          $<HTMLInputElement>(
+            '.fx-strip[data-lane="bass"] .mixer-param-value input[type="number"]',
+          ).value;
+        const valueBefore = parameterValue();
         for (let i = 0; i < 5; i++) {
-          const slider = $<HTMLInputElement>(".fx-param-slider");
-          slider.stepUp();
-          slider.dispatchEvent(new Event("input", { bubbles: true }));
+          const parameter = $<HTMLInputElement>(
+            '.fx-strip[data-lane="bass"] .mixer-param-value input[type="number"]',
+          );
+          parameter.stepUp();
+          parameter.dispatchEvent(new Event("change", { bubbles: true }));
         }
         await poll(
-          () => readout() !== readoutBefore,
+          () => parameterValue() !== valueBefore,
           T.ui,
-          "fx param readout change",
+          "fx parameter value change",
         );
         expect($$('.fx-strip[data-lane="bass"] .fx-mod').length).toBe(3);
 
