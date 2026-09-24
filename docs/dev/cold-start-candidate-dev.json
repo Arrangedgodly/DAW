@@ -1,0 +1,1539 @@
+{
+  "revision": "a292f3d733cd32e65fbb0dffb20afdd78686c6ed",
+  "mode": "dev",
+  "runs": 12,
+  "browser": "151.0.7922.34",
+  "platform": "win32",
+  "arch": "x64",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "samples": [
+    {
+      "pass": 0,
+      "coldMs": 67.59999999403954,
+      "warmMs": 0.29999999701976776,
+      "errors": [],
+      "data": {
+        "clicks": [
+          1871.5,
+          2102.5,
+          2133.39999999851
+        ],
+        "resumes": [
+          {
+            "start": 1871.7999999970198,
+            "stateBefore": "suspended",
+            "end": 1937.1999999955297,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 1872.0999999940395,
+            "end": 1897.8999999985099
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 1898.5999999940395,
+            "end": 1903.7999999970198
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 1939.0999999940395,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 1939.5,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 1939.5,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 2133.6999999955297,
+            "count": 2,
+            "firstAudioTime": 0.2509297052154195,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 2133.89999999851,
+            "count": 1,
+            "firstAudioTime": 0.2509297052154195,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 2133.89999999851,
+            "count": 3,
+            "firstAudioTime": 0.2509297052154195,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 1,
+      "coldMs": 73,
+      "warmMs": 0.4000000059604645,
+      "errors": [],
+      "data": {
+        "clicks": [
+          586.6000000014901,
+          816.8999999985099,
+          864.1999999955297
+        ],
+        "resumes": [
+          {
+            "start": 586.8999999985099,
+            "stateBefore": "suspended",
+            "end": 605.8999999985099,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 587.3999999985099,
+            "end": 616
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 616.7999999970198,
+            "end": 620.8999999985099
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 659.6000000014901,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 660,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 660,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 864.6000000014901,
+            "count": 2,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 864.7999999970198,
+            "count": 1,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 864.8999999985099,
+            "count": 3,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 2,
+      "coldMs": 73.60000000149012,
+      "warmMs": 0.4000000059604645,
+      "errors": [],
+      "data": {
+        "clicks": [
+          693.3000000044703,
+          910.9000000059605,
+          957.5
+        ],
+        "resumes": [
+          {
+            "start": 693.6000000014901,
+            "stateBefore": "suspended",
+            "end": 710.6000000014901,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 694,
+            "end": 724.8000000044703
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 725.7000000029802,
+            "end": 729
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 766.9000000059605,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 767.3000000044703,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 767.4000000059605,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 957.9000000059605,
+            "count": 2,
+            "firstAudioTime": 0.35251700680272113,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 957.9000000059605,
+            "count": 1,
+            "firstAudioTime": 0.35251700680272113,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 958,
+            "count": 3,
+            "firstAudioTime": 0.35251700680272113,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 3,
+      "coldMs": 63.80000000447035,
+      "warmMs": 0.4000000059604645,
+      "errors": [],
+      "data": {
+        "clicks": [
+          642,
+          873,
+          922.3999999985099
+        ],
+        "resumes": [
+          {
+            "start": 642.3000000044703,
+            "stateBefore": "suspended",
+            "end": 667.2000000029802,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 642.7000000029802,
+            "end": 666.3999999985099
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 667.1000000014901,
+            "end": 672.6000000014901
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 705.8000000044703,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 706.3000000044703,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 706.3000000044703,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 922.8000000044703,
+            "count": 2,
+            "firstAudioTime": 0.3728344671201814,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 923,
+            "count": 1,
+            "firstAudioTime": 0.3728344671201814,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 923,
+            "count": 3,
+            "firstAudioTime": 0.3728344671201814,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 4,
+      "coldMs": 51.79999999701977,
+      "warmMs": 0.30000000447034836,
+      "errors": [],
+      "data": {
+        "clicks": [
+          728.3000000044703,
+          929.5,
+          977
+        ],
+        "resumes": [
+          {
+            "start": 728.6000000014901,
+            "stateBefore": "suspended",
+            "end": 742.3000000044703,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 729.1000000014901,
+            "end": 749.2000000029802
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 749.7000000029802,
+            "end": 752.5
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 780.1000000014901,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 780.3999999985099,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 780.3999999985099,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 977.3000000044703,
+            "count": 2,
+            "firstAudioTime": 0.3409070294784581,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 977.3999999985099,
+            "count": 1,
+            "firstAudioTime": 0.3409070294784581,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 977.3999999985099,
+            "count": 3,
+            "firstAudioTime": 0.3409070294784581,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 5,
+      "coldMs": 60.70000000298023,
+      "warmMs": 0.3999999985098839,
+      "errors": [],
+      "data": {
+        "clicks": [
+          634.0999999940395,
+          850.2999999970198,
+          899
+        ],
+        "resumes": [
+          {
+            "start": 634.5999999940395,
+            "stateBefore": "suspended",
+            "end": 651.1999999955297,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 635,
+            "end": 654.0999999940395
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 654.6999999955297,
+            "end": 658
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 694.7999999970198,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 695,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 695.0999999940395,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 899.3999999985099,
+            "count": 2,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 899.5999999940395,
+            "count": 1,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 899.6999999955297,
+            "count": 3,
+            "firstAudioTime": 0.36122448979591837,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 6,
+      "coldMs": 51,
+      "warmMs": 0.29999999701976776,
+      "errors": [],
+      "data": {
+        "clicks": [
+          545.9000000059605,
+          745.1000000014901,
+          776.2000000029802
+        ],
+        "resumes": [
+          {
+            "start": 546.1000000014901,
+            "stateBefore": "suspended",
+            "end": 560.5,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 546.5,
+            "end": 565.9000000059605
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 566.5,
+            "end": 569
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 596.9000000059605,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 597.2000000029802,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 597.3000000044703,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 776.5,
+            "count": 2,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 776.6000000014901,
+            "count": 1,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 776.6000000014901,
+            "count": 3,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 7,
+      "coldMs": 48.099999994039536,
+      "warmMs": 0.29999999701976776,
+      "errors": [],
+      "data": {
+        "clicks": [
+          496.1000000014901,
+          696,
+          728.6000000014901
+        ],
+        "resumes": [
+          {
+            "start": 496.29999999701977,
+            "stateBefore": "suspended",
+            "end": 509.79999999701977,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 496.6000000014901,
+            "end": 516.6000000014901
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 517.1000000014901,
+            "end": 519.6999999955297
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 544.1999999955297,
+            "count": 2,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 544.5,
+            "count": 1,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 544.5,
+            "count": 3,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 728.8999999985099,
+            "count": 2,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 729,
+            "count": 1,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 729.1000000014901,
+            "count": 3,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 8,
+      "coldMs": 53.20000000298023,
+      "warmMs": 0.20000000298023224,
+      "errors": [],
+      "data": {
+        "clicks": [
+          571.2999999970198,
+          771.7999999970198,
+          800.8999999985099
+        ],
+        "resumes": [
+          {
+            "start": 571.6000000014901,
+            "stateBefore": "suspended",
+            "end": 588.5,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 572.1000000014901,
+            "end": 591.6000000014901
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 592.1999999955297,
+            "end": 594.8999999985099
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 624.5,
+            "count": 2,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 624.7999999970198,
+            "count": 1,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 624.7999999970198,
+            "count": 3,
+            "firstAudioTime": 0.11160997732426305,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 801.1000000014901,
+            "count": 2,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 801.2999999970198,
+            "count": 1,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 801.2999999970198,
+            "count": 3,
+            "firstAudioTime": 0.3234920634920635,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 9,
+      "coldMs": 47.5,
+      "warmMs": 0.29999999701976776,
+      "errors": [],
+      "data": {
+        "clicks": [
+          508.19999999552965,
+          707.8999999985099,
+          739.7999999970198
+        ],
+        "resumes": [
+          {
+            "start": 508.3999999985099,
+            "stateBefore": "suspended",
+            "end": 521.0999999940395,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 508.69999999552965,
+            "end": 528
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 528.6999999955297,
+            "end": 531.1999999955297
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 555.6999999955297,
+            "count": 2,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 555.8999999985099,
+            "count": 1,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 556,
+            "count": 3,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 740.0999999940395,
+            "count": 2,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 740.1999999955297,
+            "count": 1,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 740.1999999955297,
+            "count": 3,
+            "firstAudioTime": 0.3321995464852608,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 10,
+      "coldMs": 46.20000000298023,
+      "warmMs": 0.30000000447034836,
+      "errors": [],
+      "data": {
+        "clicks": [
+          462.19999999552965,
+          662.2999999970198,
+          693.2999999970198
+        ],
+        "resumes": [
+          {
+            "start": 462.3999999985099,
+            "stateBefore": "suspended",
+            "end": 475.5,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 462.69999999552965,
+            "end": 482.3999999985099
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 482.79999999701977,
+            "end": 485.19999999552965
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 508.3999999985099,
+            "count": 2,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 508.6000000014901,
+            "count": 1,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 508.6000000014901,
+            "count": 3,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 693.6000000014901,
+            "count": 2,
+            "firstAudioTime": 0.32058956916099773,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 693.6000000014901,
+            "count": 1,
+            "firstAudioTime": 0.32058956916099773,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 693.6999999955297,
+            "count": 3,
+            "firstAudioTime": 0.32058956916099773,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "pass": 11,
+      "coldMs": 46.29999999701977,
+      "warmMs": 0.20000000298023224,
+      "errors": [],
+      "data": {
+        "clicks": [
+          463.90000000596046,
+          647.7000000029802,
+          680.2000000029802
+        ],
+        "resumes": [
+          {
+            "start": 464.1000000014901,
+            "stateBefore": "suspended",
+            "end": 478.1000000014901,
+            "stateAfter": "running"
+          }
+        ],
+        "modules": [
+          {
+            "url": "http://127.0.0.1:57873/src/audio/worklets/voiceEngine.js",
+            "start": 464.40000000596046,
+            "end": 484.20000000298023
+          },
+          {
+            "url": "/src/audio/worklets/mixerLimiter.js?no-inline",
+            "start": 484.70000000298023,
+            "end": 487
+          }
+        ],
+        "fetches": [],
+        "decodes": [],
+        "messages": [
+          {
+            "at": 510.20000000298023,
+            "count": 2,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 510.5,
+            "count": 1,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 510.6000000014901,
+            "count": 3,
+            "firstAudioTime": 0.12031746031746032,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 680.4000000059605,
+            "count": 2,
+            "firstAudioTime": 0.31188208616780044,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 680.6000000014901,
+            "count": 1,
+            "firstAudioTime": 0.31188208616780044,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          },
+          {
+            "at": 680.6000000014901,
+            "count": 3,
+            "firstAudioTime": 0.31188208616780044,
+            "events": [
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              },
+              {
+                "type": "note-on",
+                "sample": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36"
+}
