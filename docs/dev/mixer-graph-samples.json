@@ -1,0 +1,1008 @@
+{
+  "revision": "a292f3d733cd32e65fbb0dffb20afdd78686c6ed",
+  "browser": "151.0.7922.34",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "platform": "win32",
+  "arch": "x64",
+  "runs": 8,
+  "play": {
+    "click": 1893.8999999985099,
+    "firstPost": {
+      "at": 2046.7000000029802,
+      "count": 2
+    },
+    "events": [
+      {
+        "at": 2046.7000000029802,
+        "count": 2
+      },
+      {
+        "at": 2047,
+        "count": 1
+      },
+      {
+        "at": 2047,
+        "count": 3
+      }
+    ]
+  },
+  "cases": [
+    {
+      "pass": 0,
+      "step": 0,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 5.800000004470348,
+      "setupMs": 2.600000001490116,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 0,
+      "step": 1,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 7,
+      "setupMs": 3.600000001490116,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 0,
+      "step": 2,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.09999999403953552,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 0,
+      "step": 3,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 4.800000004470348,
+      "setupMs": 5.5,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 0,
+      "step": 4,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 5.200000002980232,
+      "setupMs": 5,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.21679116785526276,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 0,
+      "step": 5,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 0,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 5.600000001490116,
+      "setupMs": 3.399999998509884,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.23752443492412567,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 1,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 2,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 5.699999995529652,
+      "setupMs": 5.9000000059604645,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 3,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 4.700000002980232,
+      "setupMs": 6.899999998509884,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.21947091817855835,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 4,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.09999999403953552,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 1,
+      "step": 5,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 4.200000002980232,
+      "setupMs": 2.600000001490116,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 0,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 1,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 3.7000000029802322,
+      "setupMs": 4.799999997019768,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 2,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 3.7999999970197678,
+      "setupMs": 4.700000002980232,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 3,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 4,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 4.299999997019768,
+      "setupMs": 2.5,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 2,
+      "step": 5,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 3.5999999940395355,
+      "setupMs": 2.2000000029802322,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 0,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 3.8000000044703484,
+      "setupMs": 4.799999997019768,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 1,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 4,
+      "setupMs": 4.799999997019768,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 2,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.19999999552965164,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 3,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 3.7000000029802322,
+      "setupMs": 2.5,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 4,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 4.399999998509884,
+      "setupMs": 3,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.2173633724451065,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 3,
+      "step": 5,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 0,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 4.9000000059604645,
+      "setupMs": 6.5999999940395355,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.23752443492412567,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 1,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 2,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 5.899999998509884,
+      "setupMs": 3.3000000044703484,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810295462608337,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 3,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 5.200000002980232,
+      "setupMs": 3.7999999970197678,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.2173633724451065,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 4,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 4,
+      "step": 5,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 4.799999997019768,
+      "setupMs": 6.100000001490116,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 0,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 1,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 5.5,
+      "setupMs": 3.2000000029802322,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 2,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 4.799999997019768,
+      "setupMs": 3.399999998509884,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.2173633724451065,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 3,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 4,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 4.799999997019768,
+      "setupMs": 5.399999998509884,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 5,
+      "step": 5,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 5.5,
+      "setupMs": 5.100000001490116,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.2248392552137375,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 0,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 5,
+      "setupMs": 3.8000000044703484,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 1,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 5,
+      "setupMs": 2.6999999955296516,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 2,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 3,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 3.6999999955296516,
+      "setupMs": 4.700000002980232,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 4,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 3.899999998509884,
+      "setupMs": 5.299999997019768,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 6,
+      "step": 5,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 0,
+      "lanes": 4,
+      "mode": "enabled",
+      "moduleMs": 4,
+      "setupMs": 2.7999999970197678,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.22069287300109863,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 1,
+      "lanes": 4,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.10000000149011612,
+      "counts": {
+        "createGain": 5
+      },
+      "connections": 5,
+      "totalNodes": 5,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 2,
+      "lanes": 8,
+      "mode": "default",
+      "moduleMs": 5.899999998509884,
+      "setupMs": 5.300000004470348,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 3,
+      "lanes": 8,
+      "mode": "enabled",
+      "moduleMs": 4.600000001490116,
+      "setupMs": 5.899999998509884,
+      "counts": {
+        "createGain": 274,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 9,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 64,
+        "createStereoPanner": 8
+      },
+      "connections": 439,
+      "totalNodes": 357,
+      "outputPeak": 0.2173633724451065,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 4,
+      "lanes": 8,
+      "mode": "stripped",
+      "moduleMs": 0,
+      "setupMs": 0.20000000298023224,
+      "counts": {
+        "createGain": 9
+      },
+      "connections": 9,
+      "totalNodes": 9,
+      "outputPeak": 0.999999463558197,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    },
+    {
+      "pass": 7,
+      "step": 5,
+      "lanes": 4,
+      "mode": "default",
+      "moduleMs": 4.300000004470348,
+      "setupMs": 3,
+      "counts": {
+        "createGain": 142,
+        "AudioWorkletNode:bitbounce-mixer-compressor": 5,
+        "createWaveShaper": 1,
+        "AudioWorkletNode:bitbounce-mixer-limiter": 1,
+        "createBiquadFilter": 32,
+        "createStereoPanner": 4
+      },
+      "connections": 227,
+      "totalNodes": 185,
+      "outputPeak": 0.8810296058654785,
+      "stateAfterResume": "running",
+      "stateAfterClose": "closed",
+      "sampleRate": 44100
+    }
+  ],
+  "errors": []
+}
