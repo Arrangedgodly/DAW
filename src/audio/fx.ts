@@ -599,21 +599,34 @@ export interface FxChainHostOptions {
 
 interface WiredDevice {
   device: FxDevice;
+  /** Snapshots survive callers mutating a device or its params in place. */
+  bypassed: boolean;
+  params: FxDevice["params"];
   readonly instance: FxDeviceInstance;
+}
+
+function sameFxParams(a: FxDevice["params"], b: FxDevice["params"]): boolean {
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => Object.is(left[key], right[key]))
+  );
 }
 
 /**
  * Per-lane ordered chain: source → ramp → [active devices] → sink.
  *
  * Edit semantics (documented, IM-4):
- * - Same type sequence (incl. bypass toggles): relink only. Bypassed devices
- *   stay alive but are reconnected around (never a dead node in the path).
+ * - Same type sequence: param changes reach existing instances without edge
+ *   churn. Bypass changes relink around the same warm instances.
  * - Different type sequence (add/remove/reorder): full rebuild in the new
  *   order, wrapped in the head ramp 3 ms down / 8 ms up. Rebuild — not
  *   relink — because device subgraphs are order-dependent (e.g. reverb before
  *   drive vs after) and a fresh build cannot half-apply.
- * - Param edits: forwarded to setParams (AudioParam ramps, no topology
- *   change, no fade).
+ * - Param edits: value snapshots detect new objects and in-place edits;
+ *   changed values are forwarded to setParams without a fade.
  */
 export class FxChainHost {
   private readonly opts: FxChainHostOptions;
@@ -633,23 +646,36 @@ export class FxChainHost {
     const sameSequence =
       devices.length === this.wired.length &&
       devices.every((d, i) => d.type === this.wired[i].device.type);
-    if (sameSequence) {
-      // Reconnect-around: tear down active edges edge-wise (internal device
-      // subgraphs are untouched — only host-owned connections drop), push
-      // param edits, then relink skipping bypassed devices.
-      this.tearDownActiveEdges();
-      let cursor: FxConn = this.opts.ramp.output;
+    // A move between same-type slots leaves the type sequence unchanged.
+    // Exact reference permutations still identify this structural edit.
+    const reorderedSameType =
+      sameSequence &&
+      devices.some((d, i) => d !== this.wired[i].device) &&
+      devices.every((d) => this.wired.some((w) => w.device === d));
+    if (sameSequence && !reorderedSameType) {
+      const bypassChanged = devices.some(
+        (d, i) => d.bypassed !== this.wired[i].bypassed,
+      );
+      if (bypassChanged) this.tearDownActiveEdges();
       for (let i = 0; i < devices.length; i++) {
-        const w = this.wired[i];
-        const next = devices[i];
-        if (w.device !== next) w.instance.setParams(next, this.opts.timing());
-        if (!next.bypassed) {
+        const w = this.wired[i]!;
+        const next = devices[i]!;
+        if (!sameFxParams(w.params, next.params)) {
+          w.instance.setParams(next, this.opts.timing());
+          w.params = { ...next.params };
+        }
+        w.device = next;
+        w.bypassed = next.bypassed;
+      }
+      if (bypassChanged) {
+        let cursor: FxConn = this.opts.ramp.output;
+        for (const w of this.wired) {
+          if (w.bypassed) continue;
           this.link(cursor, w.instance.input);
           cursor = w.instance.output;
         }
-        w.device = next;
+        this.link(cursor, this.opts.sink);
       }
-      this.link(cursor, this.opts.sink);
       return;
     }
     this.rebuild(devices);
@@ -700,7 +726,12 @@ export class FxChainHost {
     for (let i = 0; i < devices.length; i++) {
       const device = devices[i]!;
       const instance = createDevice(device, i, { ...timing(), when: settle });
-      created.push({ device, instance });
+      created.push({
+        device,
+        bypassed: device.bypassed,
+        params: { ...device.params },
+        instance,
+      });
       if (!device.bypassed) {
         this.link(cursor, instance.input);
         cursor = instance.output;
