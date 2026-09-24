@@ -16,6 +16,7 @@ import {
 import {
   FxChainHost,
   type FxConn,
+  type FxDeviceInstance,
   type RampGainLike,
   createRealFxDeviceFactory,
 } from "../../src/audio/fx";
@@ -47,6 +48,7 @@ async function renderWithChain(
   duration: number,
   bpm = 120,
   configure?: (chain: FxChainHost, setBpm: (bpm: number) => void) => void,
+  editAt?: number,
 ): Promise<Float32Array> {
   const ctx = new OfflineAudioContext(
     2,
@@ -86,9 +88,12 @@ async function renderWithChain(
     timing: () => ({ bpm: currentBpm, when: ctx.currentTime }),
   });
   if (device) chain.setChain([device]);
-  configure?.(chain, (nextBpm) => {
-    currentBpm = nextBpm;
-  });
+  const applyEdit = () =>
+    configure?.(chain, (nextBpm) => {
+      currentBpm = nextBpm;
+    });
+  const suspension = editAt === undefined ? null : ctx.suspend(editAt);
+  if (!suspension) applyEdit();
   host.sendEvents(
     0,
     [...events].sort((a, b) => a.time - b.time),
@@ -96,7 +101,13 @@ async function renderWithChain(
   // Let the worklet port messages deliver before rendering (TH-1 flake fix).
   await new Promise((r) => setTimeout(r, 25));
 
-  const buf = await ctx.startRendering();
+  const rendering = ctx.startRendering();
+  if (suspension) {
+    await suspension;
+    applyEdit();
+    await ctx.resume();
+  }
+  const buf = await rendering;
   host.dispose();
   chain.dispose();
   const l = buf.getChannelData(0);
@@ -311,6 +322,83 @@ describe("FX device graph (real offline renders)", () => {
     expect(maxDiff).toBeLessThan(1e-6);
   });
 
+  it.each([
+    [
+      "filter",
+      { type: "filter", bypassed: false, params: { cutoffHz: 400, q: 1 } },
+      { type: "filter", bypassed: false, params: { cutoffHz: 2400, q: 2 } },
+    ],
+    [
+      "drive",
+      { type: "drive", bypassed: false, params: { amount: 0.1 } },
+      { type: "drive", bypassed: false, params: { amount: 0.9 } },
+    ],
+    [
+      "bitcrusher",
+      {
+        type: "bitcrusher",
+        bypassed: false,
+        params: { bits: 12, downsample: 2 },
+      },
+      {
+        type: "bitcrusher",
+        bypassed: false,
+        params: { bits: 4, downsample: 12 },
+      },
+    ],
+    [
+      "delay",
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 4, feedback: 0.3, mix: 0.3 },
+      },
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 7, feedback: 0.6, mix: 0.7 },
+      },
+    ],
+    [
+      "reverb",
+      { type: "reverb", bypassed: false, params: { size: 0.2, mix: 0.2 } },
+      { type: "reverb", bypassed: false, params: { size: 0.8, mix: 0.7 } },
+    ],
+  ] as const)(
+    "%s param edit renders the final processing in an offline graph",
+    async (_name, initial, final) => {
+      // The delay's 15 ms glide needs to settle before the note. A fresh
+      // instance starts its glide from a different initial delayTime value.
+      const events = [note(0.25, 72, 0.15)];
+      const edited = await renderWithChain(
+        initial as FxDevice,
+        events,
+        2.2,
+        120,
+        (chain) => chain.setChain([final as FxDevice]),
+        _name === "delay" ? 0.1 : undefined,
+      );
+      const fresh = await renderWithChain(final as FxDevice, events, 2.2);
+      expect(findNonFinite(edited)).toBe(0);
+      expect(peak(edited, 0.05, 2.0)).toBeGreaterThan(0.001);
+      let maxDiff = 0;
+      for (let i = 0; i < edited.length; i++) {
+        maxDiff = Math.max(maxDiff, Math.abs(edited[i]! - fresh[i]!));
+      }
+      if (_name === "delay") {
+        // A mid-render delayTime glide legitimately changes the wet waveform.
+        // Its echoes must still arrive at the edited seven-step interval.
+        const regions = activityRegions(edited, 0.005);
+        expect(regions.length).toBeGreaterThanOrEqual(2);
+        const gap = (regions[1]![0] - regions[0]![0]) / SAMPLE_RATE;
+        expect(gap).toBeGreaterThan(0.82);
+        expect(gap).toBeLessThan(0.94);
+      } else {
+        expect(maxDiff).toBeLessThan(1e-5);
+      }
+    },
+  );
+
   it("delay renders the configured 7-step interval at 90 BPM", async () => {
     const events = [note(0.05, 72, 0.1)];
     const wet = await renderWithChain(
@@ -346,5 +434,99 @@ describe("FX device graph (real offline renders)", () => {
     expect(findNonFinite(mono)).toBe(0);
     expect(peak(mono, 0.05, 2.5)).toBeGreaterThan(0.005);
     expect(peak(mono, 1.4, 2.8)).toBeGreaterThan(0.001); // tail audible
+  });
+});
+
+describe("FX host in a live AudioContext", () => {
+  it("leaves real host-owned edges connected during edits to all five device types", async () => {
+    const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const voice = await createVoiceEngine(workletContextFor(ctx), 1);
+    const oscillator = ctx.createOscillator();
+    const rampNode = ctx.createGain();
+    const sink = ctx.createGain();
+    sink.gain.value = 0;
+    sink.connect(ctx.destination);
+    const counts = { connects: 0, disconnects: 0 };
+    const watchOutput = (node: AudioNode) => {
+      const connect = node.connect;
+      const disconnect = node.disconnect;
+      Object.defineProperty(node, "connect", {
+        configurable: true,
+        value: (...args: unknown[]) => {
+          counts.connects++;
+          return Reflect.apply(connect, node, args);
+        },
+      });
+      Object.defineProperty(node, "disconnect", {
+        configurable: true,
+        value: (...args: unknown[]) => {
+          counts.disconnects++;
+          return Reflect.apply(disconnect, node, args);
+        },
+      });
+    };
+    watchOutput(rampNode);
+    const factory = createRealFxDeviceFactory(ctx, {
+      laneSeed: 0xabcd1234,
+      createBitcrusher: (c) => createBitcrusherNode(c),
+    });
+    const instances: FxDeviceInstance[] = [];
+    const chain = new FxChainHost({
+      source: oscillator,
+      sink,
+      ramp: {
+        input: rampNode,
+        output: rampNode,
+        rampTo(value) {
+          rampNode.gain.value = value;
+        },
+      },
+      createDevice(device, index, timing) {
+        const instance = factory(device, index, timing);
+        watchOutput(instance.output as AudioNode);
+        instances.push(instance);
+        return instance;
+      },
+      timing: () => ({ bpm: 120, when: ctx.currentTime }),
+    });
+    try {
+      oscillator.start();
+      await ctx.resume();
+      const first: FxDevice[] = [
+        { type: "filter", bypassed: false, params: { cutoffHz: 800, q: 1 } },
+        { type: "drive", bypassed: false, params: { amount: 0.2 } },
+        {
+          type: "bitcrusher",
+          bypassed: false,
+          params: { bits: 12, downsample: 2 },
+        },
+        {
+          type: "delay",
+          bypassed: false,
+          params: { timeSteps: 4, feedback: 0.3, mix: 0.3 },
+        },
+        { type: "reverb", bypassed: false, params: { size: 0.2, mix: 0.2 } },
+      ];
+      chain.setChain(first);
+      counts.connects = 0;
+      counts.disconnects = 0;
+      const edited: FxDevice[] = [
+        { ...first[0]!, params: { cutoffHz: 2300, q: 2 } },
+        { ...first[1]!, params: { amount: 0.8 } },
+        { ...first[2]!, params: { bits: 4, downsample: 12 } },
+        { ...first[3]!, params: { timeSteps: 7, feedback: 0.6, mix: 0.7 } },
+        { ...first[4]!, params: { size: 0.8, mix: 0.7 } },
+      ];
+      chain.setChain(edited);
+      chain.setChain(edited);
+      expect(counts).toEqual({ connects: 0, disconnects: 0 });
+      expect(instances).toHaveLength(5);
+      expect(ctx.state).toBe("running");
+    } finally {
+      chain.dispose();
+      oscillator.stop();
+      voice.dispose();
+      await ctx.close();
+    }
   });
 });

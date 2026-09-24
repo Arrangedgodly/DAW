@@ -19,11 +19,15 @@ import type { FxDevice } from "../src/document/schema";
 /** Fake connectable node recording connect/disconnect edges by identity. */
 class FakeNode implements FxConn {
   readonly connectedTo: FakeNode[] = [];
+  connectCalls = 0;
+  disconnectCalls = 0;
   connect(destination: FxConn): unknown {
+    this.connectCalls++;
     this.connectedTo.push(destination as FakeNode);
     return destination;
   }
   disconnect(...args: unknown[]): unknown {
+    this.disconnectCalls++;
     if (args.length === 0) this.connectedTo.length = 0;
     else {
       const target = args[0] as FakeNode;
@@ -53,6 +57,7 @@ interface FakeDevice extends FxDeviceInstance {
   readonly outNode: FakeNode;
   disposed: boolean;
   paramPushes: number;
+  lastParams: FxDevice["params"] | null;
   bpmSyncs: number;
 }
 
@@ -65,11 +70,13 @@ function fakeDevice(device: FxDevice): FakeDevice {
     outNode,
     disposed: false,
     paramPushes: 0,
+    lastParams: null,
     bpmSyncs: 0,
     input: inNode,
     output: outNode,
-    setParams() {
+    setParams(next) {
       dev.paramPushes++;
+      dev.lastParams = { ...next.params };
     },
     dispose() {
       dev.disposed = true;
@@ -134,6 +141,37 @@ const delay = (bypassed = false): FxDevice => ({
   bypassed,
   params: { timeSteps: 4, feedback: 0.4, mix: 0.4 },
 });
+const bitcrusher = (bypassed = false): FxDevice => ({
+  type: "bitcrusher",
+  bypassed,
+  params: { bits: 8, downsample: 4 },
+});
+const reverb = (bypassed = false): FxDevice => ({
+  type: "reverb",
+  bypassed,
+  params: { size: 0.5, mix: 0.4 },
+});
+
+function route(h: Harness): [FakeNode, FakeNode][] {
+  const nodes = [
+    h.ramp.node,
+    ...h.devices().flatMap((d) => [d.inNode, d.outNode]),
+  ];
+  return nodes.flatMap((from) =>
+    from.connectedTo.map((to): [FakeNode, FakeNode] => [from, to]),
+  );
+}
+
+function mutations(h: Harness): { connects: number; disconnects: number } {
+  const nodes = [
+    h.ramp.node,
+    ...h.devices().flatMap((d) => [d.inNode, d.outNode]),
+  ];
+  return {
+    connects: nodes.reduce((sum, n) => sum + n.connectCalls, 0),
+    disconnects: nodes.reduce((sum, n) => sum + n.disconnectCalls, 0),
+  };
+}
 
 describe("FxChainHost", () => {
   it("wires source → ramp → devices in order → sink", () => {
@@ -166,6 +204,102 @@ describe("FxChainHost", () => {
     expect(after[0]!.paramPushes).toBe(1);
     expect(h.ramp.ramps).toEqual([]); // no topology change → no fade
     expect(h.created.length).toBe(1); // no new device
+  });
+
+  it("does not mutate host edges on repeated parameter-only edits", () => {
+    const h = harness([filter(), drive(), bitcrusher(), delay(), reverb()]);
+    const instances = h.devices();
+    const beforeRoute = route(h);
+    const beforeMutations = mutations(h);
+    const edits: FxDevice[][] = [
+      [
+        { ...filter(), params: { cutoffHz: 1800, q: 2 } },
+        { ...drive(), params: { amount: 0.8 } },
+        { ...bitcrusher(), params: { bits: 4, downsample: 12 } },
+        { ...delay(), params: { timeSteps: 7, feedback: 0.6, mix: 0.5 } },
+        { ...reverb(), params: { size: 0.8, mix: 0.7 } },
+      ],
+      [
+        { ...filter(), params: { cutoffHz: 2200, q: 3 } },
+        { ...drive(), params: { amount: 0.6 } },
+        { ...bitcrusher(), params: { bits: 5, downsample: 8 } },
+        { ...delay(), params: { timeSteps: 5, feedback: 0.3, mix: 0.6 } },
+        { ...reverb(), params: { size: 0.4, mix: 0.2 } },
+      ],
+    ];
+    for (const chain of edits) h.host.setChain(chain);
+    expect(mutations(h)).toEqual(beforeMutations);
+    expect(route(h)).toEqual(beforeRoute);
+    expect(h.devices()).toEqual(instances);
+    expect(h.created).toHaveLength(5);
+    instances.forEach((instance, index) => {
+      expect(instance.paramPushes).toBe(2);
+      expect(instance.lastParams).toEqual(edits[1]![index]!.params);
+    });
+  });
+
+  it("detects in-place parameter and bypass mutations, including an unchanged reference", () => {
+    const mutable = filter() as {
+      -readonly [K in keyof FxDevice]: FxDevice[K];
+    };
+    const h = harness([mutable]);
+    const instance = h.devices()[0]!;
+    const initial = mutations(h);
+    (mutable.params as { cutoffHz: number }).cutoffHz = 3200;
+    h.host.setChain([mutable]);
+    expect(instance.paramPushes).toBe(1);
+    expect(instance.lastParams).toEqual({ cutoffHz: 3200, q: 1 });
+    expect(mutations(h)).toEqual(initial);
+    h.host.setChain([mutable]);
+    expect(instance.paramPushes).toBe(1);
+    expect(mutations(h)).toEqual(initial);
+    mutable.bypassed = true;
+    h.host.setChain([mutable]);
+    expect(h.ramp.node.connectedTo).toEqual([h.sink]);
+    expect(instance.disposed).toBe(false);
+    mutable.bypassed = false;
+    h.host.setChain([mutable]);
+    expect(h.ramp.node.connectedTo).toEqual([instance.inNode]);
+  });
+
+  it("relinks only for bypass and keeps exactly one route without a dry parallel edge", () => {
+    const h = harness([filter(), delay(), reverb()]);
+    const [f, d, r] = h.devices();
+    const before = mutations(h);
+    h.host.setChain([filter(true), delay(), reverb()]);
+    expect(mutations(h)).toEqual({
+      connects: before.connects + 3,
+      disconnects: before.disconnects + 4,
+    });
+    expect(h.ramp.node.connectedTo).toEqual([d!.inNode]);
+    expect(d!.outNode.connectedTo).toEqual([r!.inNode]);
+    expect(r!.outNode.connectedTo).toEqual([h.sink]);
+    expect(f!.disposed).toBe(false);
+    const afterBypass = mutations(h);
+    h.host.setChain([
+      filter(true),
+      { ...delay(), params: { timeSteps: 8, feedback: 0.5, mix: 0.7 } },
+      reverb(),
+    ]);
+    expect(mutations(h)).toEqual(afterBypass);
+    expect(d!.paramPushes).toBe(1);
+    h.host.setChain([filter(), delay(), reverb()]);
+    expect(h.ramp.node.connectedTo).toEqual([f!.inNode]);
+    expect(f!.outNode.connectedTo).toEqual([d!.inNode]);
+    expect(d!.outNode.connectedTo).toEqual([r!.inNode]);
+    expect(r!.outNode.connectedTo).toEqual([h.sink]);
+  });
+
+  it("rebuilds when same-type device references are reordered", () => {
+    const first = reverb();
+    const second = { ...reverb(), params: { size: 0.9, mix: 0.6 } };
+    const h = harness([first, second]);
+    const old = h.devices();
+    h.host.setChain([second, first]);
+    expect(old.every((d) => d.disposed)).toBe(true);
+    expect(h.devices()[0]).not.toBe(old[0]);
+    expect(h.created).toHaveLength(4);
+    expect(h.ramp.ramps.slice(-2).map((r) => r.value)).toEqual([0, 1]);
   });
 
   it("bypass toggles reconnect-around: instance alive, out of path", () => {
