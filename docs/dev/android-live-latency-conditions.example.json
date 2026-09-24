@@ -1,0 +1,8 @@
+{
+  "outputRoute": "phone-speaker",
+  "batteryPercent": null,
+  "thermalState": null,
+  "accessory": "none",
+  "usbDebugApproval": true,
+  "notes": "Record battery percentage and whether the phone feels cool, warm, or hot immediately before capture. Disconnect wired and Bluetooth audio accessories."
+}
