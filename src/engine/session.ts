@@ -1518,6 +1518,8 @@ export class Session {
       samples: Float32Array<ArrayBuffer>;
     }
   >();
+  /** Right-channel spectrum workspace, private to this session and never returned. */
+  private mixerSpectrumScratch: Float32Array<ArrayBuffer> | null = null;
 
   readMixerLevel(lane: LaneId | "master"): { peak: number; rms: number } {
     const source =
@@ -1561,7 +1563,13 @@ export class Session {
       return 48000;
     }
     meter.taps[0].getFloatFrequencyData(out);
-    const right = new Float32Array(out.length);
+    if (
+      !this.mixerSpectrumScratch ||
+      this.mixerSpectrumScratch.length !== out.length
+    ) {
+      this.mixerSpectrumScratch = new Float32Array(out.length);
+    }
+    const right = this.mixerSpectrumScratch;
     meter.taps[1].getFloatFrequencyData(right);
     for (let i = 0; i < out.length; i++) out[i] = Math.max(out[i], right[i]);
     return meter.taps[0].context.sampleRate;
@@ -1610,6 +1618,7 @@ export class Session {
       meter.taps.forEach((tap) => tap.disconnect());
     });
     this.mixerTaps.clear();
+    this.mixerSpectrumScratch = null;
     if (this.masterTap)
       this.masterProcessing?.output.disconnect(this.masterTap);
     this.masterTap = null;
