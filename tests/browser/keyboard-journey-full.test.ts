@@ -29,10 +29,10 @@ import { WORKSPACE_TOGGLE } from "./workspace";
  * KeyboardEvents exercise every keydown path the app installs, but they do
  * NOT carry the browser's default activation behavior — a real Enter/Space
  * on a focused <button> synthesizes a click; a real Arrow key on a focused
- * <input type=range> steps the thumb. Those default actions are platform
+ * <input type=number> steps its value. Those default actions are platform
  * guarantees for native elements, so `kbActivate()` (focus + Enter keydown +
- * click) and `kbStepSlider()` (focus + Arrow keydown + stepUp + input event)
- * replicate exactly what a real keypress does, while the keydown dispatches
+ * click) and `kbStepNumber()` (focus + Arrow keydown + stepUp + change event)
+ * reproduce the native control interaction while the keydown dispatches
  * prove the app's own handlers fire and never double-act.
  */
 
@@ -131,13 +131,13 @@ describe("DA-3 full keyboard journey (built app)", () => {
         key(el, "Enter");
         (el as HTMLElement).click();
       };
-      /** Native Arrow stepping on a range input, ×n (see header note). */
-      const kbStepSlider = (el: HTMLInputElement, times: number): void => {
+      /** Keyboard-adjust a compact numeric FX parameter, ×n. */
+      const kbStepNumber = (el: HTMLInputElement, times: number): void => {
         el.focus();
         for (let i = 0; i < times; i++) {
-          key(el, "ArrowRight");
+          key(el, "ArrowUp");
           el.stepUp();
-          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
         }
       };
       const $ = <T extends Element>(sel: string): T => {
@@ -403,21 +403,24 @@ describe("DA-3 full keyboard journey (built app)", () => {
           T.ui,
           "third fx module",
         );
-        // Param tweak: range input stepped by keyboard (5 arrow presses —
-        // the log cutoff map can round a single step to the same readout).
-        // NOTE: each param commit rebuilds the module DOM (For reference
-        // diff), so re-query the slider FRESH every press.
-        const sliderReadout = () =>
-          $<HTMLInputElement>(".fx-param-slider")
-            .closest("label")
-            ?.querySelector(".fx-param-readout")?.textContent ?? "";
-        const readoutBefore = sliderReadout();
+        // The compact filter parameter is a numeric field. Each change
+        // rebuilds its module DOM, so re-query the field for each key step.
+        const parameterValue = () =>
+          $<HTMLInputElement>(
+            '.fx-strip[data-lane="bass"] .mixer-param-value input[type="number"]',
+          ).value;
+        const valueBefore = parameterValue();
         for (let i = 0; i < 5; i++)
-          kbStepSlider($<HTMLInputElement>(".fx-param-slider"), 1);
+          kbStepNumber(
+            $<HTMLInputElement>(
+              '.fx-strip[data-lane="bass"] .mixer-param-value input[type="number"]',
+            ),
+            1,
+          );
         await poll(
-          () => sliderReadout() !== readoutBefore,
+          () => parameterValue() !== valueBefore,
           T.ui,
-          "fx param readout",
+          "fx parameter value change",
         );
 
         // --- 11. QUANTIZED SWITCH while playing ------------------------------
