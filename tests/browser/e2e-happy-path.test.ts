@@ -266,11 +266,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-sound-select").some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-sound-browse").some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -413,7 +410,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         // (c) preset change on BASS (observable in the lane header value).
         const bassSound = $('[data-help="lane.bass.sound"]');
         const presetName = () =>
-          bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
+          bassSound.querySelector<HTMLButtonElement>(".head-sound-browse")!
             .value;
         const presetBefore = presetName();
         bassSound
@@ -744,11 +741,8 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
           // SONG page, so cue labels no longer exist at boot. The drums KIT
           // readout is the stage-independent "demo loaded" signal.
           () =>
-            $$(".head-sound-select").some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            $$(".head-sound-browse").some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "restored demo cues",
@@ -757,7 +751,7 @@ describe("HW-4 e2e happy path (built app, wiped IDB, full journey)", () => {
         const bassSound2 = $('[data-help="lane.bass.sound"]');
         await poll(
           () =>
-            bassSound2.querySelector<HTMLSelectElement>(".head-sound-select")!
+            bassSound2.querySelector<HTMLButtonElement>(".head-sound-browse")!
               .value === bassPresetAfter,
           T.ui,
           "bass preset survived reload",

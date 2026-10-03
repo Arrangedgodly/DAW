@@ -16,15 +16,37 @@
       ]
     },
     "execution": {
-      "toolCount": 13,
+      "toolCount": 20,
+      "inputFormat": "legacy-json-string",
+      "beforeDocumentHash": "d841a6be956e5fc7bbd1e8e0b35e7681e98e74cae70385675279e3f33a9e9e86",
+      "beforeName": "WELCOME SONG",
       "beforeBpm": 112,
-      "edited": "{\"revision\":1,\"changed\":true,\"message\":\"Agent set tempo to 132 BPM. Undo is available.\"}"
+      "preflightIssueCount": 1,
+      "soundCount": 2,
+      "edited": {
+        "revision": 1,
+        "changed": true,
+        "message": "Agent applied the checked preview. Undo is available."
+      },
+      "failureCodes": [
+        "DESTINATION_REQUIRED",
+        "INVALID_DOCUMENT",
+        "STALE_REVISION"
+      ]
+    },
+    "restored": {
+      "documentHash": "d841a6be956e5fc7bbd1e8e0b35e7681e98e74cae70385675279e3f33a9e9e86",
+      "editTarget": "awaiting_user_choice",
+      "name": "WELCOME SONG",
+      "bpm": 112
     },
     "layout": {
       "width": 1440,
       "scrollWidth": 1440
     },
-    "errors": []
+    "errors": [],
+    "failure": null,
+    "passed": true
   },
   {
     "viewport": {
@@ -43,14 +65,36 @@
       ]
     },
     "execution": {
-      "toolCount": 13,
+      "toolCount": 20,
+      "inputFormat": "legacy-json-string",
+      "beforeDocumentHash": "d841a6be956e5fc7bbd1e8e0b35e7681e98e74cae70385675279e3f33a9e9e86",
+      "beforeName": "WELCOME SONG",
       "beforeBpm": 112,
-      "edited": "{\"revision\":1,\"changed\":true,\"message\":\"Agent set tempo to 132 BPM. Undo is available.\"}"
+      "preflightIssueCount": 1,
+      "soundCount": 2,
+      "edited": {
+        "revision": 1,
+        "changed": true,
+        "message": "Agent applied the checked preview. Undo is available."
+      },
+      "failureCodes": [
+        "DESTINATION_REQUIRED",
+        "INVALID_DOCUMENT",
+        "STALE_REVISION"
+      ]
+    },
+    "restored": {
+      "documentHash": "d841a6be956e5fc7bbd1e8e0b35e7681e98e74cae70385675279e3f33a9e9e86",
+      "editTarget": "awaiting_user_choice",
+      "name": "WELCOME SONG",
+      "bpm": 112
     },
     "layout": {
       "width": 390,
       "scrollWidth": 390
     },
-    "errors": []
+    "errors": [],
+    "failure": null,
+    "passed": true
   }
 ]

@@ -72,6 +72,43 @@ export function triangleValue(phase: number): number {
   return (2 * t) / 15 - 1;
 }
 
+/** Extended voices, codes 6..12. duty controls brightness; dt limits partials
+ * below Nyquist. This function has an allocation-free twin in the worklet. */
+export function tonalSample(
+  wave: number,
+  phase: number,
+  duty: number,
+  t: number,
+  dt: number,
+): number {
+  const angle = phase * 2 * Math.PI;
+  if (wave === 6) return Math.sin(angle);
+  if (wave === 7)
+    return (
+      (2 * phase - 1 - polyblep(phase, dt)) * duty +
+      Math.sin(angle) * (1 - duty)
+    );
+  let out = Math.sin(angle) * 0.6;
+  if (wave === 12) {
+    if (dt * 3.99 < 0.48)
+      out += duty * 0.28 * Math.sin(angle * 3.99) * Math.exp(-t * 5);
+    if (dt * 10.01 < 0.48)
+      out += duty * 0.12 * Math.sin(angle * 10.01) * Math.exp(-t * 12);
+    return out;
+  }
+  for (let h = 2; h <= 8; h++) {
+    if (dt * h >= 0.48) break;
+    let weight = 0;
+    if (wave === 8)
+      weight = (h === 2 || h === 4 || h === 8 ? 0.22 : 0.06) * duty;
+    if (wave === 9) weight = ((h % 2 ? 0.65 : 0.08) * duty) / h;
+    if (wave === 10) weight = (h === 2 ? 0.2 : h === 3 ? 0.08 : 0) * duty;
+    if (wave === 11) weight = ((0.55 * duty) / h) * (1 - Math.exp(-t * 18));
+    out += Math.sin(angle * h) * weight;
+  }
+  return out;
+}
+
 /**
  * One clock of the NES APU noise channel's 15-bit LFSR (nesdev APU_Noise).
  * Long mode taps bit 1, short mode taps bit 6. State is never 0

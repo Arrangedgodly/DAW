@@ -7,6 +7,7 @@ import {
   onDocumentReplaced,
 } from "../state/store";
 import { showInfo } from "../state/toasts";
+import { withTransportErrors } from "./errors";
 import type { AgentTool } from "./tools";
 
 export interface ModelContext {
@@ -312,20 +313,26 @@ export async function enableAgentAccess(
           return result;
         },
       };
-      await context.registerTool(wrapped, { signal: controller.signal });
+      await context.registerTool(withTransportErrors(wrapped), {
+        signal: controller.signal,
+      });
       names.push(tool.name);
       if (generation !== token) {
         stop();
         return;
       }
     }
-    await context.registerTool(destinationTool, { signal: controller.signal });
+    await context.registerTool(withTransportErrors(destinationTool), {
+      signal: controller.signal,
+    });
     names.push(destinationTool.name);
     if (generation !== token) {
       stop();
       return;
     }
-    await context.registerTool(confirmTool, { signal: controller.signal });
+    await context.registerTool(withTransportErrors(confirmTool), {
+      signal: controller.signal,
+    });
     names.push(confirmTool.name);
     if (generation !== token) {
       stop();

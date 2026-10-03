@@ -135,9 +135,7 @@ async function bootIframe(w: number, h: number) {
     () =>
       // 2026-09-11: rail-free on every stage (the chain is its own page).
       Array.from(idoc().querySelectorAll(".head-ctl-value")).some(
-        (v) =>
-          (v as HTMLSelectElement).selectedOptions?.[0]?.textContent?.trim() ===
-          "SOFT STEP",
+        (v) => v.textContent?.trim() === "SOFT STEP",
       ),
     5_000,
     "demo chain tiles",
@@ -538,7 +536,7 @@ describe("i7 N-5 phone card header law (§2.5, real built app)", () => {
             const identity = floor.querySelector(".lane-strip-row-id")!;
             const mix = floor.querySelector(".lane-strip-row-mix")!;
             expect(identity.querySelectorAll(".head-mix-btn")).toHaveLength(2);
-            expect(mix.querySelector(".head-sound-select")).not.toBeNull();
+            expect(mix.querySelector(".head-sound-browse")).not.toBeNull();
             expect(mix.querySelector(".head-range")).not.toBeNull();
             expect(mix.getBoundingClientRect().top).toBeGreaterThanOrEqual(
               identity.getBoundingClientRect().bottom,

@@ -1,3 +1,5 @@
+import { soundOptionsFor } from "../../src/components/laneMeta";
+import type { LaneId } from "../../src/document/schema";
 import { COMPOSITION_KEY, defaultComposition } from "../../src/viz/composition";
 import { WORKSPACE_TOGGLE } from "./workspace";
 /**
@@ -890,11 +892,8 @@ describe("TH-4 (a) quadrant frame budget (built app, 1440×900, all 4 lanes play
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".head-sound-select")].some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            [...doc().querySelectorAll(".head-sound-browse")].some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5000,
           "demo cues",
@@ -1358,11 +1357,8 @@ describe("TH-4 (b) drag pointermove budgets (built app, playing, pointermove sto
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".head-sound-select")].some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            [...doc().querySelectorAll(".head-sound-browse")].some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5000,
           "demo cues",
@@ -1815,11 +1811,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(doc().querySelectorAll(".head-sound-select")).some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            Array.from(doc().querySelectorAll(".head-sound-browse")).some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo chain tiles (phone boot signal)",
@@ -2026,11 +2019,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           target: string,
         ): Promise<void> => {
           const nextSel = `.lane-floor[data-lane="${lane}"] button[aria-label^="Next ${kind} for "]`;
-          const valueSel = `.lane-floor[data-lane="${lane}"] .head-sound-select option:checked`;
-          const optionCount =
-            doc().querySelector<HTMLSelectElement>(
-              `.lane-floor[data-lane="${lane}"] .head-sound-select`,
-            )?.options.length ?? 0;
+          const valueSel = `.lane-floor[data-lane="${lane}"] .head-sound-browse`;
+          const optionCount = soundOptionsFor(lane as LaneId).length;
           for (let i = 0; i <= optionCount; i++) {
             const value = doc().querySelector(valueSel);
             const next = doc().querySelector<HTMLButtonElement>(nextSel);
@@ -2464,11 +2454,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(doc().querySelectorAll(".head-sound-select")).some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            Array.from(doc().querySelectorAll(".head-sound-browse")).some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo chain tiles",
@@ -2862,11 +2849,8 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(doc().querySelectorAll(".head-sound-select")).some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            Array.from(doc().querySelectorAll(".head-sound-browse")).some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo chain tiles",
@@ -2898,7 +2882,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
           'button[aria-label="Next preset for Bass, track 2"]',
         ) as HTMLButtonElement;
         const value = $<HTMLSelectElement>(
-          '[aria-label="Bass, track 2 sound"] .head-sound-select',
+          '[aria-label="Bass, track 2 sound"] .head-sound-browse',
         );
         const intervals: number[] = [];
         const clickBlocks: number[] = [];
@@ -2914,9 +2898,7 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             last = now;
             if (!stepped) {
               const t0 = performance.now();
-              if (
-                value.selectedOptions[0]?.textContent?.trim() === "SUB DROP"
-              ) {
+              if (value.textContent?.trim() === "SUB DROP") {
                 stepped = true;
               } else {
                 next.click(); // one real stepper click per frame
@@ -2953,11 +2935,11 @@ describe("MB-5 mobile frame budget (built app, 390×844 phone stage)", () => {
             `stepperClicks=${clickBlocks.length} ` +
             `worstClickBlock=${Math.max(...clickBlocks).toFixed(2)}ms ` +
             `decodeCalls=${decodeCalls} audioFetches=${fetched.length} ` +
-            `preset=${value.selectedOptions[0]?.textContent?.trim()}`,
+            `preset=${value.textContent?.trim()}`,
         );
 
         // Budgets: the decode fired mid-playback and the frames held.
-        expect(value.selectedOptions[0]?.textContent?.trim()).toBe("SUB DROP");
+        expect(value.textContent?.trim()).toBe("SUB DROP");
         expect(fetched.length, "the lazy fetch actually fired").toBeGreaterThan(
           0,
         );
@@ -3022,11 +3004,8 @@ describe("TH-5 (a)(b) long-lane playback + virtualization (built app, 1440×900,
 
         await poll(
           () =>
-            [...doc().querySelectorAll(".head-sound-select")].some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            [...doc().querySelectorAll(".head-sound-browse")].some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5000,
           "demo cues",
@@ -3359,11 +3338,8 @@ describe("TH-5 (a′) long-lane phone window (built app, 390×844, dense 128-bar
         await poll(
           // 2026-09-11: rail-free boot readiness (the chain is its own page).
           () =>
-            Array.from(doc().querySelectorAll(".head-sound-select")).some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            Array.from(doc().querySelectorAll(".head-sound-browse")).some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5_000,
           "demo chain tiles (phone boot signal)",
@@ -3575,11 +3551,8 @@ describe("TH-5 (d) densified 1920×1080 stage frame budget (FV-1's perf half)", 
 
           await poll(
             () =>
-              [...doc().querySelectorAll(".head-sound-select")].some(
-                (v) =>
-                  (
-                    v as HTMLSelectElement
-                  ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+              [...doc().querySelectorAll(".head-sound-browse")].some(
+                (v) => v.textContent?.trim() === "SOFT STEP",
               ),
             5000,
             "demo cues",
@@ -3804,11 +3777,8 @@ describe("VZ-TH-4 viz frame budget (built app, densest standard pattern, VIZ ope
         // the first-run persistence pass).
         await poll(
           () =>
-            [...doc().querySelectorAll(".head-sound-select")].some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+            [...doc().querySelectorAll(".head-sound-browse")].some(
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           5000,
           "demo cues (boot readiness)",

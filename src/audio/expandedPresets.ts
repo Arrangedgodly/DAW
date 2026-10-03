@@ -1,4 +1,6 @@
 import type { VoicePreset } from "./presets";
+import { CURATED_PRESETS } from "./curatedPresets";
+import { ADDITIONAL_PRESETS } from "./additionalPresets";
 
 /** Locally synthesized instruments; no downloads or recorded-sample claims. */
 function sound(
@@ -27,6 +29,8 @@ function sound(
 }
 
 export const EXPANDED_PRESETS: readonly VoicePreset[] = [
+  ...ADDITIONAL_PRESETS,
+  ...CURATED_PRESETS,
   sound("preset-bells-crystal", "CRYSTAL BELL", "bell", 5, 0.5, {
     attack: 0.002,
     decay: 1.2,

@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Session } from "../src/engine/session";
 import {
   getDrumKit,
   getPreset,
   type VoiceNoteOnEvent,
+  WAVE_CODE,
 } from "../src/audio/presets";
-import { EventOutbox, type VoiceEngineHost } from "../src/audio/voiceEngine";
+import {
+  EventOutbox,
+  type VoiceEngineHost,
+  type SampleVoiceHost,
+} from "../src/audio/voiceEngine";
 import type { AudioContextLike } from "../src/audio/context";
 
 function fakeCtx(): AudioContextLike {
@@ -25,7 +30,9 @@ function fakeEngine(): never {
   } as never;
 }
 
-function auditionSession() {
+function auditionSession(
+  preload: (refs: readonly string[]) => Promise<void> = async () => {},
+) {
   const sent: VoiceNoteOnEvent[][] = [];
   const host: VoiceEngineHost = {
     outbox: new EventOutbox(4),
@@ -36,9 +43,20 @@ function auditionSession() {
     allOff: () => {},
     dispose: () => {},
   };
+  const samples: SampleVoiceHost = {
+    sendEvents: (_lane, events) => sent.push([...events]),
+    connect: () => {},
+    allOff: () => {},
+    dispose: () => {},
+    preload,
+    settled: async () => {},
+    droppedCount: () => 0,
+    stolenCount: () => 0,
+  };
   const session = new Session({
     engine: fakeEngine(),
     createVoiceEngineHost: async () => host,
+    createSampleVoiceHost: async () => samples,
     setIntervalFn: () => 0,
     clearIntervalFn: () => {},
   });
@@ -46,6 +64,44 @@ function auditionSession() {
 }
 
 describe("Session.audition", () => {
+  it("loads only the clicked sample slot, including the alternate 808 recordings", async () => {
+    const preload = vi.fn<(refs: readonly string[]) => Promise<void>>(
+      async () => {},
+    );
+    const { session, sent } = auditionSession(preload);
+    session.setLaneSound("drums", "kit-808");
+    await session.audition("drums", "snare2");
+    expect(preload).toHaveBeenCalledWith(["drums.808.snare2"]);
+    expect(sent[0][0].sample?.ref).toBe("drums.808.snare2");
+    preload.mockClear();
+    await session.audition("drums", "cowbell");
+    expect(preload).not.toHaveBeenCalled();
+    expect(sent[1][0].sample).toBeUndefined();
+  });
+
+  it("discards a stale preview when the sound changes during decoding", async () => {
+    let finish = () => {};
+    let started = () => {};
+    const loading = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const { session, sent } = auditionSession(async () => {
+      started();
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    });
+    session.setLaneSound("lead", "preset-lead-13");
+    const stale = session.audition("lead", 0);
+    await loading;
+    session.setLaneSound("lead", "preset-lead-2");
+    await session.audition("lead", 0);
+    finish();
+    await stale;
+    expect(sent).toHaveLength(1);
+    expect(sent[0][0].wave).toBe(1);
+    expect(sent[0][0].sample).toBeUndefined();
+  });
   it("pitched: triggers one voice at now+30ms with the lane preset", async () => {
     const { session, sent } = auditionSession();
     await session.audition("bass", 4);
@@ -127,6 +183,64 @@ describe("Session.audition", () => {
 });
 
 const A4_MIDI = 69;
+describe("isolated sound library previews", () => {
+  it("renders a candidate phrase without changing the lane's applied sound", async () => {
+    const { session, sent } = auditionSession();
+    session.setLaneSound("lead", "preset-lead-1");
+    await session.previewSound("lead", "preset-lead-2");
+    expect(sent[0]).toHaveLength(4);
+    expect(sent[0][3].time - sent[0][0].time).toBeCloseTo(1.2);
+    expect(sent[0][0].wave).toBe(noteWave("preset-lead-2"));
+    await session.audition("lead", 0);
+    expect(sent[1][0].wave).toBe(noteWave("preset-lead-1"));
+  });
+  it("preloads all recorded pieces used in the consistent kit rhythm", async () => {
+    const preload = vi.fn(async () => {});
+    const { session, sent } = auditionSession(preload);
+    await session.previewSound("drums", "kit-808");
+    expect(preload).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        "drums.808.kick",
+        "drums.808.snare",
+        "drums.808.hat",
+      ]),
+    );
+    expect(sent.flat().length).toBe(10);
+    expect(
+      Math.max(...sent.flat().map((e) => e.time)) -
+        Math.min(...sent.flat().map((e) => e.time)),
+    ).toBeCloseTo(1.75);
+  });
+  it("cancels a loading candidate without scheduling it or hiding load failures", async () => {
+    let finish = () => {};
+    let started = () => {};
+    const loading = new Promise<void>((r) => {
+      started = r;
+    });
+    const { session, sent } = auditionSession(async () => {
+      started();
+      await new Promise<void>((r) => {
+        finish = r;
+      });
+    });
+    const pending = session.previewSound("drums", "kit-808");
+    await loading;
+    session.stopSoundPreview();
+    finish();
+    await pending;
+    expect(sent).toHaveLength(0);
+    const failed = auditionSession(async () => {
+      throw new Error("missing recording");
+    });
+    await expect(
+      failed.session.previewSound("drums", "kit-808"),
+    ).rejects.toThrow("missing recording");
+    expect(failed.sent).toHaveLength(0);
+  });
+});
+function noteWave(id: string) {
+  return WAVE_CODE[getPreset(id)!.wave];
+}
 function midiOfFreq(freq: number): number {
   return Math.round(12 * Math.log2(freq / 440) + A4_MIDI);
 }

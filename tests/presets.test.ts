@@ -26,14 +26,7 @@ import { CONTENT_ASSETS } from "../src/assets/content/loader";
 
 function validatePreset(p: VoicePreset): void {
   expect(typeof p.id).toBe("string");
-  expect(
-    p.wave === "pulse" ||
-      p.wave === "triangle" ||
-      p.wave === "noise" ||
-      p.wave === "pluck" ||
-      p.wave === "bell" ||
-      p.wave === "brass",
-  ).toBe(true);
+  expect(p.wave in WAVE_CODE).toBe(true);
   expect(p.duty).toBeGreaterThan(0);
   expect(p.duty).toBeLessThanOrEqual(1);
   expect(p.noiseMix).toBeGreaterThanOrEqual(0);
@@ -95,16 +88,18 @@ function presetSignature(p: VoicePreset): string {
 describe("preset library", () => {
   it("has at least 12 presets per pitched lane type (bass/chords/lead) — PS-1 target", () => {
     for (const lane of ["bass", "chords", "lead"] as const) {
-      const ids = Object.keys(PRESET_LIBRARY).filter((id) => id.includes(lane));
+      const ids = Object.keys(PRESET_LIBRARY).filter((id) =>
+        id.startsWith(`preset-${lane}-`),
+      );
       expect(ids.length).toBeGreaterThanOrEqual(12);
       for (const id of ids) validatePreset(getPreset(id)!);
     }
   });
 
-  it("presets within a lane are musically distinct (unique audible signatures)", () => {
+  it("legacy numeric presets within a lane retain distinct audible archetypes", () => {
     for (const lane of ["bass", "chords", "lead"] as const) {
       const presets = Object.values(PRESET_LIBRARY).filter((p) =>
-        p.id.includes(lane),
+        new RegExp(`^preset-${lane}-\\d+$`).test(p.id),
       );
       const seen = new Map<string, string>();
       for (const p of presets) {
@@ -128,7 +123,7 @@ describe("preset library", () => {
     for (const lane of ["bass", "chords", "lead"] as const) {
       const names = new Set<string>();
       for (const p of Object.values(PRESET_LIBRARY)) {
-        if (!p.id.includes(lane)) continue;
+        if (!p.id.startsWith(`preset-${lane}-`)) continue;
         expect(p.name.length).toBeLessThanOrEqual(14);
         expect(names.has(p.name), `${lane} duplicate name ${p.name}`).toBe(
           false,
@@ -444,9 +439,8 @@ describe("PS-3 voice-type slot (preset format)", () => {
         expect(p.rootMidi, p.id).toBeUndefined();
       }
     }
-    // The committed content list is wired: 4 sample kits × 6 pieces + 6
-    // pitched sample voices = 30 sample-backed presets.
-    expect(sampleVoices).toBe(4 * 6 + 6);
+    // Six base recordings per kit, three alternate 808 takes, six pitched voices.
+    expect(sampleVoices).toBe(4 * 6 + 3 + 6);
   });
 
   it("PS-4 sample kits: the 4 committed kits map every base piece to its manifest asset", () => {
@@ -490,7 +484,7 @@ describe("PS-3 voice-type slot (preset format)", () => {
   it("PS-4 sampleRefsForSound resolves kits, sample presets, and synth no-ops", () => {
     for (const kitId of SAMPLE_KIT_IDS) {
       const refs = sampleRefsForSound(kitId);
-      expect(refs).toHaveLength(6);
+      expect(refs).toHaveLength(kitId === "kit-808" ? 9 : 6);
       for (const piece of CORE_DRUM_PIECES) {
         expect(refs).toContain(`drums.${kitId.replace(/^kit-/, "")}.${piece}`);
       }

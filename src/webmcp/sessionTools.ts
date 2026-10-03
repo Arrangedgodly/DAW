@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { AgentToolError, withToolErrors } from "./errors";
 import { getSession } from "../engine/session";
 import { docStore, undo, redo } from "../state/store";
 import { activeLane, selectLane } from "../state/selection";
@@ -19,7 +20,9 @@ export function createSessionTools(
   capture: () => void,
 ): AgentTool[] {
   const session = getSession();
-  let busy = false;
+  let exportBusy = false;
+  let commandBusy = false;
+  let transportGeneration = 0;
   const check = (signal?: AbortSignal) => {
     if (!allowed()) throw new Error("Agent access is off.");
     signal?.throwIfAborted();
@@ -47,15 +50,26 @@ export function createSessionTools(
       annotations: { readOnlyHint, consequentialHint: name === "export" },
       async execute(input, options) {
         check(options?.signal);
-        if (busy)
+        const stopOnly =
+          name === "control_session" &&
+          input !== null &&
+          typeof input === "object" &&
+          Object.keys(input).length === 1 &&
+          "playing" in input &&
+          input.playing === false;
+        const exporting = name === "export";
+        const command = !readOnlyHint && !exporting && !stopOnly;
+        if ((exporting && exportBusy) || (command && commandBusy))
           throw new Error(
             "Another session command is running. Wait for it to finish.",
           );
-        busy = true;
+        if (exporting) exportBusy = true;
+        if (command) commandBusy = true;
         try {
           return await run(input, options?.signal);
         } finally {
-          busy = false;
+          if (exporting) exportBusy = false;
+          if (command) commandBusy = false;
         }
       },
     };
@@ -110,12 +124,21 @@ export function createSessionTools(
             "Audio is locked. Ask the user to press Play once, then retry.",
           );
         capture();
+        const generation = transportGeneration;
         if (args.playing === false) {
+          transportGeneration++;
           session.transport.stop();
           session.stopAllVoices();
         }
         if (args.playing === true && !session.transport.snapshot.playing) {
           await session.togglePlay();
+          if (generation !== transportGeneration) {
+            session.transport.stop();
+            session.stopAllVoices();
+            throw new Error(
+              "Playback start cancelled by a newer stop command.",
+            );
+          }
           if (!allowed() || signal?.aborted) {
             session.transport.stop();
             session.stopAllVoices();
@@ -224,13 +247,23 @@ export function createSessionTools(
         } else {
           const { exportProjectFile } = await import("../persist/fileIO");
           check(signal);
-          result = { ok: true, filename: exportProjectFile(doc, seam) };
+          result = {
+            ok: true as const,
+            filename: exportProjectFile(doc, seam),
+          };
         }
-        check(signal);
-        return { ...result, downloadDispatched: result.ok };
+        assertDownload();
+        if (!result.ok)
+          throw new AgentToolError(
+            "EXPORT_FAILED",
+            result.message,
+            result.suggestion,
+            true,
+          );
+        return { ...result, downloadDispatched: true };
       },
     ),
-  ];
+  ].map(withToolErrors);
 }
 
 export function sessionRestorer(): (restoreDocument: () => void) => void {

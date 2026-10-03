@@ -289,6 +289,8 @@ export class Session {
     SessionOptions["createSampleVoiceHost"]
   >;
   private voiceEnginePromise: Promise<LaneVoiceRouter | null> | null = null;
+  private soundPreviewPromise: Promise<LaneVoiceRouter> | null = null;
+  private soundPreviewGeneration = 0;
   /** PS-4: the live context's native sample-voice host (lazy, retryable). */
   private sampleHostPromise: Promise<SampleVoiceHost | null> | null = null;
   /** Current sound id per lane (presetId for pitched, kitId for drums). */
@@ -1395,24 +1397,122 @@ export class Session {
     laneId: LaneId,
     degreeOrDrum: number | DrumPiece,
   ): Promise<void> {
+    const sound = this.laneSounds[laneId];
     await this.engine.unlock();
+    if (this.laneSounds[laneId] !== sound) return;
     const host = await this.ensureVoiceEngine();
-    if (!host) return;
+    if (!host || this.laneSounds[laneId] !== sound) return;
     // PS-4: a sample-backed audition resolves the sample host AND the
     // specific assets first (fast — selection prefetched them; a first-ever
     // selection decodes here), then stamps `when` fresh — one click both
     // selects and sounds (≤1 interaction law). Synth sounds never touch the
     // content module. Load failures surface via the selection-time prefetch
     // toast; the audition itself simply does not sound.
-    const refs = sampleRefsForSound(this.laneSounds[laneId]);
+    // Audition only the requested slot. A failed or slow unrelated recording
+    // in the same kit must not block this preview. Selection still primes the
+    // whole kit for playback through primeSoundContent.
+    const refs = [
+      ...new Set(
+        this.buildAuditionEvents(laneId, degreeOrDrum, 0).flatMap((event) =>
+          event.sample ? [event.sample.ref] : [],
+        ),
+      ),
+    ];
     if (refs.length > 0) {
       const sampleHost = await host.ensureSampleVoice().catch(() => null);
+      if (this.laneSounds[laneId] !== sound) return;
       if (sampleHost) await sampleHost.preload(refs).catch(() => undefined);
     }
+    // Selection may change while decoding. The newer selection has its own
+    // audition; never schedule it with buffers loaded for the old selection.
+    if (this.laneSounds[laneId] !== sound) return;
     const when = this.engine.getContext().currentTime + 0.03;
     const events = this.buildAuditionEvents(laneId, degreeOrDrum, when);
     if (events.length === 0) return;
     host.sendEvents(LANE_IDS.indexOf(laneId), events);
+  }
+
+  /** Isolated library audition: no lane sound, document, transport or FX changes. */
+  async previewSound(laneId: LaneId, soundId: string): Promise<void> {
+    if (
+      laneId === "drums"
+        ? !getDrumKit(soundId)
+        : !getPreset(soundId)?.pitchRange
+    )
+      throw new Error("This sound is unavailable.");
+    this.stopSoundPreview();
+    const generation = this.soundPreviewGeneration;
+    await this.engine.unlock();
+    if (generation !== this.soundPreviewGeneration) return;
+    // Initialize the production master/limiter through its normal path before
+    // connecting a dry preview. Previewing first must not bypass mixer setup.
+    await this.ensureVoiceEngine();
+    if (generation !== this.soundPreviewGeneration) return;
+    this.soundPreviewPromise ??= this.createVoiceEngineHost(
+      this.engine.getContext(),
+    )
+      .then((host) => {
+        if (!host)
+          throw new Error("Audio previews are unavailable in this browser.");
+        const router = createLaneVoiceRouter(host, () =>
+          this.createSampleVoiceHostImpl(this.engine.getContext()),
+        );
+        const master = this.ensureMaster();
+        if (master) router.connect(0, master);
+        return router;
+      })
+      .catch((error: unknown) => {
+        this.soundPreviewPromise = null;
+        throw error;
+      });
+    const host = await this.soundPreviewPromise;
+    if (generation !== this.soundPreviewGeneration) return;
+    const phrase: readonly (readonly [number, number | DrumPiece])[] =
+      laneId === "drums"
+        ? [
+            [0, "kick"],
+            [0, "hat"],
+            [0.25, "hat"],
+            [0.5, "snare"],
+            [0.5, "hat"],
+            [0.75, "shaker"],
+            [1, "kick"],
+            [1.25, "hat"],
+            [1.5, "snare"],
+            [1.75, "cowbell"],
+          ]
+        : [
+            [0, 0],
+            [0.4, 2],
+            [0.8, 4],
+            [1.2, 0],
+          ];
+    const build = (when: number) =>
+      phrase.flatMap(([offset, degree]) =>
+        this.buildAuditionEvents(laneId, degree, when + offset, soundId),
+      );
+    const refs = [
+      ...new Set(
+        build(0).flatMap((event) => (event.sample ? [event.sample.ref] : [])),
+      ),
+    ];
+    if (refs.length) {
+      const sample = await host.ensureSampleVoice();
+      if (!sample)
+        throw new Error(
+          "The recording could not be loaded. Try previewing again.",
+        );
+      await sample.preload(refs);
+    }
+    if (generation !== this.soundPreviewGeneration) return;
+    host.sendEvents(0, build(this.engine.getContext().currentTime + 0.03));
+  }
+
+  stopSoundPreview(): void {
+    this.soundPreviewGeneration++;
+    void this.soundPreviewPromise
+      ?.then((host) => host.allOff())
+      .catch(() => {});
   }
 
   /** Stop everything the voice engines are sounding (transport stop). */
@@ -1424,9 +1524,12 @@ export class Session {
     laneId: LaneId,
     degreeOrDrum: number | DrumPiece,
     when: number,
+    previewSoundId?: string,
   ) {
     if (laneId === "drums") {
-      const kit = this.resolveDrumKit();
+      const kit =
+        (previewSoundId ? getDrumKit(previewSoundId) : undefined) ??
+        this.resolveDrumKit();
       const pieceName =
         typeof degreeOrDrum === "string" &&
         (DRUM_PIECES as readonly string[]).includes(degreeOrDrum)
@@ -1444,7 +1547,9 @@ export class Session {
         }),
       ];
     }
-    const preset = this.resolvePitchedPreset(laneId);
+    const preset =
+      (previewSoundId ? getPreset(previewSoundId) : undefined) ??
+      this.resolvePitchedPreset(laneId);
     const degree = typeof degreeOrDrum === "number" ? degreeOrDrum : 0;
     // Lane's effective scale when connected; the project default (C minor)
     // before the engineBridge pushes the document's scale.
@@ -1463,7 +1568,7 @@ export class Session {
           127,
           Math.max(0, degreeToMidi(scale, degree + offset, octaveBase)),
         ),
-        holdSeconds: 0.25,
+        holdSeconds: previewSoundId ? (degree === 0 ? 0.6 : 0.3) : 0.25,
         seedSalt: degree + offset,
       }),
     );
@@ -1734,6 +1839,10 @@ export class Session {
    */
   setLaneChain(laneId: LaneId, devices: readonly FxDevice[]): void {
     const index = LANE_IDS.indexOf(laneId);
+    // The bridge synchronizes every lane after a sound or mix edit. Effects
+    // are immutable document values: the same array means no FX edit, so keep
+    // the live graph wired instead of disconnecting/reconnecting its edges.
+    if (this.laneChains[index] === devices) return;
     this.laneChains[index] = devices;
     this.chainHosts[index]?.setChain(devices);
   }

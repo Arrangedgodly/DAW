@@ -31,7 +31,12 @@ import {
   renderProjectToBuffer,
   EXPORT_SAMPLE_RATE,
 } from "../../src/audio/render";
-import { SAMPLE_KIT_IDS, getDrumKit, getPreset } from "../../src/audio/presets";
+import {
+  DRUM_KITS,
+  SAMPLE_KIT_IDS,
+  getDrumKit,
+  getPreset,
+} from "../../src/audio/presets";
 import { timeAtStep } from "../../src/audio/time";
 import { docStore, setLaneSoundId } from "../../src/state/store";
 import { clearToasts } from "../../src/state/toasts";
@@ -271,8 +276,8 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
 
   function kitLabel(host: HTMLElement): string {
     return (
-      host.querySelector<HTMLSelectElement>(".head-sound-select")
-        ?.selectedOptions[0]?.textContent ?? ""
+      host.querySelector<HTMLButtonElement>(".head-sound-browse")
+        ?.textContent ?? ""
     );
   }
 
@@ -294,7 +299,11 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
         // Walk to the 808 sample kit (options: 10 synth + 4 sample).
         const currentKit = () =>
           docStore.getState().doc.lanes.find((l) => l.id === "drums")!.kitId;
-        for (let i = 0; i < 15 && currentKit() !== "kit-808"; i++) {
+        for (
+          let i = 0;
+          i < Object.keys(DRUM_KITS).length && currentKit() !== "kit-808";
+          i++
+        ) {
           const before = currentKit();
           nextKitButton(j.host).click();
           await waitFor(() => currentKit() !== before);
@@ -305,7 +314,7 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
         // The kit's pieces fetched (plus neighbors) — same-origin OGGs only.
         await waitFor(() => {
           const kit808 = j.oggFetches().filter((u) => /drums-808-/.test(u));
-          return new Set(kit808).size >= 6;
+          return new Set(kit808).size >= 9;
         });
         for (const url of j.oggFetches()) {
           expect(new URL(url, location.href).origin).toBe(location.origin);
@@ -314,10 +323,10 @@ describe("PS-4 sample voices — selection journey on the real stepper", () => {
         // The click's audition REALLY started a buffer source (≤1 law).
         await waitFor(() => j.starts() >= 1);
 
-        // Provenance echo recorded by the store (6 pieces, manifest echo).
+        // Provenance includes the three alternate takes as well as the base six.
         await waitFor(() => {
           const doc = docStore.getState().doc;
-          return Object.keys(doc.sampleProvenance ?? {}).length === 6;
+          return Object.keys(doc.sampleProvenance ?? {}).length === 9;
         });
 
         // Stepping BACK to a synth kit prunes provenance and adds no fetch.

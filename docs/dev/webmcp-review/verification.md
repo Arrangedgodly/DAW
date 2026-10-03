@@ -1,3 +1,7 @@
+Latest verification is recorded in [the 2026-10-03 improvement checklist](../webmcp-improvements.md).
+The current screenshots and results.json belong to that run. The report below is
+historical; its tool counts and checks describe the earlier implementation.
+
 # WebMCP verification, 2026-09-12
 
 Implemented 13 browser tools for musical project editing, transport/view control,

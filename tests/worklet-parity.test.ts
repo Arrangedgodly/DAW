@@ -15,6 +15,7 @@ let workletDsp: {
   pulseValue: (phase: number, duty: number) => number;
   pulseSample: (phase: number, duty: number, dt: number) => number;
   triangleValue: (phase: number) => number;
+  tonalSample: typeof dsp.tonalSample;
   lfsrNext: (reg: number, shortMode: boolean) => number;
   lfsrOutput: (reg: number) => number;
   adsrLevel: (
@@ -25,7 +26,11 @@ let workletDsp: {
     r: number,
     hold: number,
   ) => number;
-  karplusDamp: (len: number, sampleRate: number, decaySeconds: number) => number;
+  karplusDamp: (
+    len: number,
+    sampleRate: number,
+    decaySeconds: number,
+  ) => number;
   karplusFill: (line: Float32Array, len: number, seed: number) => void;
   karplusStep: (
     line: Float32Array,
@@ -53,6 +58,19 @@ function expectClose(a: number, b: number): void {
 }
 
 describe("worklet DSP parity with dsp.ts", () => {
+  it("extended tonal voices match at low, middle and high frequencies", () => {
+    for (let wave = 6; wave <= 12; wave++)
+      for (const dt of [0.0005, 0.01, 0.1, 0.28])
+        for (const phase of [0, 0.13, 0.5, 0.98, 13.25])
+          for (const duty of [0.08, 0.5, 0.98]) {
+            const canonical = dsp.tonalSample(wave, phase, duty, 0.25, dt);
+            expectClose(
+              workletDsp.tonalSample(wave, phase, duty, 0.25, dt),
+              canonical,
+            );
+            expect(Number.isFinite(canonical)).toBe(true);
+          }
+  });
   it("midiToFreq", () => {
     for (const m of [0, 33, 60, 69, 81, 96, 127]) {
       expectClose(workletDsp.midiToFreq(m), dsp.midiToFreq(m));
@@ -154,7 +172,8 @@ describe("worklet DSP parity with dsp.ts", () => {
         dsp.karplusFill(a, len, seed);
         workletDsp.karplusFill(b, len, seed);
         for (let i = 0; i < len; i++) {
-          if (a[i] !== b[i]) throw new Error(`fill divergence seed/len ${seed}/${len} at ${i}`);
+          if (a[i] !== b[i])
+            throw new Error(`fill divergence seed/len ${seed}/${len} at ${i}`);
         }
       }
     }
@@ -182,7 +201,8 @@ describe("worklet DSP parity with dsp.ts", () => {
         pb = pb + 1 === len ? 0 : pb + 1;
       }
       for (let i = 0; i < len; i++) {
-        if (a[i] !== b[i]) throw new Error(`line divergence len ${len} at ${i}`);
+        if (a[i] !== b[i])
+          throw new Error(`line divergence len ${len} at ${i}`);
       }
     }
   });

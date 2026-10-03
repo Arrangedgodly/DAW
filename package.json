@@ -18,8 +18,10 @@
     "test:browser": "vitest run --project browser",
     "test:all": "vitest run",
     "fuzz": "node scripts/fuzz.mjs",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=bitbounce --branch=main",
-    "dev:prototype": "vite --host 127.0.0.1 --port 5193 --open /?variant=A"
+    "deploy": "npm run build && wrangler deploy --config wrangler.jsonc --keep-vars",
+    "dev:prototype": "vite --host 127.0.0.1 --port 5193 --open /?variant=A",
+    "test:webmcp-native": "vitest run --config vite.webmcp.config.ts",
+    "deploy:pages": "npm run build && wrangler pages deploy dist --project-name=bitbounce --branch=main"
   },
   "dependencies": {
     "idb": "^8.0.3",

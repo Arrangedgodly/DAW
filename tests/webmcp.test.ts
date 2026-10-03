@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentTools } from "../src/webmcp/tools";
 import {
   createFreshProjectDocument,
@@ -27,6 +27,267 @@ beforeEach(() => {
 afterEach(() => group.dispose());
 
 describe("WebMCP musical editing", () => {
+  it("expires checked drafts and evicts old previews without modifying the project", async () => {
+    const before = read();
+    const first = (await call("preview_project", {
+      revision: 0,
+      document: { ...before, name: "First" },
+    })) as { previewId: string };
+    for (let i = 0; i < 8; i++)
+      await call("preview_project", {
+        revision: 0,
+        document: { ...before, name: `Draft ${i}` },
+      });
+    await expect(
+      call("apply_preview", { revision: 0, previewId: first.previewId }),
+    ).rejects.toMatchObject({ code: "PREVIEW_EXPIRED" });
+    const last = (await call("preview_project", {
+      revision: 0,
+      document: { ...before, name: "Last" },
+    })) as { previewId: string };
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 300001);
+    try {
+      await expect(
+        call("apply_preview", { revision: 0, previewId: last.previewId }),
+      ).rejects.toMatchObject({ code: "PREVIEW_EXPIRED" });
+      expect(read()).toBe(before);
+      expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it("returns stable error codes and recovery in the transported message", async () => {
+    await expect(
+      call("set_tempo", { revision: 0, bpm: 500 }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      retryable: false,
+      message: expect.stringContaining("[INVALID_INPUT]"),
+    });
+    setTransport({ bpm: 150 });
+    await expect(
+      call("set_tempo", { revision: 0, bpm: 130 }),
+    ).rejects.toMatchObject({
+      code: "STALE_REVISION",
+      recovery: expect.stringContaining("get_project"),
+      message: expect.stringContaining("Recovery:"),
+    });
+    allowed = false;
+    await expect(call("get_project")).rejects.toMatchObject({
+      code: "ACCESS_REVOKED",
+    });
+  });
+  it("previews a batch without changing history, then applies exactly that draft once", async () => {
+    const before = read();
+    const preview = (await call("preview_project", {
+      revision: 0,
+      operations: [
+        {
+          action: "rename_pattern",
+          lane: "bass",
+          patternId: before.patterns.bass[0].id,
+          name: "Outro",
+        },
+      ],
+    })) as { previewId: string };
+    expect(preview).toMatchObject({
+      revision: 0,
+      affectedLanes: ["bass"],
+      changes: [
+        expect.objectContaining({
+          path: `patterns.bass.${before.patterns.bass[0].id}.name`,
+          before: "A",
+          after: "Outro",
+        }),
+      ],
+    });
+    expect(read()).toBe(before);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    await call("apply_preview", { revision: 0, previewId: preview.previewId });
+    expect(read().patterns.bass[0].name).toBe("Outro");
+    expect(docStore.temporal.getState().pastStates).toHaveLength(1);
+    await expect(
+      call("apply_preview", { revision: 1, previewId: preview.previewId }),
+    ).rejects.toThrow(/missing/);
+    undo();
+    expect(read()).toBe(before);
+  });
+  it("invalidates a checked preview after a human edit even with the updated revision", async () => {
+    const preview = (await call("preview_project", {
+      revision: 0,
+      document: { ...read(), name: "Draft" },
+    })) as { previewId: string };
+    setTransport({ bpm: 144 });
+    await expect(
+      call("apply_preview", { revision: 1, previewId: preview.previewId }),
+    ).rejects.toThrow("Project changed");
+    expect(read().name).not.toBe("Draft");
+    expect(read().transport.bpm).toBe(144);
+    await expect(
+      call("preview_project", {
+        revision: 1,
+        document: read(),
+        operations: [],
+      }),
+    ).rejects.toThrow("exactly one");
+  });
+  it("duplicates, edits and arranges a pattern atomically, preserving unrelated work", async () => {
+    const before = read();
+    const original = before.patterns.bass[0].id;
+    await call("edit_project", {
+      revision: 0,
+      operations: [
+        {
+          action: "duplicate_pattern",
+          lane: "bass",
+          patternId: original,
+          newPatternId: "bass-outro",
+          name: "Outro",
+        },
+        {
+          action: "set_notes",
+          lane: "bass",
+          patternId: "bass-outro",
+          notes: [{ degree: 0, start: 0, length: 4 }],
+        },
+        {
+          action: "set_chain",
+          lane: "bass",
+          slots: [
+            { patternId: original },
+            { patternId: "bass-outro", cue: "OUTRO" },
+          ],
+        },
+        {
+          action: "set_fx_chain",
+          lane: "bass",
+          devices: [
+            { type: "drive", bypassed: false, params: { amount: 0.2 } },
+          ],
+        },
+      ],
+    });
+    expect(read().patterns.bass[1]).toMatchObject({
+      name: "Outro",
+      notes: [{ degree: 0, start: 0, length: 4 }],
+    });
+    expect(read().chainCues?.bass).toEqual([null, "OUTRO"]);
+    expect(read().patterns.drums).toEqual(before.patterns.drums);
+    expect(docStore.temporal.getState().pastStates).toHaveLength(1);
+    undo();
+    expect(read()).toBe(before);
+  });
+  it("rolls back an entire batch on a later invalid operation or final invalid draft", async () => {
+    const before = read();
+    const patternId = before.patterns.bass[0].id;
+    for (const last of [
+      { action: "delete_pattern", lane: "bass", patternId },
+      {
+        action: "set_notes",
+        lane: "bass",
+        patternId,
+        notes: [{ degree: 128, start: 0, length: 1 }],
+      },
+      { action: "set_chain", lane: "bass", slots: [{ patternId: "missing" }] },
+    ]) {
+      await expect(
+        call("edit_project", {
+          revision: 0,
+          operations: [
+            {
+              action: "rename_pattern",
+              lane: "bass",
+              patternId,
+              name: "Changed",
+            },
+            last,
+          ],
+        }),
+      ).rejects.toThrow();
+      expect(read()).toBe(before);
+      expect(group.revision()).toBe(0);
+      expect(docStore.temporal.getState().pastStates).toHaveLength(0);
+    }
+    await expect(
+      call("edit_project", { revision: 0, operations: [] }),
+    ).rejects.toThrow();
+  });
+  it("creates and resizes patterns without losing stashed notes, and deletes only unreferenced patterns", async () => {
+    await call("edit_project", {
+      revision: 0,
+      operations: [
+        {
+          action: "create_pattern",
+          lane: "bass",
+          patternId: "new",
+          name: "New",
+          bars: 2,
+        },
+        {
+          action: "set_notes",
+          lane: "bass",
+          patternId: "new",
+          notes: [{ degree: 0, start: 20, length: 1 }],
+        },
+        { action: "resize_pattern", lane: "bass", patternId: "new", bars: 1 },
+      ],
+    });
+    expect(read().patterns.bass[1]).toMatchObject({
+      notes: [],
+      overflow: [{ start: 20 }],
+    });
+    await call("edit_project", {
+      revision: 1,
+      operations: [
+        { action: "resize_pattern", lane: "bass", patternId: "new", bars: 2 },
+      ],
+    });
+    expect(read().patterns.bass[1]).toMatchObject({ notes: [{ start: 20 }] });
+    await call("edit_project", {
+      revision: 2,
+      operations: [
+        { action: "delete_pattern", lane: "bass", patternId: "new" },
+      ],
+    });
+    expect(read().patterns.bass).toHaveLength(1);
+  });
+  it("finds dark sustained pitched sounds with metadata and stable bounded pages", async () => {
+    const before = read();
+    const first = (await call("list_sounds", {
+      type: "pitched",
+      characters: ["Dark", "Sustained"],
+      limit: 2,
+    })) as {
+      presets: { id: string; characters: string[]; source: string }[];
+      nextOffset: number;
+    };
+    expect(first.presets).toHaveLength(2);
+    expect(
+      first.presets.every(
+        (s) =>
+          s.characters.includes("Dark") && s.characters.includes("Sustained"),
+      ),
+    ).toBe(true);
+    expect(first.presets[0].source).toMatch(/recorded|synthesized/);
+    const second = (await call("list_sounds", {
+      type: "pitched",
+      characters: ["Dark", "Sustained"],
+      limit: 2,
+      offset: first.nextOffset,
+    })) as { presets: { id: string }[] };
+    expect(
+      second.presets.some((s) => first.presets.some((p) => p.id === s.id)),
+    ).toBe(false);
+    expect(
+      await call("list_sounds", { query: "no-such-instrument-xyz" }),
+    ).toMatchObject({ kits: [], presets: [], nextOffset: null });
+    await expect(call("list_sounds", { limit: 101 })).rejects.toThrow();
+    await expect(
+      call("list_sounds", { characters: ["Imaginary"] }),
+    ).rejects.toThrow();
+    expect(read()).toBe(before);
+    expect(group.revision()).toBe(0);
+  });
   it.each(["Distant thunder", "01 INTRO · ice"])(
     "reports the offending cue path and limit for the rejected chat label %s",
     async (label) => {

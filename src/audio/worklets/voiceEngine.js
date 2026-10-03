@@ -111,6 +111,36 @@ var WAVE_PLUCK = 3;
 var WAVE_BELL = 4;
 var WAVE_BRASS = 5;
 
+// Twin of dsp.ts tonalSample. No arrays or allocations on the audio thread.
+function tonalSample(wave, phase, duty, t, dt) {
+  const angle = phase * 2 * Math.PI;
+  if (wave === 6) return Math.sin(angle);
+  if (wave === 7)
+    return (
+      (2 * phase - 1 - polyblep(phase, dt)) * duty +
+      Math.sin(angle) * (1 - duty)
+    );
+  let out = Math.sin(angle) * 0.6;
+  if (wave === 12) {
+    if (dt * 3.99 < 0.48)
+      out += duty * 0.28 * Math.sin(angle * 3.99) * Math.exp(-t * 5);
+    if (dt * 10.01 < 0.48)
+      out += duty * 0.12 * Math.sin(angle * 10.01) * Math.exp(-t * 12);
+    return out;
+  }
+  for (let h = 2; h <= 8; h++) {
+    if (dt * h >= 0.48) break;
+    let weight = 0;
+    if (wave === 8)
+      weight = (h === 2 || h === 4 || h === 8 ? 0.22 : 0.06) * duty;
+    if (wave === 9) weight = ((h % 2 ? 0.65 : 0.08) * duty) / h;
+    if (wave === 10) weight = (h === 2 ? 0.2 : h === 3 ? 0.08 : 0) * duty;
+    if (wave === 11) weight = ((0.55 * duty) / h) * (1 - Math.exp(-t * 18));
+    out += Math.sin(angle * h) * weight;
+  }
+  return out;
+}
+
 /**
  * Karplus–Strong delay-line budget (PS-1): covers pitches down to
  * ~10.8 Hz at 44100 Hz (the lowest reachable lane note is ~16 Hz at
@@ -256,6 +286,11 @@ function voiceSample(v, invSampleRate) {
         }
       }
       v.phase += v.freq * invSampleRate;
+    } else if (v.wave >= 6 && v.wave <= 12) {
+      osc = tonalSample(v.wave, v.phase, v.duty, v.t, v.freq * invSampleRate);
+      v.phase += v.freq * invSampleRate;
+      // Mallets have inharmonic partials and need continuous phase.
+      if (v.wave !== 12 && v.phase >= 1) v.phase -= Math.floor(v.phase);
     } else if (v.wave === WAVE_TRIANGLE) {
       osc = triangleValue(v.phase);
       v.phase += v.freq * invSampleRate;
@@ -533,6 +568,7 @@ if (typeof globalThis.__bbRegisterVoiceEngineDsp === "function") {
     pulseValue: pulseValue,
     pulseSample: pulseSample,
     triangleValue: triangleValue,
+    tonalSample: tonalSample,
     lfsrNext: lfsrNext,
     lfsrOutput: lfsrOutput,
     adsrLevel: adsrLevel,

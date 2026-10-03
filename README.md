@@ -8,7 +8,7 @@ grid, shape them with live effects, and export a loop-perfect WAV for your game
 console: a single page of panels, keys, and meters that reacts to the music it
 plays.
 
-**Play with it right now: <https://bitbounce-d2d.pages.dev/>**
+**Play with it right now: <https://bitbounce.app/>**
 
 ## Why you'd want it
 

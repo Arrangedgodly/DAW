@@ -74,6 +74,8 @@ import {
 } from "../document/schema";
 import { effectiveScale, degreeToMidi } from "../document/scales";
 import { getPreset } from "./presets";
+import { CURATED_PRESETS } from "./curatedPresets";
+import { ADDITIONAL_PRESETS } from "./additionalPresets";
 import { laneCycleSteps, resolveChainPatterns } from "./song";
 import { computeLoopSteps } from "./render";
 import { safeFileStem, type DownloadSeam } from "../persist/fileIO";
@@ -162,6 +164,32 @@ export const LANE_OCTAVE_FALLBACK: Readonly<
  * nearest GM family so a stock soundfont lands in the right ballpark.
  */
 export const PRESET_GM_PROGRAMS: Readonly<Record<string, number>> = {
+  ...Object.fromEntries(
+    [...CURATED_PRESETS, ...ADDITIONAL_PRESETS].map((p) => {
+      const family = p.id.split("-")[1];
+      const programs: Readonly<Record<string, number>> = {
+        bass: p.wave === "pluck" ? 34 : 38,
+        chords: p.wave === "bowed" ? 48 : p.wave === "organ" ? 16 : 90,
+        lead: p.wave === "flute" ? 73 : p.wave === "saw" ? 81 : 80,
+        bells: 14,
+        brass: 61,
+        fx: 103,
+        keys: 4,
+        strings: 46,
+        pads: 89,
+        organs: p.wave === "reed" ? 20 : 16,
+        woodwinds: p.wave === "flute" ? 73 : 71,
+        bowed: 48,
+        mallets: 12,
+        guitars: p.wave === "saw" ? 30 : 24,
+        synths: p.wave === "saw" ? 81 : 80,
+        textures: 99,
+        world: 106,
+        vocals: 52,
+      };
+      return [p.id, programs[family]];
+    }),
+  ),
   // GM 0-based: 16 Drawbar Organ, 34 Electric Bass (pick), 35 Fretless,
   // 38 Synth Bass 1, 39 Synth Bass 2
   "preset-bells-crystal": 14,

@@ -21,7 +21,7 @@ Pads and Chords are separate preset categories. Every pitched instrument's title
 follows its selected sound category, including the first three pitched lanes.
 Web MCP sound discovery includes categories, home octaves and sample root notes.
 
-All 14 drum kits expose 16 sounds. The original six voices stay unchanged; ten
+All 80 drum kits expose 16 sounds. The original six voices stay unchanged; ten
 additional synthesized voices provide alternate kicks, snares and hats, two more
 toms, rim, shaker, cowbell, crash and percussion. A scrollable row window with
 previous/next controls keeps the editor compact. Old six-row files load with
@@ -38,7 +38,7 @@ Touch grids have Back and Forward controls with a visible step range. Draw mode 
 
 ## Instrument library and optional tracks
 
-The preset name is a native dropdown with sound-family groups. Minus and plus remain available for stepping, and both paths preview the selected sound. All pitched tracks share 58 presets, including 16 new synthesized bell, brass, keys, plucked-string, pad and sound-effect sounds. The drum track retains its 14 kits.
+The preset name opens a sound browser with category and character filtering, search, Favorites and Recent. All pitched tracks share 836 presets in 18 categories; drums offer 80 kits in eight families. Tapping a result previews a phrase or kit rhythm without editing the track. Use sound applies the candidate as one undoable edit; closing discards it. Minus and plus apply sounds from the last chosen result set. Browser preferences persist locally outside project files and undo.
 
 Desktop opens with Instruments 1–4 and Instruments 5–8 tabs, followed by Song arrangement and Mixer. Users can add up to four independent pitched tracks, for eight tracks total. Each extra track has its own notes, preset, octave, scale override, mix and effects. The Instruments page is a second four-quadrant editor, using the same grid component and sizing as Edit notes. Each empty quadrant adds its own fixed track slot when clicked; populated quadrants select and edit in place. Phones edit one track at a time, selected from the default row and a second row of added instrument tabs in the header. Add new instrument fills up to four extra lanes. The phone workspace navigation exposes Instruments, Song and Mixer; SONG/NOTES also switches between editing and arrangement while retaining the selected track. Song arrangement includes every active track. Adding and removing tracks is undoable, and optional lane data persists in project files and autosaves. WAV export includes all active tracks; each active track’s patterns can be exported individually as MIDI. Existing four-track projects remain valid without adding empty slots to their files.
 
@@ -164,7 +164,6 @@ file contents).
 
 - Theme is a device preference stored in `bitbounce.theme.v1`, separate from
   project documents, undo and export. The shared Booth exposes the theme switch.
-
 
 ## Evidence on Hand
 

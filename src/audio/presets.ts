@@ -13,6 +13,11 @@
 import { MAX_VOICE_FREQ, midiToFreq, noteSeed } from "./dsp";
 import { EXPANDED_PRESETS } from "./expandedPresets";
 import {
+  ADDITIONAL_DRUM_KITS,
+  NEXT_DRUM_KITS,
+  DRUM_CHARACTERS,
+} from "./drumCharacters";
+import {
   type DrumPiece,
   DRUM_PIECES,
   MidiNoteSchema,
@@ -24,7 +29,19 @@ import {
 // ---------------------------------------------------------------------------
 
 export type WaveKind =
-  "pulse" | "triangle" | "noise" | "pluck" | "bell" | "brass";
+  | "pulse"
+  | "triangle"
+  | "noise"
+  | "pluck"
+  | "bell"
+  | "brass"
+  | "sine"
+  | "saw"
+  | "organ"
+  | "reed"
+  | "flute"
+  | "bowed"
+  | "mallet";
 export type NoiseMode = "long" | "short";
 
 export interface Envelope {
@@ -51,7 +68,8 @@ export interface VoicePreset {
   /**
    * Pulse duty cycle 0..1 (chiptune staples: 0.125, 0.25, 0.5). For
    * wave "pluck" it carries the Karplus–Strong string decay instead:
-   * duty × 4 seconds to −8.7 dB (triangle and noise ignore duty, as ever).
+   * duty × 4 seconds to −8.7 dB. Extended tonal voices use it for brightness
+   * or partial balance; triangle, sine and noise ignore it.
    */
   readonly duty: number;
   readonly envelope: Envelope;
@@ -119,6 +137,13 @@ export const WAVE_CODE = {
   pluck: 3,
   bell: 4,
   brass: 5,
+  sine: 6,
+  saw: 7,
+  organ: 8,
+  reed: 9,
+  flute: 10,
+  bowed: 11,
+  mallet: 12,
 } as const;
 
 export interface VoiceNoteOnEvent {
@@ -325,7 +350,21 @@ export const VoicePresetSchema = v.pipe(
   v.strictObject({
     id: v.pipe(v.string(), v.minLength(1)),
     name: v.pipe(v.string(), v.minLength(1), v.maxLength(14)),
-    wave: v.picklist(["pulse", "triangle", "noise", "pluck", "bell", "brass"]),
+    wave: v.picklist([
+      "pulse",
+      "triangle",
+      "noise",
+      "pluck",
+      "bell",
+      "brass",
+      "sine",
+      "saw",
+      "organ",
+      "reed",
+      "flute",
+      "bowed",
+      "mallet",
+    ]),
     duty: v.pipe(v.number(), v.minValue(1e-9), v.maxValue(1)),
     envelope: EnvelopeSchema,
     noiseMix: UnitInterval,
@@ -1053,20 +1092,29 @@ function sampleKit(
   return {
     id,
     name,
-    pieces: expandDrumPieces(id, seedBase, {
-      kick: samplePiece(id, "Kick", ref("kick"), levels.kick, s(1)),
-      snare: samplePiece(id, "Snare", ref("snare"), levels.snare, s(2)),
-      hat: samplePiece(id, "Hat", ref("hat"), levels.hat, s(3)),
-      openhat: samplePiece(
-        id,
-        "Open Hat",
-        ref("openhat"),
-        levels.openhat,
-        s(4),
-      ),
-      clap: samplePiece(id, "Clap", ref("clap"), levels.clap, s(5)),
-      tom: samplePiece(id, "Tom", ref("tom"), levels.tom, s(6)),
-    }),
+    pieces: {
+      ...expandDrumPieces(id, seedBase, {
+        kick: samplePiece(id, "Kick", ref("kick"), levels.kick, s(1)),
+        snare: samplePiece(id, "Snare", ref("snare"), levels.snare, s(2)),
+        hat: samplePiece(id, "Hat", ref("hat"), levels.hat, s(3)),
+        openhat: samplePiece(
+          id,
+          "Open Hat",
+          ref("openhat"),
+          levels.openhat,
+          s(4),
+        ),
+        clap: samplePiece(id, "Clap", ref("clap"), levels.clap, s(5)),
+        tom: samplePiece(id, "Tom", ref("tom"), levels.tom, s(6)),
+      }),
+      ...(contentKit === "808"
+        ? {
+            kick2: samplePiece(id, "Kick 2", ref("kick2"), 0.9, s(7)),
+            snare2: samplePiece(id, "Snare 2", ref("snare2"), 0.8, s(8)),
+            hat2: samplePiece(id, "Hat 2", ref("hat2"), 0.45, s(9)),
+          }
+        : {}),
+    },
   };
 }
 
@@ -1211,15 +1259,17 @@ function kit(
 
 type CoreDrumPiece = "kick" | "snare" | "hat" | "openhat" | "clap" | "tom";
 
-/** Extra voices share each kit's tuning and noise character. Existing voices
- * keep their IDs, samples and synthesis parameters for project compatibility. */
+/** Extra voices use the kit's explicit tuning and texture profile. The original
+ * six slots keep their IDs, samples and synthesis parameters. */
 function expandDrumPieces(
   id: string,
   seed: number,
   core: Readonly<Record<CoreDrumPiece, VoicePreset>>,
 ): Readonly<Record<DrumPiece, VoicePreset>> {
   const sampled = core.kick.voiceType === "sample";
-  const character = 0.8 + (seed % 127) / 254;
+  const profile = DRUM_CHARACTERS[id];
+  if (!profile) throw new Error(`Missing drum character for ${id}`);
+  const character = profile.pitch;
   const kickFreq = sampled ? 150 * character : core.kick.baseFreq!;
   const tomFreq = sampled ? 220 * character : core.tom.baseFreq!;
   const noiseRate = sampled ? Math.round(20 * character) : core.snare.noiseRate;
@@ -1233,9 +1283,15 @@ function expandDrumPieces(
   ) =>
     piece(id, name, freq, {
       seed: seed + ordinal,
-      wave: "triangle",
+      wave: profile.body,
+      duty: profile.bright,
       level,
-      envelope: { attack: 0.001, decay, sustain: 0, release: 0.025 },
+      envelope: {
+        attack: 0.001,
+        decay: decay * profile.length,
+        sustain: 0,
+        release: 0.025 * profile.length,
+      },
       ...options,
     });
   return {
@@ -1243,16 +1299,16 @@ function expandDrumPieces(
     kick2: drum("Kick 2", 7, kickFreq * 1.25, 0.16 * character, 0.82, {
       pitchSweep: { endRatio: 0.3, seconds: 0.055 },
       noiseMix: 0.025,
-      noiseRate: 3,
+      noiseRate: profile.grain,
     }),
     snare2: drum("Snare 2", 8, 245 * character, 0.095 * character, 0.7, {
       noiseMix: 0.8,
-      noiseRate: Math.max(2, Math.round(noiseRate * 0.65)),
+      noiseRate: Math.max(1, Math.round(profile.grain * 0.65)),
     }),
     hat2: drum("Hat 2", 9, 6500, 0.065 * character, 0.3, {
       wave: "noise",
       noiseMode: "short",
-      noiseRate: Math.max(2, core.hat.noiseRate + 3),
+      noiseRate: profile.grain + 2,
     }),
     midtom: drum("Mid Tom", 10, tomFreq * 1.35, 0.19 * character, 0.67, {
       pitchSweep: { endRatio: 0.65, seconds: 0.09 },
@@ -1261,36 +1317,36 @@ function expandDrumPieces(
       pitchSweep: { endRatio: 0.72, seconds: 0.065 },
     }),
     rim: drum("Rim", 12, 1050 * character, 0.027, 0.55, {
-      wave: "pulse",
-      duty: 0.25,
+      wave: profile.metal,
+      duty: profile.bright,
       noiseMix: 0.18,
-      noiseRate: 7,
+      noiseRate: profile.grain,
     }),
     shaker: drum("Shaker", 13, 7000, 0.085 * character, 0.3, {
       wave: "noise",
-      noiseRate: 2,
+      noiseRate: profile.grain,
       envelope: {
-        attack: 0.015,
-        decay: 0.085 * character,
+        attack: 0.015 * profile.length,
+        decay: 0.085 * profile.length,
         sustain: 0,
-        release: 0.015,
+        release: 0.015 * profile.length,
       },
     }),
     cowbell: drum("Cowbell", 14, 560 * character, 0.17, 0.46, {
-      wave: "pulse",
-      duty: 0.25,
+      wave: profile.metal,
+      duty: Math.min(1, profile.bright + 0.12),
       noiseMix: 0.08,
       noiseMode: "short",
-      noiseRate: 11,
+      noiseRate: Math.min(64, profile.grain + 7),
     }),
     crash: drum("Crash", 15, 8500, 0.65 * character, 0.37, {
       wave: "noise",
       noiseMode: "short",
-      noiseRate: 2,
+      noiseRate: Math.max(1, profile.grain - 1),
     }),
     perc: drum("Perc", 16, 430 * character, 0.12 * character, 0.56, {
-      wave: "pulse",
-      duty: 0.125,
+      wave: profile.body === "sine" ? "reed" : profile.body,
+      duty: Math.max(0.05, profile.bright - 0.05),
       pitchSweep: { endRatio: 0.42 + character * 0.2, seconds: 0.08 },
       noiseMix: 0.15,
       noiseRate: Math.max(2, Math.round(noiseRate / 2)),
@@ -1298,7 +1354,109 @@ function expandDrumPieces(
   };
 }
 
+function additionalKit(id: string, name: string, i: number): DrumKit {
+  const c = DRUM_CHARACTERS[id];
+  const base = kit(id, name, 15001 + i * 40, {
+    kick: {
+      start: 185 * c.pitch,
+      endRatio: 0.16 + (i % 7) * 0.055,
+      seconds: 0.028 + (i % 5) * 0.018,
+      decay: 0.175 * c.length,
+      level: 0.82,
+    },
+    snare: {
+      freq: 215 * c.pitch,
+      noiseMix: 0.36 + (i % 6) * 0.095,
+      noiseRate: c.grain,
+      decay: 0.115 * c.length,
+      level: 0.66,
+    },
+    hat: { rate: c.grain - 3, decay: 0.037 * c.length, level: 0.26 },
+    openhat: {
+      rate: c.grain + 3,
+      decay: 0.285 * c.length,
+      sustain: 0.06,
+      level: 0.3,
+    },
+    clap: { rate: c.grain + 11, decay: 0.078 * c.length, level: 0.52 },
+    tom: {
+      freq: 195 * c.pitch,
+      endRatio: 0.38 + (i % 5) * 0.065,
+      decay: 0.185 * c.length,
+      level: 0.62,
+    },
+  });
+  // Primary bodies vary too: round sine kicks, raspy reeds, metallic mallets
+  // and clipped pulses. Old kits never pass through this new-bank constructor.
+  return {
+    ...base,
+    pieces: {
+      ...base.pieces,
+      kick: { ...base.pieces.kick, wave: c.body, duty: c.bright },
+      snare: {
+        ...base.pieces.snare,
+        wave: c.body,
+        duty: Math.min(1, c.bright + 0.08),
+      },
+      tom: { ...base.pieces.tom, wave: c.body, duty: c.bright },
+    },
+  };
+}
+
 export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
+  ...Object.fromEntries(
+    [
+      ["kit-electro", "ELECTRO GRID"],
+      ["kit-deep", "DEEP SUB ROOM"],
+      ["kit-industrial", "FACTORY FLOOR"],
+      ["kit-wood", "WOOD & SKIN"],
+      ["kit-glass", "GLASS MACHINE"],
+      ["kit-minimal", "MINIMAL CLICKS"],
+    ].map(([id, name], i) => {
+      const c = DRUM_CHARACTERS[id];
+      return [
+        id,
+        kit(id, name, 7201 + i * 30, {
+          kick: {
+            start: 170 * c.pitch,
+            endRatio: 0.2 + i * 0.045,
+            seconds: 0.035 + i * 0.013,
+            decay: 0.2 * c.length,
+            level: 0.85,
+          },
+          snare: {
+            freq: 190 * c.pitch,
+            noiseMix: 0.4 + i * 0.08,
+            noiseRate: c.grain,
+            decay: 0.13 * c.length,
+            level: 0.68,
+          },
+          hat: {
+            rate: Math.max(1, c.grain - 2),
+            decay: 0.045 * c.length,
+            level: 0.28,
+          },
+          openhat: {
+            rate: c.grain + 1,
+            decay: 0.25 * c.length,
+            sustain: 0.08,
+            level: 0.28,
+          },
+          clap: {
+            rate: Math.min(64, c.grain + 9),
+            decay: 0.09 * c.length,
+            level: 0.55,
+          },
+          tom: {
+            freq: 180 * c.pitch,
+            endRatio: 0.45 + i * 0.04,
+            decay: 0.22 * c.length,
+            level: 0.65,
+          },
+        }),
+      ];
+    }),
+  ),
   "kit-default": kit("kit-default", "8-BIT ROOM", 5000, {
     kick: {
       start: 160,
@@ -1481,9 +1639,8 @@ export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
     tom: { freq: 190, endRatio: 0.35, decay: 0.3, level: 0.68 },
   }),
   // --- PS-4: committed sample kits (RES-10 content — 4 recorded kits) --------
-  // Refs are the CONTENT_ASSETS ids (kit base pieces; the 808 flagship's
-  // kick2/snare2/hat2 extras stay committed content for future curation
-  // under docs/dev/content.md's checklist — wiring more kits is a PX call).
+  // Refs are CONTENT_ASSETS ids. The 808 kit includes the committed alternate
+  // kick2/snare2/hat2 recordings; its remaining extra slots are synthesized.
   "kit-808": sampleKit("kit-808", "808 CLASSIC", "808", 7001, {
     // The flagship: long recorded booms and snares with real air around them.
     kick: 1,
@@ -1520,6 +1677,18 @@ export const DRUM_KITS: Readonly<Record<string, DrumKit>> = {
     clap: 0.85,
     tom: 0.85,
   }),
+  ...Object.fromEntries(
+    ADDITIONAL_DRUM_KITS.map(([id, name], i) => [
+      id,
+      additionalKit(id, name, i),
+    ]),
+  ),
+  ...Object.fromEntries(
+    NEXT_DRUM_KITS.map(([id, name], i) => [
+      id,
+      additionalKit(id, name, i + ADDITIONAL_DRUM_KITS.length),
+    ]),
+  ),
 };
 
 /** The committed sample kits (PS-4) — stepper/coverage tests key off these. */

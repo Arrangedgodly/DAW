@@ -133,8 +133,7 @@
   width: 31px;
   height: 31px;
 }
-.app.membrane
-  :is(.booth-led, .booth-led-input, .register-window-readout) {
+.app.membrane :is(.booth-led, .booth-led-input, .register-window-readout) {
   box-shadow: none;
   border-color: transparent;
   background: transparent;
@@ -532,7 +531,7 @@
 .app.membrane:not([data-stage="phone"]) .lane-strip-row-mix .head-stepper {
   min-width: 0;
 }
-.app.membrane:not([data-stage="phone"]) .head-sound-select {
+.app.membrane:not([data-stage="phone"]) .head-sound-browse {
   width: clamp(90px, 11vw, 160px);
   min-width: 0;
 }

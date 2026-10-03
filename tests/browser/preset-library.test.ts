@@ -20,10 +20,8 @@ import {
   type VoicePreset,
 } from "../../src/audio/presets";
 import { DRUM_PIECES } from "../../src/document/schema";
+import { soundFamily } from "../../src/components/laneMeta";
 import { findNonFinite, hashChannelsHex, renderOffline } from "./helpers";
-
-/** Representative middle-of-lane MIDI note per pitched lane. */
-const LANE_MIDI = { bass: 40, chords: 55, lead: 67 } as const;
 
 function renderDuration(p: VoicePreset): number {
   const { attack, decay, release } = p.envelope;
@@ -33,16 +31,20 @@ function renderDuration(p: VoicePreset): number {
 interface RenderStats {
   readonly peak: number;
   readonly nonFinite: number;
+  readonly fingerprint: string;
 }
 
 async function renderPresetOnce(
   p: VoicePreset,
   midi?: number,
 ): Promise<RenderStats> {
-  const ev = noteParamsFor(p, { time: 0.05, midi, holdSeconds: 0.4 });
+  const ev = {
+    ...noteParamsFor(p, { time: 0.05, midi, holdSeconds: 0.4 }),
+    seed: 123,
+  };
   const { mono } = await renderOffline({
     startTime: 0.05,
-    duration: renderDuration(p) + 0.05,
+    duration: Math.max(4, renderDuration(p) + 0.05),
     lanes: [[ev]],
   });
   let peak = 0;
@@ -50,24 +52,38 @@ async function renderPresetOnce(
     const a = Math.abs(mono[i]);
     if (a > peak) peak = a;
   }
-  return { peak, nonFinite: findNonFinite(mono) };
+  // A fixed window and fixed excitation seed catch identical voices hidden
+  // behind different labels, seed values, or render lengths.
+  return {
+    peak,
+    nonFinite: findNonFinite(mono),
+    fingerprint: await hashChannelsHex([mono.slice(0, 44100 * 4)]),
+  };
 }
 
 describe("preset library renders correctly through the real engine", () => {
   it("every pitched preset is audible, finite, and within sane peak bounds", async () => {
+    const fingerprints = new Map<string, string>();
     for (const p of Object.values(PRESET_LIBRARY)) {
-      const lane = p.id.split("-")[1] as keyof typeof LANE_MIDI;
-      const { peak, nonFinite } = await renderPresetOnce(p, LANE_MIDI[lane]);
+      const { peak, nonFinite, fingerprint } = await renderPresetOnce(p, 60);
       expect(nonFinite, `${p.id} produced NaN/Infinity`).toBe(0);
       expect(peak, `${p.id} rendered silent`).toBeGreaterThan(0.01);
       expect(peak, `${p.id} peak out of sane bounds`).toBeLessThanOrEqual(1.2);
+      const key = `${soundFamily(p.id)}:${fingerprint}`;
+      expect(
+        fingerprints.has(key),
+        `${p.id} repeats ${fingerprints.get(key)} at the same pitch and seed`,
+      ).toBe(false);
+      fingerprints.set(key, p.id);
     }
   }, 240_000);
 
   it("every drum kit piece is audible, finite, and within sane peak bounds", async () => {
+    const extraFingerprints = new Map<string, string>();
     for (const kit of Object.values(DRUM_KITS)) {
+      const kitFingerprints = new Set<string>();
       for (const pieceName of DRUM_PIECES) {
-        const { peak, nonFinite } = await renderPresetOnce(
+        const { peak, nonFinite, fingerprint } = await renderPresetOnce(
           kit.pieces[pieceName],
         );
         expect(nonFinite, `${kit.id}.${pieceName} produced NaN/Infinity`).toBe(
@@ -80,6 +96,18 @@ describe("preset library renders correctly through the real engine", () => {
           peak,
           `${kit.id}.${pieceName} peak out of sane bounds`,
         ).toBeLessThanOrEqual(1.2);
+        expect(
+          kitFingerprints.has(fingerprint),
+          `${kit.id}.${pieceName} repeats another slot`,
+        ).toBe(false);
+        kitFingerprints.add(fingerprint);
+        if (DRUM_PIECES.indexOf(pieceName) >= 6) {
+          expect(
+            extraFingerprints.has(fingerprint),
+            `${kit.id}.${pieceName} repeats ${extraFingerprints.get(fingerprint)}`,
+          ).toBe(false);
+          extraFingerprints.set(fingerprint, `${kit.id}.${pieceName}`);
+        }
       }
     }
   }, 240_000);

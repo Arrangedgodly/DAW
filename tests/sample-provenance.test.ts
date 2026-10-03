@@ -7,12 +7,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  canUndo,
-  docStore,
-  setLaneSoundId,
-  undo,
-} from "../src/state/store";
+import { canUndo, docStore, setLaneSoundId, undo } from "../src/state/store";
 import { CONTENT_ASSETS } from "../src/assets/content/loader";
 import { SAMPLE_KIT_IDS } from "../src/audio/presets";
 
@@ -34,14 +29,24 @@ beforeEach(() => {
 });
 
 describe("PS-4 sample provenance maintenance", () => {
-  it("selecting a sample kit records the manifest echo verbatim for its 6 pieces", async () => {
+  it("selecting the 808 kit records all nine recordings including alternate takes", async () => {
     setLaneSoundId("drums", "kit-808");
     await vi.waitFor(() => {
       expect(doc().sampleProvenance).toBeDefined();
     });
     const map = doc().sampleProvenance!;
     expect(Object.keys(map).sort()).toEqual(
-      ["clap", "hat", "kick", "openhat", "snare", "tom"]
+      [
+        "clap",
+        "hat",
+        "kick",
+        "openhat",
+        "snare",
+        "tom",
+        "kick2",
+        "snare2",
+        "hat2",
+      ]
         .map((piece) => `drums.808.${piece}`)
         .sort(),
     );
@@ -111,7 +116,9 @@ describe("PS-4 sample provenance maintenance", () => {
     for (const kitId of SAMPLE_KIT_IDS) {
       setLaneSoundId("drums", kitId);
       await vi.waitFor(() => {
-        expect(Object.keys(doc().sampleProvenance ?? {})).toHaveLength(6);
+        expect(Object.keys(doc().sampleProvenance ?? {})).toHaveLength(
+          kitId === "kit-808" ? 9 : 6,
+        );
       });
     }
   });

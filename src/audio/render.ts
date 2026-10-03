@@ -122,6 +122,8 @@ export interface RenderedLoop {
 export interface RenderProjectOptions {
   /** Optional analysis resource budget, checked before allocating audio buffers. */
   readonly maxDurationSeconds?: number;
+  /** Optional hard allocation bound including voice release and FX tails. */
+  readonly maxOutputDurationSeconds?: number;
   readonly arrangement?: "cycle" | "linear";
   /**
    * Injectable context factory (day-one contract: injected AudioContext
@@ -344,6 +346,15 @@ export async function renderProjectToBuffer(
   }
   const tailSamples =
     fxTailSamples + Math.ceil(voiceTailSeconds * EXPORT_SAMPLE_RATE);
+  if (
+    opts.maxOutputDurationSeconds !== undefined &&
+    (loopSamples + tailSamples) / EXPORT_SAMPLE_RATE >
+      opts.maxOutputDurationSeconds
+  ) {
+    throw new Error(
+      `Audio render exceeds ${opts.maxOutputDurationSeconds} seconds including release and FX tails.`,
+    );
+  }
 
   const createContext =
     opts.createContext ??

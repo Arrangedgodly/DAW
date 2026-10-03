@@ -1,11 +1,14 @@
 import * as v from "valibot";
+import { withToolErrors } from "./errors";
+import { createAudioTools } from "./audioTools";
+import { previewChanges } from "./preview";
+import { editProject, editOperationsJson } from "./edits";
 import { DRUM_KITS, PRESET_LIBRARY } from "../audio/presets";
-import { soundFamily } from "../components/laneMeta";
+import { listSounds, soundInputSchema } from "./sounds";
 import { MAX_BPM, MIN_BPM, STEPS_PER_BAR } from "../audio/time";
 import { ProjectValidationError } from "../document/validate";
 import {
   documentDiagnostics,
-  documentErrorMessage,
   validateAgentDocument,
 } from "./documentValidation";
 import { pitchDomain } from "../document/pitchWindow";
@@ -66,6 +69,29 @@ export function createAgentTools(
   edited: (message: string, before: ProjectDocument) => void = () => {},
 ) {
   let revision = 0;
+  const previews = new Map<
+    string,
+    {
+      before: ProjectDocument;
+      next: ProjectDocument;
+      revision: number;
+      expires: number;
+    }
+  >();
+  function savePreview(before: ProjectDocument, next: ProjectDocument) {
+    const previewId = crypto.randomUUID();
+    for (const [id, item] of previews)
+      if (item.expires <= Date.now()) previews.delete(id);
+    while (previews.size >= 8) previews.delete(previews.keys().next().value!);
+    const expires = Date.now() + 5 * 60 * 1000;
+    previews.set(previewId, { before, next, revision, expires });
+    return {
+      revision,
+      previewId,
+      expiresAt: new Date(expires).toISOString(),
+      ...previewChanges(before, next),
+    };
+  }
   const unsubscribe = docStore.subscribe((state, previous) => {
     if (state.doc !== previous.doc) revision++;
   });
@@ -123,13 +149,7 @@ export function createAgentTools(
             "Agent access is off. The user can enable it in Projects.",
           );
         options?.signal?.throwIfAborted();
-        try {
-          return structuredClone(run(input));
-        } catch (error) {
-          if (error instanceof ProjectValidationError)
-            throw new Error(documentErrorMessage(error), { cause: error });
-          throw error;
-        }
+        return structuredClone(run(input));
       },
     };
   }
@@ -167,27 +187,10 @@ export function createAgentTools(
     ),
     tool(
       "list_sounds",
-      "List built-in sound IDs and names. Drum kits apply only to drums; pitched presets apply to every other active lane.",
-      object({}),
+      "Search sounds by query, drums/pitched type, category and character tags. Results include descriptions, recording source and pitched ranges. Kits apply only to drums; pitched presets apply to other active lanes. Pagination uses offset/limit independently for kits and presets; follow nextOffset until null.",
+      soundInputSchema,
       true,
-      (input) => {
-        v.parse(emptySchema, input);
-        const names = (items: { id: string; name: string }[]) =>
-          items.map(({ id, name }) => ({ id, name }));
-        return {
-          kits: names(Object.values(DRUM_KITS)),
-          drumPieces: DRUM_PIECES,
-          presets: Object.values(PRESET_LIBRARY)
-            .filter((p) => p.pitchRange)
-            .map((p) => ({
-              id: p.id,
-              name: p.name,
-              category: soundFamily(p.id),
-              octaveBase: p.pitchRange!.octaveBase,
-              ...(p.rootMidi !== undefined ? { rootMidi: p.rootMidi } : {}),
-            })),
-        };
-      },
+      listSounds,
     ),
     tool(
       "get_pattern",
@@ -440,6 +443,90 @@ export function createAgentTools(
   ];
   tools.push(
     tool(
+      "preview_project",
+      "Preview a complete edited document OR focused operations against the latest revision, without writing or confirming a destination. Returns bounded changes, affected lanes, deleted patterns and an opaque previewId valid for five minutes. apply_preview applies exactly that checked draft; any intervening project edit invalidates it. This does not reserve a revision.",
+      {
+        ...object(
+          {
+            revision: revisionJson,
+            document: { type: "object" },
+            operations: editOperationsJson,
+          },
+          ["revision"],
+        ),
+        oneOf: [
+          { required: ["document"], not: { required: ["operations"] } },
+          { required: ["operations"], not: { required: ["document"] } },
+        ],
+      },
+      true,
+      (input) => {
+        const args = v.parse(
+          v.strictObject({
+            revision: revisionSchema,
+            document: v.optional(v.unknown()),
+            operations: v.optional(v.unknown()),
+          }),
+          input,
+        );
+        if ((args.document === undefined) === (args.operations === undefined))
+          throw new Error("Supply exactly one of document or operations.");
+        const before = current(args.revision);
+        return savePreview(
+          before,
+          args.operations !== undefined
+            ? editProject(before, args.operations)
+            : validateAgentDocument(args.document),
+        );
+      },
+    ),
+    tool(
+      "apply_preview",
+      "Apply the exact draft returned by preview_project or propose_mix in one Undo step. Requires destination confirmation, its previewId and the current revision. Previews expire after five minutes, are single-use and become invalid after any human or agent project edit.",
+      object({ revision: revisionJson, previewId: stringJson }),
+      false,
+      (input) => {
+        const args = v.parse(
+          v.strictObject({ revision: revisionSchema, previewId: idSchema }),
+          input,
+        );
+        const before = current(args.revision);
+        const preview = previews.get(args.previewId);
+        if (!preview || preview.expires <= Date.now())
+          throw new Error(
+            "Preview missing or expired. Call preview_project or propose_mix again.",
+          );
+        if (preview.before !== before || preview.revision !== revision)
+          throw new Error(
+            "Project changed. Generate a new preview before applying.",
+          );
+        previews.delete(args.previewId);
+        return write(
+          before,
+          preview.next,
+          "Agent applied the checked preview. Undo is available.",
+        );
+      },
+    ),
+    tool(
+      "edit_project",
+      "Apply 1 to 64 explicit musical operations atomically in ONE Undo step. Operations run in order against the current revision; any failure applies nothing. Create, duplicate, rename, resize or delete patterns, replace notes/drum rows, replace chain slots and lane FX. Resize stashes out-of-range events in overflow and restores them on growth. Delete requires removing chain references first. set_chain supplies all slots with optional cue and next/loop mode; chains with playback rules require apply_document. Read get_project/get_pattern first and preserve intended content.",
+      object({ revision: revisionJson, operations: editOperationsJson }),
+      false,
+      (input) => {
+        const args = v.parse(
+          v.strictObject({ revision: revisionSchema, operations: v.unknown() }),
+          input,
+        );
+        const before = current(args.revision);
+        return write(
+          before,
+          editProject(before, args.operations),
+          "Agent applied musical edit batch. Undo is available.",
+        );
+      },
+    ),
+    tool(
       "get_document",
       "Read the complete open project for structural editing with apply_document. Includes all active instruments, effects, patterns, scale settings and arrangement. Does not read other saved projects.",
       object({}),
@@ -527,5 +614,13 @@ export function createAgentTools(
       },
     ),
   );
-  return { tools, dispose: unsubscribe, revision: () => revision };
+  tools.push(...createAudioTools(allowed, () => revision, savePreview));
+  return {
+    tools: tools.map(withToolErrors),
+    dispose: () => {
+      unsubscribe();
+      previews.clear();
+    },
+    revision: () => revision,
+  };
 }

@@ -53,6 +53,16 @@ Preferences persist locally under `bitbounce.track-colors.v1`, outside project d
 
 ## Phone layout
 
+The sound name opens a native modal dialog with Membrane's existing palette and
+fonts. On phones it fills the viewport; Categories opens a two-column family
+list, while results show full names, character descriptors and favorite buttons.
+Search and Browse/Favorites/Recent remain above the scrolling results. A fixed
+footer distinguishes the preview candidate from the current track and offers
+Use sound. Desktop keeps categories in a left column beside results. Every
+browser action has at least a 44px target. Focus starts on Close, Escape cancels,
+and dismissal returns to the sound name. The backdrop uses translucent black
+to preserve contrast and make the temporarily inert editor clear.
+
 The grid navigation occupies one 44px row above the notes. Labeled chevrons move backward and forward by up to one bar, with overlap at narrow widths; a step range shows the current position. Draw and Scroll use pressed-button states and 44px minimum targets. Draw supports a 320ms hold before panning, with a static grid outline and "Drag to scroll" cue. Scroll pans immediately on touch. Keep vertical native scrolling and quick note drawing available. Show these controls on narrow layouts and devices with a coarse pointer. On those tablet and desktop layouts, reduce panel padding and register spacing to preserve the complete pitch window. Contextual help explains all navigation controls.
 
 One selected instrument occupies the phone stage. The sticky top area holds the brand, Projects, theme, instrument tabs, Options, Play and page navigation. The track-color control sits beside the instrument title.

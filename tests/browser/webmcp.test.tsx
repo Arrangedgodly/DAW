@@ -33,8 +33,31 @@ import { decode } from "../../src/document/codec";
 
 let tools: Map<string, AgentTool>;
 let context: ModelContext;
+async function execute(
+  tool: AgentTool,
+  input: unknown,
+  options?: { signal?: AbortSignal },
+) {
+  const result = await tool.execute(input, options);
+  if (
+    result &&
+    typeof result === "object" &&
+    "isError" in result &&
+    result.isError &&
+    "error" in result
+  ) {
+    const error = result.error as {
+      message: string;
+      code: string;
+      recovery: string;
+      retryable: boolean;
+    };
+    throw Object.assign(new Error(error.message), error);
+  }
+  return result;
+}
 const call = (name: string, input: unknown = {}) =>
-  tools.get(`bitbounce_${name}`)!.execute(input);
+  execute(tools.get(`bitbounce_${name}`)!, input);
 beforeEach(() => {
   loadDocument(createFreshProjectDocument());
   docStore.temporal.getState().clear();
@@ -57,6 +80,124 @@ afterEach(async () => {
 });
 
 describe("WebMCP access and recovery in a real browser", () => {
+  it("keeps inspection and stop responsive while a WAV export is pending", async () => {
+    await enableAgentAccess(context);
+    confirmCurrentAgentTarget();
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      const exporting = call("export", { format: "wav", revision: 0 });
+      const rejected = expect(exporting).rejects.toMatchObject({
+        code: "CANCELLED",
+      });
+      expect(await call("get_session")).toMatchObject({ revision: 0 });
+      expect(await call("control_session", { playing: false })).toMatchObject({
+        playing: false,
+      });
+      await call("request_edit_target", { task: "Pause this export" });
+      await rejected;
+      expect(click).not.toHaveBeenCalled();
+    } finally {
+      click.mockRestore();
+    }
+  });
+  it("measures real rendered audio and produces a separate revision-bound mix preview", async () => {
+    await enableAgentAccess(context);
+    const before = docStore.getState().doc;
+    // A known audible kick and bass note, using the real renderer and engine.
+    confirmCurrentAgentTarget();
+    await call("edit_project", {
+      revision: 0,
+      operations: [
+        {
+          action: "set_drum_rows",
+          lane: "drums",
+          patternId: before.patterns.drums[0].id,
+          drumRows: { kick: Array.from({ length: 16 }, (_, i) => i % 4 === 0) },
+        },
+        {
+          action: "set_notes",
+          lane: "bass",
+          patternId: before.patterns.bass[0].id,
+          notes: [{ degree: 0, start: 0, length: 4 }],
+        },
+      ],
+    });
+    const basis = docStore.getState().doc;
+    const history = docStore.temporal.getState().pastStates.length;
+    const measured = (await call("analyze_audio", {
+      revision: 1,
+      maxDurationSeconds: 10,
+    })) as {
+      master: { peak: number };
+      lanes: { drums: { active: boolean }; bass: { active: boolean } };
+    };
+    expect(measured.master.peak).toBeGreaterThan(0);
+    expect(measured.lanes.drums.active).toBe(true);
+    expect(measured.lanes.bass.active).toBe(true);
+    expect(measured).toMatchObject({
+      revision: 1,
+      units: { activeDb: expect.stringContaining("not LUFS") },
+    });
+    const proposed = (await call("propose_mix", {
+      revision: 1,
+      maxDurationSeconds: 10,
+    })) as { proposal: { previewId: string } };
+    expect(proposed).toMatchObject({
+      listeningRequired: true,
+      proposal: { revision: 1, previewId: expect.any(String) },
+    });
+    expect(docStore.getState().doc).toBe(basis);
+    expect(docStore.temporal.getState().pastStates.length).toBe(history);
+    await call("apply_preview", {
+      revision: 1,
+      previewId: proposed.proposal.previewId,
+    });
+    expect(docStore.temporal.getState().pastStates.length).toBe(history + 1);
+    undo();
+    expect(docStore.getState().doc).toBe(basis);
+  });
+  it("rejects overlong analysis and discards results when the project changes or execution is cancelled", async () => {
+    await enableAgentAccess(context);
+    const before = docStore.getState().doc;
+    await expect(
+      call("analyze_audio", { revision: 0, maxDurationSeconds: 1 }),
+    ).rejects.toThrow();
+    expect(docStore.getState().doc).toBe(before);
+    const controller = new AbortController();
+    const pending = execute(
+      tools.get("bitbounce_analyze_audio")!,
+      { revision: 0, maxDurationSeconds: 10 },
+      { signal: controller.signal },
+    );
+    const rejected = expect(pending).rejects.toThrow();
+    controller.abort();
+    await rejected;
+    const stale = call("propose_mix", { revision: 0, maxDurationSeconds: 10 });
+    const staleRejected = expect(stale).rejects.toThrow("Project changed");
+    setTransport({ bpm: 150 });
+    await staleRejected;
+    expect(docStore.getState().doc.transport.bpm).toBe(150);
+  });
+  it("bounds release tails before allocating an offline analysis context", async () => {
+    await enableAgentAccess(context);
+    confirmCurrentAgentTarget();
+    const before = docStore.getState().doc;
+    await call("set_pattern", {
+      revision: 0,
+      lane: "bass",
+      patternId: before.patterns.bass[0].id,
+      notes: [{ degree: 0, start: 0, length: 2048 }],
+    });
+    // The musical loop is two seconds but its note extends for 256 seconds.
+    await expect(
+      call("analyze_audio", { revision: 1, maxDurationSeconds: 10 }),
+    ).rejects.toMatchObject({
+      code: "ANALYSIS_LIMIT",
+      message: expect.stringContaining("including release"),
+    });
+  });
   it("allows document preflight before destination confirmation and preserves actionable apply errors", async () => {
     await enableAgentAccess(context);
     const before = docStore.getState().doc;
@@ -223,7 +364,7 @@ describe("WebMCP access and recovery in a real browser", () => {
     await enableAgentAccess(context);
     confirmCurrentAgentTarget();
     expect(agentStatus()).toBe("on");
-    expect(tools.size).toBe(15);
+    expect(tools.size).toBe(20);
     await call("set_tempo", { revision: 0, bpm: 130 });
     await call("set_lane", { revision: 1, lane: "bass", mix: { mute: true } });
     expect(canRestoreAgent()).toBe(true);
@@ -234,7 +375,7 @@ describe("WebMCP access and recovery in a real browser", () => {
     expect(docStore.getState().doc).toBe(before);
     expect(agentStatus()).toBe("off");
     expect(tools.size).toBe(0);
-    await expect(callback.execute({})).rejects.toThrow("off");
+    await expect(execute(callback, {})).rejects.toThrow("off");
     undo();
     expect(docStore.getState().doc).toBe(edited);
   });
@@ -316,7 +457,7 @@ describe("WebMCP access and recovery in a real browser", () => {
       await expect.poll(agentStatus).toBe("on");
       expect(agentTargetConfirmed()).toBe(false);
       await expect(
-        oldCallback.execute({
+        execute(oldCallback, {
           destination: "current",
           userConfirmed: true,
           revision: 0,

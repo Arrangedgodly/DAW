@@ -28,7 +28,6 @@
 import {
   createEffect,
   createSignal,
-  For,
   onCleanup,
   onMount,
   Show,
@@ -65,6 +64,8 @@ import { LANE_NAMES, laneDisplayName, soundOptionsFor } from "./laneMeta";
 import ScalePopover from "./ScalePopover";
 import TrackColorControl from "./TrackColorControl";
 import ClipLengthControl from "./ClipLengthControl";
+import SoundBrowser from "./SoundBrowser";
+import { rememberSound } from "../state/soundBrowser";
 
 const session = getSession();
 
@@ -83,7 +84,7 @@ function laneHelpEntries(lane: LaneId): HelpEntry[] {
     {
       id: `lane.${lane}.sound`,
       title: `${n} ${kind === "kit" ? "KIT" : "PRESET"}`,
-      text: `Choose a ${kind} by name, or use minus and plus to step through sounds. Each change previews one note. Pitched tracks share the full instrument library.`,
+      text: `Tap the ${kind} name to browse categories, filter by character, search, or open Favorites and Recent. Tap a sound to preview it; Use sound applies it to this track. Close leaves your track unchanged. Minus and plus apply the next sound in your last results.`,
     },
     {
       id: `lane.${lane}.volume`,
@@ -187,6 +188,9 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
   const [solo, setSolo] = createSignal(initial.solo);
   const [octave, setOctave] = createSignal(initial.octave);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
+  const [soundBrowserOpen, setSoundBrowserOpen] = createSignal(false);
+  const [soundResults, setSoundResults] = createSignal<readonly string[]>([]);
+  let soundButton: HTMLButtonElement | undefined;
   const [announce, setAnnounce] = createSignal("");
   const editable = () => activeLane() === props.lane;
 
@@ -225,13 +229,14 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       0,
       options().findIndex((o) => o.id === soundId()),
     );
-  const chooseSound = (id: string) => {
+  const chooseSound = (id: string, audition = true) => {
     const list = options();
     const index = list.findIndex((o) => o.id === id);
     if (index < 0 || id === soundId()) return;
     const next = list[index];
     setLaneSoundId(props.lane, next.id);
     setSoundId(next.id);
+    rememberSound(next.id);
     // PS-4 decode-on-selection law: the chosen sound's sample assets (if
     // any) load lazily NOW, together with the stepper's two neighbors, so
     // the next step in either direction is already decoded when reached.
@@ -243,13 +248,20 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       list[(index - 1 + list.length) % list.length]?.id ?? next.id,
     ]);
     // One audition of the new sound (spec: preview on change).
-    void session.audition(props.lane, props.lane === "drums" ? "kick" : 0);
+    if (audition)
+      void session.audition(props.lane, props.lane === "drums" ? "kick" : 0);
   };
 
   const stepSound = (delta: number) => {
-    const list = options();
+    const filtered = soundResults()
+      .map((id) => options().find((s) => s.id === id))
+      .filter((s) => s !== undefined);
+    const list = filtered.length ? filtered : options();
+    const index = list.findIndex((s) => s.id === soundId());
     if (list.length)
-      chooseSound(list[(soundIndex() + delta + list.length) % list.length].id);
+      chooseSound(
+        list[(Math.max(0, index) + delta + list.length) % list.length].id,
+      );
   };
 
   const stepGate = (delta: number) => {
@@ -315,22 +327,30 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
         >
           –
         </button>
-        <select
-          class="head-ctl-value head-sound-select"
-          aria-label={`${laneNames(props.lane)} ${props.lane === "drums" ? "kit" : "instrument preset"}`}
+        <button
+          ref={(el) => {
+            soundButton = el;
+          }}
+          type="button"
+          class="head-ctl-value head-sound-browse"
+          data-sound-id={soundId()}
           value={soundId()}
-          onChange={(e) => chooseSound(e.currentTarget.value)}
+          aria-label={`Browse ${laneNames(props.lane)} ${props.lane === "drums" ? "kits" : "instrument sounds"}: ${options()[soundIndex()]?.name}`}
+          aria-haspopup="dialog"
+          onClick={() => setSoundBrowserOpen(true)}
         >
-          <For each={[...new Set(options().map((o) => o.family))]}>
-            {(family) => (
-              <optgroup label={family}>
-                <For each={options().filter((o) => o.family === family)}>
-                  {(option) => <option value={option.id}>{option.name}</option>}
-                </For>
-              </optgroup>
-            )}
-          </For>
-        </select>
+          <span>{options()[soundIndex()]?.name}</span>
+          <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+            <path
+              d="m3 4.5 3 3 3-3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <button
           type="button"
           class="head-step-btn"
@@ -657,6 +677,20 @@ export default function LaneHeader(props: { lane: LaneId }): JSX.Element {
       <span class="head-sr" role="status" aria-live="polite">
         {announce()}
       </span>
+      <Show when={soundBrowserOpen()}>
+        <SoundBrowser
+          lane={props.lane}
+          currentId={soundId()}
+          onUse={(id, results) => {
+            setSoundResults(results);
+            chooseSound(id, false);
+          }}
+          onClose={() => {
+            setSoundBrowserOpen(false);
+            soundButton?.focus();
+          }}
+        />
+      </Show>
 
       {/* RC-1 (v3, E8): the strip-local OCT value/clamp region — ONE funnel
           (selection.stepLaneOctave) writes it from every input path: the

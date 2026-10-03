@@ -256,7 +256,7 @@ async function bootPhone(
     // the phone branch's).
     await poll(
       () =>
-        $$(".head-sound-select option:checked").some(
+        $$(".head-sound-browse").some(
           (v) => v.textContent?.trim() === "SOFT STEP",
         ),
       5_000,
@@ -663,7 +663,7 @@ describe.skipIf(onLinuxCI)(
           // ---- preset stepper + MIX (MUTE/SOLO/volume) ------------------------
           {
             const valueSel =
-              "[aria-label='Bass, track 2 sound'] .head-sound-select option:checked";
+              "[aria-label='Bass, track 2 sound'] .head-sound-browse";
             const before = ($(valueSel) as HTMLSelectElement).value;
             await tapStable($("[aria-label='Next preset for Bass, track 2']"), {
               effect: () => ($(valueSel) as HTMLSelectElement).value !== before,
@@ -988,7 +988,7 @@ describe.skipIf(onLinuxCI)(
               await tapStable(demoRow!, {
                 effect: () =>
                   idoc().querySelector(".stage-hint") === null &&
-                  $$(".head-sound-select option:checked").some(
+                  $$(".head-sound-browse").some(
                     (v) => v.textContent?.trim() === "SOFT STEP",
                   ),
                 what: "switching back to the demo row restores the WELCOME SONG (empty hint gone, the demo preset returns)",
@@ -1105,7 +1105,7 @@ describe.skipIf(onLinuxCI)(
           // Preset stepper + MUTE.
           {
             const valueSel =
-              "[aria-label='Bass, track 2 sound'] .head-sound-select option:checked";
+              "[aria-label='Bass, track 2 sound'] .head-sound-browse";
             const before = ($(valueSel) as HTMLSelectElement).value;
             await tapStable($("[aria-label='Next preset for Bass, track 2']"), {
               effect: () => ($(valueSel) as HTMLSelectElement).value !== before,

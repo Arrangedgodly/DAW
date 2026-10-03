@@ -165,7 +165,7 @@
   text-align: right;
 }
 
-.head-sound-select {
+.head-sound-browse {
   width: 132px;
   min-width: 0;
   height: 28px;
@@ -178,25 +178,8 @@
   text-align: left;
 }
 
-/* Native popup rows need their own opaque colors, not just the select's ink. */
-.head-sound-select option,
-.head-sound-select optgroup {
-  background-color: var(--metal-panel);
-  color: var(--color-ink);
-  font-family: var(--font-ui);
-  font-size: 14px;
-}
-
-.head-sound-select optgroup {
-  font-weight: 700;
-}
-
-.head-sound-select option {
-  font-weight: 400;
-}
-
 @media (max-width: 767px) {
-  .head-sound-select {
+  .head-sound-browse {
     height: 44px;
     width: 128px;
   }

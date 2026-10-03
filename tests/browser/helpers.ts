@@ -91,11 +91,10 @@ export async function renderOffline(
   }
 
   if (host) {
-    // Let the postMessage to each worklet's port actually deliver before
-    // rendering starts — startRendering() immediately after sendEvents()
-    // races message delivery in Chromium and yields a silent render
-    // (observed flake; the settle makes it deterministic).
-    await new Promise((r) => setTimeout(r, 25));
+    // Wait for the worklet's event-receipt acknowledgement. A fixed 25 ms
+    // sleep can expire before delivery during a large library render sweep,
+    // producing false silence even though the preset itself is healthy.
+    await host.waitUntilLoaded?.();
   }
 
   if (opts.metronome) {

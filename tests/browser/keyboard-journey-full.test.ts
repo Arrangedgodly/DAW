@@ -189,10 +189,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
           // readout is the stage-independent "demo loaded" signal.
           () =>
             $$(".head-ctl-value").some(
-              (v) =>
-                (
-                  v as HTMLSelectElement
-                ).selectedOptions?.[0]?.textContent?.trim() === "SOFT STEP",
+              (v) => v.textContent?.trim() === "SOFT STEP",
             ),
           T.ui,
           "demo cue labels in the rail",
@@ -313,7 +310,7 @@ describe("DA-3 full keyboard journey (built app)", () => {
         // --- 8. PRESET + GATE STEPPERS --------------------------------------
         const bassSound = $('[data-help="lane.bass.sound"]');
         const presetName = () =>
-          bassSound.querySelector<HTMLSelectElement>(".head-sound-select")!
+          bassSound.querySelector<HTMLButtonElement>(".head-sound-browse")!
             .value;
         const presetBefore = presetName();
         kbActivate(

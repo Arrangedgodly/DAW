@@ -48,6 +48,15 @@ export function soundFamily(id: string): string {
         keys: "Keys",
         strings: "Plucked strings",
         pads: "Pads",
+        organs: "Organs",
+        woodwinds: "Woodwinds",
+        bowed: "Bowed strings",
+        mallets: "Mallets",
+        guitars: "Guitars",
+        synths: "Synths",
+        textures: "Textures",
+        world: "World",
+        vocals: "Synth vocals",
       } as Record<string, string>
     )[family] ?? "Other"
   );

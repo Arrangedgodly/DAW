@@ -88,3 +88,26 @@ jobs:
             browser-native-results.json
             tests/browser/__screenshots__/
           retention-days: 7
+
+  # Native WebMCP has its own strict gate. API absence fails rather than skips.
+  webmcp-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:webmcp-native -- --reporter=default --reporter=json --outputFile=webmcp-native-results.json
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: webmcp-native-results
+          path: |
+            webmcp-native-results.json
+            tests/browser/__screenshots__/
+          retention-days: 7
