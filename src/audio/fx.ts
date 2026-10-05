@@ -468,6 +468,7 @@ export function createDelayDevice(
     dry.gain.setTargetAtTime(1, t.when, 0.01);
   };
   apply(device, timing);
+  let currentDevice = device;
 
   return {
     kind: "delay",
@@ -476,9 +477,10 @@ export function createDelayDevice(
     setParams(d, t = timing) {
       if (d.type !== "delay") return;
       apply(d, { ...t, when: ctx.currentTime });
+      currentDevice = d;
     },
     syncBpm(t) {
-      applyTime(device, { ...t, when: ctx.currentTime });
+      applyTime(currentDevice, { ...t, when: ctx.currentTime });
     },
     dispose() {
       for (const n of [input, dry, delay, feedback, damping, wet, output]) {
@@ -511,6 +513,7 @@ export function createReverbDevice(
   buffer.copyToChannel(ir.channels[0], 0);
   buffer.copyToChannel(ir.channels[1], 1);
   convolver.buffer = buffer;
+  let appliedSize = device.params.size;
 
   input.connect(dry);
   input.connect(convolver);
@@ -531,7 +534,7 @@ export function createReverbDevice(
     setParams(d) {
       if (d.type !== "reverb") return;
       // Size changes regenerate the (seeded, deterministic) IR.
-      if (d.params.size !== device.params.size) {
+      if (d.params.size !== appliedSize) {
         const next = renderImpulseResponse({
           seed: opts.seed,
           size: d.params.size,
@@ -545,6 +548,7 @@ export function createReverbDevice(
         buf.copyToChannel(next.channels[0], 0);
         buf.copyToChannel(next.channels[1], 1);
         convolver.buffer = buf;
+        appliedSize = d.params.size;
       }
       apply(d, ctx.currentTime);
     },

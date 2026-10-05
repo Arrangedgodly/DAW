@@ -46,6 +46,7 @@ async function renderWithChain(
   events: readonly VoiceNoteOnEvent[],
   duration: number,
   bpm = 120,
+  configure?: (chain: FxChainHost, setBpm: (bpm: number) => void) => void,
 ): Promise<Float32Array> {
   const ctx = new OfflineAudioContext(
     2,
@@ -57,6 +58,7 @@ async function renderWithChain(
   master.connect(ctx.destination);
 
   const host = await createVoiceEngine(workletContextFor(ctx), 1);
+  let currentBpm = bpm;
   const laneGain = ctx.createGain();
   laneGain.connect(master);
   const rampNode = ctx.createGain();
@@ -81,9 +83,12 @@ async function renderWithChain(
       laneSeed: 0xabcd1234,
       createBitcrusher: (c) => createBitcrusherNode(c),
     }),
-    timing: () => ({ bpm, when: ctx.currentTime }),
+    timing: () => ({ bpm: currentBpm, when: ctx.currentTime }),
   });
   if (device) chain.setChain([device]);
+  configure?.(chain, (nextBpm) => {
+    currentBpm = nextBpm;
+  });
   host.sendEvents(
     0,
     [...events].sort((a, b) => a.time - b.time),
@@ -277,6 +282,54 @@ describe("FX device graph (real offline renders)", () => {
     expect(tailWet).toBeGreaterThan(Math.max(tailDry * 20, 1e-4));
     // And the tail eventually decays away (IR ≤ 1.5 s).
     expect(rms(wet, 2.0, 2.35)).toBeLessThan(rms(wet, 0.6, 0.9) * 0.2);
+  });
+
+  it("reverb A-B-A edits render the same audio as the final A settings", async () => {
+    const events = [note(0.05, 72, 0.15)];
+    const edited = await renderWithChain(
+      { type: "reverb", bypassed: false, params: { size: 0.2, mix: 0.7 } },
+      events,
+      2.2,
+      120,
+      (chain) => {
+        chain.setChain([
+          { type: "reverb", bypassed: false, params: { size: 0.85, mix: 0.3 } },
+        ]);
+        chain.setChain([
+          { type: "reverb", bypassed: false, params: { size: 0.2, mix: 0.7 } },
+        ]);
+      },
+    );
+    const fresh = await renderWithChain(
+      { type: "reverb", bypassed: false, params: { size: 0.2, mix: 0.7 } },
+      events,
+      2.2,
+    );
+    let maxDiff = 0;
+    for (let i = 0; i < edited.length; i++)
+      maxDiff = Math.max(maxDiff, Math.abs(edited[i]! - fresh[i]!));
+    expect(maxDiff).toBeLessThan(1e-6);
+  });
+
+  it("delay renders the configured 7-step interval at 90 BPM", async () => {
+    const events = [note(0.05, 72, 0.1)];
+    const wet = await renderWithChain(
+      {
+        type: "delay",
+        bypassed: false,
+        params: { timeSteps: 7, feedback: 0.5, mix: 0.6 },
+      },
+      events,
+      3.4,
+      90,
+    );
+    const regions = activityRegions(wet, 0.005);
+    expect(regions.length).toBeGreaterThanOrEqual(3);
+    for (let i = 1; i < regions.length; i++) {
+      const gapSec = (regions[i]![0] - regions[i - 1]![0]) / SAMPLE_RATE;
+      expect(gapSec).toBeGreaterThan(1.1);
+      expect(gapSec).toBeLessThan(1.23);
+    }
   });
 
   it("full chain (drive → delay → reverb) renders non-silent, finite audio", async () => {
