@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitbounce Audio Engine Benchmark</title>
+    <style>
+      :root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background: #101719; color: #e9f0ec; }
+      body { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+      h1 { font-size: clamp(1.8rem, 5vw, 3rem); line-height: 1.05; }
+      p { color: #aebbb5; }
+      button { border: 1px solid #8be0bd; border-radius: 8px; padding: 12px 18px; background: #17372d; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: progress; }
+      pre { min-height: 180px; overflow: auto; border: 1px solid #34423e; border-radius: 8px; padding: 16px; background: #0b1011; color: #c7e8d8; white-space: pre-wrap; }
+      .scope { border-left: 3px solid #8be0bd; padding-left: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>DEVELOPMENT TOOL · NO PROJECT AUDIO IS CHANGED</p>
+      <h1>Reverb engine comparison</h1>
+      <p class="scope">This development-only tool runs fixed-gain parity probes separately from Bitbounce’s production reverb startup and settled offline throughput. It uses a deterministic stereo input and seeded impulse response. It does not play audio or change a project.</p>
+      <p>Run it in the target browser and device with other heavy work closed. It warms both renderers, checks dry impulse alignment and stereo routing, reports full-tail differences, then alternates five sequential timed passes.</p>
+      <button id="run" type="button">RUN PARITY + 5-PASS COMPARISON</button>
+      <pre id="result" aria-live="polite">Ready. The run takes a few seconds and does not play sound.</pre>
+    </main>
+    <script type="module" src="/docs/dev/audio-engine-benchmark.ts"></script>
+  </body>
+</html>
