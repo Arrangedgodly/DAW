@@ -1022,8 +1022,8 @@ describe("MB-3 phone target-size audit (m2: ≥44×44 hit boxes + focus/rotation
         );
         await auditSelector(".fx-strip .fx-mod-btn", "fx module button", rows);
         await auditSelector(
-          ".fx-strip .fx-param-slider",
-          "fx param slider",
+          ".fx-strip .mixer-dial",
+          "fx parameter dial",
           rows,
           {
             limit: 2,
